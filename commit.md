@@ -80,3 +80,30 @@ chore: configure martin tile server with dark minimalist map style
 ```
 
 *End of Module 2*
+
+---
+
+## 📅 2026-05-05 — Fix: Remove Martin Binary from Git
+
+### Summary
+Removed the 61MB Martin binary from Git tracking and replaced it with an automated download script. Keeps the repository lightweight and makes setup reproducible.
+
+### Changes
+
+| File / Change | Purpose |
+|:--|:--|
+| `tools/martin` | Removed from Git tracking (kept locally) |
+| `.gitignore` | Added `tools/martin` to prevent accidental commits |
+| `scripts/download-martin.sh` | One-command script to download Martin v1.8.2 from GitHub releases |
+| `package.json` | Added `npm run setup:martin` script |
+| `readme.md` | Updated setup instructions to use the download script |
+
+### Git Commands Used
+
+```bash
+git rm --cached tools/martin
+git add .
+git commit -m "chore: remove martin binary from git, add download script"
+```
+
+*End of cleanup*

@@ -61,7 +61,15 @@ geowatch/
 - PostgreSQL 16 + PostGIS 3
 - Martin tile server
 
-### 1. Database Setup
+### 1. Download Martin (Tile Server)
+
+```bash
+npm run setup:martin
+```
+
+This downloads the Martin binary (~35MB) to `tools/martin`. It is **not** committed to Git.
+
+### 2. Database Setup
 
 ```bash
 # Create database and user (requires postgres role)
@@ -82,7 +90,7 @@ cp src/backend/.env.example src/backend/.env.development
 # Edit values as needed
 ```
 
-### 4. Start Services
+### 5. Start Services
 
 ```bash
 # Terminal 1: Martin tile server

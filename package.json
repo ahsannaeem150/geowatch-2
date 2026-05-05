@@ -9,6 +9,7 @@
     "src/admin-web"
   ],
   "scripts": {
+    "setup:martin": "./scripts/download-martin.sh",
     "dev:backend": "npm run dev -w src/backend",
     "dev:user-web": "npm run dev -w src/user-web",
     "dev:admin-web": "npm run dev -w src/admin-web",

@@ -39,6 +39,9 @@ npm-debug.log*
 *.mbtiles
 assets/tiles/
 
+# Third-party tools (downloadable)
+tools/martin
+
 # Coverage
 coverage/
 .nyc_output/
