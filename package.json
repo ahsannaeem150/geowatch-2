@@ -1,0 +1,22 @@
+{
+  "name": "geowatch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GeoWatch — Map-based global conflict and major events visualization platform",
+  "workspaces": [
+    "src/backend",
+    "src/user-web",
+    "src/admin-web"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w src/backend",
+    "dev:user-web": "npm run dev -w src/user-web",
+    "dev:admin-web": "npm run dev -w src/admin-web",
+    "build:user-web": "npm run build -w src/user-web",
+    "build:admin-web": "npm run build -w src/admin-web"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
