@@ -42,3 +42,41 @@ chore: setup postgres, postgis, schema, env, seeds, readme, and workspace config
 ---
 
 *End of Module 1*
+
+---
+
+## 📅 2026-05-05 — Module 2: Martin Tile Server
+
+### Summary
+Downloaded Martin v1.8.2 binary, configured it to serve the existing `tiles.mbtiles` on `localhost:8080`, created a minimalist dark vector map style matching the GeoWatch design system, and built a test page to verify tile rendering.
+
+### Created Files & Folders
+
+| File / Folder | Purpose |
+|:--|:--|
+| `tools/martin` | Martin v1.8.2 Linux binary (tile server) |
+| `scripts/start-martin.sh` | Bash script to launch Martin on port 8080 |
+| `assets/map-style-dark.json` | Minimalist dark MapLibre style (deep charcoal, subtle borders, muted labels) |
+| `scripts/test-tiles.html` | Standalone test page to verify tiles render correctly |
+
+### Key Configuration
+
+- **TileJSON endpoint:** `http://localhost:8080/tiles`
+- **Tile URL pattern:** `http://localhost:8080/tiles/{z}/{x}/{y}`
+- **Style source:** Points to local Martin vector tiles using OpenMapTiles schema
+- **Design:** Background `#0f1117`, water `#14161f`, boundaries `#2a2e3b`, labels `#5a5e6b` — extremely subtle so event markers dominate the visual hierarchy
+
+### How to Verify
+
+```bash
+./scripts/start-martin.sh
+# Then open scripts/test-tiles.html in a browser
+```
+
+### Git Commit
+
+```
+chore: configure martin tile server with dark minimalist map style
+```
+
+*End of Module 2*

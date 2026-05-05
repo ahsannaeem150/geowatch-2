@@ -86,7 +86,7 @@ cp src/backend/.env.example src/backend/.env.development
 
 ```bash
 # Terminal 1: Martin tile server
-martin assets/tiles/tiles.mbtiles
+./scripts/start-martin.sh
 
 # Terminal 2: Backend API
 npm run dev:backend

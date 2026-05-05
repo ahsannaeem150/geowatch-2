@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tile Debug</title>
+  <style>body{background:#0f1117;color:#e8e9ec;font-family:monospace;padding:24px;line-height:1.6}</style>
+</head>
+<body>
+  <h2>GeoWatch Tile Debug</h2>
+  <div id="log"></div>
+
+  <script>
+    const log = (msg) => {
+      document.getElementById('log').innerHTML += msg + '<br>';
+      console.log(msg);
+    };
+
+    const urls = [
+      'http://localhost:8080/tiles',
+      'http://localhost:8080/tiles/0/0/0',
+      'http://localhost:8080/tiles/1/0/0',
+      'https://fonts.openmaptiles.org/Noto Sans Regular/0-255.pbf'
+    ];
+
+    urls.forEach(async (url) => {
+      try {
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        const firstByte = bytes[0].toString(16).padStart(2, '0');
+        const firstChar = String.fromCharCode(bytes[0]);
+        log(`✅ ${url}<br>&nbsp;&nbsp;Status: ${res.status}<br>&nbsp;&nbsp;Content-Type: ${res.headers.get('content-type') || 'none'}<br>&nbsp;&nbsp;Size: ${bytes.length}<br>&nbsp;&nbsp;First byte: 0x${firstByte} ('${firstChar}')<br>`);
+      } catch (e) {
+        log(`❌ ${url}<br>&nbsp;&nbsp;Error: ${e.message}<br>`);
+      }
+    });
+  </script>
+</body>
+</html>
