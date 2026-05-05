@@ -1,0 +1,37 @@
+import { verifyToken } from '../services/auth.service.js';
+import { findUserById } from '../services/auth.service.js';
+
+/**
+ * Verifies the Bearer JWT token and attaches the user to req.user.
+ * Returns 401 if token is missing, invalid, or expired.
+ */
+export async function authenticate(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.apiError('Authentication required', 'UNAUTHORIZED', 401);
+    }
+
+    const token = authHeader.slice(7);
+    const decoded = verifyToken(token);
+
+    const user = await findUserById(decoded.id);
+
+    if (!user) {
+      return res.apiError('User not found', 'UNAUTHORIZED', 401);
+    }
+
+    if (!user.is_active) {
+      return res.apiError('Account is deactivated', 'FORBIDDEN', 403);
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.apiError('Invalid or expired token', 'UNAUTHORIZED', 401);
+    }
+    next(err);
+  }
+}

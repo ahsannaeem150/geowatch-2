@@ -152,3 +152,59 @@ feat: bootstrap express server with middleware, rate limiting, and health check
 ```
 
 *End of Module 3*
+
+---
+
+## 📅 2026-05-05 — Module 4: Backend Authentication
+
+### Summary
+Implemented the complete JWT authentication system with bcrypt password hashing, role-based access control, Zod validation, and rate-limited auth endpoints. All five auth endpoints are tested and working.
+
+### Created Files & Folders
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/backend/src/config/env.js` | Loads `.env.development` before all other imports to prevent race conditions |
+| `src/backend/src/validators/auth.schema.js` | Zod schemas: login, register, updateAdmin |
+| `src/backend/src/services/auth.service.js` | bcrypt hashing, JWT sign/verify, all user DB queries |
+| `src/backend/src/controllers/auth.controller.js` | login, register, getMe, listAdmins, updateAdmin |
+| `src/backend/src/routes/auth.routes.js` | `/auth/*` route definitions with middleware stack |
+| `src/backend/src/middleware/auth.middleware.js` | Bearer JWT verification, attaches `req.user` |
+| `src/backend/src/middleware/role.middleware.js` | Reusable `requireRole()` guard |
+| `docs/grant-permissions.sql` | PostgreSQL permissions fix for app DB user |
+
+### Updated Files
+
+| File | Change |
+|:--|:--|
+| `server.js` | Added `import './src/config/env.js'` as first line; mounted `/api/v1/auth` routes |
+| `docs/database-schema.sql` | Added permissions grant comments for future setups |
+
+### Verified Endpoints
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `POST /auth/login` (valid super_admin) | ✅ Returns JWT + user profile |
+| 2 | `GET /auth/me` (with token) | ✅ Returns current user |
+| 3 | `GET /auth/admins` (super_admin) | ✅ Returns admin list |
+| 4 | `POST /auth/register` (super_admin) | ✅ Creates new admin user |
+| 5 | `POST /auth/login` (new admin) | ✅ Returns JWT + user profile |
+| 6 | `POST /auth/register` (admin role) | ✅ Returns 403 FORBIDDEN |
+| 7 | `GET /auth/admins` (admin role) | ✅ Returns 403 FORBIDDEN |
+| 8 | `POST /auth/login` (wrong password) | ✅ Returns 401 UNAUTHORIZED |
+| 9 | `GET /auth/me` (no token) | ✅ Returns 401 UNAUTHORIZED |
+| 10 | `POST /auth/login` (invalid email) | ✅ Returns 400 VALIDATION_ERROR |
+
+### New Test Account Created
+
+| Email | Password | Role |
+|:--|:--|:--|
+| `editor@geowatch.local` | `EditorPass123!` | `admin` |
+
+### Git Commit
+
+```
+feat: implement jwt auth, bcrypt, role guards, and /auth endpoints
+```
+
+*End of Module 4*

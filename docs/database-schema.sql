@@ -127,3 +127,12 @@ CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events
 
 CREATE TRIGGER update_zones_updated_at BEFORE UPDATE ON zones
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- PERMISSIONS (run if tables created by superuser)
+-- ============================================
+-- GRANT USAGE ON SCHEMA public TO geowatch_user;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO geowatch_user;
+-- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO geowatch_user;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO geowatch_user;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO geowatch_user;
