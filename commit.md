@@ -367,3 +367,47 @@ chore: add shared design tokens, category colors, and css variables
 ```
 
 *End of Module 6*
+
+---
+
+## 📅 2026-05-05 — Module 7: Admin Dashboard
+
+### Summary
+Built the complete admin dashboard with split-screen map + form layout, click-to-place markers, coordinate fly-to, full event CRUD, timeline/source management, role-aware UI, and a dark tactical login page.
+
+### Created Files & Folders
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/services/api.js` | Fetch wrapper with Bearer token injection |
+| `src/admin-web/src/contexts/AuthContext.jsx` | JWT auth state, auto-login on page refresh, logout |
+| `src/admin-web/src/components/Login/LoginPage.jsx` | Dark login form with cyan accent |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Admin badge, user name, Add Event, Logout |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | 60/40 split + bottom event table strip |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | MapLibre map with click-to-place marker + fly-to |
+| `src/admin-web/src/components/EventForm/EventForm.jsx` | Create/edit form: title, coords, category, severity, dates, sources |
+| `src/admin-web/src/components/EventList/EventTable.jsx` | Sortable data table with Edit / Resolve / Delete actions |
+| `src/admin-web/src/App.jsx` | React Router: `/login` and protected dashboard routes |
+
+### Key Features
+
+- **Click map → place marker:** Clicking anywhere on the map sets a cyan marker and pre-fills the lat/lng form fields.
+- **Coordinate fly-to:** Typing lat/lng into the form and clicking elsewhere flies the map to that location in 800ms.
+- **Source builder:** Dynamic source inputs inside the create form support admin notes and X/Twitter URLs (oEmbed auto-fetches on backend).
+- **Event table:** Bottom strip shows all events with category badges, severity, status, and action buttons.
+- **Role-aware:** Top bar shows "Super Admin" or "Admin" badge. Resolve/Delete buttons available per role rules.
+- **Auth guard:** Unauthenticated users are redirected to `/login`. Token persists in localStorage.
+
+### Build Verification
+
+| App | Build Result |
+|:--|:--|
+| `src/admin-web` | ✅ 48 modules, 989KB JS (MapLibre included), 68KB CSS |
+
+### Git Commit
+
+```
+feat: build admin dashboard with split-screen map, event crud, and auth
+```
+
+*End of Module 7*
