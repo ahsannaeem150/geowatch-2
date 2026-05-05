@@ -1,0 +1,77 @@
+import {
+  listEvents,
+  getEventById,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  resolveEvent,
+} from '../services/event.service.js';
+import { createEventSource } from '../services/source.service.js';
+
+export async function getEvents(req, res) {
+  const filters = {
+    date: req.query.date,
+    category: req.query.category,
+    severity: req.query.severity,
+    status: req.query.status,
+    viewport: req.query.viewport,
+  };
+
+  const events = await listEvents(filters);
+  res.apiSuccess({ events, count: events.length, date: filters.date || new Date().toISOString().slice(0, 10) });
+}
+
+export async function getEvent(req, res) {
+  const result = await getEventById(req.params.id);
+  if (!result) {
+    return res.apiError('Event not found', 'NOT_FOUND', 404);
+  }
+  res.apiSuccess(result);
+}
+
+export async function createEventController(req, res) {
+  const { sources, ...eventData } = req.body;
+  const event = await createEvent(eventData, req.user.id);
+
+  // Create sources if provided
+  if (Array.isArray(sources) && sources.length > 0) {
+    for (const src of sources) {
+      await createEventSource(
+        event.id,
+        {
+          sourceType: src.sourceType,
+          sourceUrl: src.sourceUrl,
+          description: src.description,
+          displayOrder: src.displayOrder,
+        },
+        req.user.id
+      );
+    }
+  }
+
+  res.apiSuccess({ event }, 'Event created successfully');
+}
+
+export async function updateEventController(req, res) {
+  const event = await updateEvent(req.params.id, req.body);
+  if (!event) {
+    return res.apiError('Event not found', 'NOT_FOUND', 404);
+  }
+  res.apiSuccess({ event }, 'Event updated successfully');
+}
+
+export async function deleteEventController(req, res) {
+  const result = await deleteEvent(req.params.id);
+  if (!result) {
+    return res.apiError('Event not found', 'NOT_FOUND', 404);
+  }
+  res.apiSuccess({ deleted: true });
+}
+
+export async function resolveEventController(req, res) {
+  const event = await resolveEvent(req.params.id, req.user.id);
+  if (!event) {
+    return res.apiError('Event not found', 'NOT_FOUND', 404);
+  }
+  res.apiSuccess({ event });
+}

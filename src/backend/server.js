@@ -8,6 +8,9 @@ import { errorHandler, notFoundHandler } from './src/middleware/error-handler.js
 
 import healthRoutes from './src/routes/health.routes.js';
 import authRoutes from './src/routes/auth.routes.js';
+import eventRoutes from './src/routes/event.routes.js';
+import timelineRoutes from './src/routes/timeline.routes.js';
+import sourceRoutes from './src/routes/source.routes.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -38,6 +41,9 @@ app.use(generalLimiter);
 // ─── API Routes ───
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/events', eventRoutes);
+app.use('/api/v1/events/:id/timeline', timelineRoutes);
+app.use('/api/v1/events/:id/sources', sourceRoutes);
 
 // ─── 404 Handler ───
 app.use(notFoundHandler);

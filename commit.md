@@ -208,3 +208,68 @@ feat: implement jwt auth, bcrypt, role guards, and /auth endpoints
 ```
 
 *End of Module 4*
+
+---
+
+## 📅 2026-05-05 — Module 5: Backend Events API
+
+### Summary
+Built the complete events API with PostGIS geospatial queries, date-based visibility filtering, CRUD operations, timeline updates, source embedding (with X/Twitter oEmbed auto-fetch), and role-protected admin endpoints. All endpoints tested with real HTTP requests.
+
+### Created Files & Folders
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/backend/src/validators/event.schema.js` | Zod schemas: createEvent, updateEvent, listEventsQuery |
+| `src/backend/src/validators/timeline.schema.js` | Zod schema: createTimelineUpdate |
+| `src/backend/src/validators/source.schema.js` | Zod schema: createEventSource |
+| `src/backend/src/utils/oembed.js` | Fetches X/Twitter oEmbed HTML via native `https` module |
+| `src/backend/src/services/event.service.js` | PostGIS CRUD, date/viewport filtering, geom generation |
+| `src/backend/src/services/timeline.service.js` | Timeline update creation |
+| `src/backend/src/services/source.service.js` | Source creation with auto oEmbed fetch |
+| `src/backend/src/controllers/event.controller.js` | list, getById, create, update, delete, resolve |
+| `src/backend/src/controllers/timeline.controller.js` | addTimelineUpdate |
+| `src/backend/src/controllers/source.controller.js` | addSource |
+| `src/backend/src/routes/event.routes.js` | Public GET + Admin POST/PATCH/DELETE/resolve |
+| `src/backend/src/routes/timeline.routes.js` | Admin POST /events/:id/timeline |
+| `src/backend/src/routes/source.routes.js` | Admin POST /events/:id/sources |
+
+### Updated Files
+
+| File | Change |
+|:--|:--|
+| `server.js` | Mounted `/api/v1/events`, `/api/v1/events/:id/timeline`, `/api/v1/events/:id/sources` |
+| `src/controllers/event.controller.js` | Controller now handles source creation after event insert |
+
+### Key Technical Decisions
+
+- **Date visibility logic:** `start_date <= selected_date AND (end_date IS NULL OR end_date >= selected_date)` correctly shows ongoing events across dates and hides resolved events after their end date.
+- **PostGIS on insert:** `ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)` auto-generates the `geom` column from lat/lng.
+- **Viewport filter:** Parses `minLng,minLat,maxLng,maxLat` into `ST_MakeEnvelope` for bounding-box queries.
+- **oEmbed:** Uses Node.js native `https` (zero dependencies) to call `publish.twitter.com/oembed` for X posts.
+- **DELETE protection:** Only `super_admin` can delete events; all other admin write endpoints accept both `admin` and `super_admin`.
+
+### Verified Endpoints
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `GET /events` (public, default date) | ✅ Returns active events |
+| 2 | `GET /events?category=conflict` | ✅ Filters by category |
+| 3 | `GET /events/:id` | ✅ Returns event + sources + timeline |
+| 4 | `POST /events` (admin, with source) | ✅ Creates event and source |
+| 5 | `GET /events/:id` (new event) | ✅ Verifies source attached |
+| 6 | `PATCH /events/:id` | ✅ Updates severity & description |
+| 7 | `POST /events/:id/timeline` | ✅ Adds timeline update |
+| 8 | `POST /events/:id/sources` | ✅ Adds second source |
+| 9 | `GET /events/:id` (full) | ✅ Event + 2 sources + 1 timeline |
+| 10 | `POST /events/:id/resolve` | ✅ Status → resolved, end_date = today |
+| 11 | `DELETE /events/:id` | ✅ Event deleted |
+| 12 | `POST /events` (no token) | ✅ 401 UNAUTHORIZED |
+
+### Git Commit
+
+```
+feat: build events, timeline, and sources api with postgis and oembed
+```
+
+*End of Module 5*
