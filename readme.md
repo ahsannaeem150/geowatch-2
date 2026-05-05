@@ -113,6 +113,19 @@ npm run dev:admin-web
 | Admin Dashboard | http://localhost:5174 |
 | Tile Server | http://localhost:8080 |
 
+### API Response Format
+
+All responses follow this structure:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Optional",
+  "error": null
+}
+```
+
 ---
 
 ## Default Admin Credentials

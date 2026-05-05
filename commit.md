@@ -107,3 +107,48 @@ git commit -m "chore: remove martin binary from git, add download script"
 ```
 
 *End of cleanup*
+
+---
+
+## 📅 2026-05-05 — Module 3: Backend Foundation
+
+### Summary
+Bootstrapped the Express API server with standardized middleware, database connection pooling, rate limiting, CORS, request validation wrappers, and a health check endpoint. All errors are caught and returned in the uniform API response format.
+
+### Created Files & Folders
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/backend/server.js` | Express app entry point — routes, middleware, error handling, server start |
+| `src/backend/src/config/database.js` | PostgreSQL connection pool with query logging in dev |
+| `src/backend/src/utils/api-response.js` | Standard response factory (`{ success, data, message, error }`) |
+| `src/backend/src/utils/async-handler.js` | Wraps async handlers to catch errors without try/catch |
+| `src/backend/src/middleware/response-wrapper.js` | Adds `res.apiSuccess()` and `res.apiError()` helpers |
+| `src/backend/src/middleware/error-handler.js` | Centralized error handler — Zod, JWT, Postgres, generic |
+| `src/backend/src/middleware/not-found-handler.js` | Returns shaped 404 for unmatched routes |
+| `src/backend/src/middleware/rate-limiter.js` | Three limiters: general (100/15min), auth (10/15min), admin write (50/15min) |
+| `src/backend/src/middleware/validate-request.js` | Zod schema validation middleware for body/query/params |
+| `src/backend/src/routes/health.routes.js` | `GET /api/v1/health` — sanity check endpoint |
+
+### Key Design Decisions
+
+- **No try/catch in route handlers:** `asyncHandler()` catches promise rejections and forwards them to the error middleware.
+- **Response wrapper:** Every route uses `res.apiSuccess(data)` or `res.apiError(message, code, status)` for consistency.
+- **Environment-driven config:** DB credentials, CORS origins, and rate limits all come from `.env.development`.
+- **Stateless by default:** No in-memory session state — ready for horizontal scaling later.
+
+### Verified Endpoints
+
+| Endpoint | Result |
+|:--|:--|
+| `GET /api/v1/health` | ✅ Returns `{ success: true, data: { status: "ok", timestamp } }` |
+| `GET /api/v1/nonexistent` | ✅ Returns `{ success: false, error: "NOT_FOUND" }` |
+| `POST /api/v1/health` (bad JSON) | ✅ Returns `{ success: false, error: "SERVER_ERROR" }` |
+
+### Git Commit
+
+```
+feat: bootstrap express server with middleware, rate limiting, and health check
+```
+
+*End of Module 3*
