@@ -320,3 +320,50 @@ fix: allow admins to delete events and create viewer users
 ```
 
 *End of permission fix*
+
+---
+
+## 📅 2026-05-05 — Module 6: Shared Design System
+
+### Summary
+Set up both frontend applications (user-web and admin-web) with Vite, React, path aliases, and a shared component library. Created reusable UI primitives using the dark tactical design tokens. Both apps build successfully.
+
+### Created Files & Folders
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/user-web/index.html` | HTML entry point for public website |
+| `src/user-web/vite.config.js` | Vite config with `@shared` path alias |
+| `src/user-web/src/main.jsx` | React DOM root renderer |
+| `src/user-web/src/index.css` | Global styles + scrollbar + shimmer animation |
+| `src/user-web/src/App.jsx` | Design system test page (buttons, badges, skeletons) |
+| `src/admin-web/index.html` | HTML entry point for admin dashboard |
+| `src/admin-web/vite.config.js` | Vite config with `@shared` path alias |
+| `src/admin-web/src/main.jsx` | React DOM root renderer |
+| `src/admin-web/src/index.css` | Global styles + scrollbar + shimmer animation |
+| `src/admin-web/src/App.jsx` | Design system test page (admin-themed variants) |
+| `src/shared/components/Button.jsx` | Reusable button: primary / secondary / danger / ghost |
+| `src/shared/components/Badge.jsx` | Category and status badges with correct colors |
+| `src/shared/components/Skeleton.jsx` | Shimmer loading bars and blocks |
+
+### Key Design Decisions
+
+- **Path alias `@shared`:** Both Vite configs resolve `@shared` to `src/shared/`, making imports clean and consistent across both apps.
+- **CSS custom properties:** All colors, fonts, spacing, and shadows live in `design-tokens.css` and are imported at the top of each app's `index.css`.
+- **No external UI libraries:** Everything is pure React + CSS, matching the tactical aesthetic exactly.
+- **Skeleton shimmer:** Custom `@keyframes shimmer` with a gradient sweep — no spinners, no external loading libraries.
+
+### Build Verification
+
+| App | Build Result |
+|:--|:--|
+| `src/user-web` | ✅ 35 modules, 148KB JS, 2KB CSS |
+| `src/admin-web` | ✅ 35 modules, 148KB JS, 2KB CSS |
+
+### Git Commit
+
+```
+chore: add shared design tokens, category colors, and css variables
+```
+
+*End of Module 6*
