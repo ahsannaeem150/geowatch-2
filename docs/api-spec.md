@@ -21,7 +21,7 @@ Error response:
 ## AUTH ENDPOINTS
 
 POST /auth/register
-Access: Super admin only
+Access: Admin / Super admin (admin can only create viewer accounts)
 Body: { email, password, fullName, role }
 Response: { data: { user: { id, email, fullName, role } } }
 
@@ -138,7 +138,7 @@ Body: Same as POST but partial
 Response: Updated event
 
 DELETE /events/:id
-Access: Super admin only
+Access: Admin / Super admin
 Response: { data: { deleted: true } }
 
 POST /events/:id/resolve

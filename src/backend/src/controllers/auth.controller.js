@@ -41,6 +41,11 @@ export async function login(req, res) {
 export async function register(req, res) {
   const { email, password, fullName, role } = req.body;
 
+  // Admins can only create viewer users; super_admin can create any role
+  if (req.user.role === 'admin' && role !== 'viewer') {
+    return res.apiError('Admins can only create viewer accounts', 'FORBIDDEN', 403);
+  }
+
   const existing = await findUserByEmail(email);
   if (existing) {
     return res.apiError('Email already registered', 'CONFLICT', 409);

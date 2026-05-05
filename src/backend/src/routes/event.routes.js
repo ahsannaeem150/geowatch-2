@@ -47,7 +47,7 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  requireRole('super_admin'),
+  requireRole(['admin', 'super_admin']),
   adminWriteLimiter,
   asyncHandler(deleteEventController)
 );

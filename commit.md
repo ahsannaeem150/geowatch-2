@@ -273,3 +273,50 @@ feat: build events, timeline, and sources api with postgis and oembed
 ```
 
 *End of Module 5*
+
+---
+
+## 📅 2026-05-05 — Fix: Auth Permission Model
+
+### Summary
+Adjusted role permissions so that **admin** users can delete events and create viewer accounts, while still restricting admin-management privileges to **super_admin** only.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/routes/event.routes.js` | DELETE `/events/:id` now allows `admin` + `super_admin` |
+| `src/routes/auth.routes.js` | POST `/auth/register` now allows `admin` + `super_admin` |
+| `src/controllers/auth.controller.js` | Added role restriction: `admin` can only create `viewer` accounts |
+| `docs/api-spec.md` | Updated endpoint access notes for `/auth/register` and `DELETE /events/:id` |
+| `docs/dev-credentials.md` | Added test admin and viewer accounts |
+
+### Permission Matrix
+
+| Action | super_admin | admin | viewer |
+|:--|:--:|:--:|:--:|
+| Create/delete events | ✅ | ✅ | ❌ |
+| Add timeline/sources | ✅ | ✅ | ❌ |
+| Resolve events | ✅ | ✅ | ❌ |
+| Create users | ✅ | ✅ (viewer only) | ❌ |
+| List/manage admins | ✅ | ❌ | ❌ |
+| Delete other admins | ✅ | ❌ | ❌ |
+
+### Verified Tests
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | Admin creates viewer user | ✅ |
+| 2 | Admin blocked from creating admin | ✅ 403 |
+| 3 | Admin blocked from `/auth/admins` | ✅ 403 |
+| 4 | Admin creates event | ✅ |
+| 5 | Admin deletes event | ✅ |
+| 6 | Super_admin creates admin | ✅ |
+
+### Git Commit
+
+```
+fix: allow admins to delete events and create viewer users
+```
+
+*End of permission fix*
