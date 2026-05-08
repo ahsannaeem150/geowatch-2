@@ -15,13 +15,22 @@ function buildEventWhereClause(filters) {
 
   const date = filters.date;
   if (date) {
-    conditions.push(`e.start_date <= $${idx++}`);
+    conditions.push(`e.start_date::date <= $${idx++}`);
     params.push(date);
-    conditions.push(`(e.end_date IS NULL OR e.end_date >= $${idx++})`);
+    conditions.push(`(
+      e.end_date IS NULL
+      OR (e.status != 'resolved' AND e.end_date::date >= $${idx})
+      OR (e.status = 'resolved' AND e.end_date::date + interval '1 day' >= $${idx})
+    )`);
     params.push(date);
+    idx++;
   } else {
-    conditions.push(`e.start_date <= CURRENT_DATE`);
-    conditions.push(`(e.end_date IS NULL OR e.end_date >= CURRENT_DATE)`);
+    conditions.push(`e.start_date::date <= CURRENT_DATE`);
+    conditions.push(`(
+      e.end_date IS NULL
+      OR (e.status != 'resolved' AND e.end_date::date >= CURRENT_DATE)
+      OR (e.status = 'resolved' AND e.end_date::date + interval '1 day' >= CURRENT_DATE)
+    )`);
   }
 
   if (filters.category) {
@@ -85,11 +94,11 @@ export async function getEventById(id) {
       [id]
     ),
     query(
-      `SELECT eu.id, eu.summary, eu.update_date, eu.created_at, u.full_name as created_by_name
+      `SELECT eu.id, eu.summary, eu.update_date, eu.source_url, eu.embed_html, eu.created_at, u.full_name as created_by_name
        FROM event_updates eu
        LEFT JOIN users u ON eu.created_by = u.id
        WHERE eu.event_id = $1
-       ORDER BY eu.update_date ASC, eu.created_at ASC`,
+       ORDER BY eu.update_date DESC, eu.created_at DESC`,
       [id]
     ),
   ]);
@@ -177,13 +186,14 @@ export async function deleteEvent(id) {
   return result.rows[0] || null;
 }
 
-export async function resolveEvent(id, resolvedBy) {
+export async function resolveEvent(id, resolvedBy, resolvedAt) {
+  const resolvedTimestamp = resolvedAt || new Date().toISOString();
   const result = await query(
     `UPDATE events
-     SET status = 'resolved', resolved_at = NOW(), resolved_by = $2, end_date = CURRENT_DATE
+     SET status = 'resolved', resolved_at = $3, resolved_by = $2, end_date = $3
      WHERE id = $1
      RETURNING *`,
-    [id, resolvedBy]
+    [id, resolvedBy, resolvedTimestamp]
   );
   return result.rows[0] || null;
 }

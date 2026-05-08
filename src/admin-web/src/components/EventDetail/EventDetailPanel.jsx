@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api } from '../../services/api.js';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
+import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { CATEGORY_LABELS, SEVERITY_SCALE, CATEGORY_COLORS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
@@ -10,14 +11,120 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  // Timeline state
+  const [expandedUpdateId, setExpandedUpdateId] = useState(null);
+  const [isAddingUpdate, setIsAddingUpdate] = useState(false);
+  const [editingUpdateId, setEditingUpdateId] = useState(null);
+  const [newSummary, setNewSummary] = useState('');
+  const [newUpdateDate, setNewUpdateDate] = useState('');
+  const [newSourceUrl, setNewSourceUrl] = useState('');
+  const [editSummary, setEditSummary] = useState('');
+  const [editUpdateDate, setEditUpdateDate] = useState('');
+  const [editSourceUrl, setEditSourceUrl] = useState('');
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [sortOrder, setSortOrder] = useState('desc'); // 'desc' = latest first, 'asc' = oldest first
+
+  const fetchData = async () => {
     setLoading(true);
-    api
-      .getEvent(eventId)
-      .then((res) => setData(res.data))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    try {
+      const res = await api.getEvent(eventId);
+      setData(res.data);
+      setError('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [eventId]);
+
+  const resetAddForm = () => {
+    setIsAddingUpdate(false);
+    setNewSummary('');
+    setNewUpdateDate('');
+    setNewSourceUrl('');
+  };
+
+  const resetEditForm = () => {
+    setEditingUpdateId(null);
+    setEditSummary('');
+    setEditUpdateDate('');
+    setEditSourceUrl('');
+  };
+
+  const handleAddUpdate = async () => {
+    if (!newSummary.trim()) return;
+    setTimelineLoading(true);
+    try {
+      await api.addTimeline(eventId, {
+        summary: newSummary.trim(),
+        updateDate: newUpdateDate ? new Date(newUpdateDate).toISOString() : undefined,
+        sourceUrl: newSourceUrl.trim() || undefined,
+      });
+      resetAddForm();
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  const handleEditUpdate = async (updateId) => {
+    if (!editSummary.trim()) return;
+    setTimelineLoading(true);
+    try {
+      const payload = {
+        summary: editSummary.trim(),
+        updateDate: editUpdateDate ? new Date(editUpdateDate).toISOString() : undefined,
+      };
+      // Only send sourceUrl if it was changed (undefined = don't touch, empty = clear)
+      if (editSourceUrl !== undefined) {
+        payload.sourceUrl = editSourceUrl.trim() || null;
+      }
+      await api.updateTimeline(eventId, updateId, payload);
+      resetEditForm();
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  const handleDeleteUpdate = async (updateId) => {
+    if (!confirm('Are you sure you want to delete this timeline update?')) return;
+    setTimelineLoading(true);
+    try {
+      await api.deleteTimeline(eventId, updateId);
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  const startEditing = (update) => {
+    setEditingUpdateId(update.id);
+    setEditSummary(update.summary);
+    setEditUpdateDate(format(new Date(update.update_date), "yyyy-MM-dd'T'HH:mm"));
+    setEditSourceUrl(update.source_url || '');
+    setExpandedUpdateId(update.id);
+  };
+
+  const sortedTimeline = useMemo(() => {
+    if (!data?.timeline) return [];
+    const sorted = [...data.timeline];
+    sorted.sort((a, b) => {
+      const diff = new Date(a.update_date) - new Date(b.update_date);
+      return sortOrder === 'asc' ? diff : -diff;
+    });
+    return sorted;
+  }, [data?.timeline, sortOrder]);
 
   if (loading) {
     return (
@@ -57,6 +164,25 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
     </h4>
   );
 
+  const inputBase = {
+    background: 'var(--bg-deep)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '10px 12px',
+    color: 'var(--text-primary)',
+    fontSize: '13px',
+    width: '100%',
+    outline: 'none',
+  };
+
+  const labelBase = {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    fontWeight: 600,
+    display: 'block',
+    marginBottom: '6px',
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Header */}
@@ -87,17 +213,13 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
-          gap: '12px',
-          padding: '14px',
-          background: 'var(--bg-input)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
+          gap: '10px',
         }}
       >
         <MetaItem label="Severity" value={`${event.severity} — ${severityLabel}`} color={catColor} />
-        <MetaItem label="Start Date" value={format(new Date(event.start_date), 'MMM dd, yyyy')} />
-        <MetaItem label="End Date" value={event.end_date ? format(new Date(event.end_date), 'MMM dd, yyyy') : 'Ongoing'} />
-        <MetaItem label="Created" value={format(new Date(event.created_at), 'MMM dd, yyyy')} />
+        <MetaItem label="Start" date={format(new Date(event.start_date), 'MMM dd, yyyy')} time={format(new Date(event.start_date), 'h:mm a')} />
+        <MetaItem label="End" date={event.end_date ? format(new Date(event.end_date), 'MMM dd, yyyy') : 'Ongoing'} time={event.end_date ? format(new Date(event.end_date), 'h:mm a') : null} />
+        <MetaItem label="Created" date={format(new Date(event.created_at), 'MMM dd, yyyy')} time={format(new Date(event.created_at), 'h:mm a')} />
       </div>
 
       {/* Description */}
@@ -133,57 +255,201 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
       )}
 
       {/* Timeline */}
-      {timeline.length > 0 && (
-        <div>
-          {sectionTitle('Timeline')}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', paddingLeft: '16px' }}>
-            {/* Vertical line */}
-            <div
+      <div>
+        {/* Timeline Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px',
+            marginTop: '20px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4
               style={{
-                position: 'absolute',
-                left: '5px',
-                top: '6px',
-                bottom: '6px',
-                width: '2px',
-                background: 'var(--border-subtle)',
+                fontSize: '12px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                color: 'var(--text-muted)',
+                margin: 0,
               }}
+            >
+              Updates
+            </h4>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: 'var(--accent-cyan)',
+                background: 'rgba(0, 212, 255, 0.1)',
+                padding: '2px 8px',
+                borderRadius: '10px',
+              }}
+            >
+              {timeline.length}
+            </span>
+          </div>
+          <button
+            onClick={() => setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}
+            style={{
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            {sortOrder === 'desc' ? 'Latest first' : 'Oldest first'} ↕
+          </button>
+        </div>
+
+        {/* Add Update button */}
+        {!isAddingUpdate && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setIsAddingUpdate(true);
+              setNewUpdateDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+            }}
+            style={{ marginBottom: '12px' }}
+          >
+            + Add Update
+          </Button>
+        )}
+
+        {/* Add Update Inline Form */}
+        {isAddingUpdate && (
+          <div
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--accent-cyan)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '14px',
+              marginBottom: '16px',
+            }}
+          >
+            <label style={labelBase}>Update Summary</label>
+            <textarea
+              value={newSummary}
+              onChange={(e) => setNewSummary(e.target.value)}
+              rows={3}
+              placeholder="Describe the latest development..."
+              style={{ ...inputBase, resize: 'vertical', marginBottom: '10px' }}
             />
-            {timeline.map((update, i) => (
-              <div key={update.id} style={{ position: 'relative' }}>
-                {/* Dot */}
+            <label style={labelBase}>Date & Time</label>
+            <input
+              type="datetime-local"
+              value={newUpdateDate}
+              onChange={(e) => setNewUpdateDate(e.target.value)}
+              style={{ ...inputBase, fontFamily: 'var(--font-mono)', marginBottom: '10px', padding: '8px 12px' }}
+            />
+            <label style={labelBase}>X / Twitter Post URL (optional)</label>
+            <input
+              type="url"
+              value={newSourceUrl}
+              onChange={(e) => setNewSourceUrl(e.target.value)}
+              placeholder="https://x.com/..."
+              style={{ ...inputBase, fontFamily: 'var(--font-mono)', marginBottom: '12px', padding: '8px 12px' }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleAddUpdate}
+                disabled={!newSummary.trim() || timelineLoading}
+              >
+                {timelineLoading ? 'Saving...' : 'Save Update'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={resetAddForm}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline entries */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {sortedTimeline.length === 0 && !isAddingUpdate && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+              No updates yet. Click "+ Add Update" to add the first entry.
+            </p>
+          )}
+
+          {sortedTimeline.map((update, index) => {
+            const isEditing = editingUpdateId === update.id;
+
+            if (isEditing) {
+              return (
                 <div
-                  style={{
-                    position: 'absolute',
-                    left: '-14px',
-                    top: '6px',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: i === timeline.length - 1 ? 'var(--accent-cyan)' : 'var(--border-subtle)',
-                    boxShadow: i === timeline.length - 1 ? '0 0 6px var(--accent-cyan)' : 'none',
-                  }}
-                />
-                <div
+                  key={update.id}
                   style={{
                     background: 'var(--bg-input)',
-                    padding: '10px 14px',
+                    border: '1px solid var(--accent-cyan)',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)',
+                    padding: '14px',
                   }}
                 >
-                  <p style={{ color: 'var(--text-primary)', fontSize: '13px', marginBottom: '4px' }}>
-                    {update.summary}
-                  </p>
-                  <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    <span>{format(new Date(update.update_date), 'MMM dd, yyyy HH:mm')}</span>
-                    {update.created_by_name && <span>by {update.created_by_name}</span>}
+                  <label style={labelBase}>Edit Summary</label>
+                  <textarea
+                    value={editSummary}
+                    onChange={(e) => setEditSummary(e.target.value)}
+                    rows={3}
+                    style={{ ...inputBase, resize: 'vertical', marginBottom: '10px' }}
+                  />
+                  <label style={labelBase}>Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={editUpdateDate}
+                    onChange={(e) => setEditUpdateDate(e.target.value)}
+                    style={{ ...inputBase, fontFamily: 'var(--font-mono)', marginBottom: '10px', padding: '8px 12px' }}
+                  />
+                  <label style={labelBase}>X / Twitter Post URL (optional)</label>
+                  <input
+                    type="url"
+                    value={editSourceUrl}
+                    onChange={(e) => setEditSourceUrl(e.target.value)}
+                    placeholder="https://x.com/..."
+                    style={{ ...inputBase, fontFamily: 'var(--font-mono)', marginBottom: '12px', padding: '8px 12px' }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleEditUpdate(update.id)}
+                      disabled={!editSummary.trim() || timelineLoading}
+                    >
+                      {timelineLoading ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={resetEditForm}>
+                      Cancel
+                    </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              );
+            }
+
+            return (
+              <TimelineEntry
+                key={update.id}
+                update={update}
+                isLatest={sortOrder === 'desc' ? index === 0 : index === sortedTimeline.length - 1}
+                isExpanded={expandedUpdateId === update.id}
+                onToggle={() =>
+                  setExpandedUpdateId(expandedUpdateId === update.id ? null : update.id)
+                }
+                isAdmin={true}
+                onEdit={() => startEditing(update)}
+                onDelete={() => handleDeleteUpdate(update.id)}
+              />
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: '10px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
@@ -198,21 +464,78 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
   );
 }
 
-function MetaItem({ label, value, color }) {
+function MetaItem({ label, value, date, time, color }) {
   return (
-    <div>
-      <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+    <div
+      style={{
+        background: 'var(--bg-input)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-sm)',
+        padding: '12px 14px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Subtle top accent line */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '2px',
+          background: color || 'var(--border-subtle)',
+          opacity: color ? 0.6 : 0.3,
+        }}
+      />
+      <span
+        style={{
+          fontSize: '10px',
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.8px',
+          fontWeight: 600,
+        }}
+      >
         {label}
       </span>
-      <p style={{ fontSize: '13px', fontWeight: 600, color: color || 'var(--text-primary)', marginTop: '2px' }}>
-        {value}
-      </p>
+      {value && (
+        <p style={{ fontSize: '14px', fontWeight: 700, color: color || 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.2px' }}>
+          {value}
+        </p>
+      )}
+      {date && (
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.2px' }}>
+          {date}
+        </p>
+      )}
+      {time && (
+        <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+          {time}
+        </p>
+      )}
     </div>
   );
 }
 
 function SourceItem({ source }) {
-  if (source.embed_html) {
+  const embedRef = useRef(null);
+
+  // Force dark theme on all Twitter embeds (new + existing in DB)
+  const darkEmbedHtml = source.embed_html
+    ? source.embed_html.replace(
+        /class="twitter-tweet"/g,
+        'class="twitter-tweet" data-theme="dark"'
+      )
+    : null;
+
+  useEffect(() => {
+    if (darkEmbedHtml && embedRef.current && window.twttr?.widgets) {
+      window.twttr.widgets.load(embedRef.current);
+    }
+  }, [darkEmbedHtml]);
+
+  if (darkEmbedHtml) {
     return (
       <div
         style={{
@@ -223,8 +546,9 @@ function SourceItem({ source }) {
         }}
       >
         <div
+          ref={embedRef}
           style={{ padding: '12px' }}
-          dangerouslySetInnerHTML={{ __html: source.embed_html }}
+          dangerouslySetInnerHTML={{ __html: darkEmbedHtml }}
         />
         {source.description && (
           <p style={{ padding: '0 12px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>

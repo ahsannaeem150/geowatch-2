@@ -490,3 +490,157 @@ fix: resolve map marker hover/click bugs — child element scaling, separate sel
 ```
 
 *End of marker bug fix*
+
+---
+
+## 📅 2026-05-08 — Fix: Map Labels, Source Validation, Timeline Feature, Event Datetimes, UI Polish
+
+### Summary
+Major feature drop and bugfix session. Added full timeline CRUD with Twitter embeds, restored map text labels, fixed multiple crashes, upgraded event dates to full timestamps with a resolve grace period, and polished the event detail meta cards.
+
+---
+
+### 1. Map Text Labels Restored
+
+**Problem:** Free font CDN (`fonts.openmaptiles.org`) returned HTML 404s — all city/country labels were missing.
+
+**Fix:** Switched to MapLibre's demo font CDN (`https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf`) and added 5 symbol layers:
+- `water-name` — oceans, seas
+- `place-country` — country names (bold, uppercase)
+- `place-state` — state/province names
+- `place-city` — major cities (rank ≤ 8)
+- `place-town` — towns (zoom 6+)
+
+**Files:** `assets/map-style-dark.json` + copies to `src/admin-web/public/` and `src/user-web/public/`
+
+---
+
+### 2. Source URL Validation Fix
+
+**Problem:** Creating an event with only an admin note crashed with `sources.0.sourceUrl: Invalid url` because empty string `""` failed Zod's `.url()` validator.
+
+**Fix:** `EventForm.jsx` now strips empty strings before sending:
+```js
+sources.filter(...).map(s => ({
+  sourceType: s.sourceType,
+  ...(s.sourceUrl?.trim() ? { sourceUrl: s.sourceUrl.trim() } : {}),
+  ...(s.description?.trim() ? { description: s.description.trim() } : {}),
+}))
+```
+
+---
+
+### 3. Full Timeline CRUD Feature
+
+**Backend:**
+- `PATCH /events/:id/timeline/:updateId` — edit summary and/or date
+- `DELETE /events/:id/timeline/:updateId` — delete update
+- `timeline.service.js` — added `updateTimelineEntry()` and `deleteTimelineEntry()`
+- Sort order changed from `ASC` to `DESC` (latest first)
+
+**Frontend:**
+- **New shared component:** `TimelineEntry.jsx` — reusable accordion card with relative date (Today/Yesterday/MMM d), time, expandable summary, author, Edit/Delete actions
+- **EventDetailPanel.jsx** — major timeline section rewrite:
+  - "Updates · N" header with cyan count badge
+  - "+ Add Update" button → inline form with textarea + datetime-local
+  - Each entry expandable/collapsible
+  - Inline edit mode per entry
+  - Delete with confirm dialog
+  - Sort toggle: "Latest first" ↔ "Oldest first"
+
+---
+
+### 4. Twitter/X Embed Dark Mode
+
+**Problem:** Embedded tweets rendered in white (light theme) against the dark dashboard.
+
+**Fix:**
+- Added `<script async src="https://platform.twitter.com/widgets.js">` to both `index.html` files
+- `SourceItem` calls `window.twttr.widgets.load()` after mount to render embeds
+- Backend oEmbed URL includes `&theme=dark`
+- Client-side fallback injects `data-theme="dark"` into existing embed HTML already stored in DB
+
+---
+
+### 5. Timeline Updates with Twitter/X Posts
+
+**Database:** `ALTER TABLE event_updates ADD COLUMN source_url TEXT, ADD COLUMN embed_html TEXT;`
+
+**Backend:** Timeline create/update accepts optional `sourceUrl` → auto-fetches oEmbed HTML via `fetchOembedHtml()`.
+
+**Frontend:** Timeline add/edit forms include an optional "X / Twitter Post URL" field. When expanded, TimelineEntry renders the embedded tweet inline (dark mode).
+
+---
+
+### 6. Event Datetime + Resolve Grace Period
+
+**Database:** `ALTER TABLE events ALTER COLUMN start_date TYPE TIMESTAMP WITH TIME ZONE, ALTER COLUMN end_date TYPE TIMESTAMP WITH TIME ZONE;`
+
+**Backend filtering:**
+- Active events: visible until `end_date`
+- Resolved events: visible until `end_date + 1 day` (grace period)
+
+**Frontend:**
+- `EventForm.jsx` — `type="datetime-local"` for Start & End dates, converts to ISO before sending
+- **Resolve modal** — centered overlay with datetime-local picker + smart warning:
+  - Resolving now → "Marker will be removed after **24 hours**" (red)
+  - Resolved 6h ago → "Marker will disappear in **18 hours**" (red)
+  - Resolved >24h ago → "Marker will disappear from the map"
+
+---
+
+### 7. String Lat/Lng Crash + Marker Persistence
+
+**Problem 1:** `event.latitude.toFixed is not a function` white-screen crash because PostgreSQL `DECIMAL` returns strings.
+
+**Fix:** `EventDetailPanel.jsx` now uses `parseFloat(event.latitude ?? 0).toFixed(4)`.
+
+**Problem 2:** Deleting an event from the table left its marker on the map.
+
+**Fix:** `EventTable.jsx` now calls `onRefresh?.(id)` after delete/resolve, and `DashboardLayout.jsx` increments `refreshKey` to re-fetch events for the map.
+
+---
+
+### 8. Event Detail Meta Cards Redesign
+
+**Before:** Flat 2×2 grid with cramped "May 08, 2026 00:00" strings.
+
+**After:** Four mini cards with:
+- Subtle top accent line (cyan-tinted for severity, gray for others)
+- Label in tiny uppercase muted text
+- Date in bold `14px`
+- Time below in monospace muted text using **12h AM/PM format**
+- Time added to "Created" card as well
+
+---
+
+### Files Changed (20+)
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/timeline.service.js` | Add update + delete functions, source_url + embed_html support |
+| `src/backend/src/controllers/timeline.controller.js` | Add update + delete controllers |
+| `src/backend/src/validators/timeline.schema.js` | Add update schema + sourceUrl |
+| `src/backend/src/routes/timeline.routes.js` | Register PATCH / DELETE |
+| `src/backend/src/services/event.service.js` | Datetime filtering + 1-day grace for resolved events |
+| `src/backend/src/controllers/event.controller.js` | Pass resolvedAt from body to service |
+| `src/backend/src/validators/event.schema.js` | Accept ISO datetime strings |
+| `src/backend/src/utils/oembed.js` | Add `&theme=dark` to oEmbed URL |
+| `src/shared/components/TimelineEntry.jsx` | **New** — reusable accordion timeline entry |
+| `src/shared/components/DateTimePicker.jsx` | **New** — custom calendar + time picker (later reverted) |
+| `src/admin-web/src/services/api.js` | Add updateTimeline, deleteTimeline, resolveEvent body |
+| `src/admin-web/src/components/EventDetail/EventDetailPanel.jsx` | Full timeline CRUD UI, meta cards redesign, 12h time format |
+| `src/admin-web/src/components/EventForm/EventForm.jsx` | Datetime-local inputs, source URL fix |
+| `src/admin-web/src/components/EventList/EventTable.jsx` | Resolve modal with smart warning, onRefresh callback |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Handle table refresh, clear selectedEvent on delete |
+| `src/admin-web/index.html` | Add Twitter widgets.js script |
+| `src/user-web/index.html` | Add Twitter widgets.js script |
+| `assets/map-style-dark.json` | Add glyphs + 5 symbol text layers |
+
+### Git Commit
+
+```
+feat: timeline CRUD, map labels, event datetimes, twitter dark embeds, resolve grace period, meta cards
+```
+
+*End of session*

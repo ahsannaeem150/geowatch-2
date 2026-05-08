@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Button } from '@shared/components/Button.jsx';
 import { CATEGORY_LABELS, SEVERITY_SCALE } from '@shared/constants.js';
 
@@ -17,8 +18,16 @@ export default function EventForm({
   const [longitude, setLongitude] = useState(initialData?.longitude?.toString() || initialCoords?.lng?.toString() || '');
   const [category, setCategory] = useState(initialData?.category || 'conflict');
   const [severity, setSeverity] = useState(initialData?.severity?.toString() || '3');
-  const [startDate, setStartDate] = useState(initialData?.start_date?.slice(0, 10) || new Date().toISOString().slice(0, 10));
-  const [endDate, setEndDate] = useState(initialData?.end_date?.slice(0, 10) || '');
+  const [startDate, setStartDate] = useState(
+    initialData?.start_date
+      ? format(new Date(initialData.start_date), "yyyy-MM-dd'T'HH:mm")
+      : format(new Date(), "yyyy-MM-dd'T'HH:mm")
+  );
+  const [endDate, setEndDate] = useState(
+    initialData?.end_date
+      ? format(new Date(initialData.end_date), "yyyy-MM-dd'T'HH:mm")
+      : ''
+  );
   const [sources, setSources] = useState([{ sourceType: 'admin_note', sourceUrl: '', description: '' }]);
 
   useEffect(() => {
@@ -51,8 +60,8 @@ export default function EventForm({
       longitude: parseFloat(longitude),
       category,
       severity: parseInt(severity, 10),
-      startDate,
-      endDate: endDate || null,
+      startDate: new Date(startDate).toISOString(),
+      endDate: endDate ? new Date(endDate).toISOString() : null,
       sources: sources
         .filter((s) => s.sourceUrl?.trim() || s.description?.trim())
         .map((s) => ({
@@ -206,9 +215,9 @@ export default function EventForm({
       <div style={sectionBox}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <div>
-            <label style={labelBase}>Start Date</label>
+            <label style={labelBase}>Start Date & Time</label>
             <input
-              type="date"
+              type="datetime-local"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               required
@@ -216,9 +225,9 @@ export default function EventForm({
             />
           </div>
           <div>
-            <label style={labelBase}>End Date (optional)</label>
+            <label style={labelBase}>End Date & Time (optional)</label>
             <input
-              type="date"
+              type="datetime-local"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               style={inputBase}

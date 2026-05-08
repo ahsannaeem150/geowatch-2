@@ -7,8 +7,8 @@ export const createEventSchema = z.object({
   longitude: z.number().min(-180).max(180),
   category: z.enum(['conflict', 'protest', 'disaster', 'diplomacy', 'humanitarian', 'other']),
   severity: z.number().int().min(1).max(5),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime().optional().nullable(),
   sources: z.array(
     z.object({
       sourceType: z.enum(['x_post', 'news_article', 'image', 'video', 'admin_note']),
@@ -25,8 +25,8 @@ export const updateEventSchema = z.object({
   longitude: z.number().min(-180).max(180).optional(),
   category: z.enum(['conflict', 'protest', 'disaster', 'diplomacy', 'humanitarian', 'other']).optional(),
   severity: z.number().int().min(1).max(5).optional(),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional().nullable(),
 });
 
 export const listEventsQuerySchema = z.object({

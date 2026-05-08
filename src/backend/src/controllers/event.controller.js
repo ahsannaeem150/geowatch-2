@@ -69,7 +69,8 @@ export async function deleteEventController(req, res) {
 }
 
 export async function resolveEventController(req, res) {
-  const event = await resolveEvent(req.params.id, req.user.id);
+  const { resolvedAt } = req.body;
+  const event = await resolveEvent(req.params.id, req.user.id, resolvedAt);
   if (!event) {
     return res.apiError('Event not found', 'NOT_FOUND', 404);
   }

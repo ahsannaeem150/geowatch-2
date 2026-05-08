@@ -53,11 +53,15 @@ export const api = {
   createEvent: (body) => request('/events', { method: 'POST', body: JSON.stringify(body) }),
   updateEvent: (id, body) => request(`/events/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteEvent: (id) => request(`/events/${id}`, { method: 'DELETE' }),
-  resolveEvent: (id) => request(`/events/${id}/resolve`, { method: 'POST' }),
+  resolveEvent: (id, body) => request(`/events/${id}/resolve`, { method: 'POST', body: JSON.stringify(body || {}) }),
 
   // Timeline
   addTimeline: (eventId, body) =>
     request(`/events/${eventId}/timeline`, { method: 'POST', body: JSON.stringify(body) }),
+  updateTimeline: (eventId, updateId, body) =>
+    request(`/events/${eventId}/timeline/${updateId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteTimeline: (eventId, updateId) =>
+    request(`/events/${eventId}/timeline/${updateId}`, { method: 'DELETE' }),
 
   // Sources
   addSource: (eventId, body) =>

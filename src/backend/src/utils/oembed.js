@@ -9,7 +9,7 @@ export async function fetchOembedHtml(url) {
     return null;
   }
 
-  const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true`;
+  const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true&theme=dark`;
 
   return new Promise((resolve) => {
     https
