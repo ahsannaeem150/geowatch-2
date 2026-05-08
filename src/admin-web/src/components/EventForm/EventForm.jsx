@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@shared/components/Button.jsx';
-import { Badge } from '@shared/components/Badge.jsx';
 import { CATEGORY_LABELS, SEVERITY_SCALE } from '@shared/constants.js';
 
 export default function EventForm({
@@ -54,157 +53,197 @@ export default function EventForm({
       severity: parseInt(severity, 10),
       startDate,
       endDate: endDate || null,
-      sources: sources.filter((s) => s.sourceUrl || s.description),
+      sources: sources
+        .filter((s) => s.sourceUrl?.trim() || s.description?.trim())
+        .map((s) => ({
+          sourceType: s.sourceType,
+          ...(s.sourceUrl?.trim() ? { sourceUrl: s.sourceUrl.trim() } : {}),
+          ...(s.description?.trim() ? { description: s.description.trim() } : {}),
+        })),
     };
     onSubmit(payload);
   };
 
-  const inputStyle = {
+  const inputBase = {
     background: 'var(--bg-input)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 'var(--radius-sm)',
     padding: '10px 12px',
     color: 'var(--text-primary)',
     fontFamily: 'var(--font-sans)',
-    fontSize: 'var(--text-body)',
+    fontSize: '13px',
     outline: 'none',
     width: '100%',
+    transition: 'border-color 0.15s ease',
   };
 
-  const labelStyle = {
-    fontSize: 'var(--text-caption)',
-    color: 'var(--text-secondary)',
-    fontWeight: 500,
+  const labelBase = {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.8px',
     marginBottom: '6px',
     display: 'block',
   };
 
+  const sectionBox = {
+    background: 'rgba(26, 29, 41, 0.4)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)',
+    padding: '16px',
+  };
+
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <h3 style={{ fontSize: 'var(--text-h3)', fontWeight: 600, color: 'var(--text-primary)' }}>
-        {isEdit ? 'Edit Event' : 'Create New Event'}
-      </h3>
-
-      <div>
-        <label style={labelStyle}>Title</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          maxLength={500}
-          style={inputStyle}
-          placeholder="Event title"
-        />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+        <div style={{ width: '3px', height: '20px', background: 'var(--accent-cyan)', borderRadius: '2px' }} />
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+          {isEdit ? 'Edit Event' : 'Create New Event'}
+        </h3>
       </div>
 
-      <div>
-        <label style={labelStyle}>Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          style={{ ...inputStyle, resize: 'vertical' }}
-          placeholder="Detailed description"
-        />
+      {/* Core Info */}
+      <div style={sectionBox}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={labelBase}>Event Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              maxLength={500}
+              style={inputBase}
+              placeholder="e.g. Border Tensions Near Donbas"
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
+            />
+          </div>
+
+          <div>
+            <label style={labelBase}>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              style={{ ...inputBase, resize: 'vertical', lineHeight: 1.6 }}
+              placeholder="Detailed description of the incident..."
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
+            />
+          </div>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <div>
-          <label style={labelStyle}>Latitude</label>
+      {/* Location */}
+      <div style={sectionBox}>
+        <label style={labelBase}>Coordinates</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <input
             type="number"
             step="any"
             value={latitude}
             onChange={(e) => setLatitude(e.target.value)}
             required
-            style={inputStyle}
+            style={inputBase}
+            placeholder="Latitude"
+            onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+            onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
           />
-        </div>
-        <div>
-          <label style={labelStyle}>Longitude</label>
           <input
             type="number"
             step="any"
             value={longitude}
             onChange={(e) => setLongitude(e.target.value)}
             required
-            style={inputStyle}
+            style={inputBase}
+            placeholder="Longitude"
+            onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+            onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
           />
+        </div>
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+          Double-click the map to auto-fill coordinates
+        </p>
+      </div>
+
+      {/* Classification */}
+      <div style={sectionBox}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label style={labelBase}>Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+              style={{ ...inputBase, cursor: 'pointer' }}
+            >
+              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={labelBase}>Severity</label>
+            <select
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value)}
+              required
+              style={{ ...inputBase, cursor: 'pointer' }}
+            >
+              {SEVERITY_SCALE.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.value} — {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <div>
-          <label style={labelStyle}>Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-            style={{ ...inputStyle, cursor: 'pointer' }}
-          >
-            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label style={labelStyle}>Severity</label>
-          <select
-            value={severity}
-            onChange={(e) => setSeverity(e.target.value)}
-            required
-            style={{ ...inputStyle, cursor: 'pointer' }}
-          >
-            {SEVERITY_SCALE.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.value} — {s.label}
-              </option>
-            ))}
-          </select>
+      {/* Dates */}
+      <div style={sectionBox}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label style={labelBase}>Start Date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+              style={inputBase}
+            />
+          </div>
+          <div>
+            <label style={labelBase}>End Date (optional)</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={inputBase}
+            />
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <div>
-          <label style={labelStyle}>Start Date</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-            style={inputStyle}
-          />
-        </div>
-        <div>
-          <label style={labelStyle}>End Date (optional)</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            style={inputStyle}
-          />
-        </div>
-      </div>
-
+      {/* Sources */}
       {!isEdit && (
-        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
+        <div style={sectionBox}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Sources</label>
+            <label style={{ ...labelBase, marginBottom: 0 }}>Sources</label>
             <Button type="button" variant="ghost" size="sm" onClick={handleAddSource}>
               + Add Source
             </Button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {sources.map((src, i) => (
-              <div key={i} style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+              <div key={i} style={{ background: 'var(--bg-deep)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                   <select
                     value={src.sourceType}
                     onChange={(e) => handleSourceChange(i, 'sourceType', e.target.value)}
-                    style={{ ...inputStyle, flex: 1 }}
+                    style={{ ...inputBase, flex: 1 }}
                   >
                     <option value="admin_note">Admin Note</option>
                     <option value="x_post">X / Twitter Post</option>
@@ -222,7 +261,7 @@ export default function EventForm({
                     value={src.sourceUrl}
                     onChange={(e) => handleSourceChange(i, 'sourceUrl', e.target.value)}
                     placeholder="https://x.com/..."
-                    style={{ ...inputStyle, marginBottom: '8px' }}
+                    style={{ ...inputBase, marginBottom: '8px' }}
                   />
                 )}
                 <textarea
@@ -230,7 +269,7 @@ export default function EventForm({
                   onChange={(e) => handleSourceChange(i, 'description', e.target.value)}
                   placeholder="Description or context"
                   rows={2}
-                  style={{ ...inputStyle, resize: 'vertical' }}
+                  style={{ ...inputBase, resize: 'vertical' }}
                 />
               </div>
             ))}
@@ -238,7 +277,7 @@ export default function EventForm({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+      <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
         <Button type="submit" variant="primary" disabled={submitting}>
           {submitting ? 'Saving...' : isEdit ? 'Update Event' : 'Create Event'}
         </Button>

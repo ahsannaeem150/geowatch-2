@@ -1,45 +1,80 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import EventForm from '../EventForm/EventForm.jsx';
 import EventTable from '../EventList/EventTable.jsx';
+import EventDetailPanel from '../EventDetail/EventDetailPanel.jsx';
 import { api } from '../../services/api.js';
 
 export default function DashboardLayout() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [events, setEvents] = useState([]);
+  const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form'
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(null);
-  const [editingEvent, setEditingEvent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [formMode, setFormMode] = useState('create'); // 'create' | 'edit'
-  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleMapClick = useCallback((coords) => {
+  // Fetch events whenever date changes
+  useEffect(() => {
+    const params = selectedDate ? `?date=${selectedDate}` : '';
+    api
+      .getEvents(params)
+      .then((res) => setEvents(res.data.events))
+      .catch(() => setEvents([]));
+  }, [selectedDate, refreshKey]);
+
+  const handleMapDblClick = useCallback((coords) => {
     setMarkerCoords(coords);
-    setEditingEvent(null);
-    setFormMode('create');
+    setSelectedEvent(null);
+    setIsEditing(false);
+    setPanelMode('form');
+  }, []);
+
+  const handleEventClick = useCallback((event) => {
+    setSelectedEvent(event);
+    setIsEditing(false);
+    setPanelMode('detail');
+    setFlyToCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
+    setMarkerCoords(null);
   }, []);
 
   const handleAddEvent = () => {
     setMarkerCoords(null);
-    setEditingEvent(null);
-    setFormMode('create');
+    setSelectedEvent(null);
+    setIsEditing(false);
+    setPanelMode('form');
   };
 
-  const handleFlyTo = (lat, lng) => {
-    setFlyToCoords({ lat: parseFloat(lat), lng: parseFloat(lng) });
+  const handleEditFromDetail = (event) => {
+    setIsEditing(true);
+    setPanelMode('form');
+  };
+
+  const handleClosePanel = () => {
+    setPanelMode('empty');
+    setSelectedEvent(null);
+    setMarkerCoords(null);
+    setIsEditing(false);
   };
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
-    setSuccessMsg('');
     try {
-      if (formMode === 'edit' && editingEvent) {
-        await api.updateEvent(editingEvent.id, payload);
-        setSuccessMsg('Event updated successfully');
+      if (isEditing && selectedEvent) {
+        await api.updateEvent(selectedEvent.id, payload);
+        setSelectedEvent((prev) => ({ ...prev, ...payload, start_date: payload.startDate, end_date: payload.endDate }));
+        setIsEditing(false);
+        setPanelMode('detail');
       } else {
-        await api.createEvent(payload);
-        setSuccessMsg('Event created successfully');
+        const res = await api.createEvent(payload);
+        const newEvent = res.data.event;
+        setSelectedEvent(newEvent);
+        setPanelMode('detail');
         setMarkerCoords(null);
       }
       setRefreshKey((k) => k + 1);
@@ -50,71 +85,152 @@ export default function DashboardLayout() {
     }
   };
 
-  const handleSelectEvent = (event) => {
-    handleFlyTo(event.latitude, event.longitude);
-    setMarkerCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
+  const handleSelectFromTable = (event) => {
+    handleEventClick(event);
   };
 
-  const handleEditEvent = (event) => {
-    setEditingEvent(event);
-    setFormMode('edit');
-    setMarkerCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
-    handleFlyTo(event.latitude, event.longitude);
+  const handleEditFromTable = (event) => {
+    setSelectedEvent(event);
+    setIsEditing(true);
+    setPanelMode('form');
+    setFlyToCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
+    setMarkerCoords(null);
+  };
+
+  const handleTableAction = (eventId) => {
+    setRefreshKey((k) => k + 1);
+    if (selectedEvent?.id === eventId) {
+      setSelectedEvent(null);
+      setPanelMode('empty');
+    }
+  };
+
+  // Determine what to show in the right panel
+  const renderPanel = () => {
+    if (panelMode === 'detail' && selectedEvent) {
+      return (
+        <EventDetailPanel
+          eventId={selectedEvent.id}
+          onEdit={handleEditFromDetail}
+          onClose={handleClosePanel}
+        />
+      );
+    }
+
+    if (panelMode === 'form') {
+      return (
+        <EventForm
+          initialCoords={markerCoords}
+          initialData={isEditing ? selectedEvent : null}
+          onSubmit={handleSubmit}
+          onCancel={handleClosePanel}
+          submitting={submitting}
+        />
+      );
+    }
+
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          gap: '16px',
+          color: 'var(--text-muted)',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            border: '2px dashed var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+          }}
+        >
+          🗺️
+        </div>
+        <div>
+          <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+            No Event Selected
+          </p>
+          <p style={{ fontSize: '13px' }}>
+            Double-click the map to create an event
+            <br />
+            or click an existing marker to view details
+          </p>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-deep)' }}>
-      <TopBar onAddEvent={handleAddEvent} />
+      <TopBar onAddEvent={handleAddEvent} selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Map — 60% */}
-        <div style={{ width: '60%', position: 'relative', borderRight: '1px solid var(--border-subtle)' }}>
+        {/* Map */}
+        <div
+          style={{
+            width: '60%',
+            position: 'relative',
+            borderRight: '1px solid var(--border-subtle)',
+          }}
+        >
           <AdminMap
-            onMapClick={handleMapClick}
+            events={events}
+            selectedEventId={selectedEvent?.id}
+            onEventClick={handleEventClick}
+            onMapDblClick={handleMapDblClick}
             flyToCoords={flyToCoords}
             markerCoords={markerCoords}
           />
+
+          {/* Event counter overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '12px',
+              left: '12px',
+              background: 'rgba(15, 17, 23, 0.8)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '8px 14px',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              zIndex: 10,
+            }}
+          >
+            <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>{events.length}</span> events visible
+          </div>
         </div>
 
-        {/* Form Panel — 40% */}
+        {/* Right Panel */}
         <div
           style={{
             width: '40%',
             overflowY: 'auto',
             padding: '20px',
-            background: 'var(--bg-surface)',
+            background: 'rgba(26, 29, 41, 0.6)',
+            backdropFilter: 'blur(12px)',
+            borderLeft: '1px solid var(--border-subtle)',
           }}
         >
-          {successMsg && (
-            <div
-              style={{
-                background: 'rgba(46, 213, 115, 0.1)',
-                border: '1px solid rgba(46, 213, 115, 0.3)',
-                color: '#2ed573',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-sm)',
-                marginBottom: '16px',
-                fontSize: '13px',
-              }}
-            >
-              {successMsg}
-            </div>
-          )}
-
-          <EventForm
-            initialCoords={markerCoords}
-            initialData={editingEvent}
-            onSubmit={handleSubmit}
-            onCancel={formMode === 'edit' ? () => setEditingEvent(null) || setFormMode('create') : undefined}
-            submitting={submitting}
-          />
+          {renderPanel()}
         </div>
       </div>
 
-      {/* Event Table — bottom strip */}
+      {/* Event Table */}
       <div
         style={{
-          height: '240px',
+          height: '220px',
           flexShrink: 0,
           borderTop: '1px solid var(--border-subtle)',
           background: 'var(--bg-surface)',
@@ -122,9 +238,11 @@ export default function DashboardLayout() {
         }}
       >
         <EventTable
-          onSelect={handleSelectEvent}
-          onEdit={handleEditEvent}
+          onSelect={handleSelectFromTable}
+          onEdit={handleEditFromTable}
+          onRefresh={handleTableAction}
           refreshKey={refreshKey}
+          selectedDate={selectedDate}
         />
       </div>
     </div>

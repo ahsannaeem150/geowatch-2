@@ -411,3 +411,82 @@ feat: build admin dashboard with split-screen map, event crud, and auth
 ```
 
 *End of Module 7*
+
+---
+
+## 📅 2026-05-05 — Fix: Admin Dashboard Major Refactor
+
+### Summary
+Completely refactored the admin dashboard to address five critical issues: empty map, missing date filtering, generic UI, accidental event creation on single-click, and missing read-only event viewer. The admin panel now looks and feels like a premium tactical dashboard.
+
+### Issues Fixed
+
+| # | Issue | Fix |
+|:--|:--|:--|
+| 1 | Map was empty (no roads, labels, buildings) | Replaced inline minimal style with full `map-style-dark.json` loaded from public folder |
+| 2 | No date filtering | Added date picker to top bar; map markers and table now filter by selected date |
+| 3 | Generic, unattractive UI | Glassmorphism panels, section boxes, accent lines, better typography, improved spacing |
+| 4 | Single click created events everywhere | Changed to **double-click** for event creation; single click on marker now views event |
+| 5 | Clicking event opened edit form | New **EventDetailPanel** shows read-only event view with embedded sources, timeline, metadata |
+
+### Files Changed / Created
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Full rewrite: loads full style.json, renders event markers with category colors & severity sizing, double-click for create, click marker for view, pulse animation on temp marker |
+| `src/admin-web/src/components/EventDetail/EventDetailPanel.jsx` | **New** — Read-only event viewer with glassmorphism card, metadata grid, embedded sources (X/Twitter oEmbed), vertical timeline, Edit/Close actions |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Added date picker input, glassmorphism background, improved visual hierarchy |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Major refactor: panel modes ('empty' \| 'detail' \| 'form'), date-driven event fetching, event counter overlay, proper view→edit flow |
+| `src/admin-web/src/components/EventForm/EventForm.jsx` | Polished UI with section boxes, accent lines, better labels, improved spacing |
+| `src/admin-web/src/components/EventList/EventTable.jsx` | Cleaner table design, accepts `selectedDate` prop for filtering |
+| `src/admin-web/public/map-style-dark.json` | Copied full style for Vite static serving |
+| `src/user-web/public/map-style-dark.json` | Copied full style for future public site use |
+
+### New Interaction Flow
+
+| Action | Result |
+|:--|:--|
+| Double-click map | Cyan pulsing marker appears, form opens with coords pre-filled |
+| Click event marker | Right panel shows **EventDetailPanel** (read-only) with sources & timeline |
+| Click "Edit Event" in detail | Switches to **EventForm** in edit mode |
+| Click "Add Event" button | Clears selection, opens blank **EventForm** |
+| Select date in top bar | Map markers and table refresh to show only events for that date |
+| Click table row | Map flies to event, detail panel opens |
+
+### Git Commit
+
+```
+fix: admin dashboard refactor — map style, date filter, dblclick, detail panel, ui polish
+```
+
+*End of admin dashboard refactor*
+
+---
+
+## 📅 2026-05-05 — Fix: Critical Map Marker Bugs
+
+### Summary
+Fixed three critical bugs in the admin map: markers flying to top-left on hover, white-screen crash on click, and broken selection state.
+
+### Root Causes
+
+| Bug | Root Cause | Fix |
+|:--|:--|:--|
+| **Hover → top-left** | `el.style.transform = 'scale(1.4)'` was applied to the **marker element itself**, overwriting MapLibre's `translate3d(x, y, 0)` positioning | Visual effects (scale, shadow) now apply to a **child element** inside the marker. MapLibre positions the parent; the child handles hover/click visuals safely. |
+| **Click → white screen** | The marker `useEffect` depended on `[events, selectedEventId]`. Clicking a marker changed `selectedEventId` → effect re-ran → all markers were **removed and recreated while MapLibre was still processing the click event** → null DOM access crash | Split into **two separate effects**: one creates/removes markers when `events` changes, another updates selection **styles only** when `selectedEventId` changes. Markers are never recreated on selection. |
+| **Pan/zoom fixes position** | Confirmed base positions were correct; only hover/click interactions broke positioning | Both fixes above resolve this — markers keep their correct translate3d at all times. |
+
+### Additional Changes
+
+- Removed `e.stopPropagation()` from marker clicks — letting events bubble naturally prevents MapLibre internal state desync
+- Added `willChange: 'transform'` to child elements for smoother hover scaling
+- Used `Map` data structure (`markers.current = new Map()`) instead of array for O(1) lookup by event ID
+- Markers now update position in-place when event data changes, instead of full remove+recreate
+
+### Git Commit
+
+```
+fix: resolve map marker hover/click bugs — child element scaling, separate selection effect
+```
+
+*End of marker bug fix*
