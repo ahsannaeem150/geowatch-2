@@ -31,6 +31,8 @@ export const updateEventSchema = z.object({
 
 export const listEventsQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   category: z.enum(['conflict', 'protest', 'disaster', 'diplomacy', 'humanitarian', 'other']).optional(),
   severity: z.coerce.number().int().min(1).max(5).optional(),
   status: z.enum(['active', 'resolved']).optional(),

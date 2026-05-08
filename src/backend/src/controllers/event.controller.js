@@ -11,6 +11,8 @@ import { createEventSource } from '../services/source.service.js';
 export async function getEvents(req, res) {
   const filters = {
     date: req.query.date,
+    dateFrom: req.query.dateFrom,
+    dateTo: req.query.dateTo,
     category: req.query.category,
     severity: req.query.severity,
     status: req.query.status,
@@ -18,7 +20,7 @@ export async function getEvents(req, res) {
   };
 
   const events = await listEvents(filters);
-  res.apiSuccess({ events, count: events.length, date: filters.date || new Date().toISOString().slice(0, 10) });
+  res.apiSuccess({ events, count: events.length, date: filters.date || filters.dateFrom || new Date().toISOString().slice(0, 10) });
 }
 
 export async function getEvent(req, res) {

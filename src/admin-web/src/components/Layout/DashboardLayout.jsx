@@ -9,7 +9,7 @@ import { api } from '../../services/api.js';
 export default function DashboardLayout() {
   const today = new Date().toISOString().slice(0, 10);
 
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [events, setEvents] = useState([]);
   const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form'
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -19,14 +19,13 @@ export default function DashboardLayout() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch events whenever date changes
+  // Fetch events whenever date range changes
   useEffect(() => {
-    const params = selectedDate ? `?date=${selectedDate}` : '';
     api
-      .getEvents(params)
+      .getEvents({ dateFrom: dateRange.from, dateTo: dateRange.to })
       .then((res) => setEvents(res.data.events))
       .catch(() => setEvents([]));
-  }, [selectedDate, refreshKey]);
+  }, [dateRange.from, dateRange.to, refreshKey]);
 
   const handleMapDblClick = useCallback((coords) => {
     setMarkerCoords(coords);
@@ -172,7 +171,7 @@ export default function DashboardLayout() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-deep)' }}>
-      <TopBar onAddEvent={handleAddEvent} selectedDate={selectedDate} onDateChange={setSelectedDate} />
+      <TopBar onAddEvent={handleAddEvent} dateRange={dateRange} onDateRangeChange={setDateRange} />
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* Map */}
@@ -242,7 +241,7 @@ export default function DashboardLayout() {
           onEdit={handleEditFromTable}
           onRefresh={handleTableAction}
           refreshKey={refreshKey}
-          selectedDate={selectedDate}
+          dateRange={dateRange}
         />
       </div>
     </div>

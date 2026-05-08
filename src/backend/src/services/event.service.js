@@ -13,8 +13,14 @@ function buildEventWhereClause(filters) {
   const params = [];
   let idx = 1;
 
+  // ─── Date filtering ───
+  // Priority: single `date` param > `dateFrom`+`dateTo` range > default to today
   const date = filters.date;
+  const dateFrom = filters.dateFrom;
+  const dateTo = filters.dateTo;
+
   if (date) {
+    // Legacy single-date mode: show events active ON this specific date
     conditions.push(`e.start_date::date <= $${idx++}`);
     params.push(date);
     conditions.push(`(
@@ -24,7 +30,25 @@ function buildEventWhereClause(filters) {
     )`);
     params.push(date);
     idx++;
+  } else if (dateFrom || dateTo) {
+    // Range mode: show events whose active period overlaps with [dateFrom, dateTo]
+    const from = dateFrom || '1970-01-01';
+    const to = dateTo || '2099-12-31';
+
+    // Event must have started before or on the end of the range
+    conditions.push(`e.start_date::date <= $${idx++}`);
+    params.push(to);
+
+    // Event must still be active (with grace) at the start of the range
+    conditions.push(`(
+      e.end_date IS NULL
+      OR (e.status != 'resolved' AND e.end_date::date >= $${idx})
+      OR (e.status = 'resolved' AND e.end_date::date + interval '1 day' >= $${idx})
+    )`);
+    params.push(from);
+    idx++;
   } else {
+    // Default: show events active today
     conditions.push(`e.start_date::date <= CURRENT_DATE`);
     conditions.push(`(
       e.end_date IS NULL

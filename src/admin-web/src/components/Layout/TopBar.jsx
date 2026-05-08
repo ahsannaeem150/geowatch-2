@@ -3,8 +3,21 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 
-export default function TopBar({ onAddEvent, selectedDate, onDateChange }) {
+export default function TopBar({ onAddEvent, dateRange, onDateRangeChange }) {
   const { user, logout } = useAuth();
+
+  const inputStyle = {
+    background: 'var(--bg-input)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '5px 8px',
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '12px',
+    outline: 'none',
+    cursor: 'pointer',
+    width: '118px',
+  };
 
   return (
     <header
@@ -45,24 +58,22 @@ export default function TopBar({ onAddEvent, selectedDate, onDateChange }) {
         </div>
         <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Admin</span>
 
-        {/* Date Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px' }}>
-          <label style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>Date:</label>
+        {/* Date Range Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
+          <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>From</label>
           <input
             type="date"
-            value={selectedDate}
-            onChange={(e) => onDateChange?.(e.target.value)}
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '6px 10px',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '13px',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
+            value={dateRange.from}
+            onChange={(e) => onDateRangeChange?.({ ...dateRange, from: e.target.value })}
+            style={inputStyle}
+          />
+          <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>→</span>
+          <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>To</label>
+          <input
+            type="date"
+            value={dateRange.to}
+            onChange={(e) => onDateRangeChange?.({ ...dateRange, to: e.target.value })}
+            style={inputStyle}
           />
         </div>
       </div>

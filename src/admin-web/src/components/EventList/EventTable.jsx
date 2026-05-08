@@ -5,7 +5,7 @@ import { Badge } from '@shared/components/Badge.jsx';
 import { CATEGORY_LABELS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, selectedDate }) {
+export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, dateRange }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -17,13 +17,12 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, se
 
   useEffect(() => {
     setLoading(true);
-    const params = selectedDate ? `?date=${selectedDate}` : '';
     api
-      .getEvents(params)
+      .getEvents({ dateFrom: dateRange?.from, dateTo: dateRange?.to })
       .then((res) => setEvents(res.data.events))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [refreshKey, selectedDate]);
+  }, [refreshKey, dateRange?.from, dateRange?.to]);
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this event?')) return;
@@ -164,7 +163,7 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, se
       </table>
       {events.length === 0 && (
         <p style={{ color: 'var(--text-muted)', padding: '32px', textAlign: 'center', fontSize: '13px' }}>
-          No events found for this date.
+          No events found for this date range.
         </p>
       )}
 
