@@ -4,9 +4,25 @@
 Map-based global conflict and major events visualization platform.
 
 ## Platforms (Phase 1)
-- Public Website: React 18 + Vite + MapLibre GL JS (desktop primary, mobile responsive)
-- Admin Dashboard: React 18 + Vite + MapLibre GL JS (desktop primary, mobile responsive)
-- Native Android App: Phase 2 (future)
+| Platform | Status | Stack |
+|:--|:--|:--|
+| **Backend API** | ✅ Complete | Express 4 + PostGIS + JWT |
+| **Admin Dashboard** | ✅ Complete | React 18 + Vite + MapLibre GL JS |
+| **Public Website** | ⏳ Not Started (Module 8) | React 18 + Vite + MapLibre GL JS |
+| Native Android App | 🔮 Phase 2 (future) | React Native |
+
+### Module Status
+| Module | Status | Description |
+|:--|:--|:--|
+| Module 1 — Dev Environment | ✅ | Postgres, schema, seeds, env, workspaces |
+| Module 2 — Martin Tile Server | ✅ | Binary, start script, dark style |
+| Module 3 — Backend Foundation | ✅ | Express, middleware, rate limiting, health check |
+| Module 4 — Backend Auth | ✅ | JWT, bcrypt, role guards, /auth endpoints |
+| Module 5 — Backend Events API | ✅ | CRUD, PostGIS, date filtering, viewport, oEmbed |
+| Module 6 — Shared Design System | ✅ | CSS tokens, Button, Badge, Skeleton |
+| Module 7 — Admin Dashboard | ✅ | Split-screen, map CRUD, timeline, viewport filtering |
+| Module 8 — Public User Website | ⏳ | Read-only map site. Next priority. |
+| UI Template Overhaul | 🔮 | User wants web template. Do NOT start until template chosen. |
 
 ## Tech Stack
 | Layer | Technology |
@@ -77,18 +93,22 @@ Map-based global conflict and major events visualization platform.
 - Free tiers only until revenue justifies paid plans
 
 ## Build Rules for Kimi Code
-1. Read PROJECT.md first before any task
-2. Read docs/design-brief.md for all frontend work
-3. Read docs/api-spec.md for backend API work
-4. Read docs/database-schema.sql for database work
-5. Follow tech stack exactly — no unauthorized dependencies
-6. Save code to correct src/ folder (backend/ vs user-web/ vs admin-web/)
-7. Use database schema as single source of truth
-8. Respect auth roles and security middleware
-9. If requirement conflicts with cost, flag it immediately
-10. Write Zod schemas for all API inputs
-11. Include error handling in every function
-12. When unsure, reference FR/NFR numbers below
+1. **Read `docs/handoff.md` FIRST** — this is the single most important document
+2. Read `PROJECT.md` for architecture and conventions
+3. Read `commit.md` for full build history
+4. Read `docs/design-brief.md` for frontend work
+5. Read `docs/api-spec.md` for backend API work
+6. Read `docs/database-schema.sql` for database work
+7. Follow tech stack exactly — no unauthorized dependencies
+8. Save code to correct src/ folder (backend/ vs user-web/ vs admin-web/)
+9. Use database schema as single source of truth
+10. Respect auth roles and security middleware
+11. If requirement conflicts with cost, flag it immediately
+12. Write Zod schemas for all API inputs
+13. Include error handling in every function
+14. **After every feature/fix: build → append to commit.md → give commit message**
+15. Make MINIMAL changes — don't refactor unrelated code
+16. When unsure, reference FR/NFR numbers below
 
 ## Functional Requirements
 FR-1: Interactive world map with pan and zoom
