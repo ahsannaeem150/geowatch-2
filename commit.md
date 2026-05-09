@@ -1529,3 +1529,48 @@ fix: defer date-to sync until blur, local timezone today, disable dblclick zoom
 ```
 
 *End of session*
+
+
+---
+
+## Session: Fix TopBar Date Range Auto-Sync on Blur
+
+### What Was Fixed
+
+**Problem:** The TopBar date range picker updated `To` immediately on every `onChange` of the `From` input. When the user navigated the date picker's year/month selectors, intermediate values fired `onChange` and prematurely synced `To` — causing erratic values (e.g., clicking year 2024 set `To` to 2025).
+
+**Fix:** Split the sync logic into `onChange` (raw value only) and `onBlur` (finalize + sync):
+
+| Event | From Input | To Input |
+|:--|:--|:--|
+| `onChange` | Updates `from` only | Updates `to` only |
+| `onBlur` | Syncs `to = from` if `to` is default/today or invalid | Syncs `from = to` if `from > to` (invalid range) |
+
+- `handleFromChange` / `handleToChange` — now pure value setters, no cross-field logic
+- `handleFromBlur` / `handleToBlur` — run only when the user leaves the input, ensuring the picker has fully resolved
+
+### Behavior
+
+| Scenario | Before (onChange) | After (onBlur) |
+|:--|:--|:--|
+| User picks `From = 2024-10-05` while `To = today` | `To` immediately jumps to 2024-10-05 during picker nav | `To` stays `today` until user closes picker, then syncs |
+| User changes `From` to a date after current `To` | `To` immediately jumps to match | `To` preserved until blur, then fixed |
+| User changes `To` to a date before current `From` | `From` immediately jumps to match | `From` preserved until blur, then fixed |
+| User already set a custom range | N/A | No sync — custom range respected |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Split `handleFromChange`/`handleToChange` into pure setters; added `handleFromBlur`/`handleToBlur` for deferred sync; attached `onBlur` to both date inputs |
+
+### Build Status
+- `admin-web`: ✅ Clean build
+
+### Git Commit
+
+```
+fix: defer topbar date range sync to onBlur to prevent intermediate picker values
+```
+
+*End of session*

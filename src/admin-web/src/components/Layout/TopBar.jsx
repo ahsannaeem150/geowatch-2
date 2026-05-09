@@ -29,22 +29,38 @@ export default function TopBar({
   const searchTimeoutRef = useRef(null);
   const searchContainerRef = useRef(null);
 
+  // onChange only updates the raw value — no sync yet.
   const handleFromChange = (newFrom) => {
-    let newTo = dateRange.to;
-    if (newFrom < today && dateRange.to === today) {
-      newTo = newFrom;
-    } else if (newFrom > dateRange.to) {
-      newTo = newFrom;
-    }
-    onDateRangeChange?.({ from: newFrom, to: newTo });
+    onDateRangeChange?.({ from: newFrom, to: dateRange.to });
   };
 
   const handleToChange = (newTo) => {
-    let newFrom = dateRange.from;
-    if (newTo < dateRange.from) {
-      newFrom = newTo;
+    onDateRangeChange?.({ from: dateRange.from, to: newTo });
+  };
+
+  // onBlur syncs the range only after the user has finalized their selection.
+  // This prevents intermediate picker values (year clicks, month nav) from
+  // prematurely changing the other field.
+  const handleFromBlur = () => {
+    let newTo = dateRange.to;
+    if (dateRange.from < today && dateRange.to === today) {
+      newTo = dateRange.from;
+    } else if (dateRange.from > dateRange.to) {
+      newTo = dateRange.from;
     }
-    onDateRangeChange?.({ from: newFrom, to: newTo });
+    if (newTo !== dateRange.to) {
+      onDateRangeChange?.({ from: dateRange.from, to: newTo });
+    }
+  };
+
+  const handleToBlur = () => {
+    let newFrom = dateRange.from;
+    if (dateRange.to < dateRange.from) {
+      newFrom = dateRange.to;
+    }
+    if (newFrom !== dateRange.from) {
+      onDateRangeChange?.({ from: newFrom, to: dateRange.to });
+    }
   };
 
   // Debounced search API call
@@ -180,6 +196,7 @@ export default function TopBar({
             type="date"
             value={dateRange.from}
             onChange={(e) => handleFromChange(e.target.value)}
+            onBlur={handleFromBlur}
             style={inputStyle}
           />
           <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>→</span>
@@ -188,6 +205,7 @@ export default function TopBar({
             type="date"
             value={dateRange.to}
             onChange={(e) => handleToChange(e.target.value)}
+            onBlur={handleToBlur}
             style={inputStyle}
           />
 
