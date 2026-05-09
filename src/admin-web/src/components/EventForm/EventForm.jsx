@@ -16,6 +16,8 @@ export default function EventForm({
   const [description, setDescription] = useState(initialData?.description || '');
   const [latitude, setLatitude] = useState(initialData?.latitude?.toString() || initialCoords?.lat?.toString() || '');
   const [longitude, setLongitude] = useState(initialData?.longitude?.toString() || initialCoords?.lng?.toString() || '');
+  const [locationContext, setLocationContext] = useState(initialData?.location_context || initialCoords?.locationContext || '');
+  const [locationLoading, setLocationLoading] = useState(false);
   const [category, setCategory] = useState(initialData?.category || 'conflict');
   const [severity, setSeverity] = useState(initialData?.severity?.toString() || '3');
   const [startDate, setStartDate] = useState(
@@ -34,6 +36,15 @@ export default function EventForm({
     if (initialCoords) {
       setLatitude(initialCoords.lat.toFixed(6));
       setLongitude(initialCoords.lng.toFixed(6));
+      if (initialCoords.locationContext === undefined) {
+        // Still loading — reverse geocode hasn't returned yet
+        setLocationLoading(true);
+        setLocationContext('');
+      } else {
+        // Loading done — either success (string) or failure (null)
+        setLocationLoading(false);
+        setLocationContext(initialCoords.locationContext || '');
+      }
     }
   }, [initialCoords]);
 
@@ -62,6 +73,7 @@ export default function EventForm({
       severity: parseInt(severity, 10),
       startDate: new Date(startDate).toISOString(),
       endDate: endDate ? new Date(endDate).toISOString() : null,
+      locationContext: locationContext || undefined,
       sources: sources
         .filter((s) => s.sourceUrl?.trim() || s.description?.trim())
         .map((s) => ({
@@ -171,6 +183,43 @@ export default function EventForm({
             onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
             onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
           />
+        </div>
+        {/* Location context badge */}
+        <div
+          style={{
+            marginTop: '8px',
+            padding: '8px 12px',
+            background: locationContext ? 'rgba(0, 212, 255, 0.08)' : 'var(--bg-deep)',
+            border: `1px solid ${locationContext ? 'rgba(0, 212, 255, 0.25)' : 'var(--border-subtle)'}`,
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            minHeight: '36px',
+          }}
+        >
+          <span style={{ fontSize: '13px' }}>📍</span>
+          {locationLoading && !locationContext ? (
+            <span
+              style={{
+                display: 'inline-block',
+                width: '14px',
+                height: '14px',
+                border: '2px solid var(--border-subtle)',
+                borderTopColor: 'var(--accent-cyan)',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite',
+              }}
+            />
+          ) : locationContext ? (
+            <span style={{ fontSize: '12px', color: 'var(--accent-cyan)', fontWeight: 500 }}>
+              {locationContext}
+            </span>
+          ) : (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Locating...
+            </span>
+          )}
         </div>
         <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
           Double-click the map to auto-fill coordinates

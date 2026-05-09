@@ -3,7 +3,8 @@ import { query } from '../config/database.js';
 const EVENT_COLUMNS = `
   e.id, e.title, e.description, e.latitude, e.longitude,
   e.category, e.severity, e.status, e.start_date, e.end_date,
-  e.created_by, e.created_at, e.updated_at, e.resolved_at, e.resolved_by
+  e.created_by, e.created_at, e.updated_at, e.resolved_at, e.resolved_by,
+  e.location_context
 `;
 
 // ─── Helpers ───
@@ -214,6 +215,7 @@ export async function createEvent(data, createdBy) {
     severity,
     startDate,
     endDate,
+    locationContext,
   } = data;
 
   // If an end date is provided, the event is considered resolved
@@ -222,10 +224,10 @@ export async function createEvent(data, createdBy) {
   const result = await query(
     `INSERT INTO events (
       title, description, latitude, longitude, geom,
-      category, severity, start_date, end_date, status, created_by
-    ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12)
+      category, severity, start_date, end_date, status, created_by, location_context
+    ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12, $13)
     RETURNING *`,
-    [title, description || null, latitude, longitude, longitude, latitude, category, severity, startDate, endDate || null, status, createdBy]
+    [title, description || null, latitude, longitude, longitude, latitude, category, severity, startDate, endDate || null, status, createdBy, locationContext || null]
   );
 
   return result.rows[0];
@@ -249,6 +251,7 @@ export async function updateEvent(id, data) {
   addField('severity', data.severity);
   addField('start_date', data.startDate);
   addField('end_date', data.endDate);
+  addField('location_context', data.locationContext);
 
   // Auto-set status based on end_date presence
   if (data.endDate === null) {

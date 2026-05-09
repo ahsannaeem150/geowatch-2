@@ -171,13 +171,13 @@ export default function SearchDropdown({
               onClick={() => onSelect?.(event)}
               onMouseEnter={() => onHighlightChange?.(index)}
               style={{
-                padding: '10px 12px',
+                padding: '10px 14px',
                 borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
                 cursor: 'pointer',
                 background: isHighlighted ? 'var(--bg-hover)' : 'transparent',
                 transition: 'background 0.12s ease',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: '10px',
               }}
             >
@@ -188,12 +188,14 @@ export default function SearchDropdown({
                   height: '8px',
                   borderRadius: '50%',
                   background: getSeverityColor(event.severity),
+                  marginTop: '5px',
                   flexShrink: 0,
                   boxShadow: `0 0 6px ${getSeverityColor(event.severity)}40`,
                 }}
               />
 
               <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Line 1: Title */}
                 <div
                   style={{
                     fontSize: '13px',
@@ -202,42 +204,64 @@ export default function SearchDropdown({
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    marginBottom: '3px',
+                    marginBottom: '4px',
                   }}
                 >
                   {highlightText(event.title, query)}
                 </div>
+                {/* Line 2: Date · Location context */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     color: 'var(--text-muted)',
+                    flexWrap: 'wrap',
                   }}
                 >
                   <span>{dateStr}</span>
-                  <span style={{ color: 'var(--border-subtle)' }}>·</span>
-                  <span>
-                    {parseFloat(event.latitude ?? 0).toFixed(3)},{' '}
-                    {parseFloat(event.longitude ?? 0).toFixed(3)}
-                  </span>
+                  {event.location_context && (
+                    <>
+                      <span style={{ color: 'var(--border-subtle)' }}>·</span>
+                      <span>{event.location_context}</span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <Badge
-                category={event.category}
+              {/* Badges column */}
+              <div
                 style={{
-                  fontSize: '10px',
-                  padding: '2px 8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: '4px',
                   flexShrink: 0,
-                  background: `${catColor}18`,
-                  borderColor: `${catColor}40`,
-                  color: catColor,
                 }}
               >
-                {CATEGORY_LABELS[event.category]}
-              </Badge>
+                <Badge
+                  category={event.category}
+                  style={{
+                    fontSize: '9px',
+                    padding: '2px 8px',
+                    background: `${catColor}18`,
+                    borderColor: `${catColor}40`,
+                    color: catColor,
+                  }}
+                >
+                  {CATEGORY_LABELS[event.category]}
+                </Badge>
+                <Badge
+                  status={event.status}
+                  style={{
+                    fontSize: '9px',
+                    padding: '2px 8px',
+                  }}
+                >
+                  {event.status}
+                </Badge>
+              </div>
             </div>
           );
         })}

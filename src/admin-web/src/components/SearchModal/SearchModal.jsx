@@ -134,6 +134,15 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
     onClose?.();
   };
 
+  // Only sync dateTo to dateFrom when the user has finalized the 'From' selection
+  // (onBlur fires after the date picker closes / focus leaves the input).
+  // If dateTo already has a value, respect the user's custom range.
+  const handleDateFromBlur = () => {
+    if (dateFrom && !dateTo) {
+      setDateTo(dateFrom);
+    }
+  };
+
   const getSeverityColor = (severity) => {
     if (severity >= 4) return '#ff4757';
     if (severity >= 3) return '#ffa502';
@@ -298,6 +307,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
+              onBlur={handleDateFromBlur}
               placeholder="From"
               style={{
                 ...selectBase,

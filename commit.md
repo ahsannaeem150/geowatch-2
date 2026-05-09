@@ -1333,3 +1333,199 @@ feat: add coordinate search support (DD, DDM, DMS) to location bar
 ```
 
 *End of session*
+
+
+---
+
+## Session: Polish Search Dropdowns — Better Info Density & Layout
+
+### What Was Built
+
+**Location Search Dropdown**
+- **Extracts hierarchical context** from Nominatim `display_name` — skips the location name itself, postal codes, and duplicates
+- **Two-line layout** per result:
+  - Line 1: Name (bold) + Type badge
+  - Line 2: Region context (e.g., `"Hyderabad, Telangana, India"`)
+- **Wider container**: 320px → **380px**
+- **Tooltip** on hover shows full `display_name` for overflow cases
+
+**Before vs After (Location)**
+```
+Before: Sikandarabad, Sikandarabad, Bulandshahr, Uttar Pra... (truncated, useless)
+After:  Sikandarabad                    [TOWN]
+        Bulandshahr, Uttar Pradesh, India
+```
+
+**Event Search Dropdown**
+- **Wider container**: 220px → **280px**
+- **Horizontal metadata**: Date · Coordinates · Status — all on one line, no more vertical stacking
+- **Larger font**: 12px for metadata (was 11px)
+- **Status badge added**: Shows `active`/`resolved` badge alongside category badge
+- **Status text** in metadata line with color (green for active, gray for resolved)
+- **Badges stacked vertically** on the right side (category + status)
+- **Monospace font** for coordinates
+
+**Before vs After (Event)**
+```
+Before: [●] Fire in land...            [CONFLICT]
+        May                          (date broken across 3 lines)
+        08,
+        2026
+        30.940,
+        71.856
+
+After:  [●] Fire in Lahore                      [CONFLICT]
+        May 08, 2026 · 30.940, 71.856 · active   [ACTIVE]
+```
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/LocationSearch/LocationSearch.jsx` | Added `extractContext()` helper; two-line layout with region context; wider dropdown |
+| `src/admin-web/src/components/SearchDropdown/SearchDropdown.jsx` | Horizontal metadata layout; status badge; larger fonts; wider dropdown |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Event search width: 220px → 280px |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Location search width: 320px → 380px |
+
+### Build Status
+- `admin-web`: ✅ Clean build
+
+### Git Commit
+
+```
+feat: improve search dropdown layouts — location context extraction, event metadata horizontal layout
+```
+
+*End of session*
+
+
+---
+
+## Session: Location Context for Events + Search Dropdown Improvements
+
+### What Was Built
+
+**1. Event Location Context (Frontend-First Architecture)**
+- **Frontend does reverse geocoding** — `src/admin-web/src/utils/reverseGeocode.js` calls Nominatim reverse API, extracts `"State, Country"`
+- **Backend is passive** — stores `location_context` directly from the create/update payload; no blocking network calls on the server
+- **Form UX** — when admin double-clicks the map, the event form opens immediately with coordinates; a spinner shows "Locating..." while Nominatim resolves the location context in the background; the 📍 badge appears once resolved
+- **No backend conditional checks** — `location_context` is included unconditionally in `EVENT_COLUMNS`; `hasColumn()` and `db-features.js` were removed for simplicity
+
+**2. Event Search Dropdown (Frontend)**
+- **Removed duplicate status** — no more status text in metadata line (badge only)
+- **Removed raw coordinates** — humans don't read coordinates
+- **Shows `location_context`** instead: `May 08, 2026 · Punjab, Pakistan`
+- Clean two-line layout with category + status badges stacked on the right
+
+**Before vs After (Event Dropdown)**
+```
+Before: [●] Fire in land...            [CONFLICT]
+        May 08, 2026                    [RESOLVED]
+        30.940, 71.856                  (coords nobody reads)
+        Resolved                        (duplicate status)
+
+After:  [●] Fire in Lahore              [CONFLICT]
+        May 08, 2026 · Punjab, Pakistan [RESOLVED]
+```
+
+**3. Location Search Dropdown (Frontend)**
+- **Structured address data**: Changed Nominatim call from `addressdetails=0` to `addressdetails=1`
+- **Admin-level context only**: Extracts `state/province` + `country` from structured `address` object
+- **No more street noise**: "Railway Road, Bahawalpur Railway Station..." → `"Punjab, Pakistan"`
+- **Viewport bias**: Passes current map bounds as `viewbox` to Nominatim — results near the visible map area rank higher (subtle, doesn't filter out distant results)
+
+**Before vs After (Location Dropdown)**
+```
+Before: Bahawalpur                      [STATION]
+        Railway Road, Bahawalpur Railway Station, Model Town B, B...
+
+After:  Bahawalpur                      [STATION]
+        Punjab, Pakistan
+```
+
+**4. Backfill Script**
+- `scripts/backfill-location-context.mjs` — reverse-geocodes all existing events without `location_context`
+- Rate-limited to 1 request/second (Nominatim polite usage)
+- Run: `node scripts/backfill-location-context.mjs`
+
+### Files Created/Modified
+
+| File | Change |
+|---|---|
+| `docs/migrations/add-location-context.sql` | **Created** — adds `location_context` column + index |
+| `src/admin-web/src/utils/reverseGeocode.js` | **Created** — frontend Nominatim reverse geocode utility |
+| `src/backend/src/services/event.service.js` | Unconditionally includes `location_context` in columns; stores from payload on create/update |
+| `src/backend/src/validators/event.schema.js` | Added `locationContext` as optional string to create/update schemas |
+| `src/admin-web/src/components/EventForm/EventForm.jsx` | Shows 📍 location badge + spinner while reverse geocoding; passes `locationContext` in submit payload |
+| `src/admin-web/src/components/SearchDropdown/SearchDropdown.jsx` | Shows `location_context`; removed coords + duplicate status |
+| `src/admin-web/src/components/LocationSearch/LocationSearch.jsx` | Uses `addressdetails=1`; admin-level context extraction; viewport bias via `viewbox` prop |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Async reverse geocode on double-click; passes viewport bounds to LocationSearch |
+| `scripts/backfill-location-context.mjs` | **Created** — backfills existing events |
+
+### ⚠️ Manual Steps Required
+
+The DB migration must be run as postgres superuser:
+
+```bash
+sudo -u postgres psql -d geowatch_dev -f docs/migrations/add-location-context.sql
+```
+
+Then backfill existing events:
+```bash
+node scripts/backfill-location-context.mjs
+```
+
+### Build Status
+- `admin-web`: ✅ Clean build
+- `backend`: ✅ Syntax verified
+
+### Git Commit
+
+```
+feat: add event location context via frontend reverse geocoding, improve search dropdowns
+```
+
+*End of session*
+
+
+---
+
+## Session: Final Polish — Date Range Sync, Local Timezone, Double-Click Zoom
+
+### What Was Built
+
+**1. SearchModal Date Range Blur Sync**
+- When user selects a 'From' date and `dateTo` is empty, `dateTo` auto-syncs to match `dateFrom` **only after the user leaves the input** (`onBlur`)
+- Prevents intermediate picker values (year clicks, month navigation) from prematurely setting `dateTo`
+- If `dateTo` already has a custom value, it is preserved — user can still set a true range
+
+**2. Local Timezone Date Fix**
+- Replaced `new Date().toISOString().slice(0, 10)` (UTC) with `getFullYear()` / `getMonth()` / `getDate()` (local timezone)
+- Fixes the bug where positive timezone offsets (e.g., UTC+5) caused "today" to show as yesterday after midnight
+- Applied in `DashboardLayout.jsx` and `TopBar.jsx`
+
+**3. Double-Click Zoom Fix**
+- Added `doubleClickZoom: false` to MapLibre map config
+- Prevents the map from zooming in when admin double-clicks to create an event
+- Event creation now feels precise and predictable
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/SearchModal/SearchModal.jsx` | Added `handleDateFromBlur` — syncs `dateTo` to `dateFrom` on blur only if `dateTo` is empty |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Local timezone `today` calculation; async reverse geocode on double-click |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Local timezone `today` calculation |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | `doubleClickZoom: false` |
+
+### Build Status
+- `admin-web`: ✅ Clean build
+- `backend`: ✅ Syntax verified
+
+### Git Commit
+
+```
+fix: defer date-to sync until blur, local timezone today, disable dblclick zoom
+```
+
+*End of session*

@@ -50,6 +50,33 @@ function formatType(type) {
   return type ? type.charAt(0).toUpperCase() + type.slice(1) : '';
 }
 
+/**
+ * Extract admin-level context from Nominatim structured address.
+ * Shows only State/Province + Country for clean disambiguation.
+ * E.g. { city: "Bahawalpur", state: "Punjab", country: "Pakistan" }
+ *   → "Punjab, Pakistan"
+ */
+function extractContext(address, name) {
+  if (!address) return '';
+  const parts = [];
+
+  // State / Province / Region
+  if (address.state) parts.push(address.state);
+  else if (address.province) parts.push(address.province);
+  else if (address.region) parts.push(address.region);
+  else if (address.county) parts.push(address.county);
+
+  // Country
+  if (address.country) parts.push(address.country);
+
+  // Fallback: if we got nothing useful, use display_name parsing
+  if (parts.length === 0) {
+    return '';
+  }
+
+  return parts.join(', ');
+}
+
 function getTypeColor(type, cls) {
   const t = (type || '').toLowerCase();
   const c = (cls || '').toLowerCase();
@@ -66,7 +93,7 @@ function getTypeColor(type, cls) {
   return '#778ca3';
 }
 
-export default function LocationSearch({ onSelect }) {
+export default function LocationSearch({ onSelect, viewbox }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -106,7 +133,10 @@ export default function LocationSearch({ onSelect }) {
 
     setLoading(true);
     try {
-      const url = `${NOMINATIM_URL}?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=0`;
+      let url = `${NOMINATIM_URL}?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1`;
+      if (viewbox) {
+        url += `&viewbox=${encodeURIComponent(viewbox)}&bounded=0`;
+      }
       const res = await fetch(url, {
         headers: { 'User-Agent': USER_AGENT },
       });
@@ -121,7 +151,7 @@ export default function LocationSearch({ onSelect }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [viewbox]);
 
   const handleQueryChange = (value) => {
     setQuery(value);
@@ -336,7 +366,7 @@ export default function LocationSearch({ onSelect }) {
               const typeColor = getTypeColor(result.type, result.class);
               const typeLabel = formatType(result.type);
               const name = result.name || result.display_name.split(',')[0];
-              const address = result.display_name;
+              const context = extractContext(result.address, name);
 
               return (
                 <div
@@ -344,82 +374,69 @@ export default function LocationSearch({ onSelect }) {
                   ref={(el) => (itemRefs.current[index] = el)}
                   onClick={() => handleSelect(result)}
                   onMouseEnter={() => setHighlightedIndex(index)}
+                  title={result.display_name}
                   style={{
                     padding: '10px 12px',
                     cursor: 'pointer',
                     borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
                     background: isHighlighted ? 'var(--bg-hover)' : 'transparent',
                     transition: 'background 0.12s ease',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '10px',
                   }}
                 >
-                  {/* Pin icon */}
+                  {/* Line 1: Name + Type badge */}
                   <div
                     style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: typeColor,
-                      marginTop: '5px',
-                      flexShrink: 0,
-                      opacity: 0.7,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '3px',
                     }}
-                  />
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
+                  >
+                    <span
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        marginBottom: '3px',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        fontSize: '13px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                     >
+                      {name}
+                    </span>
+                    {typeLabel && (
                       <span
                         style={{
-                          fontWeight: 600,
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          color: typeColor,
+                          background: `${typeColor}18`,
+                          border: `1px solid ${typeColor}40`,
+                          padding: '1px 6px',
+                          borderRadius: 'var(--radius-sm)',
+                          flexShrink: 0,
                         }}
                       >
-                        {name}
+                        {typeLabel}
                       </span>
-                      {typeLabel && (
-                        <span
-                          style={{
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            color: typeColor,
-                            background: `${typeColor}18`,
-                            border: `1px solid ${typeColor}40`,
-                            padding: '1px 6px',
-                            borderRadius: 'var(--radius-sm)',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {typeLabel}
-                        </span>
-                      )}
-                    </div>
+                    )}
+                  </div>
+                  {/* Line 2: Hierarchical context */}
+                  {context && (
                     <div
                       style={{
-                        fontSize: '11px',
+                        fontSize: '12px',
                         color: 'var(--text-muted)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {address}
+                      {context}
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })

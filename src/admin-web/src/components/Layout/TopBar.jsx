@@ -14,7 +14,9 @@ export default function TopBar({
   onOpenSearchModal,
 }) {
   const { user, logout } = useAuth();
-  const today = new Date().toISOString().slice(0, 10);
+  // Use local timezone date, not UTC (toISOString returns UTC which can be a day behind)
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const isLive = dateRange.from === today && dateRange.to === today;
 
   // Search state (self-contained in TopBar)
@@ -214,7 +216,7 @@ export default function TopBar({
           {/* Event Search */}
           <div
             ref={searchContainerRef}
-            style={{ position: 'relative', marginLeft: '12px', width: '220px' }}
+            style={{ position: 'relative', marginLeft: '12px', width: '280px' }}
           >
             <input
               type="text"

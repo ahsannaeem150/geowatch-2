@@ -9,6 +9,7 @@ export const createEventSchema = z.object({
   severity: z.number().int().min(1).max(5),
   startDate: z.string().datetime(),
   endDate: z.string().datetime().optional().nullable(),
+  locationContext: z.string().max(255).optional(),
   sources: z.array(
     z.object({
       sourceType: z.enum(['x_post', 'news_article', 'image', 'video', 'admin_note']),

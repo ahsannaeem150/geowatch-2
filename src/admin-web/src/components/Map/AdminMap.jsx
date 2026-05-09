@@ -32,6 +32,7 @@ export default function AdminMap({
       center: [20, 30],
       zoom: 2,
       attributionControl: false,
+      doubleClickZoom: false,
     });
 
     map.current.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');

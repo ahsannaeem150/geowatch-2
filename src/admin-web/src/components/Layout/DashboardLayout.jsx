@@ -6,6 +6,7 @@ import EventTable from '../EventList/EventTable.jsx';
 import EventDetailPanel from '../EventDetail/EventDetailPanel.jsx';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
+import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
 
 function getZoomForLocation(type, cls) {
@@ -35,7 +36,9 @@ function getZoomForLocation(type, cls) {
 }
 
 export default function DashboardLayout() {
-  const today = new Date().toISOString().slice(0, 10);
+  // Use local timezone date, not UTC (toISOString returns UTC which can be a day behind)
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [events, setEvents] = useState([]);
@@ -136,10 +139,19 @@ export default function DashboardLayout() {
   }, [toast]);
 
   const handleMapDblClick = useCallback((coords) => {
-    setMarkerCoords(coords);
+    // Open form immediately — locationContext: undefined means "loading"
+    setMarkerCoords({ lat: coords.lat, lng: coords.lng, locationContext: undefined });
     setSelectedEvent(null);
     setIsEditing(false);
     setPanelMode('form');
+
+    // Reverse geocode in background, update form when ready
+    reverseGeocode(coords.lat, coords.lng).then((locationContext) => {
+      setMarkerCoords((prev) => {
+        if (!prev) return null;
+        return { ...prev, locationContext: locationContext || null };
+      });
+    });
   }, []);
 
   const handleEventClick = useCallback((event) => {
@@ -467,7 +479,7 @@ export default function DashboardLayout() {
               top: '12px',
               left: '50%',
               transform: 'translateX(-50%)',
-              width: '320px',
+              width: '380px',
               zIndex: 15,
             }}
           >
@@ -476,6 +488,13 @@ export default function DashboardLayout() {
                 const zoom = getZoomForLocation(result.type, result.class);
                 setFlyToCoords({ lat: parseFloat(result.lat), lng: parseFloat(result.lon), zoom });
               }}
+              viewbox={(() => {
+                const b = viewportBoundsRef.current;
+                if (!b) return null;
+                const [minLng, minLat, maxLng, maxLat] = b.split(',').map(Number);
+                // Nominatim viewbox format: left,top,right,bottom
+                return `${minLng},${maxLat},${maxLng},${minLat}`;
+              })()}
             />
           </div>
 
