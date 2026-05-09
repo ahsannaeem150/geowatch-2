@@ -58,6 +58,20 @@ export const api = {
     const query = qs.toString();
     return request(`/events${query ? '?' + query : ''}`);
   },
+  searchEvents: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.append('q', params.q);
+    if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
+    if (params.dateTo) qs.append('dateTo', params.dateTo);
+    if (params.category) qs.append('category', params.category);
+    if (params.severity) qs.append('severity', params.severity);
+    if (params.status) qs.append('status', params.status);
+    if (params.viewport) qs.append('viewport', params.viewport);
+    if (params.limit) qs.append('limit', params.limit);
+    if (params.offset !== undefined) qs.append('offset', params.offset);
+    const query = qs.toString();
+    return request(`/events/search${query ? '?' + query : ''}`);
+  },
   getEvent: (id) => request(`/events/${id}`),
 
   // Events (admin)

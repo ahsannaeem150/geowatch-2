@@ -8,10 +8,12 @@ import {
   createEventSchema,
   updateEventSchema,
   listEventsQuerySchema,
+  searchEventsQuerySchema,
 } from '../validators/event.schema.js';
 
 import {
   getEvents,
+  searchEventsController,
   getEvent,
   createEventController,
   updateEventController,
@@ -23,6 +25,7 @@ const router = Router();
 
 // Public routes
 router.get('/', validateRequest(listEventsQuerySchema, 'query'), asyncHandler(getEvents));
+router.get('/search', validateRequest(searchEventsQuerySchema, 'query'), asyncHandler(searchEventsController));
 router.get('/:id', asyncHandler(getEvent));
 
 // Admin routes

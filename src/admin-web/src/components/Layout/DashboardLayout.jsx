@@ -5,6 +5,7 @@ import EventForm from '../EventForm/EventForm.jsx';
 import EventTable from '../EventList/EventTable.jsx';
 import EventDetailPanel from '../EventDetail/EventDetailPanel.jsx';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
+import SearchModal from '../SearchModal/SearchModal.jsx';
 import { api } from '../../services/api.js';
 
 function getZoomForLocation(type, cls) {
@@ -46,13 +47,17 @@ export default function DashboardLayout() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState(null);
 
+  // Search modal state
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchModalQuery, setSearchModalQuery] = useState('');
+
   // Smart viewport filtering state
   const [viewportFiltering, setViewportFiltering] = useState(null); // null = unknown, true = on, false = off
   const [totalEventCount, setTotalEventCount] = useState(0);
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
-  // Fetch events: first without viewport to get count, then conditionally with viewport
+  // Fetch events: date-based with smart viewport only (search is independent)
   useEffect(() => {
     let cancelled = false;
 
@@ -108,12 +113,12 @@ export default function DashboardLayout() {
 
     // If viewport filtering is already active, re-fetch with new bounds
     if (viewportFilteringRef.current === true) {
-      api
-        .getEvents({
-          dateFrom: dateRange.from,
-          dateTo: dateRange.to,
-          viewport: bounds,
-        })
+      const params = {
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to,
+        viewport: bounds,
+      };
+      api.getEvents(params)
         .then((res) => {
           setEvents(res.data.events);
           setTotalEventCount(res.data.count);
@@ -142,6 +147,19 @@ export default function DashboardLayout() {
     setPanelMode('detail');
     setFlyToCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
     setMarkerCoords(null);
+  }, []);
+
+  const handleSearchSelect = useCallback((event) => {
+    setSelectedEvent(event);
+    setIsEditing(false);
+    setPanelMode('detail');
+    setFlyToCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
+    setMarkerCoords(null);
+  }, []);
+
+  const handleOpenSearchModal = useCallback((query) => {
+    setSearchModalQuery(query);
+    setSearchModalOpen(true);
   }, []);
 
   const handleAddEvent = () => {
@@ -288,7 +306,14 @@ export default function DashboardLayout() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-deep)' }}>
-      <TopBar onAddEvent={handleAddEvent} dateRange={dateRange} onDateRangeChange={setDateRange} onResetToToday={handleResetToToday} />
+      <TopBar
+        onAddEvent={handleAddEvent}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        onResetToToday={handleResetToToday}
+        onSearchSelect={handleSearchSelect}
+        onOpenSearchModal={handleOpenSearchModal}
+      />
 
       {/* Toast Notification */}
       {toast && (
@@ -424,6 +449,14 @@ export default function DashboardLayout() {
           dateRange={dateRange}
         />
       </div>
+
+      {/* Search Modal */}
+      <SearchModal
+        initialQuery={searchModalQuery}
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        onSelectEvent={handleSearchSelect}
+      />
     </div>
   );
 }

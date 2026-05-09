@@ -1,21 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
+import SearchDropdown from '../SearchDropdown/SearchDropdown.jsx';
+import { api } from '../../services/api.js';
 
-export default function TopBar({ onAddEvent, dateRange, onDateRangeChange, onResetToToday }) {
+export default function TopBar({
+  onAddEvent,
+  dateRange,
+  onDateRangeChange,
+  onResetToToday,
+  onSearchSelect,
+  onOpenSearchModal,
+}) {
   const { user, logout } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const isLive = dateRange.from === today && dateRange.to === today;
 
+  // Search state (self-contained in TopBar)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchTotal, setSearchTotal] = useState(0);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const searchTimeoutRef = useRef(null);
+  const searchContainerRef = useRef(null);
+
   const handleFromChange = (newFrom) => {
     let newTo = dateRange.to;
-    // Auto-sync: if user picks a past date while 'To' is today, switch to single-day view
     if (newFrom < today && dateRange.to === today) {
       newTo = newFrom;
-    }
-    // Fix invalid range: prevent From > To
-    else if (newFrom > dateRange.to) {
+    } else if (newFrom > dateRange.to) {
       newTo = newFrom;
     }
     onDateRangeChange?.({ from: newFrom, to: newTo });
@@ -23,11 +39,83 @@ export default function TopBar({ onAddEvent, dateRange, onDateRangeChange, onRes
 
   const handleToChange = (newTo) => {
     let newFrom = dateRange.from;
-    // Fix invalid range: prevent To < From
     if (newTo < dateRange.from) {
       newFrom = newTo;
     }
     onDateRangeChange?.({ from: newFrom, to: newTo });
+  };
+
+  // Debounced search API call
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchTotal(0);
+      setShowDropdown(false);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await api.searchEvents({ q: searchQuery.trim(), limit: 10 });
+        setSearchResults(res.data.events || []);
+        setSearchTotal(res.data.count || 0);
+        setShowDropdown(true);
+        setHighlightedIndex(0);
+      } catch {
+        setSearchResults([]);
+        setSearchTotal(0);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [searchQuery]);
+
+  const handleSearchInputChange = (value) => {
+    setSearchQuery(value);
+    if (!value.trim()) {
+      setShowDropdown(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchTotal(0);
+    setShowDropdown(false);
+  };
+
+  const handleSelectEvent = (event) => {
+    setShowDropdown(false);
+    setSearchQuery('');
+    onSearchSelect?.(event);
+  };
+
+  const handleViewAll = () => {
+    setShowDropdown(false);
+    const q = searchQuery;
+    setSearchQuery('');
+    onOpenSearchModal?.(q);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (showDropdown && searchResults.length > 0 && highlightedIndex >= 0) {
+        handleSelectEvent(searchResults[highlightedIndex]);
+      } else if (searchQuery.trim()) {
+        handleViewAll();
+      }
+    } else if (e.key === 'Escape') {
+      setShowDropdown(false);
+    }
   };
 
   const inputStyle = {
@@ -122,6 +210,69 @@ export default function TopBar({ onAddEvent, dateRange, onDateRangeChange, onRes
           >
             Today
           </button>
+
+          {/* Event Search */}
+          <div
+            ref={searchContainerRef}
+            style={{ position: 'relative', marginLeft: '12px', width: '220px' }}
+          >
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchInputChange(e.target.value)}
+              onFocus={() => {
+                if (searchResults.length > 0) setShowDropdown(true);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Search events..."
+              style={{
+                width: '100%',
+                padding: '5px 30px 5px 10px',
+                background: 'var(--bg-input)',
+                border: searchQuery ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-sans)',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={handleClearSearch}
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  padding: '0 4px',
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            )}
+
+            {showDropdown && (
+              <SearchDropdown
+                query={searchQuery}
+                results={searchResults}
+                totalCount={searchTotal}
+                loading={searchLoading}
+                onSelect={handleSelectEvent}
+                onViewAll={handleViewAll}
+                onClose={() => setShowDropdown(false)}
+                highlightedIndex={highlightedIndex}
+                onHighlightChange={setHighlightedIndex}
+              />
+            )}
+          </div>
         </div>
       </div>
 

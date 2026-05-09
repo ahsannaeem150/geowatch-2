@@ -38,3 +38,15 @@ export const listEventsQuerySchema = z.object({
   status: z.enum(['active', 'resolved']).optional(),
   viewport: z.string().regex(/^-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*$/).optional(),
 });
+
+export const searchEventsQuerySchema = z.object({
+  q: z.string().min(1).max(200),
+  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  category: z.enum(['conflict', 'protest', 'disaster', 'diplomacy', 'humanitarian', 'other']).optional(),
+  severity: z.coerce.number().int().min(1).max(5).optional(),
+  status: z.enum(['active', 'resolved']).optional(),
+  viewport: z.string().regex(/^-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*$/).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).default(0),
+});

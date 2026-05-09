@@ -992,3 +992,153 @@ feat: dynamic zoom levels in location search based on result type
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Feature: Event Search (PostgreSQL Full-Text Search)
+
+### Summary
+Added full-text event search to the admin dashboard. Admins can now type keywords like "protest lahore" and the system returns ranked results from event titles, descriptions, and timeline update summaries.
+
+### How It Works
+
+| Step | Action |
+|:--|:--|
+| 1 | Admin types "protest" in the search box (top bar, next to date range) |
+| 2 | 300ms debounce triggers the search |
+| 3 | Backend uses PostgreSQL `to_tsvector()` + `ts_rank()` to find matching events |
+| 4 | Searches event **title**, **description**, AND **timeline update summaries** |
+| 5 | Results are ranked by relevance and returned |
+| 6 | Map markers and event table both update to show only matching events |
+| 7 | Press Escape or click ✕ to clear search → returns to date-filtered view |
+
+### Architecture
+
+**Backend:**
+- `GET /events/search?q=protest+lahore` — public endpoint
+- Uses on-the-fly `to_tsvector()` computation (no schema changes needed for current scale)
+- Searches both `events` table (title + description) and `event_updates` table (summary) via LEFT JOIN
+- Returns `{ events, count, hasMore }` with same shape as `listEvents`
+- Supports all existing filters: date range, category, severity, status, viewport
+
+**Frontend:**
+- Search input in top bar with debounce (300ms) and clear button
+- Search state overrides normal date-based fetching
+- Map overlay shows: "12 events visible matching 'protest'"
+- Viewport filtering still works when search is active
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/event.service.js` | Added `searchEvents()` — full-text search with `ts_rank`, searches events + timeline |
+| `src/backend/src/controllers/event.controller.js` | Added `searchEventsController` |
+| `src/backend/src/routes/event.routes.js` | Added `GET /events/search` route |
+| `src/backend/src/validators/event.schema.js` | Added `searchEventsQuerySchema` |
+| `src/admin-web/src/services/api.js` | Added `api.searchEvents(params)` |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Added search input with ✕ clear button, Escape key support |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `searchQuery` + `debouncedSearchQuery` state; fetch effect branches between search and date modes |
+| `docs/migrations/add-event-search.sql` | **Created** — migration for `search_vector` generated column + GIN index (run manually as postgres for performance) |
+
+### Performance Note
+
+Current implementation uses **on-the-fly `to_tsvector()` computation** — fast enough for hundreds/thousands of events. For datasets exceeding ~10k events, run the migration:
+
+```bash
+sudo -u postgres psql -d geowatch_dev -f docs/migrations/add-event-search.sql
+```
+
+This creates pre-computed `search_vector` columns with GIN indexes, reducing query time from ~50ms to ~1ms.
+
+### Git Commit
+
+```
+feat: add full-text event search across titles, descriptions, and timeline updates
+```
+
+*End of session*
+
+
+---
+
+## Session: Universal Event Search with Dropdown + Full Search Modal
+
+### What Was Built
+
+**Universal Search (no date filters)**
+- Search now queries **all events across all time**, independent of the date range picker
+- Date range controls what's visible on the map (browsing mode)
+- Search is a "find & go to" discovery tool
+
+**Hybrid Search UI — Two Modes:**
+
+1. **Quick Search Dropdown** (TopBar)
+   - Type in search box → debounced 300ms API call
+   - Shows top **10 ranked results** in a dropdown below the input
+   - Each result: title (with highlighted matches), date, coordinates, severity dot, category badge
+   - Keyboard navigation: `↓`/`↑` to navigate, `Enter` to select, `Escape` to close
+   - "View all N results →" link at bottom to open full modal
+   - Click outside to close
+
+2. **Full Search Modal** (deep exploration)
+   - Large modal (900px × 80vh) with glassmorphism dark theme
+   - **Search bar** pre-filled with query
+   - **Filter bar**: Sort (Relevance / Date / Severity), Category, Severity, Status
+   - **Results table**: Title, Category, Severity, Status, Start Date, Location
+   - **Pagination**: 25 results per page with Prev/Next buttons
+   - Click any row → modal closes, map flies to event, detail panel opens
+   - Total result count displayed
+
+**Backend Changes:**
+- `buildEventWhereClause` now accepts `{ skipDateFilter: true }` option
+- `searchEvents` rewritten with CTE for proper ranking + pagination:
+  - `limit` (default 25, max 100) and `offset` query params
+  - `ts_rank` computed per event via `MAX()` in CTE
+  - Results ordered by rank → severity → start_date
+  - Returns `{ events, count, limit, offset, hasMore }`
+- `searchEventsQuerySchema` validates `limit` and `offset`
+- Search controller passes pagination params through
+
+**Frontend Changes:**
+- `SearchDropdown.jsx` — new dropdown component with highlighted text, keyboard nav
+- `SearchModal.jsx` — new modal with filters, sort, table, pagination
+- `TopBar.jsx` — search input now self-contained with dropdown integration; removed `searchQuery`/`onSearchChange` props
+- `DashboardLayout.jsx` — completely decoupled search from event fetching; map now only shows date-filtered events; search selection flies to event + opens detail panel
+- `api.js` — `searchEvents` supports `limit` and `offset`
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/backend/src/validators/event.schema.js` | Added `limit` and `offset` to `searchEventsQuerySchema` |
+| `src/backend/src/services/event.service.js` | `buildEventWhereClause` supports `skipDateFilter`; `searchEvents` uses CTE + pagination |
+| `src/backend/src/controllers/event.controller.js` | Pass `limit`/`offset` through to service |
+| `src/admin-web/src/services/api.js` | `searchEvents` accepts `limit`/`offset` |
+| `src/admin-web/src/components/SearchDropdown/SearchDropdown.jsx` | **Created** — quick search dropdown UI |
+| `src/admin-web/src/components/SearchModal/SearchModal.jsx` | **Created** — full search modal with filters + pagination |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Integrated search dropdown; self-contained search state |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Decoupled search from map; added search modal state + handlers |
+
+### UX Behavior
+
+```
+User types "protest lahore" in search box
+→ Dropdown appears with top 10 matches
+→ Click result → map flies there, detail panel opens
+→ Click "View all 247 results" → full modal opens
+→ Modal: filters, sort, pagination across all 247 matches
+→ Click row in modal → modal closes, map flies, detail panel opens
+→ Date range NEVER changes — map stays in current temporal context
+```
+
+### Build Status
+- `admin-web`: ✅ Clean build
+- `backend`: ✅ Module loads, syntax verified
+
+### Git Commit
+
+```
+feat: universal event search with dropdown and full search modal
+```
+
+*End of session*

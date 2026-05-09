@@ -8,18 +8,19 @@ const EVENT_COLUMNS = `
 
 // ─── Helpers ───
 
-function buildEventWhereClause(filters) {
+function buildEventWhereClause(filters, options = {}) {
   const conditions = ["e.status != 'hidden'"];
   const params = [];
   let idx = 1;
 
   // ─── Date filtering ───
   // Priority: single `date` param > `dateFrom`+`dateTo` range > default to today
+  // Skip date filter for universal search when explicitly requested
   const date = filters.date;
   const dateFrom = filters.dateFrom;
   const dateTo = filters.dateTo;
 
-  if (date) {
+  if (!options.skipDateFilter && date) {
     // Legacy single-date mode: show events active ON this specific date
     conditions.push(`e.start_date::date <= $${idx++}`);
     params.push(date);
@@ -30,7 +31,7 @@ function buildEventWhereClause(filters) {
     )`);
     params.push(date);
     idx++;
-  } else if (dateFrom || dateTo) {
+  } else if (!options.skipDateFilter && (dateFrom || dateTo)) {
     // Range mode: show events whose active period overlaps with [dateFrom, dateTo]
     const from = dateFrom || '1970-01-01';
     const to = dateTo || '2099-12-31';
@@ -47,7 +48,7 @@ function buildEventWhereClause(filters) {
     )`);
     params.push(from);
     idx++;
-  } else {
+  } else if (!options.skipDateFilter) {
     // Default: show events active today
     conditions.push(`e.start_date::date <= CURRENT_DATE`);
     conditions.push(`(
@@ -107,6 +108,60 @@ export async function listEvents(filters) {
     events: result.rows,
     count,
     hasMore: count > 300,
+  };
+}
+
+export async function searchEvents(filters) {
+  const { where, params, nextIndex } = buildEventWhereClause(filters, { skipDateFilter: true });
+  const searchQuery = filters.q;
+  const limit = Math.min(filters.limit || 25, 100);
+  const offset = Math.max(filters.offset || 0, 0);
+
+  // On-the-fly full-text search (computes tsvector at query time)
+  // For best performance, run docs/migrations/add-event-search.sql as postgres
+  const tsVectorExpr = `to_tsvector('english', COALESCE(e.title, '') || ' ' || COALESCE(e.description, ''))`;
+  const tsQuery = `plainto_tsquery('english', $${nextIndex})`;
+
+  // Get exact count
+  const countResult = await query(
+    `SELECT COUNT(DISTINCT e.id) as total
+     FROM events e
+     LEFT JOIN event_updates eu ON eu.event_id = e.id
+     WHERE ${where}
+       AND (${tsVectorExpr} @@ ${tsQuery}
+            OR to_tsvector('english', COALESCE(eu.summary, '')) @@ ${tsQuery})`,
+    [...params, searchQuery]
+  );
+  const count = parseInt(countResult.rows[0].total, 10);
+
+  // Fetch ranked events with proper pagination
+  // Use CTE to compute rank per event, then paginate in outer query
+  const sql = `
+    WITH ranked AS (
+      SELECT e.id,
+        MAX(ts_rank(${tsVectorExpr}, ${tsQuery})) as rank
+      FROM events e
+      LEFT JOIN event_updates eu ON eu.event_id = e.id
+      WHERE ${where}
+        AND (${tsVectorExpr} @@ ${tsQuery}
+             OR to_tsvector('english', COALESCE(eu.summary, '')) @@ ${tsQuery})
+      GROUP BY e.id
+    )
+    SELECT ${EVENT_COLUMNS},
+      r.rank
+    FROM ranked r
+    JOIN events e ON e.id = r.id
+    ORDER BY r.rank DESC, e.severity DESC, e.start_date DESC
+    LIMIT $${nextIndex + 1} OFFSET $${nextIndex + 2}
+  `;
+
+  const result = await query(sql, [...params, searchQuery, limit, offset]);
+  return {
+    events: result.rows,
+    count,
+    limit,
+    offset,
+    hasMore: count > offset + limit,
   };
 }
 

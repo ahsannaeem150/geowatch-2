@@ -1,5 +1,6 @@
 import {
   listEvents,
+  searchEvents,
   getEventById,
   createEvent,
   updateEvent,
@@ -25,6 +26,31 @@ export async function getEvents(req, res) {
     count,
     hasMore,
     date: filters.date || filters.dateFrom || new Date().toISOString().slice(0, 10),
+  });
+}
+
+export async function searchEventsController(req, res) {
+  const filters = {
+    q: req.query.q,
+    date: req.query.date,
+    dateFrom: req.query.dateFrom,
+    dateTo: req.query.dateTo,
+    category: req.query.category,
+    severity: req.query.severity,
+    status: req.query.status,
+    viewport: req.query.viewport,
+    limit: req.query.limit ? parseInt(req.query.limit, 10) : undefined,
+    offset: req.query.offset ? parseInt(req.query.offset, 10) : undefined,
+  };
+
+  const { events, count, limit, offset, hasMore } = await searchEvents(filters);
+  res.apiSuccess({
+    events,
+    count,
+    limit,
+    offset,
+    hasMore,
+    query: filters.q,
   });
 }
 
