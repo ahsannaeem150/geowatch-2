@@ -90,7 +90,35 @@ cp src/backend/.env.example src/backend/.env.development
 # Edit values as needed
 ```
 
-### 5. Start Services
+### 5. Start All Services (One Command)
+
+```bash
+# Start Martin + Backend + Admin Web and open browser
+./scripts/start-geowatch.sh
+```
+
+This launches all three services in the background, opens the admin dashboard in your default browser, and writes logs to `./logs/`.
+
+| Service | URL |
+|---------|-----|
+| Backend API | http://localhost:3000/api/v1 |
+| Admin Dashboard | http://localhost:5174 |
+| Tile Server | http://localhost:8080 |
+
+**Helper scripts:**
+
+```bash
+# Stop all services
+./scripts/stop-geowatch.sh
+
+# View recent logs from all services
+./scripts/logs-geowatch.sh
+
+# Watch a specific service log live
+tail -f logs/backend.log
+```
+
+**Manual start (if you prefer separate terminals):**
 
 ```bash
 # Terminal 1: Martin tile server
@@ -99,19 +127,12 @@ cp src/backend/.env.example src/backend/.env.development
 # Terminal 2: Backend API
 npm run dev:backend
 
-# Terminal 3: Public website
-npm run dev:user-web
-
-# Terminal 4: Admin dashboard
+# Terminal 3: Admin dashboard
 npm run dev:admin-web
-```
 
-| Service | URL |
-|---------|-----|
-| Backend API | http://localhost:3000/api/v1 |
-| User Website | http://localhost:5173 |
-| Admin Dashboard | http://localhost:5174 |
-| Tile Server | http://localhost:8080 |
+# Terminal 4: Public website (when built)
+npm run dev:user-web
+```
 
 ### API Response Format
 

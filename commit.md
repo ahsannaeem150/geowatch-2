@@ -858,3 +858,55 @@ style: darken water color to muted slate blue so it doesn't compete with event m
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Feature: One-Command GeoWatch Launcher
+
+### Summary
+Created three executable scripts to eliminate the pain of opening multiple terminals. One command starts all services, opens the browser, and backgrounds everything with log files.
+
+### Scripts
+
+| Script | Purpose |
+|:--|:--|
+| `./scripts/start-geowatch.sh` | Starts Martin + Backend + Admin Web in background, opens browser to `localhost:5174`, prints status |
+| `./scripts/stop-geowatch.sh` | Gracefully stops all three services (TERM, then KILL if needed) |
+| `./scripts/logs-geowatch.sh` | Shows last 20 lines of all service logs |
+
+### Behavior
+
+```bash
+./scripts/start-geowatch.sh
+# → Checks if already running (skips if yes)
+# → Starts Martin on :8080
+# → Starts Backend on :3000
+# → Starts Admin Web on :5174
+# → Opens browser via xdg-open
+# → Logs everything to ./logs/
+```
+
+### Log Files
+
+| Service | Log Path |
+|:--|:--|
+| Martin | `./logs/martin.log` |
+| Backend | `./logs/backend.log` |
+| Admin Web | `./logs/admin-web.log` |
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `scripts/start-geowatch.sh` | **New** — One-command launcher with colored output, prerequisite checks, auto-browser-open |
+| `scripts/stop-geowatch.sh` | **New** — Graceful + force kill for all services |
+| `scripts/logs-geowatch.sh` | **New** — Tail last 20 lines of all logs |
+| `readme.md` | Updated Quick Start section with launcher instructions |
+
+### Git Commit
+
+```
+feat: add one-command launcher script (start/stop/logs) for all geowatch services
+```
+
+*End of session*
