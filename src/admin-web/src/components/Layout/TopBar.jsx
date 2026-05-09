@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import SearchDropdown from '../SearchDropdown/SearchDropdown.jsx';
+import DatePicker from '../DatePicker/DatePicker.jsx';
 import { api } from '../../services/api.js';
 
 export default function TopBar({
@@ -29,38 +30,25 @@ export default function TopBar({
   const searchTimeoutRef = useRef(null);
   const searchContainerRef = useRef(null);
 
-  // onChange only updates the raw value — no sync yet.
-  const handleFromChange = (newFrom) => {
-    onDateRangeChange?.({ from: newFrom, to: dateRange.to });
-  };
-
-  const handleToChange = (newTo) => {
-    onDateRangeChange?.({ from: dateRange.from, to: newTo });
-  };
-
-  // onBlur syncs the range only after the user has finalized their selection.
-  // This prevents intermediate picker values (year clicks, month nav) from
-  // prematurely changing the other field.
-  const handleFromBlur = () => {
+  // Date range auto-sync: when user selects a From date, To matches it
+  // (single-day view) so they don't accidentally load a huge date range.
+  // If they want a range, they manually change To afterwards.
+  const handleFromSelect = (date) => {
     let newTo = dateRange.to;
-    if (dateRange.from < today && dateRange.to === today) {
-      newTo = dateRange.from;
-    } else if (dateRange.from > dateRange.to) {
-      newTo = dateRange.from;
+    if (date < today && dateRange.to === today) {
+      newTo = date;
+    } else if (date > dateRange.to) {
+      newTo = date;
     }
-    if (newTo !== dateRange.to) {
-      onDateRangeChange?.({ from: dateRange.from, to: newTo });
-    }
+    onDateRangeChange?.({ from: date, to: newTo });
   };
 
-  const handleToBlur = () => {
+  const handleToSelect = (date) => {
     let newFrom = dateRange.from;
-    if (dateRange.to < dateRange.from) {
-      newFrom = dateRange.to;
+    if (date < dateRange.from) {
+      newFrom = date;
     }
-    if (newFrom !== dateRange.from) {
-      onDateRangeChange?.({ from: newFrom, to: dateRange.to });
-    }
+    onDateRangeChange?.({ from: newFrom, to: date });
   };
 
   // Debounced search API call
@@ -192,20 +180,18 @@ export default function TopBar({
         {/* Date Range Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
           <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>From</label>
-          <input
-            type="date"
+          <DatePicker
             value={dateRange.from}
-            onChange={(e) => handleFromChange(e.target.value)}
-            onBlur={handleFromBlur}
+            onSelect={handleFromSelect}
+            placeholder="From"
             style={inputStyle}
           />
           <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>→</span>
           <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>To</label>
-          <input
-            type="date"
+          <DatePicker
             value={dateRange.to}
-            onChange={(e) => handleToChange(e.target.value)}
-            onBlur={handleToBlur}
+            onSelect={handleToSelect}
+            placeholder="To"
             style={inputStyle}
           />
 

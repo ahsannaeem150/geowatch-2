@@ -1574,3 +1574,53 @@ fix: defer topbar date range sync to onBlur to prevent intermediate picker value
 ```
 
 *End of session*
+
+
+---
+
+## Session: Custom DatePicker Calendar Dropdown
+
+### What Was Built
+
+Replaced native HTML5 `<input type="date">` elements in the TopBar with a fully custom React calendar dropdown component. This gives us complete control over the date selection lifecycle — a day is only "committed" when explicitly clicked.
+
+**Why native date inputs failed:**
+- `onChange` fires unpredictably during picker navigation (year/month clicks)
+- `onBlur` fires too late (only when focus leaves the input)
+- No browser-exposed "picker closed" or "date committed" event
+- This is why Facebook, Google Calendar, etc. all use custom pickers
+
+**DatePicker Component Features:**
+- **Day grid view**: 6×7 calendar with prev/next month arrows, weekday headers
+- **Month/year selector**: Click month/year header → 3×4 month grid with year navigation
+- **Today indicator**: Cyan border outline on today's date
+- **Selected state**: Cyan background fill
+- **Other-month days**: Muted gray
+- **Click outside** → close without selecting
+- **Escape key** → close without selecting
+- **Dark tactical theme** using existing design tokens
+
+**TopBar Integration:**
+- Removed all draft state, refs, timers, debounce logic, and blur handlers
+- Simple `onSelect` handlers:
+  - From picker: if `To === today` or `From > To`, sync `To = From`
+  - To picker: if `To < From`, sync `From = To`
+- Date values displayed as `dd/mm/yyyy` in the trigger
+
+### Files Created/Modified
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/DatePicker/DatePicker.jsx` | **New** — custom calendar dropdown with day grid + month/year selector |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Replaced native date inputs with `<DatePicker>`; removed all draft/timer/sync complexity; added simple `onSelect` handlers |
+
+### Build Status
+- `admin-web`: ✅ Clean build
+
+### Git Commit
+
+```
+feat: replace native date inputs with custom calendar dropdown in top bar
+```
+
+*End of session*
