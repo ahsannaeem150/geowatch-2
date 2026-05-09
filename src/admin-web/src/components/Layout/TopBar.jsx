@@ -60,7 +60,7 @@ export default function TopBar({
     setSearchLoading(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const res = await api.searchEvents({ q: searchQuery.trim(), limit: 10 });
+        const res = await api.searchEvents({ q: searchQuery.trim(), limit: 5 });
         setSearchResults(res.data.events || []);
         setSearchTotal(res.data.count || 0);
         setShowDropdown(true);

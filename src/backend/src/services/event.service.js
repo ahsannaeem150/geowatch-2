@@ -15,12 +15,12 @@ function buildEventWhereClause(filters, options = {}) {
 
   // ─── Date filtering ───
   // Priority: single `date` param > `dateFrom`+`dateTo` range > default to today
-  // Skip date filter for universal search when explicitly requested
+  // skipDefaultDate: for universal search — no default today filter, but explicit dates still apply
   const date = filters.date;
   const dateFrom = filters.dateFrom;
   const dateTo = filters.dateTo;
 
-  if (!options.skipDateFilter && date) {
+  if (date) {
     // Legacy single-date mode: show events active ON this specific date
     conditions.push(`e.start_date::date <= $${idx++}`);
     params.push(date);
@@ -31,7 +31,7 @@ function buildEventWhereClause(filters, options = {}) {
     )`);
     params.push(date);
     idx++;
-  } else if (!options.skipDateFilter && (dateFrom || dateTo)) {
+  } else if (dateFrom || dateTo) {
     // Range mode: show events whose active period overlaps with [dateFrom, dateTo]
     const from = dateFrom || '1970-01-01';
     const to = dateTo || '2099-12-31';
@@ -48,7 +48,7 @@ function buildEventWhereClause(filters, options = {}) {
     )`);
     params.push(from);
     idx++;
-  } else if (!options.skipDateFilter) {
+  } else if (!options.skipDefaultDate) {
     // Default: show events active today
     conditions.push(`e.start_date::date <= CURRENT_DATE`);
     conditions.push(`(
@@ -112,7 +112,7 @@ export async function listEvents(filters) {
 }
 
 export async function searchEvents(filters) {
-  const { where, params, nextIndex } = buildEventWhereClause(filters, { skipDateFilter: true });
+  const { where, params, nextIndex } = buildEventWhereClause(filters, { skipDefaultDate: true });
   const searchQuery = filters.q;
   const limit = Math.min(filters.limit || 25, 100);
   const offset = Math.max(filters.offset || 0, 0);

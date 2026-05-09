@@ -243,7 +243,7 @@ export default function SearchDropdown({
         })}
 
       {/* View all footer */}
-      {!loading && totalCount > results.length && (
+      {!loading && totalCount > 5 && (
         <div
           onClick={() => onViewAll?.()}
           onMouseEnter={(e) => {

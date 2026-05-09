@@ -31,9 +31,18 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const searchTimeoutRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Sync query with initialQuery when modal opens/reopens
+  useEffect(() => {
+    if (isOpen && initialQuery) {
+      setQuery(initialQuery);
+    }
+  }, [isOpen, initialQuery]);
 
   // Focus input when modal opens
   useEffect(() => {
@@ -60,6 +69,8 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
         if (categoryFilter !== 'all') params.category = categoryFilter;
         if (severityFilter !== 'all') params.severity = parseInt(severityFilter, 10);
         if (statusFilter !== 'all') params.status = statusFilter;
+        if (dateFrom) params.dateFrom = dateFrom;
+        if (dateTo) params.dateTo = dateTo;
 
         const res = await api.searchEvents(params);
 
@@ -84,7 +95,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
         setLoading(false);
       }
     },
-    [sortBy, categoryFilter, severityFilter, statusFilter]
+    [sortBy, categoryFilter, severityFilter, statusFilter, dateFrom, dateTo]
   );
 
   // Debounced search
@@ -97,7 +108,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [query, sortBy, categoryFilter, severityFilter, statusFilter, fetchResults]);
+  }, [query, sortBy, categoryFilter, severityFilter, statusFilter, dateFrom, dateTo, fetchResults]);
 
   const totalPages = Math.ceil(totalCount / limit);
   const currentPage = Math.floor(offset / limit) + 1;
@@ -281,6 +292,47 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                 </option>
               ))}
             </select>
+
+            {/* Date range filters */}
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              placeholder="From"
+              style={{
+                ...selectBase,
+                fontFamily: 'var(--font-mono)',
+                width: '130px',
+              }}
+            />
+            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>→</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              placeholder="To"
+              style={{
+                ...selectBase,
+                fontFamily: 'var(--font-mono)',
+                width: '130px',
+              }}
+            />
+
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                }}
+              >
+                Clear dates
+              </button>
+            )}
 
             {totalCount > 0 && (
               <span

@@ -1142,3 +1142,47 @@ feat: universal event search with dropdown and full search modal
 ```
 
 *End of session*
+
+
+---
+
+## Session: Search Modal Polish — Date Filter, Query Pre-fill, View-all Threshold
+
+### Changes Made
+
+1. **Date Range Filter in Search Modal**
+   - Added `From → To` date inputs in the SearchModal filter bar
+   - Backend `buildEventWhereClause` changed from `skipDateFilter` to `skipDefaultDate` — universal search skips the "today" default, but still applies explicit `dateFrom`/`dateTo` when provided
+   - Admin can now search universally AND optionally narrow by date range
+   - "Clear dates" button appears when either date is set
+
+2. **"View all" Threshold Changed to > 5**
+   - Dropdown limit reduced from 10 → 5 results
+   - "View all N results →" link now appears when total matches exceed 5 (was: only when total exceeded dropdown capacity)
+   - Makes the modal more accessible for smaller result sets
+
+3. **Modal Search Bar Pre-filled from Navbar**
+   - Fixed: SearchModal now syncs its `query` state with `initialQuery` prop via `useEffect` whenever the modal opens
+   - Previously the modal could open with an empty search bar because `useState(initialQuery)` only initializes on first mount; if React re-used the component instance, the query wouldn't update
+   - Now typing "Fire" in navbar → clicking "View all" → modal opens with "Fire" pre-filled and results already loaded
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/backend/src/services/event.service.js` | `buildEventWhereClause` option renamed `skipDefaultDate`; explicit dates still apply in universal search |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Dropdown API limit changed from 10 → 5 |
+| `src/admin-web/src/components/SearchDropdown/SearchDropdown.jsx` | "View all" shown when `totalCount > 5` |
+| `src/admin-web/src/components/SearchModal/SearchModal.jsx` | Added dateFrom/dateTo filters; query syncs with initialQuery on open; added Clear dates button |
+
+### Build Status
+- `admin-web`: ✅ Clean build
+- `backend`: ✅ Syntax verified
+
+### Git Commit
+
+```
+feat: add date filter to search modal, lower view-all threshold, fix query pre-fill
+```
+
+*End of session*
