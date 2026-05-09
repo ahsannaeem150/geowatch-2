@@ -3,31 +3,99 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const USER_AGENT = 'GeoWatch/1.0 (https://geowatch.local)';
 
+const TYPE_LABELS = {
+  city: 'City',
+  town: 'Town',
+  village: 'Village',
+  suburb: 'Suburb',
+  neighbourhood: 'Neighbourhood',
+  residential: 'Residential',
+  commercial: 'Commercial',
+  industrial: 'Industrial',
+  administrative: 'Admin',
+  country: 'Country',
+  state: 'State',
+  county: 'County',
+  region: 'Region',
+  municipality: 'Municipality',
+  district: 'District',
+  borough: 'Borough',
+  quarter: 'Quarter',
+  street: 'Street',
+  road: 'Road',
+  square: 'Square',
+  building: 'Building',
+  house: 'House',
+  yes: 'Building',
+  peak: 'Peak',
+  volcano: 'Volcano',
+  river: 'River',
+  lake: 'Lake',
+  airport: 'Airport',
+  station: 'Station',
+  hospital: 'Hospital',
+  school: 'School',
+  university: 'University',
+  place_of_worship: 'Worship',
+  park: 'Park',
+  farm: 'Farm',
+  allotments: 'Allotments',
+};
+
+function formatType(type) {
+  const label = TYPE_LABELS[type];
+  if (label) return label;
+  // Fallback: capitalize first letter
+  return type ? type.charAt(0).toUpperCase() + type.slice(1) : '';
+}
+
+function getTypeColor(type, cls) {
+  const t = (type || '').toLowerCase();
+  const c = (cls || '').toLowerCase();
+  if (['country', 'continent'].includes(t)) return '#a55eea';
+  if (['state', 'region', 'province'].includes(t)) return '#1e90ff';
+  if (['city', 'town', 'municipality'].includes(t)) return '#ffa502';
+  if (['village', 'suburb', 'neighbourhood', 'quarter'].includes(t)) return '#26de81';
+  if (['street', 'road', 'square', 'highway'].includes(t) || c === 'highway') return '#ff4757';
+  if (['building', 'house', 'yes'].includes(t)) return '#778ca3';
+  if (['river', 'lake', 'water'].includes(t)) return '#00d4ff';
+  if (['park', 'farm', 'allotments'].includes(t)) return '#2ed573';
+  if (['airport', 'station', 'bus_station'].includes(t)) return '#ff6348';
+  if (['hospital', 'school', 'university'].includes(t)) return '#ff9ff3';
+  return '#778ca3';
+}
+
 export default function LocationSearch({ onSelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchTimeoutRef = useRef(null);
   const containerRef = useRef(null);
+  const itemRefs = useRef([]);
 
   const searchNominatim = useCallback(async (q) => {
     if (!q.trim()) {
       setResults([]);
       setShowDropdown(false);
+      setHighlightedIndex(-1);
       return;
     }
     setLoading(true);
     try {
-      const url = `${NOMINATIM_URL}?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=0`;
+      const url = `${NOMINATIM_URL}?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=0`;
       const res = await fetch(url, {
         headers: { 'User-Agent': USER_AGENT },
       });
       const data = await res.json();
-      setResults(Array.isArray(data) ? data : []);
+      const arr = Array.isArray(data) ? data : [];
+      setResults(arr);
       setShowDropdown(true);
+      setHighlightedIndex(arr.length > 0 ? 0 : -1);
     } catch {
       setResults([]);
+      setHighlightedIndex(-1);
     } finally {
       setLoading(false);
     }
@@ -46,7 +114,44 @@ export default function LocationSearch({ onSelect }) {
     setQuery('');
     setResults([]);
     setShowDropdown(false);
+    setHighlightedIndex(-1);
   };
+
+  // Keyboard navigation
+  const handleKeyDown = (e) => {
+    if (!showDropdown || results.length === 0) {
+      if (e.key === 'Escape') {
+        setShowDropdown(false);
+        setHighlightedIndex(-1);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = highlightedIndex < results.length - 1 ? highlightedIndex + 1 : 0;
+      setHighlightedIndex(next);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = highlightedIndex > 0 ? highlightedIndex - 1 : results.length - 1;
+      setHighlightedIndex(prev);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < results.length) {
+        handleSelect(results[highlightedIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setShowDropdown(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (highlightedIndex >= 0 && itemRefs.current[highlightedIndex]) {
+      itemRefs.current[highlightedIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [highlightedIndex]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -80,31 +185,6 @@ export default function LocationSearch({ onSelect }) {
     transition: 'border-color 0.2s ease',
   };
 
-  const dropdownStyle = {
-    position: 'absolute',
-    top: 'calc(100% + 4px)',
-    left: 0,
-    right: 0,
-    maxHeight: '240px',
-    overflowY: 'auto',
-    background: 'rgba(15, 17, 23, 0.95)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 'var(--radius-sm)',
-    zIndex: 20,
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-  };
-
-  const resultItemStyle = {
-    padding: '10px 12px',
-    fontSize: '12px',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    borderBottom: '1px solid rgba(42, 46, 59, 0.5)',
-    lineHeight: 1.4,
-    transition: 'background 0.15s ease',
-  };
-
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
       <div style={{ position: 'relative' }}>
@@ -117,14 +197,7 @@ export default function LocationSearch({ onSelect }) {
           }}
           placeholder="Search location..."
           style={inputStyle}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && results.length > 0) {
-              handleSelect(results[0]);
-            }
-            if (e.key === 'Escape') {
-              setShowDropdown(false);
-            }
-          }}
+          onKeyDown={handleKeyDown}
         />
         <div
           style={{
@@ -146,32 +219,143 @@ export default function LocationSearch({ onSelect }) {
       </div>
 
       {showDropdown && (
-        <div style={dropdownStyle}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            maxHeight: '340px',
+            overflowY: 'auto',
+            background: 'rgba(15, 17, 23, 0.97)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            zIndex: 20,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+          }}
+        >
+          {/* Header with result count */}
+          {results.length > 0 && (
+            <div
+              style={{
+                padding: '8px 12px',
+                borderBottom: '1px solid rgba(42, 46, 59, 0.5)',
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.8px',
+              }}
+            >
+              {results.length} location{results.length !== 1 ? 's' : ''} found
+            </div>
+          )}
+
           {results.length === 0 && query.trim() ? (
-            <div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
+            <div
+              style={{
+                padding: '16px',
+                fontSize: '12px',
+                color: 'var(--text-muted)',
+                textAlign: 'center',
+              }}
+            >
               No locations found
             </div>
           ) : (
-            results.map((result) => (
-              <div
-                key={result.place_id}
-                onClick={() => handleSelect(result)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-hover)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                }}
-                style={resultItemStyle}
-              >
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                  {result.name || result.display_name.split(',')[0]}
+            results.map((result, index) => {
+              const isHighlighted = highlightedIndex === index;
+              const typeColor = getTypeColor(result.type, result.class);
+              const typeLabel = formatType(result.type);
+              const name = result.name || result.display_name.split(',')[0];
+              const address = result.display_name;
+
+              return (
+                <div
+                  key={result.place_id}
+                  ref={(el) => (itemRefs.current[index] = el)}
+                  onClick={() => handleSelect(result)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  style={{
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
+                    background: isHighlighted ? 'var(--bg-hover)' : 'transparent',
+                    transition: 'background 0.12s ease',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                  }}
+                >
+                  {/* Pin icon */}
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: typeColor,
+                      marginTop: '5px',
+                      flexShrink: 0,
+                      opacity: 0.7,
+                    }}
+                  />
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '3px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {name}
+                      </span>
+                      {typeLabel && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            color: typeColor,
+                            background: `${typeColor}18`,
+                            border: `1px solid ${typeColor}40`,
+                            padding: '1px 6px',
+                            borderRadius: 'var(--radius-sm)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {typeLabel}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {address}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {result.display_name}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}

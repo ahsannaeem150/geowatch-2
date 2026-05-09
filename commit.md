@@ -1234,3 +1234,53 @@ feat: ghost marker + date banner for out-of-range search results
 ```
 
 *End of session*
+
+
+---
+
+## Session: Polish Location Search Dropdown
+
+### What Was Built
+
+**More Results**
+- Nominatim API `limit` increased from 5 → **8** results
+- Dropdown `maxHeight` increased from 240px → 340px to accommodate more results
+
+**Keyboard Navigation**
+- `↓` / `↑` — navigate through results (wraps around)
+- `Enter` — fly to highlighted location
+- `Escape` — close dropdown
+- Highlighted item auto-scrolls into view
+
+**Result Count Header**
+- Dropdown header shows: *"8 locations found"*
+- Consistent styling with event search dropdown
+
+**Type Badges**
+- Each location result shows a colored type badge (e.g., "City", "Street", "Country")
+- 30+ location types mapped with appropriate labels and colors
+- Badge color matches location category (purple for country, blue for state, orange for city, etc.)
+
+**Improved Visual Layout**
+- Pin dot icon (colored by type) on the left
+- Name + type badge on the same row
+- Full address below in muted text
+- Truncated with ellipsis for long names/addresses
+- Hover + keyboard highlight with `var(--bg-hover)` background
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/LocationSearch/LocationSearch.jsx` | Complete rewrite with keyboard nav, type badges, result count, 8 results limit |
+
+### Build Status
+- `admin-web`: ✅ Clean build
+
+### Git Commit
+
+```
+feat: polish location search dropdown with keyboard nav, type badges, and more results
+```
+
+*End of session*
