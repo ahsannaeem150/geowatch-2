@@ -737,3 +737,49 @@ feat: implement smart viewport filtering with 100-event threshold
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-08 — Fix: Auto-Sync Date Range to Prevent Accidental Large Ranges
+
+### Summary
+Fixed a UX issue where selecting a past `From` date while `To` defaulted to `today` would unintentionally load a massive date range (e.g., 1+ years of data). Now the date range auto-syncs intelligently to prevent this.
+
+### Behavior
+
+| Action | Before | After |
+|:--|:--|:--|
+| User clicks `From = May 1, 2025` while `To = today` | Range becomes May 1, 2025 → today (1+ year) | Range becomes May 1, 2025 → May 1, 2025 (single day) |
+| User adjusts `From` past existing `To` | Invalid range (From > To) | `To` auto-syncs to match new `From` |
+| User adjusts `To` before existing `From` | Invalid range (To < From) | `From` auto-syncs to match new `To` |
+| User has already set a custom range | — | No auto-sync — custom range is preserved |
+
+### Logic
+
+```js
+// From changed
+if (newFrom < today && currentTo === today) {
+  newTo = newFrom;        // Past date + default To → single day
+} else if (newFrom > currentTo) {
+  newTo = newFrom;        // Fix invalid range
+}
+
+// To changed
+if (newTo < currentFrom) {
+  newFrom = newTo;        // Fix invalid range
+}
+```
+
+### File Changed
+
+| File | Change |
+|:--|:--|
+| `TopBar.jsx` | Added `handleFromChange` and `handleToChange` with auto-sync logic. |
+
+### Git Commit
+
+```
+fix: auto-sync date range to prevent accidental large historical ranges
+```
+
+*End of session*

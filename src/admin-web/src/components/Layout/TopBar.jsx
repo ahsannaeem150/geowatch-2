@@ -8,6 +8,28 @@ export default function TopBar({ onAddEvent, dateRange, onDateRangeChange, onRes
   const today = new Date().toISOString().slice(0, 10);
   const isLive = dateRange.from === today && dateRange.to === today;
 
+  const handleFromChange = (newFrom) => {
+    let newTo = dateRange.to;
+    // Auto-sync: if user picks a past date while 'To' is today, switch to single-day view
+    if (newFrom < today && dateRange.to === today) {
+      newTo = newFrom;
+    }
+    // Fix invalid range: prevent From > To
+    else if (newFrom > dateRange.to) {
+      newTo = newFrom;
+    }
+    onDateRangeChange?.({ from: newFrom, to: newTo });
+  };
+
+  const handleToChange = (newTo) => {
+    let newFrom = dateRange.from;
+    // Fix invalid range: prevent To < From
+    if (newTo < dateRange.from) {
+      newFrom = newTo;
+    }
+    onDateRangeChange?.({ from: newFrom, to: newTo });
+  };
+
   const inputStyle = {
     background: 'var(--bg-input)',
     border: isLive ? '1px solid var(--border-subtle)' : '1px solid rgba(255, 170, 50, 0.4)',
@@ -67,7 +89,7 @@ export default function TopBar({ onAddEvent, dateRange, onDateRangeChange, onRes
           <input
             type="date"
             value={dateRange.from}
-            onChange={(e) => onDateRangeChange?.({ ...dateRange, from: e.target.value })}
+            onChange={(e) => handleFromChange(e.target.value)}
             style={inputStyle}
           />
           <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>→</span>
@@ -75,7 +97,7 @@ export default function TopBar({ onAddEvent, dateRange, onDateRangeChange, onRes
           <input
             type="date"
             value={dateRange.to}
-            onChange={(e) => onDateRangeChange?.({ ...dateRange, to: e.target.value })}
+            onChange={(e) => handleToChange(e.target.value)}
             style={inputStyle}
           />
 
