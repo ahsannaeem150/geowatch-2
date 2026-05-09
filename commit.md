@@ -783,3 +783,78 @@ fix: auto-sync date range to prevent accidental large historical ranges
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-08 — Fix: Street-Level Map Detail + Dark Style Overhaul
+
+### Summary
+Fixed the blank/empty map at street-level zoom by completely rewriting `map-style-dark.json`. The previous style had road colors nearly identical to the background (`#1e212b` on `#0f1117`) and was missing critical high-zoom layers. The new style uses visible grays on a slightly lighter dark background and includes all layers needed for street-level detail.
+
+### Root Cause
+
+| Issue | Before | After |
+|:--|:--|:--|
+| Background too dark | `#0f1117` | `#1a1a1a` — features now have contrast to pop |
+| Road colors invisible | `#1e212b`, `#222636` | `#555` down to `#2e2e2e` — visible at every zoom |
+| Missing road classes | Only motorway, trunk, primary, secondary | Added tertiary, minor, residential, service, track, path |
+| Missing road labels | No `transportation_name` layer | Added road names at zoom 12+ |
+| Missing buildings | No `building` layer | Added buildings at zoom 13+ with fade-in opacity |
+| Missing POIs | No `poi` layer | Added POI labels at zoom 14+ |
+| Missing villages | No village labels | Added village labels at zoom 9+ |
+| Water invisible | `#14161f` (almost black) | `#1e3a5f` (deep navy blue) |
+
+### Layer Inventory (New Style)
+
+| Layer | Zoom | Description |
+|:--|:--|:--|
+| background | all | `#1a1a1a` dark charcoal |
+| water / waterway | all | Deep navy blue `#1e3a5f` |
+| landuse (7 classes) | all | Residential, industrial, park, hospital, school, etc. |
+| landcover (wood, grass) | all | Subtle green tints |
+| boundary (2, 4) | all | Country/state borders |
+| transportation (9 classes) | 5–16 | Motorway → path, each with zoom-interpolated width |
+| building | 13+ | Gray fill with outline, opacity fades in |
+| transportation_name | 12+ | Road names in light gray |
+| water_name | 3+ | Ocean/sea names |
+| place (country, state, city, town, village) | 1–9+ | Settlement labels |
+| poi | 14+ | Points of interest |
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `assets/map-style-dark.json` | **Rewritten** — 544 lines → ~280 lines. Visible colors, all road classes, buildings, road names, POIs, villages. |
+| `src/admin-web/public/map-style-dark.json` | Copied from assets |
+| `src/user-web/public/map-style-dark.json` | Copied from assets |
+
+### Git Commit
+
+```
+fix: rewrite dark map style with visible street-level detail, buildings, road names, and pois
+```
+
+*End of session*
+
+---
+
+## 📅 2026-05-08 — Polish: Darken Water Color
+
+### Summary
+Toned down the water color after the street-level style overhaul. The navy blue (`#1e3a5f`) was too bright and competed with the event markers for visual attention. Darkened to a muted slate blue (`#1c2636`) that is still distinguishable from land but stays in the background.
+
+### Change
+
+| Element | Before | After |
+|:--|:--|:--|
+| Water fill | `#1e3a5f` | `#1c2636` |
+| Water outline | `#254a75` | `#1e2a3a` |
+| Waterway lines | `#254a75` | `#1e2a3a` |
+
+### Git Commit
+
+```
+style: darken water color to muted slate blue so it doesn't compete with event markers
+```
+
+*End of session*
