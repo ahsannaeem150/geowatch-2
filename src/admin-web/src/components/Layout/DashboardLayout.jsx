@@ -4,6 +4,7 @@ import AdminMap from '../Map/AdminMap.jsx';
 import EventForm from '../EventForm/EventForm.jsx';
 import EventTable from '../EventList/EventTable.jsx';
 import EventDetailPanel from '../EventDetail/EventDetailPanel.jsx';
+import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import { api } from '../../services/api.js';
 
 export default function DashboardLayout() {
@@ -310,6 +311,24 @@ export default function DashboardLayout() {
             flyToCoords={flyToCoords}
             markerCoords={markerCoords}
           />
+
+          {/* Location search overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '320px',
+              zIndex: 15,
+            }}
+          >
+            <LocationSearch
+              onSelect={({ lat, lng }) => {
+                setFlyToCoords({ lat, lng });
+              }}
+            />
+          </div>
 
           {/* Event counter + viewport filtering indicator overlay */}
           <div

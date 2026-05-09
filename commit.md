@@ -910,3 +910,44 @@ feat: add one-command launcher script (start/stop/logs) for all geowatch service
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Feature: Location Search (Nominatim Geocoding)
+
+### Summary
+Added a location search bar on the map that lets admins search for any place name (city, town, landmark) and fly the map there. Uses OpenStreetMap's free Nominatim API with debounced queries.
+
+### How It Works
+
+| Step | Action |
+|:--|:--|
+| 1 | Admin types "Sahiwal" in the search box (top-center of map) |
+| 2 | 400ms debounce triggers Nominatim API call |
+| 3 | Dropdown shows up to 5 matching locations |
+| 4 | Admin clicks a result → map flies to lat/lng at zoom 10 |
+| 5 | Admin can double-click to create an event at that location |
+
+### Files Created / Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/LocationSearch/LocationSearch.jsx` | **New** — Standalone search component with debounce, dropdown results, loading state, outside-click dismiss, Enter/Escape key support |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `<LocationSearch />` overlay at top-center of map |
+| `src/admin-web/src/index.css` | Added `spin` keyframe animation for loading indicator |
+
+### Technical Details
+
+- **API:** `https://nominatim.openstreetmap.org/search` (free, no API key)
+- **User-Agent:** `GeoWatch/1.0 (https://geowatch.local)` (required by OSM policy)
+- **Debounce:** 400ms to stay well under the 1 req/sec limit
+- **Attribution:** "Search by OpenStreetMap" link below the search box
+- **No backend needed:** Calls Nominatim directly from the frontend
+
+### Git Commit
+
+```
+feat: add location search with Nominatim geocoding on the map
+```
+
+*End of session*
