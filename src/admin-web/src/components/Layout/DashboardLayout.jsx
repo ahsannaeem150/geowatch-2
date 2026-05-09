@@ -18,6 +18,7 @@ export default function DashboardLayout() {
   const [flyToCoords, setFlyToCoords] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [toast, setToast] = useState(null);
 
   // Fetch events whenever date range changes
   useEffect(() => {
@@ -26,6 +27,13 @@ export default function DashboardLayout() {
       .then((res) => setEvents(res.data.events))
       .catch(() => setEvents([]));
   }, [dateRange.from, dateRange.to, refreshKey]);
+
+  // Auto-dismiss toast after 5 seconds
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const handleMapDblClick = useCallback((coords) => {
     setMarkerCoords(coords);
@@ -47,6 +55,10 @@ export default function DashboardLayout() {
     setSelectedEvent(null);
     setIsEditing(false);
     setPanelMode('form');
+  };
+
+  const handleResetToToday = () => {
+    setDateRange({ from: today, to: today });
   };
 
   const handleEditFromDetail = (event) => {
@@ -75,6 +87,17 @@ export default function DashboardLayout() {
         setSelectedEvent(newEvent);
         setPanelMode('detail');
         setMarkerCoords(null);
+
+        // Notify admin if the event has already ended (grace period expired)
+        if (newEvent.end_date) {
+          const graceEnd = new Date(new Date(newEvent.end_date).getTime() + 24 * 60 * 60 * 1000);
+          if (graceEnd < new Date()) {
+            setToast({
+              message: 'Event added successfully. It has already ended — use the date range picker to view it on the map.',
+              type: 'info',
+            });
+          }
+        }
       }
       setRefreshKey((k) => k + 1);
     } catch (err) {
@@ -171,7 +194,35 @@ export default function DashboardLayout() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-deep)' }}>
-      <TopBar onAddEvent={handleAddEvent} dateRange={dateRange} onDateRangeChange={setDateRange} />
+      <TopBar onAddEvent={handleAddEvent} dateRange={dateRange} onDateRangeChange={setDateRange} onResetToToday={handleResetToToday} />
+
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 2000,
+            background: 'rgba(15, 17, 23, 0.95)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid var(--accent-cyan)',
+            borderRadius: 'var(--radius-md)',
+            padding: '14px 24px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 212, 255, 0.15)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+            fontWeight: 500,
+            maxWidth: '480px',
+            textAlign: 'center',
+            lineHeight: 1.5,
+            animation: 'slideUp 0.3s ease-out',
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* Map */}

@@ -148,13 +148,16 @@ export async function createEvent(data, createdBy) {
     endDate,
   } = data;
 
+  // If an end date is provided, the event is considered resolved
+  const status = endDate ? 'resolved' : 'active';
+
   const result = await query(
     `INSERT INTO events (
       title, description, latitude, longitude, geom,
-      category, severity, start_date, end_date, created_by
-    ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11)
+      category, severity, start_date, end_date, status, created_by
+    ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12)
     RETURNING *`,
-    [title, description || null, latitude, longitude, longitude, latitude, category, severity, startDate, endDate || null, createdBy]
+    [title, description || null, latitude, longitude, longitude, latitude, category, severity, startDate, endDate || null, status, createdBy]
   );
 
   return result.rows[0];
@@ -178,6 +181,13 @@ export async function updateEvent(id, data) {
   addField('severity', data.severity);
   addField('start_date', data.startDate);
   addField('end_date', data.endDate);
+
+  // Auto-set status based on end_date presence
+  if (data.endDate === null) {
+    addField('status', 'active');
+  } else if (data.endDate !== undefined) {
+    addField('status', 'resolved');
+  }
 
   if (data.latitude !== undefined) {
     fields.push(`latitude = $${idx++}`);

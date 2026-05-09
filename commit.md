@@ -644,3 +644,33 @@ feat: timeline CRUD, map labels, event datetimes, twitter dark embeds, resolve g
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-08 — Feature: Live/Historical Mode Indicator + Today Button
+
+### Summary
+Replaced subtle date-range cues with an explicit, impossible-to-miss mode indicator on the top bar. Added a one-click "Today" reset button. Date pickers widened so the full date is readable. This ensures both admins and future public users always know whether they're viewing current or historical events.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `TopBar.jsx` | **Mode pill** centered in nav bar: `● LIVE MODE` (cyan, pulsing dot) or `◐ HISTORIC MODE` (amber). **Today button** next to date pickers, disabled when already on today. Date inputs widened from `118px` → `146px`. Historical dates get an amber border highlight on inputs. |
+| `DashboardLayout.jsx` | Added `handleResetToToday()` — resets range to today. Passed to TopBar. |
+| `index.css` | Added `pulse` keyframe animation for the live mode dot. |
+
+### Visual States
+
+| State | Indicator | Date Border | Today Button |
+|:--|:--|:--|:--|
+| **Live** (today → today) | Cyan pill, pulsing dot | Subtle gray | Disabled (muted) |
+| **Historical** (any other range) | Amber pill, static dot | Amber tint | Enabled (cyan text) |
+
+### Git Commit
+
+```
+feat: add live/historical mode indicator pill and today reset button to top bar
+```
+
+*End of session*

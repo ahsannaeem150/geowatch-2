@@ -3,12 +3,14 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 
-export default function TopBar({ onAddEvent, dateRange, onDateRangeChange }) {
+export default function TopBar({ onAddEvent, dateRange, onDateRangeChange, onResetToToday }) {
   const { user, logout } = useAuth();
+  const today = new Date().toISOString().slice(0, 10);
+  const isLive = dateRange.from === today && dateRange.to === today;
 
   const inputStyle = {
     background: 'var(--bg-input)',
-    border: '1px solid var(--border-subtle)',
+    border: isLive ? '1px solid var(--border-subtle)' : '1px solid rgba(255, 170, 50, 0.4)',
     borderRadius: 'var(--radius-sm)',
     padding: '5px 8px',
     color: 'var(--text-primary)',
@@ -16,7 +18,8 @@ export default function TopBar({ onAddEvent, dateRange, onDateRangeChange }) {
     fontSize: '12px',
     outline: 'none',
     cursor: 'pointer',
-    width: '118px',
+    width: '146px',
+    transition: 'border-color 0.2s ease',
   };
 
   return (
@@ -75,7 +78,66 @@ export default function TopBar({ onAddEvent, dateRange, onDateRangeChange }) {
             onChange={(e) => onDateRangeChange?.({ ...dateRange, to: e.target.value })}
             style={inputStyle}
           />
+
+          {/* Today button */}
+          <button
+            onClick={onResetToToday}
+            disabled={isLive}
+            style={{
+              marginLeft: '4px',
+              padding: '5px 12px',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-subtle)',
+              background: isLive ? 'var(--bg-deep)' : 'var(--bg-input)',
+              color: isLive ? 'var(--text-muted)' : 'var(--accent-cyan)',
+              cursor: isLive ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Today
+          </button>
         </div>
+      </div>
+
+      {/* Center: Mode Indicator Pill */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 18px',
+          borderRadius: 'var(--radius-sm)',
+          background: isLive ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255, 170, 50, 0.1)',
+          border: `1px solid ${isLive ? 'rgba(0, 212, 255, 0.35)' : 'rgba(255, 170, 50, 0.35)'}`,
+        }}
+      >
+        <div
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: isLive ? 'var(--accent-cyan)' : '#ffaa32',
+            boxShadow: isLive ? '0 0 10px rgba(0, 212, 255, 0.6)' : 'none',
+            animation: isLive ? 'pulse 2s ease-in-out infinite' : 'none',
+          }}
+        />
+        <span
+          style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            letterSpacing: '1px',
+            color: isLive ? 'var(--accent-cyan)' : '#ffaa32',
+          }}
+        >
+          {isLive ? 'LIVE MODE' : 'HISTORIC MODE'}
+        </span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
