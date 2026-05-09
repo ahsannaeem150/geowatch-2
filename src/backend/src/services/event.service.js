@@ -86,15 +86,28 @@ function buildEventWhereClause(filters) {
 export async function listEvents(filters) {
   const { where, params } = buildEventWhereClause(filters);
 
+  // Get exact count for smart viewport filtering decisions
+  const countResult = await query(
+    `SELECT COUNT(*) as total FROM events e WHERE ${where}`,
+    params
+  );
+  const count = parseInt(countResult.rows[0].total, 10);
+
+  // Fetch events capped at 301 so the frontend knows if there's more
   const sql = `
     SELECT ${EVENT_COLUMNS}
     FROM events e
     WHERE ${where}
     ORDER BY e.severity DESC, e.created_at DESC
+    LIMIT 301
   `;
 
   const result = await query(sql, params);
-  return result.rows;
+  return {
+    events: result.rows,
+    count,
+    hasMore: count > 300,
+  };
 }
 
 export async function getEventById(id) {

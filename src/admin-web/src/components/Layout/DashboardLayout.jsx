@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import EventForm from '../EventForm/EventForm.jsx';
@@ -20,15 +20,83 @@ export default function DashboardLayout() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState(null);
 
-  // Fetch events whenever date range changes
+  // Smart viewport filtering state
+  const [viewportFiltering, setViewportFiltering] = useState(null); // null = unknown, true = on, false = off
+  const [totalEventCount, setTotalEventCount] = useState(0);
+  const viewportBoundsRef = useRef(null);
+  const viewportFilteringRef = useRef(null);
+
+  // Fetch events: first without viewport to get count, then conditionally with viewport
   useEffect(() => {
-    api
-      .getEvents({ dateFrom: dateRange.from, dateTo: dateRange.to })
-      .then((res) => setEvents(res.data.events))
-      .catch(() => setEvents([]));
+    let cancelled = false;
+
+    const doFetch = async () => {
+      setViewportFiltering(null);
+      viewportFilteringRef.current = null;
+
+      // Step 1: Fetch without viewport to count total events for this date range
+      const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to };
+      const res1 = await api.getEvents(params1);
+
+      if (cancelled) return;
+      setTotalEventCount(res1.data.count);
+
+      if (res1.data.count <= 100) {
+        // Light load: show all events, no viewport filtering needed
+        setEvents(res1.data.events);
+        setViewportFiltering(false);
+        viewportFilteringRef.current = false;
+      } else {
+        // Heavy load: enable viewport filtering
+        setViewportFiltering(true);
+        viewportFilteringRef.current = true;
+
+        // Step 2: If viewport bounds are already known, fetch with them
+        if (viewportBoundsRef.current) {
+          const params2 = {
+            dateFrom: dateRange.from,
+            dateTo: dateRange.to,
+            viewport: viewportBoundsRef.current,
+          };
+          const res2 = await api.getEvents(params2);
+          if (cancelled) return;
+          setEvents(res2.data.events);
+          setTotalEventCount(res2.data.count);
+        } else {
+          // Bounds not ready yet — show the first batch temporarily
+          setEvents(res1.data.events);
+        }
+      }
+    };
+
+    doFetch();
+
+    return () => {
+      cancelled = true;
+    };
   }, [dateRange.from, dateRange.to, refreshKey]);
 
-  // Auto-dismiss toast after 5 seconds
+  // Handle viewport bounds changes from the map
+  const handleViewportChange = useCallback((bounds) => {
+    viewportBoundsRef.current = bounds;
+
+    // If viewport filtering is already active, re-fetch with new bounds
+    if (viewportFilteringRef.current === true) {
+      api
+        .getEvents({
+          dateFrom: dateRange.from,
+          dateTo: dateRange.to,
+          viewport: bounds,
+        })
+        .then((res) => {
+          setEvents(res.data.events);
+          setTotalEventCount(res.data.count);
+        })
+        .catch(() => setEvents([]));
+    }
+  }, [dateRange.from, dateRange.to]);
+
+  // Auto-dismiss toast after 6 seconds
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 6000);
@@ -238,17 +306,18 @@ export default function DashboardLayout() {
             selectedEventId={selectedEvent?.id}
             onEventClick={handleEventClick}
             onMapDblClick={handleMapDblClick}
+            onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
             markerCoords={markerCoords}
           />
 
-          {/* Event counter overlay */}
+          {/* Event counter + viewport filtering indicator overlay */}
           <div
             style={{
               position: 'absolute',
               top: '12px',
               left: '12px',
-              background: 'rgba(15, 17, 23, 0.8)',
+              background: 'rgba(15, 17, 23, 0.85)',
               backdropFilter: 'blur(8px)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
@@ -256,9 +325,24 @@ export default function DashboardLayout() {
               fontSize: '12px',
               color: 'var(--text-secondary)',
               zIndex: 10,
+              maxWidth: '320px',
+              lineHeight: 1.5,
             }}
           >
-            <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>{events.length}</span> events visible
+            <div>
+              <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>{events.length}</span>
+              {' events visible'}
+              {viewportFiltering === true && (
+                <span style={{ color: 'var(--text-muted)' }}> in current map area</span>
+              )}
+            </div>
+            {viewportFiltering === true && totalEventCount > 100 && (
+              <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '4px' }}>
+                {totalEventCount > 300
+                  ? `${totalEventCount}+ total events match this date range — zoom or pan to explore`
+                  : `${totalEventCount} total events match this date range — zoom or pan to explore`}
+              </div>
+            )}
           </div>
         </div>
 

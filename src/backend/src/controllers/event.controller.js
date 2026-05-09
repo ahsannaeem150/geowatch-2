@@ -19,8 +19,13 @@ export async function getEvents(req, res) {
     viewport: req.query.viewport,
   };
 
-  const events = await listEvents(filters);
-  res.apiSuccess({ events, count: events.length, date: filters.date || filters.dateFrom || new Date().toISOString().slice(0, 10) });
+  const { events, count, hasMore } = await listEvents(filters);
+  res.apiSuccess({
+    events,
+    count,
+    hasMore,
+    date: filters.date || filters.dateFrom || new Date().toISOString().slice(0, 10),
+  });
 }
 
 export async function getEvent(req, res) {

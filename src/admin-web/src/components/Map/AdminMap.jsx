@@ -10,6 +10,7 @@ export default function AdminMap({
   selectedEventId,
   onEventClick,
   onMapDblClick,
+  onViewportChange,
   flyToCoords,
   markerCoords,
 }) {
@@ -17,6 +18,9 @@ export default function AdminMap({
   const map = useRef(null);
   const markers = useRef(new Map());
   const tempMarker = useRef(null);
+  const isProgrammaticMove = useRef(false);
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
 
   // Initialize map once
   useEffect(() => {
@@ -36,6 +40,26 @@ export default function AdminMap({
       onMapDblClick?.({ lat, lng });
     });
 
+    // Report viewport bounds on user-initiated map moves
+    map.current.on('moveend', () => {
+      if (isProgrammaticMove.current) {
+        isProgrammaticMove.current = false;
+        return;
+      }
+      if (!map.current) return;
+      const bounds = map.current.getBounds();
+      const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+      onViewportChangeRef.current?.(viewport);
+    });
+
+    // Report initial bounds once the map is loaded
+    map.current.on('load', () => {
+      if (!map.current) return;
+      const bounds = map.current.getBounds();
+      const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+      onViewportChangeRef.current?.(viewport);
+    });
+
     return () => {
       markers.current.forEach((m) => m.remove());
       tempMarker.current?.remove();
@@ -46,6 +70,7 @@ export default function AdminMap({
   // Fly to coordinates
   useEffect(() => {
     if (flyToCoords && map.current) {
+      isProgrammaticMove.current = true;
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],
         zoom: 10,

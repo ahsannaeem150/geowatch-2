@@ -674,3 +674,66 @@ feat: add live/historical mode indicator pill and today reset button to top bar
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-08 — Feature: Smart Viewport Filtering
+
+### Summary
+Implemented intelligent viewport-based filtering to prevent map performance degradation when viewing large date ranges with many events. The system automatically detects when a date range contains more than 100 events and switches to viewport-filtered fetching — only loading events visible in the current map area. If 100 or fewer events match the range, all events are loaded at once with no map-move re-fetching.
+
+### How It Works
+
+| Step | Action |
+|:--|:--|
+| 1 | User selects a date range |
+| 2 | Frontend fetches **without** viewport — gets exact count from backend |
+| 3 | If `count <= 100`: all events loaded, map pans freely without re-fetching |
+| 4 | If `count > 100`: viewport filtering activated, only map-visible events fetched |
+| 5 | When viewport filtering is on: every map pan/zoom triggers a re-fetch with new bounds |
+| 6 | Map overlay shows: "247 events visible in current map area · 1,200 total events match this date range — zoom or pan to explore" |
+
+### Backend Changes
+
+| File | Change |
+|:--|:--|
+| `event.service.js` `listEvents` | Runs `SELECT COUNT(*) ...` first to get exact total, then `SELECT ... LIMIT 301` for events. Returns `{ events, count, hasMore }`. |
+| `event.controller.js` `getEvents` | Returns `count` and `hasMore` flags in the API response. |
+
+### Frontend Changes
+
+| File | Change |
+|:--|:--|
+| `AdminMap.jsx` | Added `onViewportChange` prop. Reports bounds on `moveend` (skips programmatic `flyTo` moves) and on initial `load`. Uses callback ref to avoid stale closures. |
+| `DashboardLayout.jsx` | Smart viewport logic: `viewportFiltering` state (null/true/false). Fetches without viewport first, checks count, conditionally enables viewport mode. Re-fetches on map move only when viewport filtering is active. Event counter overlay shows viewport status and total count message. |
+| `api.js` | `getEvents` already accepts `viewport` param — no changes needed. |
+
+### API Response Shape
+
+```json
+{
+  "success": true,
+  "data": {
+    "events": [...],
+    "count": 1247,
+    "hasMore": true,
+    "date": "2026-05-08"
+  }
+}
+```
+
+### Key Design Decision
+
+The **100-event threshold** is a deliberate trade-off:
+- Below 100: buttery-smooth panning, no network requests on map move, full data visible
+- Above 100: viewport filtering kicks in to protect browser performance while still allowing large date range exploration
+
+The threshold can be tuned easily by changing the `<= 100` check in `DashboardLayout.jsx`.
+
+### Git Commit
+
+```
+feat: implement smart viewport filtering with 100-event threshold
+```
+
+*End of session*

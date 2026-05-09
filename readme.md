@@ -139,6 +139,16 @@ All responses follow this structure:
 
 ---
 
+## Smart Viewport Filtering
+
+GeoWatch uses an intelligent viewport filtering system to keep the map performant even with thousands of events:
+
+- **≤ 100 events** for the selected date range → all events load at once. Pan and zoom freely with zero network requests.
+- **> 100 events** for the selected date range → viewport filtering activates. Only events visible in the current map area are fetched. Panning or zooming triggers a refresh.
+- A map overlay shows the current view status and total event count so users always know when filtering is active.
+
+This threshold is configurable and protects both browser rendering performance and user experience.
+
 ## Design Philosophy
 
 GeoWatch is **not** a generic maps clone. It is a tactical intelligence dashboard meets premium newsroom aesthetic — think Bloomberg Terminal + modern dark-mode SaaS.
