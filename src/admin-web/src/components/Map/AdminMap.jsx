@@ -13,11 +13,13 @@ export default function AdminMap({
   onViewportChange,
   flyToCoords,
   markerCoords,
+  ghostEvent,
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef(new Map());
   const tempMarker = useRef(null);
+  const ghostMarkerRef = useRef(null);
   const isProgrammaticMove = useRef(false);
   const onViewportChangeRef = useRef(onViewportChange);
   onViewportChangeRef.current = onViewportChange;
@@ -232,6 +234,75 @@ export default function AdminMap({
     }
   }, [markerCoords]);
 
+  // Render ghost marker for search-selected events outside current date range
+  useEffect(() => {
+    if (!map.current) return;
+
+    if (ghostMarkerRef.current) {
+      ghostMarkerRef.current.remove();
+      ghostMarkerRef.current = null;
+    }
+
+    if (ghostEvent) {
+      const lat = parseFloat(ghostEvent.latitude);
+      const lng = parseFloat(ghostEvent.longitude);
+      const color = CATEGORY_COLORS[ghostEvent.category] || '#778ca3';
+      const size = 10;
+
+      const el = document.createElement('div');
+      el.style.width = '0';
+      el.style.height = '0';
+      el.style.position = 'relative';
+
+      const visual = document.createElement('div');
+      visual.style.position = 'absolute';
+      visual.style.left = `-${size}px`;
+      visual.style.top = `-${size}px`;
+      visual.style.width = `${size * 2}px`;
+      visual.style.height = `${size * 2}px`;
+      visual.style.borderRadius = '50%';
+      visual.style.background = color;
+      visual.style.opacity = '0.5';
+      visual.style.border = '2px dashed rgba(255,255,255,0.6)';
+      visual.style.boxShadow = `0 0 ${size}px ${color}60`;
+      visual.style.cursor = 'pointer';
+      visual.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+
+      // Pulsing ring
+      const ring = document.createElement('div');
+      ring.style.position = 'absolute';
+      ring.style.left = `-${size + 6}px`;
+      ring.style.top = `-${size + 6}px`;
+      ring.style.width = `${size * 2 + 12}px`;
+      ring.style.height = `${size * 2 + 12}px`;
+      ring.style.borderRadius = '50%';
+      ring.style.border = `1.5px dashed ${color}`;
+      ring.style.opacity = '0.4';
+      ring.style.animation = 'ghost-pulse 2s ease-in-out infinite';
+      ring.style.pointerEvents = 'none';
+
+      visual.addEventListener('mouseenter', () => {
+        visual.style.transform = 'scale(1.4)';
+        visual.style.opacity = '0.8';
+      });
+      visual.addEventListener('mouseleave', () => {
+        visual.style.transform = 'scale(1)';
+        visual.style.opacity = '0.5';
+      });
+
+      el.addEventListener('click', () => {
+        onEventClick?.(ghostEvent);
+      });
+
+      el.appendChild(visual);
+      el.appendChild(ring);
+
+      ghostMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lng, lat])
+        .addTo(map.current);
+    }
+  }, [ghostEvent, onEventClick]);
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
@@ -239,6 +310,11 @@ export default function AdminMap({
         @keyframes marker-pulse {
           0% { transform: scale(0.8); opacity: 1; }
           100% { transform: scale(1.6); opacity: 0; }
+        }
+        @keyframes ghost-pulse {
+          0% { transform: scale(1); opacity: 0.4; }
+          50% { transform: scale(1.15); opacity: 0.2; }
+          100% { transform: scale(1); opacity: 0.4; }
         }
       `}</style>
     </div>

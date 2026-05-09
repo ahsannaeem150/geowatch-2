@@ -185,6 +185,16 @@ export default function DashboardLayout() {
     setIsEditing(false);
   };
 
+  const handleSwitchToEventDate = (event) => {
+    const eventDate = event.start_date ? event.start_date.slice(0, 10) : today;
+    setDateRange({ from: eventDate, to: eventDate });
+  };
+
+  // Determine if selected event is a "ghost" (outside current date range)
+  const ghostEvent = selectedEvent && !events.find((e) => e.id === selectedEvent.id)
+    ? selectedEvent
+    : null;
+
   const handleSubmit = async (payload) => {
     setSubmitting(true);
     try {
@@ -360,7 +370,94 @@ export default function DashboardLayout() {
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
             markerCoords={markerCoords}
+            ghostEvent={ghostEvent}
           />
+
+          {/* Ghost event banner — outside current date range */}
+          {ghostEvent && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 20,
+                background: 'rgba(15, 17, 23, 0.95)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+                maxWidth: '90%',
+              }}
+            >
+              <div
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: 'var(--text-muted)',
+                  opacity: 0.5,
+                  border: '2px dashed rgba(255,255,255,0.4)',
+                  flexShrink: 0,
+                }}
+              />
+              <div>
+                <p
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    fontWeight: 500,
+                    margin: 0,
+                  }}
+                >
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+                    {ghostEvent.title}
+                  </span>{' '}
+                  occurred on{' '}
+                  <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                    {ghostEvent.start_date
+                      ? new Date(ghostEvent.start_date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : 'unknown date'}
+                  </span>
+                  {' — outside your current date range'}
+                </p>
+              </div>
+              <button
+                onClick={() => handleSwitchToEventDate(ghostEvent)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--accent-cyan)',
+                  background: 'rgba(0, 212, 255, 0.1)',
+                  color: 'var(--accent-cyan)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(0, 212, 255, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                }}
+              >
+                Switch to this date
+              </button>
+            </div>
+          )}
 
           {/* Location search overlay */}
           <div

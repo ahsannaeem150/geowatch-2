@@ -1186,3 +1186,51 @@ feat: add date filter to search modal, lower view-all threshold, fix query pre-f
 ```
 
 *End of session*
+
+
+---
+
+## Session: Ghost Marker + Date Range Banner for Out-of-Range Search Results
+
+### What Was Built
+
+When an admin searches for an event that occurred outside the current date range (e.g., searching an old event while in Live Mode):
+
+**Ghost Marker on Map**
+- A semi-transparent, dashed-border marker appears at the event's location
+- Pulsing dashed ring animation makes it visually distinct from normal markers
+- Lower opacity (0.5) signals "this is not in your current view"
+- Hover scales it up and increases opacity
+- Clicking it opens the detail panel (same as normal markers)
+- Automatically disappears when the event enters the current date range
+
+**Context Banner**
+- Bottom-center banner overlay on the map
+- Shows: *"{Event Title} occurred on {date} — outside your current date range"*
+- **"Switch to this date"** button — one click changes the date picker to that event's date
+- The event then appears as a normal marker alongside other events from that day
+- Banner disappears when the panel closes or the date is switched
+
+**Implementation**
+- `AdminMap.jsx`: Added `ghostEvent` prop + `ghostMarkerRef`; renders a distinct MapLibre marker with dashed border + `ghost-pulse` animation
+- `DashboardLayout.jsx`: Computes `ghostEvent` when `selectedEvent` is not in the `events` array; passes it to AdminMap; renders banner overlay with date-switch handler
+- `handleSwitchToEventDate`: Sets `dateRange` to the event's `start_date` (single-day view)
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `ghostEvent` prop, ghost marker rendering with pulse animation |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Ghost event computation, banner overlay, date-switch handler |
+
+### Build Status
+- `admin-web`: ✅ Clean build
+- `backend`: ✅ No changes needed
+
+### Git Commit
+
+```
+feat: ghost marker + date banner for out-of-range search results
+```
+
+*End of session*
