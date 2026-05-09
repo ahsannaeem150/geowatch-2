@@ -951,3 +951,44 @@ feat: add location search with Nominatim geocoding on the map
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Fix: Dynamic Zoom Based on Location Type
+
+### Summary
+Location search now zooms intelligently based on the result type instead of always using zoom 10. Searching for a country zooms out; searching for a street zooms in.
+
+### Zoom Mapping
+
+| Location Type | Zoom | Example |
+|:--|:--|:--|
+| Continent | 3 | Asia, Europe |
+| Country | 5 | Pakistan, India |
+| State/Province | 7 | Punjab, Texas |
+| County/District | 9 | Sahiwal District |
+| City | 11 | Lahore, Karachi |
+| Town | 13 | Sahiwal (town) |
+| Village | 14 | Small village |
+| Suburb/Neighborhood | 15 | Gulberg, DHA |
+| Street/Road | 16 | Mall Road |
+| Building/House | 17 | Specific address |
+| River/Lake | 12 | Indus River |
+| Airport/Station | 14 | Jinnah Terminal |
+| Default (unknown) | 11 | — |
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `LocationSearch.jsx` | Passes full Nominatim `result` object (including `type` and `class`) to `onSelect` |
+| `DashboardLayout.jsx` | Added `getZoomForLocation(type, class)` helper; computes zoom before calling `setFlyToCoords` |
+| `AdminMap.jsx` | `flyTo` now uses `flyToCoords.zoom ?? 10` instead of hardcoded `10` |
+
+### Git Commit
+
+```
+feat: dynamic zoom levels in location search based on result type
+```
+
+*End of session*

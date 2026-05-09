@@ -42,7 +42,7 @@ export default function LocationSearch({ onSelect }) {
   };
 
   const handleSelect = (result) => {
-    onSelect?.({ lat: parseFloat(result.lat), lng: parseFloat(result.lon) });
+    onSelect?.(result);
     setQuery('');
     setResults([]);
     setShowDropdown(false);

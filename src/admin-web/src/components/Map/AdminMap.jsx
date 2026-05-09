@@ -73,7 +73,7 @@ export default function AdminMap({
       isProgrammaticMove.current = true;
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],
-        zoom: 10,
+        zoom: flyToCoords.zoom ?? 10,
         duration: 800,
       });
     }

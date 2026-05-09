@@ -7,6 +7,31 @@ import EventDetailPanel from '../EventDetail/EventDetailPanel.jsx';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import { api } from '../../services/api.js';
 
+function getZoomForLocation(type, cls) {
+  const t = (type || '').toLowerCase();
+  const c = (cls || '').toLowerCase();
+
+  if (t === 'continent') return 3;
+  if (t === 'country') return 5;
+  if (['state', 'province', 'region'].includes(t)) return 7;
+  if (['county', 'district'].includes(t)) return 9;
+  if (t === 'city') return 11;
+  if (t === 'town') return 13;
+  if (t === 'village') return 14;
+  if (['suburb', 'neighbourhood', 'neighborhood', 'quarter'].includes(t)) return 15;
+  if (['street', 'road', 'square', 'farm', ' allotments'].includes(t)) return 16;
+  if (['house', 'building', 'place_of_worship', 'museum', 'hospital', 'school', 'university', 'college'].includes(t)) return 17;
+  if (['river', 'lake', 'water', 'reservoir', 'pond'].includes(t)) return 12;
+  if (['mountain', 'peak', 'volcano', 'ridge'].includes(t)) return 13;
+  if (['airport', 'station', 'bus_station', 'railway_station'].includes(t)) return 14;
+
+  if (c === 'boundary') return 9;
+  if (c === 'place') return 12;
+  if (c === 'highway') return 16;
+
+  return 11;
+}
+
 export default function DashboardLayout() {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -324,8 +349,9 @@ export default function DashboardLayout() {
             }}
           >
             <LocationSearch
-              onSelect={({ lat, lng }) => {
-                setFlyToCoords({ lat, lng });
+              onSelect={(result) => {
+                const zoom = getZoomForLocation(result.type, result.class);
+                setFlyToCoords({ lat: parseFloat(result.lat), lng: parseFloat(result.lon), zoom });
               }}
             />
           </div>
