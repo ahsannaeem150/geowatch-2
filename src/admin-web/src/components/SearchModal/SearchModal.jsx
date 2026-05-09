@@ -483,16 +483,32 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                       >
                         {dateStr}
                       </td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          color: 'var(--text-muted)',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '11px',
-                        }}
-                      >
-                        {parseFloat(event.latitude ?? 0).toFixed(3)},{' '}
-                        {parseFloat(event.longitude ?? 0).toFixed(3)}
+                      <td style={tdStyle}>
+                        {event.location_context && (
+                          <div
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--text-secondary)',
+                              marginBottom: '2px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              maxWidth: '160px',
+                            }}
+                          >
+                            {event.location_context}
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            fontSize: '11px',
+                            color: 'var(--text-muted)',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          {parseFloat(event.latitude ?? 0).toFixed(3)},{' '}
+                          {parseFloat(event.longitude ?? 0).toFixed(3)}
+                        </div>
                       </td>
                     </tr>
                   );
