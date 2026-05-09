@@ -1284,3 +1284,52 @@ feat: polish location search dropdown with keyboard nav, type badges, and more r
 ```
 
 *End of session*
+
+
+---
+
+## Session: Coordinate Search in Location Bar
+
+### What Was Built
+
+**Auto-detect coordinate input** in the location search box. Type coordinates in any of 3 formats — the dropdown shows "📍 Fly to coordinates" instead of querying Nominatim.
+
+**Supported Formats (15+ variant patterns):**
+
+| Format | Example |
+|---|---|
+| **DD** (Decimal Degrees) | `40.446195, -79.982195` <br> `40.446195°N, 79.982195°W` <br> `N 40.446195°, W 79.982195°` <br> `(40.446195°N, 79.982195°W)` <br> `-40.446195 79.982195` |
+| **DDM** (Deg + Dec Min) | `40° 26.7717' N, 79° 58.9317' W` <br> `40°26.7717'N 79°58.9317'W` <br> `N 40° 26.7717' W 79° 58.9317'` |
+| **DMS** (Deg + Min + Sec) | `40° 26' 46.3" N, 79° 58' 56" W` <br> `40:26:46.3N 79:58:56W` <br> `40 26 46.3 N 79 58 56 W` <br> `N 40° 26' 46.3" W 79° 58' 56"` |
+
+**Parser Features:**
+- Handles `°` `' ` ` " ` symbols, colons, commas, parentheses, brackets
+- Direction prefix or suffix (`N 40.5` or `40.5 N`)
+- Negative sign for South/West
+- Falls back to Nominatim search if input is not coordinates
+- Validates lat ∈ [-90, 90], lng ∈ [-180, 180]
+
+**UI Integration:**
+- Dropdown shows: *"📍 Fly to coordinates"* with parsed DD string and detected format
+- Click or Enter → map flies to location at **zoom 16** (street/building level)
+- 15/15 unit tests passing for all format variants
+
+**Files Created/Modified:**
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/utils/parseCoordinates.js` | **Created** — robust DD/DDM/DMS parser with normalization |
+| `src/admin-web/src/components/LocationSearch/LocationSearch.jsx` | Integrated coordinate detection before Nominatim call; shows coordinate result in dropdown |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `coordinates` type → zoom 16 in `getZoomForLocation` |
+
+### Build & Test Status
+- `admin-web`: ✅ Clean build
+- Coordinate parser: ✅ 15/15 unit tests passing
+
+### Git Commit
+
+```
+feat: add coordinate search support (DD, DDM, DMS) to location bar
+```
+
+*End of session*

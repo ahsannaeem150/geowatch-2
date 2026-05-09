@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { parseCoordinates } from '../../utils/parseCoordinates.js';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const USER_AGENT = 'GeoWatch/1.0 (https://geowatch.local)';
@@ -82,6 +83,27 @@ export default function LocationSearch({ onSelect }) {
       setHighlightedIndex(-1);
       return;
     }
+
+    // Check if input is coordinates
+    const coords = parseCoordinates(q);
+    if (coords) {
+      setResults([
+        {
+          _isCoordinates: true,
+          lat: coords.lat,
+          lon: coords.lng,
+          display_name: `${Math.abs(coords.lat).toFixed(6)}°${coords.lat >= 0 ? 'N' : 'S'}, ${Math.abs(coords.lng).toFixed(6)}°${coords.lng >= 0 ? 'E' : 'W'}`,
+          name: `${coords.format} Coordinates`,
+          type: 'coordinates',
+          class: 'coordinates',
+        },
+      ]);
+      setShowDropdown(true);
+      setHighlightedIndex(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const url = `${NOMINATIM_URL}?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=0`;
@@ -266,6 +288,51 @@ export default function LocationSearch({ onSelect }) {
           ) : (
             results.map((result, index) => {
               const isHighlighted = highlightedIndex === index;
+              const isCoords = result._isCoordinates;
+
+              if (isCoords) {
+                return (
+                  <div
+                    key="coords"
+                    ref={(el) => (itemRefs.current[index] = el)}
+                    onClick={() => handleSelect(result)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    style={{
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
+                      background: isHighlighted ? 'var(--bg-hover)' : 'transparent',
+                      transition: 'background 0.12s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                    }}
+                  >
+                    <span style={{ fontSize: '14px', flexShrink: 0 }}>📍</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: 'var(--accent-cyan)',
+                          fontSize: '13px',
+                          marginBottom: '2px',
+                        }}
+                      >
+                        Fly to coordinates
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        {result.display_name} · {result.name}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
               const typeColor = getTypeColor(result.type, result.class);
               const typeLabel = formatType(result.type);
               const name = result.name || result.display_name.split(',')[0];

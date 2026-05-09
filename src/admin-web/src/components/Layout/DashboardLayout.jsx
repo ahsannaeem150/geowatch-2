@@ -12,6 +12,7 @@ function getZoomForLocation(type, cls) {
   const t = (type || '').toLowerCase();
   const c = (cls || '').toLowerCase();
 
+  if (t === 'coordinates') return 16;
   if (t === 'continent') return 3;
   if (t === 'country') return 5;
   if (['state', 'province', 'region'].includes(t)) return 7;
