@@ -385,11 +385,22 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
         )}
 
         {/* Timeline entries */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div>
           {sortedTimeline.length === 0 && !isAddingUpdate && (
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
-              No updates yet. Click "+ Add Update" to add the first entry.
-            </p>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '32px 20px',
+                color: 'var(--text-muted)',
+                fontSize: '13px',
+                border: '1px dashed var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }}>📝</div>
+              <div>No updates yet.</div>
+              <div style={{ fontSize: '12px', marginTop: '4px' }}>Click "+ Add Update" to add the first entry.</div>
+            </div>
           )}
 
           {sortedTimeline.map((update, index) => {
@@ -404,6 +415,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
                     border: '1px solid var(--border-hover)',
                     borderRadius: 'var(--radius-md)',
                     padding: '16px',
+                    marginBottom: '14px',
                   }}
                 >
                   <label style={labelBase}>Edit Summary</label>
@@ -457,6 +469,8 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
                 isAdmin={true}
                 onEdit={() => startEditing(update)}
                 onDelete={() => handleDeleteUpdate(update.id)}
+                isFirst={index === 0}
+                isLast={index === sortedTimeline.length - 1}
               />
             );
           })}

@@ -9,21 +9,24 @@ export default function TimelineEntry({
   isAdmin,
   onEdit,
   onDelete,
+  isFirst,
+  isLast,
 }) {
   const embedRef = useRef(null);
   const date = new Date(update.update_date);
+
   let dateLabel;
   if (isToday(date)) {
     dateLabel = 'Today';
   } else if (isYesterday(date)) {
     dateLabel = 'Yesterday';
   } else {
-    dateLabel = format(date, 'MMM d');
+    dateLabel = format(date, 'MMM d, yyyy');
   }
   const timeLabel = format(date, 'h:mm a');
 
-  const summaryPreview = update.summary.length > 100
-    ? update.summary.slice(0, 100) + '…'
+  const summaryPreview = update.summary.length > 140
+    ? update.summary.slice(0, 140) + '…'
     : update.summary;
 
   // Force dark theme on Twitter embeds
@@ -41,140 +44,289 @@ export default function TimelineEntry({
   }, [isExpanded, darkEmbedHtml]);
 
   return (
-    <div
-      style={{
-        background: 'var(--bg-elevated)',
-        border: `1px solid ${isExpanded ? 'var(--border-hover)' : 'var(--border-subtle)'}`,},{
-        borderRadius: 'var(--radius-sm)',
-        overflow: 'hidden',
-        transition: 'border-color 0.15s ease',
-      }}
-    >
-      {/* Collapsed / Header row */}
-      <button
-        onClick={onToggle}
+    <div style={{ display: 'flex', position: 'relative' }}>
+      {/* ─── Left spine: connector line + dot ─── */}
+      <div
         style={{
-          width: '100%',
           display: 'flex',
-          alignItems: 'flex-start',
-          gap: '12px',
-          padding: '12px 14px',
-          background: 'none',
-          border: 'none',
-          color: 'inherit',
-          cursor: 'pointer',
-          textAlign: 'left',
+          flexDirection: 'column',
+          alignItems: 'center',
+          width: '28px',
+          flexShrink: 0,
+          position: 'relative',
         }}
       >
+        {/* Top connector segment (hidden for first item) */}
+        {!isFirst && (
+          <div
+            style={{
+              width: '2px',
+              flex: 1,
+              minHeight: '8px',
+              background: 'var(--border-subtle)',
+            }}
+          />
+        )}
+        {isFirst && <div style={{ height: '10px' }} />}
+
         {/* Dot */}
         <div
           style={{
-            width: '8px',
-            height: '8px',
+            width: isLatest ? '12px' : '8px',
+            height: isLatest ? '12px' : '8px',
             borderRadius: '50%',
-            background: isLatest ? 'var(--accent-light)' : 'var(--border-subtle)',
-            boxShadow: isLatest ? '0 0 6px var(--accent-glow-strong)' : 'none',
-            marginTop: '5px',
+            background: isLatest ? 'var(--accent-light)' : 'var(--border-hover)',
+            border: isLatest ? '2px solid var(--accent)' : '2px solid var(--border-subtle)',
+            boxShadow: isLatest
+              ? '0 0 10px var(--accent-glow-strong)'
+              : 'none',
             flexShrink: 0,
+            zIndex: 2,
+            transition: 'all 0.2s ease',
           }}
         />
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Date + Time + Chevron */}
+        {/* Bottom connector segment (hidden for last item) */}
+        {!isLast && (
           <div
             style={{
+              width: '2px',
+              flex: 1,
+              minHeight: '8px',
+              background: 'var(--border-subtle)',
+            }}
+          />
+        )}
+        {isLast && <div style={{ height: '10px' }} />}
+      </div>
+
+      {/* ─── Right: content card ─── */}
+      <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? '0' : '14px' }}>
+        <div
+          style={{
+            background: isExpanded ? 'var(--bg-elevated)' : 'transparent',
+            border: `1px solid ${isExpanded ? 'var(--border-hover)' : 'transparent'}`,
+            borderRadius: 'var(--radius-md)',
+            overflow: 'hidden',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          {/* Header row — always visible */}
+          <button
+            onClick={onToggle}
+            style={{
+              width: '100%',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '8px',
-              marginBottom: '4px',
+              flexDirection: 'column',
+              gap: '6px',
+              padding: isExpanded ? '14px 14px 10px' : '8px 14px 10px',
+              background: 'none',
+              border: 'none',
+              color: 'inherit',
+              cursor: 'pointer',
+              textAlign: 'left',
             }}
           >
-            <span
+            {/* Meta row: date + badge + chevron */}
+            <div
               style={{
-                fontSize: '12px',
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                fontFamily: 'var(--font-mono)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
               }}
             >
-              {dateLabel} · {timeLabel}
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>
-              {isExpanded ? '▲' : '▼'}
-            </span>
-          </div>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.3px',
+                }}
+              >
+                {dateLabel} · {timeLabel}
+              </span>
 
-          {/* Summary text */}
-          <p
-            style={{
-              fontSize: '13px',
-              color: 'var(--text-primary)',
-              lineHeight: 1.6,
-              margin: 0,
-            }}
-          >
-            {isExpanded ? update.summary : summaryPreview}
-          </p>
-        </div>
-      </button>
+              {isLatest && (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    color: 'var(--accent-light)',
+                    background: 'rgba(159, 18, 57, 0.12)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(159, 18, 57, 0.25)',
+                  }}
+                >
+                  Latest
+                </span>
+              )}
 
-      {/* Expanded extras */}
-      {isExpanded && (
-        <div style={{ padding: '0 14px 12px 34px' }}>
-          {update.created_by_name && (
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px' }}>
-              by {update.created_by_name}
+              <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)' }}>
+                {isExpanded ? '▲' : '▼'}
+              </span>
+            </div>
+
+            {/* Summary */}
+            <p
+              style={{
+                fontSize: '14px',
+                color: 'var(--text-primary)',
+                lineHeight: 1.6,
+                margin: 0,
+                fontWeight: 400,
+              }}
+            >
+              {isExpanded ? update.summary : summaryPreview}
             </p>
-          )}
+          </button>
 
-          {/* Embedded tweet */}
-          {darkEmbedHtml && (
-            <div
-              ref={embedRef}
-              style={{ marginBottom: '12px' }}
-              dangerouslySetInnerHTML={{ __html: darkEmbedHtml }}
-            />
-          )}
+          {/* Expanded extras */}
+          {isExpanded && (
+            <div style={{ padding: '0 14px 14px' }}>
+              {/* Author */}
+              {update.created_by_name && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      color: '#f2f2f2',
+                    }}
+                  >
+                    {update.created_by_name.charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {update.created_by_name}
+                  </span>
+                </div>
+              )}
 
-          {isAdmin && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit?.();
-                }}
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--accent-light)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                Edit
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete?.();
-                }}
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--danger)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                Delete
-              </button>
+              {/* Embedded tweet */}
+              {darkEmbedHtml && (
+                <div
+                  ref={embedRef}
+                  style={{
+                    marginBottom: '14px',
+                    borderRadius: 'var(--radius-sm)',
+                    overflow: 'hidden',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: darkEmbedHtml }}
+                />
+              )}
+
+              {/* Source URL */}
+              {update.source_url && (
+                <a
+                  href={update.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                    color: 'var(--accent-light)',
+                    textDecoration: 'none',
+                    marginBottom: '12px',
+                    padding: '6px 12px',
+                    background: 'rgba(159, 18, 57, 0.08)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(159, 18, 57, 0.18)',
+                  }}
+                >
+                  <span>🔗</span>
+                  <span style={{ fontWeight: 500 }}>View Source</span>
+                </a>
+              )}
+
+              {/* Admin actions */}
+              {isAdmin && (
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '4px',
+                    paddingTop: '10px',
+                    borderTop: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit?.();
+                    }}
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-hover)';
+                      e.currentTarget.style.color = 'var(--text-primary)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                    }}
+                  >
+                    ✎ Edit
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete?.();
+                    }}
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--text-muted)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(220, 38, 38, 0.1)';
+                      e.currentTarget.style.color = 'var(--danger)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.color = 'var(--text-muted)';
+                    }}
+                  >
+                    🗑 Delete
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

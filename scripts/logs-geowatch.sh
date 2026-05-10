@@ -13,7 +13,7 @@ echo -e "${CYAN}  GeoWatch Logs${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 
-for service in martin backend admin-web; do
+for service in martin backend admin-web user-web; do
     logfile="$PROJECT_ROOT/logs/$service.log"
     if [ -f "$logfile" ]; then
         echo -e "${YELLOW}--- $service ---${NC}"
@@ -31,3 +31,4 @@ echo "To watch logs live, run:"
 echo "  tail -f logs/martin.log"
 echo "  tail -f logs/backend.log"
 echo "  tail -f logs/admin-web.log"
+echo "  tail -f logs/user-web.log"

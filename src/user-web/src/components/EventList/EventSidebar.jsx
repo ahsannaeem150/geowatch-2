@@ -1,0 +1,161 @@
+import React, { useState, useEffect } from 'react';
+import EventListItem from './EventListItem.jsx';
+import EventDetailView from '../EventDetail/EventDetailView.jsx';
+
+export default function EventSidebar({
+  events,
+  selectedEvent,
+  onSelectEvent,
+  onBack,
+  loading,
+  filters,
+  onFilterChange,
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredEvents = searchQuery.trim()
+    ? events.filter((e) =>
+        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (e.description && e.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : events;
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        background: 'var(--bg-surface)',
+        borderLeft: '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {selectedEvent ? (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <EventDetailView eventId={selectedEvent.id} onBack={onBack} />
+        </div>
+      ) : (
+        <>
+          {/* Search & filters header */}
+          <div
+            style={{
+              padding: '16px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  color: 'var(--text-muted)',
+                  margin: 0,
+                }}
+              >
+                Events
+              </h3>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: 'var(--accent-light)',
+                  background: 'rgba(159, 18, 57, 0.12)',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                }}
+              >
+                {events.length}
+              </span>
+            </div>
+
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search events..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontFamily: 'var(--font-sans)',
+                outline: 'none',
+              }}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
+            />
+
+            {/* Category filter chips */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {['all', 'conflict', 'protest', 'disaster', 'diplomacy'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => onFilterChange?.({ ...filters, category: cat === 'all' ? '' : cat })}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.6px',
+                    borderRadius: 'var(--radius-pill)',
+                    border: '1px solid',
+                    borderColor:
+                      (cat === 'all' && !filters?.category) || filters?.category === cat
+                        ? 'var(--accent-light)'
+                        : 'var(--border-subtle)',
+                    background:
+                      (cat === 'all' && !filters?.category) || filters?.category === cat
+                        ? 'rgba(159, 18, 57, 0.12)'
+                        : 'transparent',
+                    color:
+                      (cat === 'all' && !filters?.category) || filters?.category === cat
+                        ? 'var(--accent-light)'
+                        : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Event list */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {loading ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                Loading events...
+              </div>
+            ) : filteredEvents.length === 0 ? (
+              <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }}>🗺️</div>
+                <div>No events found.</div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>Try adjusting your filters.</div>
+              </div>
+            ) : (
+              filteredEvents.map((event) => (
+                <EventListItem
+                  key={event.id}
+                  event={event}
+                  isSelected={false}
+                  onClick={() => onSelectEvent?.(event)}
+                />
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

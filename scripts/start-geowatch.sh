@@ -68,6 +68,16 @@ else
     echo -e "${GREEN}   ✓ Admin dashboard running on http://localhost:5174${NC}"
 fi
 
+if check_running "vite --port 5173"; then
+    echo -e "${YELLOW}⚠️  User website is already running${NC}"
+else
+    echo -e "${CYAN}🌐 Starting user website...${NC}"
+    cd "$PROJECT_ROOT/src/user-web"
+    nohup npx vite --port 5173 > "$PROJECT_ROOT/logs/user-web.log" 2>&1 &
+    sleep 4
+    echo -e "${GREEN}   ✓ User website running on http://localhost:5173${NC}"
+fi
+
 echo ""
 echo -e "${CYAN}🚀 Opening browser...${NC}"
 sleep 2
@@ -78,6 +88,7 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  GeoWatch is live!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
+echo -e "  ${CYAN}User Website:${NC}    http://localhost:5173"
 echo -e "  ${CYAN}Admin Dashboard:${NC} http://localhost:5174"
 echo -e "  ${CYAN}Backend API:${NC}     http://localhost:3000"
 echo -e "  ${CYAN}Martin Tiles:${NC}    http://localhost:8080"

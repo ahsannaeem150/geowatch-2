@@ -30,6 +30,7 @@ kill_process() {
 kill_process "Martin tile server" "tools/martin"
 kill_process "Backend API" "nodemon server.js"
 kill_process "Admin dashboard" "vite --port 5174"
+kill_process "User website" "vite --port 5173"
 
 echo ""
 echo -e "${GREEN}All GeoWatch services stopped.${NC}"
