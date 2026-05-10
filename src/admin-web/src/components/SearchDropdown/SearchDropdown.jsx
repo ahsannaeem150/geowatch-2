@@ -58,10 +58,11 @@ export default function SearchDropdown({
   const getSeverityColor = (severity) => {
     const s = SEVERITY_SCALE.find((x) => x.value === severity);
     if (!s) return 'var(--text-muted)';
-    if (severity >= 4) return '#ff4757';
-    if (severity >= 3) return '#ffa502';
-    if (severity >= 2) return '#1e90ff';
-    return '#26de81';
+    if (severity >= 5) return '#dc2626';
+    if (severity >= 4) return '#f87171';
+    if (severity >= 3) return '#fb923c';
+    if (severity >= 2) return '#fbbf24';
+    return '#4ade80';
   };
 
   const highlightText = (text, query) => {
@@ -72,8 +73,8 @@ export default function SearchDropdown({
         <mark
           key={i}
           style={{
-            background: 'rgba(0, 212, 255, 0.25)',
-            color: 'var(--accent-cyan)',
+            background: 'rgba(159, 18, 57, 0.25)',
+            color: 'var(--accent-light)',
             padding: '0 2px',
             borderRadius: '2px',
             fontWeight: 700,
@@ -99,7 +100,7 @@ export default function SearchDropdown({
         right: 0,
         maxHeight: '420px',
         overflowY: 'auto',
-        background: 'rgba(15, 17, 23, 0.97)',
+        background: 'var(--bg-surface)',
         backdropFilter: 'blur(16px)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-md)',
@@ -135,7 +136,7 @@ export default function SearchDropdown({
               width: '16px',
               height: '16px',
               border: '2px solid var(--border-subtle)',
-              borderTopColor: 'var(--accent-cyan)',
+              borderTopColor: 'var(--accent-light)',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }}
@@ -271,7 +272,7 @@ export default function SearchDropdown({
         <div
           onClick={() => onViewAll?.()}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(0, 212, 255, 0.08)';
+            e.currentTarget.style.background = 'rgba(159, 18, 57, 0.08)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent';
@@ -283,7 +284,7 @@ export default function SearchDropdown({
             borderTop: '1px solid rgba(42, 46, 59, 0.5)',
             fontSize: '12px',
             fontWeight: 600,
-            color: 'var(--accent-cyan)',
+            color: 'var(--accent-light)',
             transition: 'background 0.15s ease',
           }}
         >

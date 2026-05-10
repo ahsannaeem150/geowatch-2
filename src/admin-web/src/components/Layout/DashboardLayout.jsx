@@ -317,7 +317,7 @@ export default function DashboardLayout() {
           <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
             No Event Selected
           </p>
-          <p style={{ fontSize: '13px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
             Double-click the map to create an event
             <br />
             or click an existing marker to view details
@@ -328,7 +328,7 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-deep)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, var(--bg-deep) 55%)' }}>
       <TopBar
         onAddEvent={handleAddEvent}
         dateRange={dateRange}
@@ -347,12 +347,12 @@ export default function DashboardLayout() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 2000,
-            background: 'rgba(15, 17, 23, 0.95)',
+            background: 'var(--bg-surface)',
             backdropFilter: 'blur(12px)',
-            border: '1px solid var(--accent-cyan)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
             padding: '14px 24px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 212, 255, 0.15)',
+            boxShadow: 'var(--shadow-lg)',
             color: 'var(--text-primary)',
             fontSize: '13px',
             fontWeight: 500,
@@ -373,6 +373,7 @@ export default function DashboardLayout() {
             width: '60%',
             position: 'relative',
             borderRight: '1px solid var(--border-subtle)',
+            background: 'var(--bg-deep)',
           }}
         >
           <AdminMap
@@ -395,7 +396,7 @@ export default function DashboardLayout() {
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 20,
-                background: 'rgba(15, 17, 23, 0.95)',
+                background: 'var(--bg-surface)',
                 backdropFilter: 'blur(12px)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md)',
@@ -403,7 +404,7 @@ export default function DashboardLayout() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '14px',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+                boxShadow: 'var(--shadow-lg)',
                 maxWidth: '90%',
               }}
             >
@@ -431,7 +432,7 @@ export default function DashboardLayout() {
                     {ghostEvent.title}
                   </span>{' '}
                   occurred on{' '}
-                  <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                  <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
                     {ghostEvent.start_date
                       ? new Date(ghostEvent.start_date).toLocaleDateString('en-US', {
                           month: 'short',
@@ -452,19 +453,19 @@ export default function DashboardLayout() {
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--accent-cyan)',
-                  background: 'rgba(0, 212, 255, 0.1)',
-                  color: 'var(--accent-cyan)',
+                  border: '1px solid var(--accent-light)',
+                  background: 'rgba(159, 18, 57, 0.1)',
+                  color: 'var(--accent-light)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 212, 255, 0.2)';
+                  e.currentTarget.style.background = 'rgba(159, 18, 57, 0.2)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                  e.currentTarget.style.background = 'rgba(159, 18, 57, 0.1)';
                 }}
               >
                 Switch to this date
@@ -504,7 +505,7 @@ export default function DashboardLayout() {
               position: 'absolute',
               top: '12px',
               left: '12px',
-              background: 'rgba(15, 17, 23, 0.85)',
+              background: 'var(--bg-surface)',
               backdropFilter: 'blur(8px)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
@@ -517,7 +518,7 @@ export default function DashboardLayout() {
             }}
           >
             <div>
-              <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>{events.length}</span>
+              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{events.length}</span>
               {' events visible'}
               {viewportFiltering === true && (
                 <span style={{ color: 'var(--text-muted)' }}> in current map area</span>
@@ -539,8 +540,7 @@ export default function DashboardLayout() {
             width: '40%',
             overflowY: 'auto',
             padding: '20px',
-            background: 'rgba(26, 29, 41, 0.6)',
-            backdropFilter: 'blur(12px)',
+            background: 'var(--bg-surface)',
             borderLeft: '1px solid var(--border-subtle)',
           }}
         >
@@ -554,7 +554,7 @@ export default function DashboardLayout() {
           height: '220px',
           flexShrink: 0,
           borderTop: '1px solid var(--border-subtle)',
-          background: 'var(--bg-surface)',
+          background: 'var(--bg-deep)',
           overflowY: 'auto',
         }}
       >

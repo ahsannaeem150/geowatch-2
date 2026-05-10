@@ -126,7 +126,7 @@ export default function TopBar({
 
   const inputStyle = {
     background: 'var(--bg-input)',
-    border: isLive ? '1px solid var(--border-subtle)' : '1px solid rgba(255, 170, 50, 0.4)',
+    border: isLive ? '1px solid var(--border-subtle)' : '1px solid rgba(245, 158, 11, 0.4)',
     borderRadius: 'var(--radius-sm)',
     padding: '5px 8px',
     color: 'var(--text-primary)',
@@ -142,8 +142,7 @@ export default function TopBar({
     <header
       style={{
         height: '60px',
-        background: 'rgba(15, 17, 23, 0.85)',
-        backdropFilter: 'blur(12px)',
+        background: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
@@ -157,25 +156,47 @@ export default function TopBar({
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '2px',
-              background: 'var(--accent-cyan)',
-              boxShadow: '0 0 8px rgba(0, 212, 255, 0.5)',
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              fontWeight: 700,
+              color: '#f2f2f2',
+              boxShadow: '0 0 20px var(--accent-glow-strong)',
             }}
-          />
+          >
+            G
+          </div>
           <h1
             style={{
-              fontSize: '20px',
+              fontSize: '17px',
               fontWeight: 700,
               color: 'var(--text-primary)',
-              letterSpacing: '-0.5px',
+              letterSpacing: '-0.3px',
             }}
           >
             GeoWatch
           </h1>
         </div>
-        <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Admin</span>
+        <span
+          style={{
+            fontSize: '10px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '1.2px',
+            color: 'var(--text-muted)',
+            padding: '3px 10px',
+            borderRadius: '6px',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          Admin
+        </span>
 
         {/* Date Range Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
@@ -209,7 +230,7 @@ export default function TopBar({
               borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-subtle)',
               background: isLive ? 'var(--bg-deep)' : 'var(--bg-input)',
-              color: isLive ? 'var(--text-muted)' : 'var(--accent-cyan)',
+              color: isLive ? 'var(--text-muted)' : 'var(--accent-light)',
               cursor: isLive ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
             }}
@@ -235,7 +256,7 @@ export default function TopBar({
                 width: '100%',
                 padding: '5px 30px 5px 10px',
                 background: 'var(--bg-input)',
-                border: searchQuery ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                border: searchQuery ? '1px solid var(--accent-light)' : '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-sm)',
                 color: 'var(--text-primary)',
                 fontSize: '12px',
@@ -293,8 +314,8 @@ export default function TopBar({
           gap: '8px',
           padding: '6px 18px',
           borderRadius: 'var(--radius-sm)',
-          background: isLive ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255, 170, 50, 0.1)',
-          border: `1px solid ${isLive ? 'rgba(0, 212, 255, 0.35)' : 'rgba(255, 170, 50, 0.35)'}`,
+          background: isLive ? 'rgba(90, 1, 28, 0.15)' : 'rgba(245, 158, 11, 0.10)',
+          border: `1px solid ${isLive ? 'rgba(159, 18, 57, 0.40)' : 'rgba(245, 158, 11, 0.35)'}`,
         }}
       >
         <div
@@ -302,8 +323,8 @@ export default function TopBar({
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: isLive ? 'var(--accent-cyan)' : '#ffaa32',
-            boxShadow: isLive ? '0 0 10px rgba(0, 212, 255, 0.6)' : 'none',
+            background: isLive ? 'var(--danger-light)' : 'var(--warning)',
+            boxShadow: isLive ? '0 0 10px var(--accent-glow-strong)' : 'none',
             animation: isLive ? 'pulse 2s ease-in-out infinite' : 'none',
           }}
         />
@@ -312,7 +333,7 @@ export default function TopBar({
             fontSize: '12px',
             fontWeight: 700,
             letterSpacing: '1px',
-            color: isLive ? 'var(--accent-cyan)' : '#ffaa32',
+            color: isLive ? 'var(--danger-light)' : 'var(--warning)',
           }}
         >
           {isLive ? 'LIVE MODE' : 'HISTORIC MODE'}
@@ -336,13 +357,13 @@ export default function TopBar({
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: user?.role === 'super_admin' ? 'var(--accent-cyan)' : 'var(--warning)',
+              background: user?.role === 'super_admin' ? 'var(--success)' : 'var(--warning)',
             }}
           />
           <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
             {user?.full_name || user?.email}
           </span>
-          <Badge category={user?.role === 'super_admin' ? 'diplomacy' : 'protest'}>
+          <Badge status={user?.role === 'super_admin' ? 'active' : 'resolved'}>
             {user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
           </Badge>
         </div>

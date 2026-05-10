@@ -17,7 +17,7 @@ export default function App() {
       }}
     >
       <header>
-        <h1 style={{ fontSize: 'var(--text-h1)', fontWeight: 700, color: 'var(--accent-cyan)', letterSpacing: '-0.5px' }}>
+        <h1 style={{ fontSize: 'var(--text-h1)', fontWeight: 700, color: 'var(--accent-light)', letterSpacing: '-0.5px' }}>
           GeoWatch
         </h1>
         <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Design System Verification — User Website</p>
@@ -69,7 +69,7 @@ export default function App() {
           <p style={{ color: 'var(--text-primary)' }}>Text Primary — {CATEGORY_COLORS.conflict}</p>
           <p style={{ color: 'var(--text-secondary)' }}>Text Secondary</p>
           <p style={{ color: 'var(--text-muted)' }}>Text Muted</p>
-          <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', background: 'var(--bg-input)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+          <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-light)', background: 'var(--bg-input)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
             JetBrains Mono — 13px data
           </code>
         </div>

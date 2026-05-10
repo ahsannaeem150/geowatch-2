@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const fontStyle = `@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');`;
+const fontStyle = `@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');`;
 
 /* ─── Crimson Seal v4 — Final ─── */
 const d = {

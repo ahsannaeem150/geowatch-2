@@ -43,8 +43,8 @@ export default function TimelineEntry({
   return (
     <div
       style={{
-        background: 'var(--bg-input)',
-        border: `1px solid ${isExpanded ? '#3a3e4b' : 'var(--border-subtle)'}`,
+        background: 'var(--bg-elevated)',
+        border: `1px solid ${isExpanded ? 'var(--border-hover)' : 'var(--border-subtle)'}`,},{
         borderRadius: 'var(--radius-sm)',
         overflow: 'hidden',
         transition: 'border-color 0.15s ease',
@@ -72,8 +72,8 @@ export default function TimelineEntry({
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: isLatest ? 'var(--accent-cyan)' : 'var(--border-subtle)',
-            boxShadow: isLatest ? '0 0 6px var(--accent-cyan)' : 'none',
+            background: isLatest ? 'var(--accent-light)' : 'var(--border-subtle)',
+            boxShadow: isLatest ? '0 0 6px var(--accent-glow-strong)' : 'none',
             marginTop: '5px',
             flexShrink: 0,
           }}
@@ -146,7 +146,7 @@ export default function TimelineEntry({
                 }}
                 style={{
                   fontSize: '12px',
-                  color: 'var(--accent-cyan)',
+                  color: 'var(--accent-light)',
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api.js';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
+import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { CATEGORY_LABELS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
@@ -83,7 +84,7 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
 
   if (loading) {
     return (
-      <div style={{ padding: '20px', color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center' }}>
+      <div style={{ padding: '20px', color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center', fontFamily: 'var(--font-sans)' }}>
         Loading events...
       </div>
     );
@@ -91,7 +92,7 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
 
   if (error) {
     return (
-      <div style={{ padding: '20px', color: 'var(--danger)', fontSize: '13px', textAlign: 'center' }}>
+      <div style={{ padding: '20px', color: 'var(--danger)', fontSize: '13px', textAlign: 'center', fontFamily: 'var(--font-sans)' }}>
         {error}
       </div>
     );
@@ -106,7 +107,7 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
           <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
             <th style={thStyle}>Title</th>
             <th style={thStyle}>Category</th>
-            <th style={{ ...thStyle, width: '60px' }}>Sev</th>
+            <th style={{ ...thStyle, width: '110px' }}>Severity</th>
             <th style={thStyle}>Status</th>
             <th style={{ ...thStyle, width: '100px' }}>Start Date</th>
             <th style={{ ...thStyle, textAlign: 'right', width: '180px' }}>Actions</th>
@@ -117,21 +118,21 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
             <tr
               key={event.id}
               style={{
-                borderBottom: '1px solid rgba(42, 46, 59, 0.5)',
+                borderBottom: '1px solid var(--border-subtle)',
                 cursor: 'pointer',
-                transition: 'background 0.15s ease',
+                transition: 'background var(--transition-fast)',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <td style={tdStyle} onClick={() => onSelect?.(event)}>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{event.title}</span>
+                <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{event.title}</span>
               </td>
               <td style={tdStyle} onClick={() => onSelect?.(event)}>
                 <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
               </td>
-              <td style={{ ...tdStyle, fontFamily: 'var(--font-mono)', fontSize: '12px' }} onClick={() => onSelect?.(event)}>
-                {event.severity}
+              <td style={tdStyle} onClick={() => onSelect?.(event)}>
+                <SeverityBadge level={event.severity} />
               </td>
               <td style={tdStyle} onClick={() => onSelect?.(event)}>
                 <Badge status={event.status}>{event.status}</Badge>
@@ -162,7 +163,7 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
         </tbody>
       </table>
       {events.length === 0 && (
-        <p style={{ color: 'var(--text-muted)', padding: '32px', textAlign: 'center', fontSize: '13px' }}>
+        <p style={{ color: 'var(--text-muted)', padding: '32px', textAlign: 'center', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
           No events found for this date range.
         </p>
       )}
@@ -189,11 +190,11 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
             style={{
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-lg)',
               padding: '24px',
               width: '360px',
               maxWidth: '90vw',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+              boxShadow: 'var(--shadow-lg)',
             }}
             onClick={(e) => e.stopPropagation()}
           >

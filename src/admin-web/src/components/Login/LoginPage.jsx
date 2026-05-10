@@ -60,14 +60,14 @@ export default function LoginPage() {
             left: 0,
             width: '100%',
             height: '2px',
-            background: 'var(--accent-cyan)',
+            background: 'var(--accent-light)',
           }}
         />
         <h1
           style={{
             fontSize: 'var(--text-h2)',
             fontWeight: 700,
-            color: 'var(--accent-cyan)',
+            color: 'var(--accent-light)',
             marginBottom: '8px',
             letterSpacing: '-0.5px',
           }}
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 fontSize: 'var(--text-body)',
                 outline: 'none',
               }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
               onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
             />
           </div>
@@ -122,7 +122,7 @@ export default function LoginPage() {
                 fontSize: 'var(--text-body)',
                 outline: 'none',
               }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
               onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
             />
           </div>

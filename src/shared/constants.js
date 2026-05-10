@@ -2,12 +2,12 @@
 // Used by both user-web and admin-web
 
 export const CATEGORY_COLORS = {
-  conflict: '#ff4757',
-  protest: '#ffa502',
-  disaster: '#a55eea',
-  diplomacy: '#1e90ff',
-  humanitarian: '#26de81',
-  other: '#778ca3',
+  conflict: '#ef4444',
+  protest: '#f59e0b',
+  disaster: '#a855f7',
+  diplomacy: '#3b82f6',
+  humanitarian: '#14b8a6',
+  other: '#6b7280',
 };
 
 export const CATEGORY_LABELS = {
@@ -20,11 +20,11 @@ export const CATEGORY_LABELS = {
 };
 
 export const SEVERITY_SCALE = [
-  { value: 1, label: 'Minimal', radius: 6 },
-  { value: 2, label: 'Low', radius: 8 },
-  { value: 3, label: 'Moderate', radius: 10 },
-  { value: 4, label: 'High', radius: 12 },
-  { value: 5, label: 'Critical', radius: 14 },
+  { value: 1, label: 'Minimal',  color: '#4ade80' },
+  { value: 2, label: 'Low',      color: '#fbbf24' },
+  { value: 3, label: 'Moderate', color: '#fb923c' },
+  { value: 4, label: 'Severe',   color: '#f87171' },
+  { value: 5, label: 'Critical', color: '#dc2626' },
 ];
 
 export const EVENT_STATUS = {

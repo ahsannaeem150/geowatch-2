@@ -109,16 +109,16 @@ export default function EventForm({
   };
 
   const sectionBox = {
-    background: 'rgba(26, 29, 41, 0.4)',
+    background: 'var(--bg-elevated)',
     border: '1px solid var(--border-subtle)',
-    borderRadius: 'var(--radius-md)',
+    borderRadius: 'var(--radius-lg)',
     padding: '16px',
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-        <div style={{ width: '3px', height: '20px', background: 'var(--accent-cyan)', borderRadius: '2px' }} />
+        <div style={{ width: '3px', height: '20px', background: 'var(--accent)', borderRadius: '2px' }} />
         <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
           {isEdit ? 'Edit Event' : 'Create New Event'}
         </h3>
@@ -137,7 +137,7 @@ export default function EventForm({
               maxLength={500}
               style={inputBase}
               placeholder="e.g. Border Tensions Near Donbas"
-              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
               onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
             />
           </div>
@@ -150,7 +150,7 @@ export default function EventForm({
               rows={4}
               style={{ ...inputBase, resize: 'vertical', lineHeight: 1.6 }}
               placeholder="Detailed description of the incident..."
-              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
               onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
             />
           </div>
@@ -169,7 +169,7 @@ export default function EventForm({
             required
             style={inputBase}
             placeholder="Latitude"
-            onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+            onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
             onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
           />
           <input
@@ -180,7 +180,7 @@ export default function EventForm({
             required
             style={inputBase}
             placeholder="Longitude"
-            onFocus={(e) => (e.target.style.borderColor = 'var(--accent-cyan)')}
+            onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
             onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
           />
         </div>
@@ -189,8 +189,8 @@ export default function EventForm({
           style={{
             marginTop: '8px',
             padding: '8px 12px',
-            background: locationContext ? 'rgba(0, 212, 255, 0.08)' : 'var(--bg-deep)',
-            border: `1px solid ${locationContext ? 'rgba(0, 212, 255, 0.25)' : 'var(--border-subtle)'}`,
+            background: locationContext ? 'rgba(159, 18, 57, 0.08)' : 'var(--bg-deep)',
+            border: `1px solid ${locationContext ? 'rgba(159, 18, 57, 0.25)' : 'var(--border-subtle)'}`,},{
             borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
@@ -206,13 +206,13 @@ export default function EventForm({
                 width: '14px',
                 height: '14px',
                 border: '2px solid var(--border-subtle)',
-                borderTopColor: 'var(--accent-cyan)',
+                borderTopColor: 'var(--accent-light)',
                 borderRadius: '50%',
                 animation: 'spin 0.8s linear infinite',
               }}
             />
           ) : locationContext ? (
-            <span style={{ fontSize: '12px', color: 'var(--accent-cyan)', fontWeight: 500 }}>
+            <span style={{ fontSize: '12px', color: 'var(--accent-light)', fontWeight: 500 }}>
               {locationContext}
             </span>
           ) : (

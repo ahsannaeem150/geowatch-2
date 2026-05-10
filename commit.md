@@ -1624,3 +1624,81 @@ feat: replace native date inputs with custom calendar dropdown in top bar
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-10 — Design Overhaul: Crimson Seal
+
+### Summary
+Applied the finalized "Crimson Seal" design system across the entire GeoWatch admin dashboard. Deep maroon accent (`#5a011c`), Space Grotesk font, film grain texture, radial gradient background, flat severity badges, and consistent component styling. Removed trial routes. Both admin-web and user-web build successfully.
+
+### Design Tokens Overhauled
+
+| Token | Before | After |
+|:--|:--|:--|
+| Font | Inter | Space Grotesk |
+| Background | `#0f1117` | `#050505` with radial gradient |
+| Surface | `#1a1d29` | `#0a0a0c` |
+| Elevated | — | `#121215` |
+| Accent | Cyan `#00d4ff` | Deep maroon `#5a011c` / `#9f1239` |
+| Success | `#2ed573` | `#22c55e` |
+| Warning | `#ffa502` | `#f59e0b` |
+| Danger | `#ff4757` | `#dc2626` |
+| Info | `#1e90ff` | `#3b82f6` |
+| Border radius | `2px/4px` | `6px/10px/14px/16px` |
+
+### New Shared Component
+
+| File | Purpose |
+|:--|:--|
+| `src/shared/components/SeverityBadge.jsx` | Flat inline badge: bold number + divider + uppercase label, tinted background per severity level |
+
+### Files Changed (20+)
+
+| File | Change |
+|:--|:--|
+| `src/shared/design-tokens.css` | Complete Crimson Seal palette — maroon accent, Space Grotesk, new semantic colors, updated radii/shadows |
+| `src/shared/components/Badge.jsx` | Brighter tints (10% opacity), rounded pill shape, dot indicator for categories |
+| `src/shared/components/Button.jsx` | Primary=maroon, secondary=maroon outline, danger=dark red, hover glow effects |
+| `src/shared/components/TimelineEntry.jsx` | Updated accent colors, elevated background |
+| `src/shared/components/DateTimePicker.jsx` | Maroon accent for selected states |
+| `src/shared/constants.js` | Severity scale updated: Minimal → Low → Moderate → Severe → Critical with new colors |
+| `src/admin-web/src/index.css` | Space Grotesk font, film grain overlay (0.022 opacity), shimmer/slideUp animations |
+| `src/admin-web/src/App.jsx` | Removed `/trial` and `/trial2` routes |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Radial gradient background, updated toast, ghost banner, counter overlay, right panel styling |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Maroon logo square, maroon live mode pill, updated search/input borders |
+| `src/admin-web/src/components/EventList/EventTable.jsx` | New SeverityBadge component, updated table hover states, wider severity column |
+| `src/admin-web/src/components/EventDetail/EventDetailPanel.jsx` | Cards with left accent line, SeverityBadge in meta grid, updated timeline forms |
+| `src/admin-web/src/components/EventForm/EventForm.jsx` | Elevated section boxes, maroon focus borders, updated location badge |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Maroon user location marker, updated marker glow |
+| `src/admin-web/src/components/SearchModal/SearchModal.jsx` | Updated severity colors, maroon accent highlights |
+| `src/admin-web/src/components/SearchDropdown/SearchDropdown.jsx` | Updated severity colors, maroon accent |
+| `src/admin-web/src/components/LocationSearch/LocationSearch.jsx` | Updated location type colors, surface backgrounds |
+| `src/admin-web/src/components/Login/LoginPage.jsx` | Maroon top accent line, maroon title, updated input focus |
+| `src/admin-web/src/components/DatePicker/DatePicker.jsx` | Maroon selected day highlight |
+| `src/user-web/src/App.jsx` | Updated to use new `accent-light` token (prepares for future user-web redesign) |
+
+### Severity Scale (New)
+
+| Level | Label | Color |
+|:--|:--|:--|
+| 1 | Minimal | `#4ade80` |
+| 2 | Low | `#fbbf24` |
+| 3 | Moderate | `#fb923c` |
+| 4 | Severe | `#f87171` |
+| 5 | Critical | `#dc2626` |
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 359 modules, 1.08MB JS, 69KB CSS |
+| `user-web` | ✅ 35 modules, 149KB JS, 2.5KB CSS |
+
+### Git Commit
+
+```
+feat: apply Crimson Seal design system — maroon accent, Space Grotesk, flat severity badges, film grain
+```
+
+*End of design overhaul*

@@ -80,17 +80,17 @@ function extractContext(address, name) {
 function getTypeColor(type, cls) {
   const t = (type || '').toLowerCase();
   const c = (cls || '').toLowerCase();
-  if (['country', 'continent'].includes(t)) return '#a55eea';
-  if (['state', 'region', 'province'].includes(t)) return '#1e90ff';
-  if (['city', 'town', 'municipality'].includes(t)) return '#ffa502';
-  if (['village', 'suburb', 'neighbourhood', 'quarter'].includes(t)) return '#26de81';
-  if (['street', 'road', 'square', 'highway'].includes(t) || c === 'highway') return '#ff4757';
-  if (['building', 'house', 'yes'].includes(t)) return '#778ca3';
-  if (['river', 'lake', 'water'].includes(t)) return '#00d4ff';
-  if (['park', 'farm', 'allotments'].includes(t)) return '#2ed573';
-  if (['airport', 'station', 'bus_station'].includes(t)) return '#ff6348';
-  if (['hospital', 'school', 'university'].includes(t)) return '#ff9ff3';
-  return '#778ca3';
+  if (['country', 'continent'].includes(t)) return '#a855f7';
+  if (['state', 'region', 'province'].includes(t)) return '#3b82f6';
+  if (['city', 'town', 'municipality'].includes(t)) return '#f59e0b';
+  if (['village', 'suburb', 'neighbourhood', 'quarter'].includes(t)) return '#14b8a6';
+  if (['street', 'road', 'square', 'highway'].includes(t) || c === 'highway') return '#ef4444';
+  if (['building', 'house', 'yes'].includes(t)) return '#6b7280';
+  if (['river', 'lake', 'water'].includes(t)) return '#3b82f6';
+  if (['park', 'farm', 'allotments'].includes(t)) return '#22c55e';
+  if (['airport', 'station', 'bus_station'].includes(t)) return '#f97316';
+  if (['hospital', 'school', 'university'].includes(t)) return '#ec4899';
+  return '#6b7280';
 }
 
 export default function LocationSearch({ onSelect, viewbox }) {
@@ -226,7 +226,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
   const inputStyle = {
     width: '100%',
     padding: '8px 32px 8px 12px',
-    background: 'rgba(15, 17, 23, 0.9)',
+    background: 'var(--bg-surface)',
     backdropFilter: 'blur(8px)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 'var(--radius-sm)',
@@ -279,7 +279,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
             right: 0,
             maxHeight: '340px',
             overflowY: 'auto',
-            background: 'rgba(15, 17, 23, 0.97)',
+            background: 'var(--bg-surface)',
             backdropFilter: 'blur(16px)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-sm)',
@@ -343,7 +343,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
                       <div
                         style={{
                           fontWeight: 600,
-                          color: 'var(--accent-cyan)',
+                          color: 'var(--accent-light)',
                           fontSize: '13px',
                           marginBottom: '2px',
                         }}

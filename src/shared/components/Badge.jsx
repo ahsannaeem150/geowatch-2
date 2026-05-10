@@ -1,18 +1,18 @@
 import React from 'react';
 
 const CATEGORY_BADGE_STYLES = {
-  conflict: { background: 'rgba(255, 71, 87, 0.15)', color: '#ff4757', border: '1px solid rgba(255, 71, 87, 0.3)' },
-  protest: { background: 'rgba(255, 165, 2, 0.15)', color: '#ffa502', border: '1px solid rgba(255, 165, 2, 0.3)' },
-  disaster: { background: 'rgba(165, 94, 234, 0.15)', color: '#a55eea', border: '1px solid rgba(165, 94, 234, 0.3)' },
-  diplomacy: { background: 'rgba(30, 144, 255, 0.15)', color: '#1e90ff', border: '1px solid rgba(30, 144, 255, 0.3)' },
-  humanitarian: { background: 'rgba(38, 222, 129, 0.15)', color: '#26de81', border: '1px solid rgba(38, 222, 129, 0.3)' },
-  other: { background: 'rgba(119, 140, 163, 0.15)', color: '#778ca3', border: '1px solid rgba(119, 140, 163, 0.3)' },
+  conflict:     { background: 'rgba(239, 68, 68, 0.10)',  color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.30)' },
+  protest:      { background: 'rgba(245, 158, 11, 0.10)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.30)' },
+  disaster:     { background: 'rgba(168, 85, 247, 0.10)', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.30)' },
+  diplomacy:    { background: 'rgba(59, 130, 246, 0.10)',  color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.30)' },
+  humanitarian: { background: 'rgba(20, 184, 166, 0.10)', color: '#14b8a6', border: '1px solid rgba(20, 184, 166, 0.30)' },
+  other:        { background: 'rgba(107, 114, 128, 0.10)', color: '#6b7280', border: '1px solid rgba(107, 114, 128, 0.30)' },
 };
 
 const STATUS_BADGE_STYLES = {
-  active: { background: 'rgba(46, 213, 115, 0.15)', color: '#2ed573', border: '1px solid rgba(46, 213, 115, 0.3)' },
-  resolved: { background: 'rgba(119, 140, 163, 0.15)', color: '#778ca3', border: '1px solid rgba(119, 140, 163, 0.3)' },
-  hidden: { background: 'rgba(255, 71, 87, 0.15)', color: '#ff4757', border: '1px solid rgba(255, 71, 87, 0.3)' },
+  active:   { background: 'rgba(34, 197, 94, 0.10)',  color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.30)' },
+  resolved: { background: 'rgba(107, 114, 128, 0.10)', color: '#6b7280', border: '1px solid rgba(107, 114, 128, 0.30)' },
+  hidden:   { background: 'rgba(220, 38, 38, 0.10)',  color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.30)' },
 };
 
 export function Badge({ children, category, status, style = {} }) {
@@ -27,16 +27,29 @@ export function Badge({ children, category, status, style = {} }) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '2px 10px',
-        borderRadius: 'var(--radius-sm)',
-        fontSize: 'var(--text-caption)',
-        fontWeight: 500,
-        letterSpacing: '0.3px',
+        gap: '6px',
+        padding: '3px 10px',
+        borderRadius: 'var(--radius-pill)',
+        fontSize: '11px',
+        fontWeight: 700,
+        letterSpacing: '0.6px',
         textTransform: 'uppercase',
+        fontFamily: 'var(--font-sans)',
         ...preset,
         ...style,
       }}
     >
+      {category && (
+        <span
+          style={{
+            width: '5px',
+            height: '5px',
+            borderRadius: '50%',
+            background: preset.color,
+            flexShrink: 0,
+          }}
+        />
+      )}
       {children}
     </span>
   );

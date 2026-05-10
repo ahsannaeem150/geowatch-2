@@ -330,7 +330,7 @@ function DaysView({
                 appearance: 'none',
                 border: 'none',
                 background: selected
-                  ? 'var(--accent-cyan)'
+                  ? 'var(--accent-light)'
                   : 'transparent',
                 color: selected
                   ? 'var(--bg-deep)'
@@ -349,7 +349,7 @@ function DaysView({
                 justifyContent: 'center',
                 outline: 'none',
                 boxShadow: today && !selected
-                  ? 'inset 0 0 0 1px var(--accent-cyan)'
+                  ? 'inset 0 0 0 1px var(--accent-light)'
                   : 'none',
                 transition: 'background 0.12s ease, color 0.12s ease',
               }}

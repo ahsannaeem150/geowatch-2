@@ -93,7 +93,7 @@ export default function DateTimePicker({ value, onChange, placeholder = 'Select 
         style={{
           width: '100%',
           background: 'var(--bg-input)',
-          border: `1px solid ${isOpen ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
+          border: `1px solid ${isOpen ? 'var(--accent-light)' : 'var(--border-subtle)'}`,
           borderRadius: 'var(--radius-sm)',
           padding: '10px 12px',
           color: selectedDate ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -230,23 +230,23 @@ export default function DateTimePicker({ value, onChange, placeholder = 'Select 
                     borderRadius: 'var(--radius-sm)',
                     border: 'none',
                     background: selected
-                      ? 'var(--accent-cyan)'
+                      ? 'var(--accent-light)'
                       : today
-                      ? 'rgba(0, 212, 255, 0.1)'
+                      ? 'rgba(159, 18, 57, 0.1)'
                       : 'transparent',
                     color: selected
-                      ? '#0f1117'
+                      ? 'var(--bg-deep)'
                       : inMonth
                       ? 'var(--text-primary)'
                       : 'var(--text-muted)',
                     cursor: 'pointer',
-                    boxShadow: today && !selected ? 'inset 0 0 0 1px var(--accent-cyan)' : 'none',
+                    boxShadow: today && !selected ? 'inset 0 0 0 1px var(--accent-light)' : 'none',
                   }}
                   onMouseEnter={(e) => {
                     if (!selected) e.currentTarget.style.background = 'var(--bg-hover)';
                   }}
                   onMouseLeave={(e) => {
-                    if (!selected) e.currentTarget.style.background = today ? 'rgba(0, 212, 255, 0.1)' : 'transparent';
+                    if (!selected) e.currentTarget.style.background = today ? 'rgba(159, 18, 57, 0.1)' : 'transparent';
                   }}
                 >
                   {format(day, 'd')}

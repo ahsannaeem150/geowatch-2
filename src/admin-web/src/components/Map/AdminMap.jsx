@@ -113,7 +113,7 @@ export default function AdminMap({
 
       // Create new marker
       const severityConfig = SEVERITY_SCALE.find((s) => s.value === event.severity) || SEVERITY_SCALE[2];
-      const color = CATEGORY_COLORS[event.category] || '#778ca3';
+      const color = CATEGORY_COLORS[event.category] || '#6b7280';
       const size = severityConfig.radius;
 
       // Parent: MapLibre positions this via translate3d — DO NOT touch its transform
@@ -211,9 +211,9 @@ export default function AdminMap({
       visual.style.width = '20px';
       visual.style.height = '20px';
       visual.style.borderRadius = '50%';
-      visual.style.background = 'var(--accent-cyan)';
+      visual.style.background = 'var(--accent-light)';
       visual.style.border = '3px solid #fff';
-      visual.style.boxShadow = '0 0 12px rgba(0, 212, 255, 0.8)';
+      visual.style.boxShadow = '0 0 12px var(--accent-glow-strong)';
 
       const ring = document.createElement('div');
       ring.style.position = 'absolute';
@@ -222,7 +222,7 @@ export default function AdminMap({
       ring.style.width = '44px';
       ring.style.height = '44px';
       ring.style.borderRadius = '50%';
-      ring.style.border = '2px solid var(--accent-cyan)';
+      ring.style.border = '2px solid var(--accent-light)';
       ring.style.animation = 'marker-pulse 1.5s infinite';
       ring.style.pointerEvents = 'none';
 
@@ -247,7 +247,7 @@ export default function AdminMap({
     if (ghostEvent) {
       const lat = parseFloat(ghostEvent.latitude);
       const lng = parseFloat(ghostEvent.longitude);
-      const color = CATEGORY_COLORS[ghostEvent.category] || '#778ca3';
+      const color = CATEGORY_COLORS[ghostEvent.category] || '#6b7280';
       const size = 10;
 
       const el = document.createElement('div');

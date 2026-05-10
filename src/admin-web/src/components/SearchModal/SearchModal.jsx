@@ -144,10 +144,11 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
   };
 
   const getSeverityColor = (severity) => {
-    if (severity >= 4) return '#ff4757';
-    if (severity >= 3) return '#ffa502';
-    if (severity >= 2) return '#1e90ff';
-    return '#26de81';
+    if (severity >= 5) return '#dc2626';
+    if (severity >= 4) return '#f87171';
+    if (severity >= 3) return '#fb923c';
+    if (severity >= 2) return '#fbbf24';
+    return '#4ade80';
   };
 
   const highlightText = (text, queryText) => {
@@ -159,8 +160,8 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
         <mark
           key={i}
           style={{
-            background: 'rgba(0, 212, 255, 0.2)',
-            color: 'var(--accent-cyan)',
+            background: 'rgba(159, 18, 57, 0.2)',
+            color: 'var(--accent-light)',
             padding: '0 2px',
             borderRadius: '2px',
             fontWeight: 700,
@@ -368,7 +369,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                   width: '24px',
                   height: '24px',
                   border: '2px solid var(--border-subtle)',
-                  borderTopColor: 'var(--accent-cyan)',
+                  borderTopColor: 'var(--accent-light)',
                   borderRadius: '50%',
                   animation: 'spin 0.8s linear infinite',
                   margin: '0 auto 16px',

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api } from '../../services/api.js';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
+import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { CATEGORY_LABELS, SEVERITY_SCALE, CATEGORY_COLORS } from '@shared/constants.js';
 import { format } from 'date-fns';
@@ -145,7 +146,6 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
   if (!data) return null;
 
   const { event, sources, timeline } = data;
-  const severityLabel = SEVERITY_SCALE.find((s) => s.value === event.severity)?.label || event.severity;
   const catColor = CATEGORY_COLORS[event.category];
 
   const sectionTitle = (text) => (
@@ -188,22 +188,34 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
       {/* Header */}
       <div
         style={{
-          padding: '16px',
-          background: 'rgba(26, 29, 41, 0.6)',
-          backdropFilter: 'blur(8px)',
+          padding: '20px',
+          background: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-md)',
-          borderLeft: `3px solid ${catColor}`,
+          borderRadius: 'var(--radius-lg)',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: '16px',
+            bottom: '16px',
+            width: '3px',
+            borderRadius: '0 2px 2px 0',
+            background: catColor,
+            opacity: 0.7,
+          }}
+        />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
           <Badge status={event.status}>{event.status}</Badge>
         </div>
-        <h2 style={{ fontSize: 'var(--text-h3)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+        <h2 style={{ fontSize: 'var(--text-h3)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', lineHeight: 1.2 }}>
           {event.title}
         </h2>
-        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)' }}>
+        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
           {parseFloat(event.latitude ?? 0).toFixed(4)}, {parseFloat(event.longitude ?? 0).toFixed(4)}
         </p>
       </div>
@@ -216,7 +228,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
           gap: '10px',
         }}
       >
-        <MetaItem label="Severity" value={`${event.severity} — ${severityLabel}`} color={catColor} />
+        <MetaItem label="Severity" severity={event.severity} />
         <MetaItem label="Start" date={format(new Date(event.start_date), 'MMM dd, yyyy')} time={format(new Date(event.start_date), 'h:mm a')} />
         <MetaItem label="End" date={event.end_date ? format(new Date(event.end_date), 'MMM dd, yyyy') : 'Ongoing'} time={event.end_date ? format(new Date(event.end_date), 'h:mm a') : null} />
         <MetaItem label="Created" date={format(new Date(event.created_at), 'MMM dd, yyyy')} time={format(new Date(event.created_at), 'h:mm a')} />
@@ -283,8 +295,8 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: 'var(--accent-cyan)',
-                background: 'rgba(0, 212, 255, 0.1)',
+                color: 'var(--accent-light)',
+                background: 'rgba(159, 18, 57, 0.12)',
                 padding: '2px 8px',
                 borderRadius: '10px',
               }}
@@ -326,10 +338,10 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
         {isAddingUpdate && (
           <div
             style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--accent-cyan)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '14px',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-hover)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px',
               marginBottom: '16px',
             }}
           >
@@ -388,10 +400,10 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
                 <div
                   key={update.id}
                   style={{
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--accent-cyan)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '14px',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-hover)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '16px',
                   }}
                 >
                   <label style={labelBase}>Edit Summary</label>
@@ -464,48 +476,41 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
   );
 }
 
-function MetaItem({ label, value, date, time, color }) {
+function MetaItem({ label, value, date, time, severity }) {
   return (
     <div
       style={{
-        background: 'var(--bg-input)',
+        background: 'var(--bg-elevated)',
         border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-sm)',
-        padding: '12px 14px',
+        borderRadius: 'var(--radius-md)',
+        padding: '14px',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Subtle top accent line */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '2px',
-          background: color || 'var(--border-subtle)',
-          opacity: color ? 0.6 : 0.3,
-        }}
-      />
       <span
         style={{
           fontSize: '10px',
           color: 'var(--text-muted)',
           textTransform: 'uppercase',
-          letterSpacing: '0.8px',
-          fontWeight: 600,
+          letterSpacing: '1.2px',
+          fontWeight: 700,
         }}
       >
         {label}
       </span>
+      {severity !== undefined && (
+        <div style={{ marginTop: '8px' }}>
+          <SeverityBadge level={severity} />
+        </div>
+      )}
       {value && (
-        <p style={{ fontSize: '14px', fontWeight: 700, color: color || 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.2px' }}>
+        <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px', letterSpacing: '-0.2px' }}>
           {value}
         </p>
       )}
       {date && (
-        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.2px' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '6px', letterSpacing: '-0.2px' }}>
           {date}
         </p>
       )}
@@ -577,7 +582,7 @@ function SourceItem({ source }) {
             href={source.source_url}
             target="_blank"
             rel="noreferrer"
-            style={{ color: 'var(--accent-cyan)', fontSize: '12px', textDecoration: 'none' }}
+            style={{ color: 'var(--accent-light)', fontSize: '12px', textDecoration: 'none' }}
           >
             View source →
           </a>
