@@ -72,22 +72,22 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
         if (dateFrom) params.dateFrom = dateFrom;
         if (dateTo) params.dateTo = dateTo;
 
-        const res = await api.searchEvents(params);
+        const res = await api.searchIncidents(params);
 
         // Client-side sort for options not supported by backend
-        let events = res.data.events;
+        let incidents = res.data.incidents;
         if (sortBy === 'date_desc') {
-          events = events.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+          incidents = incidents.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
         } else if (sortBy === 'date_asc') {
-          events = events.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+          incidents = incidents.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
         } else if (sortBy === 'severity_desc') {
-          events = events.sort((a, b) => b.severity - a.severity);
+          incidents = incidents.sort((a, b) => b.severity - a.severity);
         } else if (sortBy === 'severity_asc') {
-          events = events.sort((a, b) => a.severity - b.severity);
+          incidents = incidents.sort((a, b) => a.severity - b.severity);
         }
         // relevance is already sorted by backend
 
-        setResults(events);
+        setResults(incidents);
         setTotalCount(res.data.count);
       } catch (err) {
         setError(err.message);
@@ -129,8 +129,8 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
     }
   };
 
-  const handleSelect = (event) => {
-    onSelectEvent?.(event);
+  const handleSelect = (incident) => {
+    onSelectEvent?.(incident);
     onClose?.();
   };
 
@@ -238,7 +238,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search events across all time..."
+              placeholder="Search incidents across all time..."
               style={{
                 flex: 1,
                 background: 'transparent',
@@ -375,7 +375,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                   margin: '0 auto 16px',
                 }}
               />
-              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Searching across all events...</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Searching across all incidents...</p>
             </div>
           )}
 
@@ -388,7 +388,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
           {!loading && !error && results.length === 0 && query.trim() && (
             <div style={{ padding: '60px', textAlign: 'center' }}>
               <p style={{ color: 'var(--text-muted)', fontSize: '15px', marginBottom: '8px' }}>
-                No events found matching "{query}"
+                No incidents found matching "{query}"
               </p>
               <p style={{ color: 'var(--text-muted)', fontSize: '13px', opacity: 0.7 }}>
                 Try different keywords or clear filters
@@ -409,16 +409,16 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                 </tr>
               </thead>
               <tbody>
-                {results.map((event) => {
-                  const catColor = CATEGORY_COLORS[event.category];
-                  const dateStr = event.start_date
-                    ? format(new Date(event.start_date), 'MMM dd, yyyy')
+                {results.map((incident) => {
+                  const catColor = CATEGORY_COLORS[incident.category];
+                  const dateStr = incident.start_date
+                    ? format(new Date(incident.start_date), 'MMM dd, yyyy')
                     : '';
 
                   return (
                     <tr
-                      key={event.id}
-                      onClick={() => handleSelect(event)}
+                      key={incident.id}
+                      onClick={() => handleSelect(incident)}
                       style={{
                         borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
                         cursor: 'pointer',
@@ -435,9 +435,9 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                             marginBottom: '3px',
                           }}
                         >
-                          {highlightText(event.title, query)}
+                          {highlightText(incident.title, query)}
                         </div>
-                        {event.description && (
+                        {incident.description && (
                           <div
                             style={{
                               fontSize: '11px',
@@ -448,13 +448,13 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                               maxWidth: '300px',
                             }}
                           >
-                            {event.description}
+                            {incident.description}
                           </div>
                         )}
                       </td>
                       <td style={tdStyle}>
                         <Badge
-                          category={event.category}
+                          category={incident.category}
                           style={{
                             fontSize: '10px',
                             padding: '2px 8px',
@@ -463,16 +463,16 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                             color: catColor,
                           }}
                         >
-                          {CATEGORY_LABELS[event.category]}
+                          {CATEGORY_LABELS[incident.category]}
                         </Badge>
                       </td>
                       <td style={{ ...tdStyle, fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-                        <span style={{ color: getSeverityColor(event.severity), fontWeight: 700 }}>
-                          {event.severity}
+                        <span style={{ color: getSeverityColor(incident.severity), fontWeight: 700 }}>
+                          {incident.severity}
                         </span>
                       </td>
                       <td style={tdStyle}>
-                        <Badge status={event.status}>{event.status}</Badge>
+                        <Badge status={incident.status}>{incident.status}</Badge>
                       </td>
                       <td
                         style={{
@@ -485,7 +485,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                         {dateStr}
                       </td>
                       <td style={tdStyle}>
-                        {event.location_context && (
+                        {incident.location_context && (
                           <div
                             style={{
                               fontSize: '12px',
@@ -497,7 +497,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                               maxWidth: '160px',
                             }}
                           >
-                            {event.location_context}
+                            {incident.location_context}
                           </div>
                         )}
                         <div
@@ -507,8 +507,8 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          {parseFloat(event.latitude ?? 0).toFixed(3)},{' '}
-                          {parseFloat(event.longitude ?? 0).toFixed(3)}
+                          {parseFloat(incident.latitude ?? 0).toFixed(3)},{' '}
+                          {parseFloat(incident.longitude ?? 0).toFixed(3)}
                         </div>
                       </td>
                     </tr>

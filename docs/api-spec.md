@@ -61,7 +61,7 @@ Response:
     events: [
       {
         id: "uuid",
-        title: "Event Title",
+        title: "Incident Title",
         description: "...",
         latitude: 31.5204,
         longitude: 74.3587,
@@ -78,12 +78,12 @@ Response:
   }
 }
 
-GET /events/:id
+GET /incidents/:id
 Access: Public
 Response:
 {
   data: {
-    event: { ... },
+    incident: { ... },
     sources: [
       {
         id: "uuid",
@@ -129,24 +129,24 @@ Body:
     }
   ]
 }
-Response: { data: { event: { ... } } }
+Response: { data: { incident: { ... } } }
 Note: Backend fetches oEmbed HTML automatically for X posts
 
-PATCH /events/:id
+PATCH /incidents/:id
 Access: Admin / Super admin
 Body: Same as POST but partial
-Response: Updated event
+Response: Updated incident
 
-DELETE /events/:id
+DELETE /incidents/:id
 Access: Admin / Super admin
 Response: { data: { deleted: true } }
 
-POST /events/:id/resolve
+POST /incidents/:id/resolve
 Access: Admin / Super admin
 Body: { resolutionNotes: "..." } (optional)
-Response: { data: { event: { ...status: 'resolved'... } } }
+Response: { data: { incident: { ...status: 'resolved'... } } }
 
-POST /events/:id/sources
+POST /incidents/:id/sources
 Access: Admin / Super admin
 Body:
 {
@@ -156,7 +156,7 @@ Body:
   displayOrder: 1
 }
 
-POST /events/:id/timeline
+POST /incidents/:id/timeline
 Access: Admin / Super admin
 Body:
 {
@@ -209,7 +209,7 @@ Admin write (POST/PATCH/DELETE): 50 requests per 15 min per user
 
 ## ZOD SCHEMAS (Reference)
 
-Event creation:
+Incident creation:
 const createEventSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().optional(),

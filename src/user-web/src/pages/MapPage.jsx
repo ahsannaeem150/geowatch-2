@@ -5,7 +5,7 @@ import { API_BASE_URL } from '@shared/constants.js';
 import UserMap from '../components/Map/UserMap.jsx';
 import MapControls from '../components/Map/MapControls.jsx';
 import LocationSearch from '../components/LocationSearch/LocationSearch.jsx';
-import EventSidebar from '../components/EventList/EventSidebar.jsx';
+import IncidentSidebar from '../components/IncidentList/IncidentSidebar.jsx';
 import LiveActivityFeed from '../components/LiveActivity/LiveActivityFeed.jsx';
 import TickerBar from '../components/Ticker/TickerBar.jsx';
 import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
@@ -24,15 +24,15 @@ function setLastSeen(ts) {
 
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const eventIdFromUrl = searchParams.get('event');
+  const incidentIdFromUrl = searchParams.get('incident');
 
   // ─── Date & filters ───
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const [dateRange, setDateRange] = useState({ from: today, to: today });
-  const [events, setEvents] = useState([]);
+  const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedIncident, setSelectedIncident] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(null);
   const [filters, setFilters] = useState({ category: '', severity: '' });
 
@@ -51,7 +51,7 @@ export default function MapPage() {
 
   const esRef = useRef(null);
 
-  // ─── Fetch events with smart viewport filtering ───
+  // ─── Fetch incidents with smart viewport filtering ───
   useEffect(() => {
     let cancelled = false;
 
@@ -64,16 +64,16 @@ export default function MapPage() {
       if (filters.category) baseParams.category = filters.category;
       if (filters.severity) baseParams.severity = filters.severity;
 
-      // Step 1: Fetch without viewport to count total events for this date range
+      // Step 1: Fetch without viewport to count total incidents for this date range
       const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
-      const res1 = await api.getEvents(params1);
+      const res1 = await api.getIncidents(params1);
 
       if (cancelled) return;
       setTotalEventCount(res1.data.count);
 
       if (res1.data.count <= 100) {
-        // Light load: show all events, no viewport filtering needed
-        setEvents(res1.data.events || []);
+        // Light load: show all incidents, no viewport filtering needed
+        setIncidents(res1.data.incidents || []);
         setViewportFiltering(false);
         viewportFilteringRef.current = false;
         setLoading(false);
@@ -90,13 +90,13 @@ export default function MapPage() {
             viewport: viewportBoundsRef.current,
             ...baseParams,
           };
-          const res2 = await api.getEvents(params2);
+          const res2 = await api.getIncidents(params2);
           if (cancelled) return;
-          setEvents(res2.data.events || []);
+          setIncidents(res2.data.incidents || []);
           setTotalEventCount(res2.data.count);
         } else {
           // Bounds not ready yet — show the first batch temporarily
-          setEvents(res1.data.events || []);
+          setIncidents(res1.data.incidents || []);
         }
         setLoading(false);
       }
@@ -109,15 +109,15 @@ export default function MapPage() {
     };
   }, [dateRange.from, dateRange.to, filters.category, filters.severity]);
 
-  // ─── Handle event ID from URL ───
+  // ─── Handle incident ID from URL ───
   useEffect(() => {
-    if (eventIdFromUrl && events.length > 0) {
-      const event = events.find((e) => e.id === eventIdFromUrl);
-      if (event) {
-        handleSelectEvent(event);
+    if (incidentIdFromUrl && incidents.length > 0) {
+      const incident = incidents.find((i) => i.id === incidentIdFromUrl);
+      if (incident) {
+        handleSelectIncident(incident);
       }
     }
-  }, [eventIdFromUrl, events]);
+  }, [incidentIdFromUrl, incidents]);
 
   // ─── Handle viewport bounds changes from the map ───
   const handleViewportChange = useCallback((bounds) => {
@@ -134,12 +134,12 @@ export default function MapPage() {
       if (filters.severity) params.severity = filters.severity;
 
       api
-        .getEvents(params)
+        .getIncidents(params)
         .then((res) => {
-          setEvents(res.data.events || []);
+          setIncidents(res.data.incidents || []);
           setTotalEventCount(res.data.count);
         })
-        .catch(() => setEvents([]));
+        .catch(() => setIncidents([]));
     }
   }, [dateRange.from, dateRange.to, filters.category, filters.severity]);
 
@@ -147,7 +147,7 @@ export default function MapPage() {
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
 
-    const url = `${API_BASE_URL}/events/stream`;
+    const url = `${API_BASE_URL}/incidents/stream`;
     const es = new EventSource(url);
     esRef.current = es;
 
@@ -163,23 +163,23 @@ export default function MapPage() {
         // Skip initial comment/heartbeat
         if (!payload.type) return;
 
-        // Skip deletion events — users don't need to see admin deletions
-        if (payload.type === 'event_deleted' || payload.type === 'timeline_deleted') {
-          // Still update the events list if an event was deleted
-          if (payload.type === 'event_deleted') {
-            setEvents((prev) => prev.filter((ev) => ev.id !== payload.eventId));
+        // Skip deletion incidents — users don't need to see admin deletions
+        if (payload.type === 'incident_deleted' || payload.type === 'timeline_deleted') {
+          // Still update the incidents list if an incident was deleted
+          if (payload.type === 'incident_deleted') {
+            setIncidents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
           }
           return;
         }
 
         setActivities((prev) => {
-          // Deduplicate: skip if the most recent activity is identical (same type + eventId within 2s)
+          // Deduplicate: skip if the most recent activity is identical (same type + incidentId within 2s)
           const last = prev[0];
           const now = Date.now();
           if (
             last &&
             last.type === payload.type &&
-            last.eventId === (payload.eventId || payload.event?.id) &&
+            last.incidentId === (payload.incidentId || payload.incident?.id) &&
             now - last.timestamp < 2000
           ) {
             return prev;
@@ -187,8 +187,8 @@ export default function MapPage() {
 
           const activity = {
             type: payload.type,
-            eventId: payload.eventId || payload.event?.id,
-            event: payload.event || null,
+            incidentId: payload.incidentId || payload.incident?.id,
+            incident: payload.incident || null,
             update: payload.update || null,
             updateId: payload.updateId || null,
             timestamp: now,
@@ -198,14 +198,14 @@ export default function MapPage() {
           return [activity, ...prev].slice(0, MAX_ACTIVITIES);
         });
 
-        // If the activity is about an event we know, refresh it in our list
-        if (payload.event) {
-          setEvents((prev) => {
-            const exists = prev.find((ev) => ev.id === payload.event.id);
+        // If the activity is about an incident we know, refresh it in our list
+        if (payload.incident) {
+          setIncidents((prev) => {
+            const exists = prev.find((ev) => ev.id === payload.incident.id);
             if (exists) {
-              return prev.map((ev) => (ev.id === payload.event.id ? payload.event : ev));
+              return prev.map((ev) => (ev.id === payload.incident.id ? payload.incident : ev));
             }
-            return [payload.event, ...prev];
+            return [payload.incident, ...prev];
           });
         }
       } catch (err) {
@@ -244,10 +244,10 @@ export default function MapPage() {
         if (nowTs - lastSeen > 30000) {
           // Only show if away > 30s
           const newEvents = activities.filter(
-            (a) => a.timestamp > lastSeen && a.type === 'event_created'
+            (a) => a.timestamp > lastSeen && a.type === 'incident_created'
           ).length;
           const updatedEvents = activities.filter(
-            (a) => a.timestamp > lastSeen && (a.type === 'event_updated' || a.type === 'timeline_added')
+            (a) => a.timestamp > lastSeen && (a.type === 'incident_updated' || a.type === 'timeline_added')
           ).length;
           if (newEvents > 0 || updatedEvents > 0) {
             setAwayStats({ newEvents, updatedEvents });
@@ -262,12 +262,12 @@ export default function MapPage() {
   }, [activities]);
 
   // ─── Handlers ───
-  const handleSelectEvent = useCallback(
-    (event) => {
-      setSelectedEvent(event);
+  const handleSelectIncident = useCallback(
+    (incident) => {
+      setSelectedIncident(incident);
       setFlyToCoords({
-        lat: parseFloat(event.latitude),
-        lng: parseFloat(event.longitude),
+        lat: parseFloat(incident.latitude),
+        lng: parseFloat(incident.longitude),
         zoom: 10,
       });
       setSearchParams({});
@@ -276,32 +276,32 @@ export default function MapPage() {
   );
 
   const handleSelectEventFromActivity = useCallback(
-    (eventId, eventData) => {
-      if (eventData && eventData.latitude && eventData.longitude) {
-        handleSelectEvent(eventData);
+    (incidentId, incidentData) => {
+      if (incidentData && incidentData.latitude && incidentData.longitude) {
+        handleSelectIncident(incidentData);
         return;
       }
-      // Try to find in current events list
-      const found = events.find((e) => e.id === eventId);
+      // Try to find in current incidents list
+      const found = incidents.find((i) => i.id === incidentId);
       if (found) {
-        handleSelectEvent(found);
+        handleSelectIncident(found);
         return;
       }
       // Fetch from API as fallback
       api
-        .getEvent(eventId)
+        .getIncident(incidentId)
         .then((res) => {
-          if (res.data?.event) handleSelectEvent(res.data.event);
+          if (res.data?.incident) handleSelectIncident(res.data.incident);
         })
         .catch(() => {
-          console.warn('Could not fetch event', eventId);
+          console.warn('Could not fetch incident', incidentId);
         });
     },
-    [events, handleSelectEvent]
+    [incidents, handleSelectIncident]
   );
 
   const handleBack = useCallback(() => {
-    setSelectedEvent(null);
+    setSelectedIncident(null);
   }, []);
 
   const handleResetToToday = useCallback(() => {
@@ -338,19 +338,19 @@ export default function MapPage() {
     setFeedCollapsed((prev) => !prev);
   }, []);
 
-  const handleSwitchToEventDate = (event) => {
-    const eventDate = event.start_date
+  const handleSwitchToIncidentDate = (incident) => {
+    const incidentDate = incident.start_date
       ? (() => {
-          const d = new Date(event.start_date);
+          const d = new Date(incident.start_date);
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         })()
       : today;
-    setDateRange({ from: eventDate, to: eventDate });
+    setDateRange({ from: incidentDate, to: incidentDate });
   };
 
-  // Determine if selected event is a "ghost" (outside current date range)
-  const ghostEvent = selectedEvent && !events.find((e) => e.id === selectedEvent.id)
-    ? selectedEvent
+  // Determine if selected incident is a "ghost" (outside current date range)
+  const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
+    ? selectedIncident
     : null;
 
   return (
@@ -370,12 +370,12 @@ export default function MapPage() {
         {/* Center — Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <UserMap
-            events={events}
-            selectedEventId={selectedEvent?.id}
-            onEventClick={handleSelectEvent}
+            incidents={incidents}
+            selectedEventId={selectedIncident?.id}
+            onEventClick={handleSelectIncident}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
-            ghostEvent={ghostEvent}
+            ghostIncident={ghostIncident}
           />
 
           {/* Map controls overlay — top center */}
@@ -415,7 +415,7 @@ export default function MapPage() {
             />
           </div>
 
-          {/* Event counter overlay */}
+          {/* Incident counter overlay */}
           <div
             style={{
               position: 'absolute',
@@ -433,19 +433,19 @@ export default function MapPage() {
             }}
           >
             <div>
-              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{events.length}</span>
-              {' events visible'}
+              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{incidents.length}</span>
+              {' incidents visible'}
               {viewportFiltering === true && ' in current map area'}
             </div>
             {viewportFiltering === true && totalEventCount > 100 && (
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                {totalEventCount} total events match this date range — zoom or pan to explore
+                {totalEventCount} total incidents match this date range — zoom or pan to explore
               </div>
             )}
           </div>
 
-          {/* Ghost event banner — outside current date range */}
-          {ghostEvent && (
+          {/* Ghost incident banner — outside current date range */}
+          {ghostIncident && (
             <div
               style={{
                 position: 'absolute',
@@ -478,12 +478,12 @@ export default function MapPage() {
               <div style={{ minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4 }}>
                   <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                    {ghostEvent.title}
+                    {ghostIncident.title}
                   </span>{' '}
                   occurred on{' '}
                   <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
-                    {ghostEvent.start_date
-                      ? new Date(ghostEvent.start_date).toLocaleDateString('en-US', {
+                    {ghostIncident.start_date
+                      ? new Date(ghostIncident.start_date).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
@@ -494,7 +494,7 @@ export default function MapPage() {
                 </p>
               </div>
               <button
-                onClick={() => handleSwitchToEventDate(ghostEvent)}
+                onClick={() => handleSwitchToIncidentDate(ghostIncident)}
                 style={{
                   padding: '6px 14px',
                   fontSize: '11px',
@@ -533,12 +533,12 @@ export default function MapPage() {
           )}
         </div>
 
-        {/* Right — Event sidebar */}
+        {/* Right — Incident sidebar */}
         <div style={{ width: '480px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-          <EventSidebar
-            events={events}
-            selectedEvent={selectedEvent}
-            onSelectEvent={handleSelectEvent}
+          <IncidentSidebar
+            incidents={incidents}
+            selectedIncident={selectedIncident}
+            onSelectEvent={handleSelectIncident}
             onBack={handleBack}
             loading={loading}
             filters={filters}

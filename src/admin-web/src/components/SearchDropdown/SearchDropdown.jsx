@@ -123,7 +123,7 @@ export default function SearchDropdown({
         }}
       >
         {loading
-          ? 'Searching across all events...'
+          ? 'Searching across all incidents...'
           : `${totalCount} result${totalCount !== 1 ? 's' : ''} found`}
       </div>
 
@@ -154,22 +154,22 @@ export default function SearchDropdown({
             fontSize: '13px',
           }}
         >
-          No events found matching "{query}"
+          No incidents found matching "{query}"
         </div>
       )}
 
       {!loading &&
-        results.map((event, index) => {
+        results.map((incident, index) => {
           const isHighlighted = highlightedIndex === index;
-          const catColor = CATEGORY_COLORS[event.category];
-          const dateStr = event.start_date
-            ? format(new Date(event.start_date), 'MMM dd, yyyy')
+          const catColor = CATEGORY_COLORS[incident.category];
+          const dateStr = incident.start_date
+            ? format(new Date(incident.start_date), 'MMM dd, yyyy')
             : '';
 
           return (
             <div
-              key={event.id}
-              onClick={() => onSelect?.(event)}
+              key={incident.id}
+              onClick={() => onSelect?.(incident)}
               onMouseEnter={() => onHighlightChange?.(index)}
               style={{
                 padding: '10px 14px',
@@ -188,10 +188,10 @@ export default function SearchDropdown({
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: getSeverityColor(event.severity),
+                  background: getSeverityColor(incident.severity),
                   marginTop: '5px',
                   flexShrink: 0,
-                  boxShadow: `0 0 6px ${getSeverityColor(event.severity)}40`,
+                  boxShadow: `0 0 6px ${getSeverityColor(incident.severity)}40`,
                 }}
               />
 
@@ -208,7 +208,7 @@ export default function SearchDropdown({
                     marginBottom: '4px',
                   }}
                 >
-                  {highlightText(event.title, query)}
+                  {highlightText(incident.title, query)}
                 </div>
                 {/* Line 2: Date · Location context */}
                 <div
@@ -222,10 +222,10 @@ export default function SearchDropdown({
                   }}
                 >
                   <span>{dateStr}</span>
-                  {event.location_context && (
+                  {incident.location_context && (
                     <>
                       <span style={{ color: 'var(--border-subtle)' }}>·</span>
-                      <span>{event.location_context}</span>
+                      <span>{incident.location_context}</span>
                     </>
                   )}
                 </div>
@@ -242,7 +242,7 @@ export default function SearchDropdown({
                 }}
               >
                 <Badge
-                  category={event.category}
+                  category={incident.category}
                   style={{
                     fontSize: '9px',
                     padding: '2px 8px',
@@ -251,16 +251,16 @@ export default function SearchDropdown({
                     color: catColor,
                   }}
                 >
-                  {CATEGORY_LABELS[event.category]}
+                  {CATEGORY_LABELS[incident.category]}
                 </Badge>
                 <Badge
-                  status={event.status}
+                  status={incident.status}
                   style={{
                     fontSize: '9px',
                     padding: '2px 8px',
                   }}
                 >
-                  {event.status}
+                  {incident.status}
                 </Badge>
               </div>
             </div>

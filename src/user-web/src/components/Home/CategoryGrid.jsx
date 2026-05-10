@@ -34,7 +34,7 @@ export default function CategoryGrid() {
             marginBottom: '32px',
           }}
         >
-          Filter events by type to focus on what matters to you
+          Filter incidents by type to focus on what matters to you
         </p>
 
         <div

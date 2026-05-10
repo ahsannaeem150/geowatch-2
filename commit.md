@@ -1848,3 +1848,129 @@ feat: smart viewport filtering, split marker effects, hover, ghost marker, and f
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-11 — Refactor: Rename "Event" → "Incident" Across Entire Codebase
+
+### Summary
+Performed a full renaming of all "Event" terminology to "Incident" across the backend, both frontends, database schema, documentation, and seeds. This includes API routes, table names, component names, variable names, file names, display text, and SSE broadcast types.
+
+### Why "Incident"
+"Event" sounds like a festival or party to a general audience. "Incident" is the standard term in security, military, and humanitarian monitoring domains. It immediately signals seriousness.
+
+### Backend Changes
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/event.service.js` | **Renamed** → `incident.service.js`. All functions renamed (`listEvents` → `listIncidents`, etc.). SQL queries updated: `FROM incidents i`, `i.id`, `i.status`, etc. Table alias `e` → `i` for consistency. |
+| `src/backend/src/controllers/event.controller.js` | **Renamed** → `incident.controller.js`. All exports renamed (`getEvents` → `getIncidents`, `createEventController` → `createIncidentController`, etc.). |
+| `src/backend/src/routes/event.routes.js` | **Renamed** → `incident.routes.js`. Route paths unchanged internally (Express router). |
+| `src/backend/src/validators/event.schema.js` | **Renamed** → `incident.schema.js`. |
+| `src/backend/src/controllers/timeline.controller.js` | SSE broadcast payloads: `eventId` → `incidentId`. |
+| `src/backend/src/controllers/source.controller.js` | Variable names updated. |
+| `src/backend/src/services/timeline.service.js` | SQL: `event_sources` → `incident_sources`, `event_updates` → `incident_updates`, `event_id` → `incident_id`. |
+| `src/backend/src/services/source.service.js` | SQL: `event_sources` → `incident_sources`, `event_id` → `incident_id`. |
+| `src/backend/server.js` | Mounts `/api/v1/incidents` and `/api/v1/incidents/:id/timeline`. SSE endpoint at `/api/v1/incidents/stream`. |
+
+### API Route Changes
+
+| Before | After |
+|:--|:--|
+| `GET /api/v1/events` | `GET /api/v1/incidents` |
+| `GET /api/v1/events/search` | `GET /api/v1/incidents/search` |
+| `GET /api/v1/events/:id` | `GET /api/v1/incidents/:id` |
+| `POST /api/v1/events` | `POST /api/v1/incidents` |
+| `PATCH /api/v1/events/:id` | `PATCH /api/v1/incidents/:id` |
+| `DELETE /api/v1/events/:id` | `DELETE /api/v1/incidents/:id` |
+| `POST /api/v1/events/:id/resolve` | `POST /api/v1/incidents/:id/resolve` |
+| `GET /api/v1/events/stream` | `GET /api/v1/incidents/stream` |
+| `POST /api/v1/events/:id/timeline` | `POST /api/v1/incidents/:id/timeline` |
+| `POST /api/v1/events/:id/sources` | `POST /api/v1/incidents/:id/sources` |
+
+### SSE Broadcast Type Changes
+
+| Before | After |
+|:--|:--|
+| `event_created` | `incident_created` |
+| `event_updated` | `incident_updated` |
+| `event_deleted` | `incident_deleted` |
+| `event_resolved` | `incident_resolved` |
+
+### Frontend (Admin-Web) Changes
+
+| Before | After |
+|:--|:--|
+| `EventDetailPanel.jsx` | `IncidentDetailPanel.jsx` |
+| `EventForm.jsx` | `IncidentForm.jsx` |
+| `EventTable.jsx` | `IncidentTable.jsx` |
+| `selectedEvent` | `selectedIncident` |
+| `handleSelectEvent` | `handleSelectIncident` |
+| `onEventClick` | `onIncidentClick` |
+| `eventData` | `incidentData` |
+| `ghostEvent` | `ghostIncident` |
+| Display: "New Event" | "New Incident" |
+| Display: "events visible" | "incidents visible" |
+
+### Frontend (User-Web) Changes
+
+| Before | After |
+|:--|:--|
+| `EventSidebar.jsx` | `IncidentSidebar.jsx` |
+| `EventListItem.jsx` | `IncidentListItem.jsx` |
+| `EventDetailView.jsx` | `IncidentDetailView.jsx` |
+| `events` state | `incidents` state |
+| `selectedEvent` | `selectedIncident` |
+| `handleSelectEvent` | `handleSelectIncident` |
+| Display: "events visible" | "incidents visible" |
+| API: `api.getEvents()` | `api.getIncidents()` |
+| API: `api.getEvent(id)` | `api.getIncident(id)` |
+
+### Database Migration
+
+Created `docs/migrations/rename-events-to-incidents.sql` which renames:
+- `events` → `incidents`
+- `event_sources` → `incident_sources`
+- `event_updates` → `incident_updates`
+- `event_id` columns → `incident_id`
+- Foreign key constraints
+- Indexes and triggers
+
+**Must be run before the backend will work:**
+```bash
+sudo -u postgres psql -d geowatch_dev -f docs/migrations/rename-events-to-incidents.sql
+```
+
+### Documentation & Seeds
+
+| File | Change |
+|:--|:--|
+| `docs/database-schema.sql` | All `CREATE TABLE events` → `CREATE TABLE incidents`, indexes, triggers updated |
+| `docs/api-spec.md` | All endpoint paths and terminology updated |
+| `docs/migrations/add-event-search.sql` | Table references updated |
+| `docs/migrations/add-location-context.sql` | Table references updated |
+| `seeds.sql` | `INSERT INTO events` → `INSERT INTO incidents` |
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 360 modules, 1.10MB JS, 69KB CSS |
+| `user-web` | ✅ 370 modules, 1.09MB JS, 68KB CSS |
+| `backend` | ✅ Syntax verified on all renamed files |
+
+### ⚠️ Required Manual Step
+
+Run the database migration **before restarting the backend**, or all API calls will fail with "relation 'events' does not exist":
+
+```bash
+sudo -u postgres psql -d geowatch_dev -f docs/migrations/rename-events-to-incidents.sql
+```
+
+### Git Commit
+
+```
+refactor: rename Event → Incident across backend, frontends, database, docs, and API routes
+```
+
+*End of refactor*

@@ -6,7 +6,7 @@ export default function AwayBanner({ newEventsCount, updatedEventsCount, onJumpT
 
   const parts = [];
   if (newEventsCount > 0) parts.push(`${newEventsCount} new incident${newEventsCount !== 1 ? 's' : ''}`);
-  if (updatedEventsCount > 0) parts.push(`${updatedEventsCount} updated event${updatedEventsCount !== 1 ? 's' : ''}`);
+  if (updatedEventsCount > 0) parts.push(`${updatedEventsCount} updated incident${updatedEventsCount !== 1 ? 's' : ''}`);
 
   return (
     <div

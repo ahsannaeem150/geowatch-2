@@ -8,7 +8,7 @@ import { errorHandler, notFoundHandler } from './src/middleware/error-handler.js
 
 import healthRoutes from './src/routes/health.routes.js';
 import authRoutes from './src/routes/auth.routes.js';
-import eventRoutes from './src/routes/event.routes.js';
+import incidentRoutes from './src/routes/incident.routes.js';
 import timelineRoutes from './src/routes/timeline.routes.js';
 import sourceRoutes from './src/routes/source.routes.js';
 import { addClient, removeClient } from './src/utils/sse-broadcast.js';
@@ -39,12 +39,11 @@ app.use(responseWrapper);
 // ─── Rate Limiting ───
 app.use(generalLimiter);
 
-// ─── SSE Stream Endpoint (must be before event routes to avoid /:id collision) ───
-app.get('/api/v1/events/stream', (req, res) => {
+// ─── SSE Stream Endpoint (must be before incident routes to avoid /:id collision) ───
+app.get('/api/v1/incidents/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.flushHeaders?.();
 
   // Send initial heartbeat
@@ -60,9 +59,9 @@ app.get('/api/v1/events/stream', (req, res) => {
 // ─── API Routes ───
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/events', eventRoutes);
-app.use('/api/v1/events/:id/timeline', timelineRoutes);
-app.use('/api/v1/events/:id/sources', sourceRoutes);
+app.use('/api/v1/incidents', incidentRoutes);
+app.use('/api/v1/incidents/:id/timeline', timelineRoutes);
+app.use('/api/v1/incidents/:id/sources', sourceRoutes);
 
 // ─── 404 Handler ───
 app.use(notFoundHandler);

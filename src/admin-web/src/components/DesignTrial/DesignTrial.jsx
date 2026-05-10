@@ -265,7 +265,7 @@ function StatusDot({ color = d.success, label }) {
 
 /* ─── Data Table ─── */
 function DataTable() {
-  const events = [
+  const incidents = [
     { title: 'Border Clash in Kashmir', cat: 'Conflict', sev: 5, status: 'active', loc: 'Jammu & Kashmir', date: 'May 03' },
     { title: 'Protests in Islamabad', cat: 'Protest', sev: 2, status: 'active', loc: 'Islamabad, Pakistan', date: 'May 02' },
     { title: 'Flood Warning: Indus River', cat: 'Disaster', sev: 3, status: 'resolved', loc: 'Sindh, Pakistan', date: 'Apr 28' },
@@ -290,13 +290,13 @@ function DataTable() {
           color: d.textMuted,
         }}
       >
-        <div>Event</div>
+        <div>Incident</div>
         <div>Category</div>
         <div>Severity</div>
         <div>Status</div>
         <div>Location</div>
       </div>
-      {events.map((e, i) => (
+      {incidents.map((e, i) => (
         <div
           key={i}
           style={{
@@ -313,10 +313,10 @@ function DataTable() {
           onMouseEnter={(ev) => (ev.currentTarget.style.background = d.bgHover)}
           onMouseLeave={(ev) => (ev.currentTarget.style.background = 'transparent')}
         >
-          <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>
+          <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.title}</div>
           <div><Pill color={catColors[e.cat]}>{e.cat}</Pill></div>
           <div><SeverityStamp level={e.sev} /></div>
-          <div><StatusDot color={statusColors[e.status]} label={e.status} /></div>
+          <div><StatusDot color={statusColors[i.status]} label={i.status} /></div>
           <div style={{ color: d.textSecondary, fontSize: '12px' }}>{e.loc}</div>
         </div>
       ))}
@@ -400,11 +400,11 @@ function ModalPreview() {
         >
           <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600 }}>Confirm Action</h3>
           <p style={{ margin: '0 0 20px', color: d.textSecondary, fontSize: '14px', lineHeight: 1.6 }}>
-            Are you sure you want to delete this event? This action cannot be undone and will remove all associated timeline updates.
+            Are you sure you want to delete this incident? This action cannot be undone and will remove all associated timeline updates.
           </p>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
             <Btn variant="ghost">Cancel</Btn>
-            <Btn variant="primary">Delete Event</Btn>
+            <Btn variant="primary">Delete Incident</Btn>
           </div>
         </div>
       </div>
@@ -487,7 +487,7 @@ export default function DesignTrial() {
         {/* ─── Buttons ─── */}
         <Section title="Buttons">
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <Btn variant="primary">+ Add Event</Btn>
+            <Btn variant="primary">+ Add Incident</Btn>
             <Btn variant="secondary">Filter Results</Btn>
             <Btn variant="ghost">Cancel</Btn>
             <Btn variant="primary" onClick={() => setShowModal(true)}>Open Modal</Btn>
@@ -497,7 +497,7 @@ export default function DesignTrial() {
         {/* ─── Inputs ─── */}
         <Section title="Inputs">
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <Inp placeholder="Search events..." icon="🔍" w="240px" />
+            <Inp placeholder="Search incidents..." icon="🔍" w="240px" />
             <Inp placeholder="2025-05-09" w="130px" style={{ fontFamily: d.fontMono }} />
           </div>
         </Section>
@@ -651,7 +651,7 @@ export default function DesignTrial() {
         {/* ─── Toast ─── */}
         <Section title="Notifications">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <Toast type="success" message="Event resolved successfully." />
+            <Toast type="success" message="Incident resolved successfully." />
             <Toast type="error" message="Failed to connect to Nominatim API." />
             <Toast type="warning" message="Rate limit approaching. 8 requests remaining." />
           </div>
@@ -714,7 +714,7 @@ export default function DesignTrial() {
                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: d.dangerLight, boxShadow: `0 0 10px ${d.accentGlowStrong}` }} />
                 <span style={{ fontSize: '11px', fontWeight: 700, color: d.dangerLight, letterSpacing: '0.8px', textTransform: 'uppercase' }}>Live</span>
               </div>
-              <Btn variant="primary" style={{ padding: '8px 16px', fontSize: '12px' }}>+ Add Event</Btn>
+              <Btn variant="primary" style={{ padding: '8px 16px', fontSize: '12px' }}>+ Add Incident</Btn>
             </div>
           </div>
         </Section>
@@ -728,7 +728,7 @@ export default function DesignTrial() {
             </div>
             <div>
               <div style={{ fontSize: '10px', color: d.textMuted, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '6px' }}>H2 — 20px / Semibold</div>
-              <div style={{ fontSize: '20px', fontWeight: 600, color: d.text, lineHeight: 1.2 }}>Event Details & Timeline</div>
+              <div style={{ fontSize: '20px', fontWeight: 600, color: d.text, lineHeight: 1.2 }}>Incident Details & Timeline</div>
             </div>
             <div>
               <div style={{ fontSize: '10px', color: d.textMuted, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '6px' }}>Body — 15px / Regular / 1.6 line-height</div>

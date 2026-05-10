@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
-import EventForm from '../EventForm/EventForm.jsx';
-import EventTable from '../EventList/EventTable.jsx';
-import EventDetailPanel from '../EventDetail/EventDetailPanel.jsx';
+import IncidentForm from '../IncidentForm/IncidentForm.jsx';
+import IncidentTable from '../IncidentList/IncidentTable.jsx';
+import IncidentDetailPanel from '../IncidentDetail/IncidentDetailPanel.jsx';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
@@ -41,9 +41,9 @@ export default function DashboardLayout() {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const [dateRange, setDateRange] = useState({ from: today, to: today });
-  const [events, setEvents] = useState([]);
+  const [incidents, setEvents] = useState([]);
   const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form'
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedIncident, setSelectedIncident] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(null);
@@ -61,7 +61,7 @@ export default function DashboardLayout() {
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
-  // Fetch events: date-based with smart viewport only (search is independent)
+  // Fetch incidents: date-based with smart viewport only (search is independent)
   useEffect(() => {
     let cancelled = false;
 
@@ -69,16 +69,16 @@ export default function DashboardLayout() {
       setViewportFiltering(null);
       viewportFilteringRef.current = null;
 
-      // Step 1: Fetch without viewport to count total events for this date range
+      // Step 1: Fetch without viewport to count total incidents for this date range
       const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to };
-      const res1 = await api.getEvents(params1);
+      const res1 = await api.getIncidents(params1);
 
       if (cancelled) return;
       setTotalEventCount(res1.data.count);
 
       if (res1.data.count <= 100) {
-        // Light load: show all events, no viewport filtering needed
-        setEvents(res1.data.events);
+        // Light load: show all incidents, no viewport filtering needed
+        setEvents(res1.data.incidents);
         setViewportFiltering(false);
         viewportFilteringRef.current = false;
       } else {
@@ -93,13 +93,13 @@ export default function DashboardLayout() {
             dateTo: dateRange.to,
             viewport: viewportBoundsRef.current,
           };
-          const res2 = await api.getEvents(params2);
+          const res2 = await api.getIncidents(params2);
           if (cancelled) return;
-          setEvents(res2.data.events);
+          setEvents(res2.data.incidents);
           setTotalEventCount(res2.data.count);
         } else {
           // Bounds not ready yet — show the first batch temporarily
-          setEvents(res1.data.events);
+          setEvents(res1.data.incidents);
         }
       }
     };
@@ -122,9 +122,9 @@ export default function DashboardLayout() {
         dateTo: dateRange.to,
         viewport: bounds,
       };
-      api.getEvents(params)
+      api.getIncidents(params)
         .then((res) => {
-          setEvents(res.data.events);
+          setEvents(res.data.incidents);
           setTotalEventCount(res.data.count);
         })
         .catch(() => setEvents([]));
@@ -141,7 +141,7 @@ export default function DashboardLayout() {
   const handleMapDblClick = useCallback((coords) => {
     // Open form immediately — locationContext: undefined means "loading"
     setMarkerCoords({ lat: coords.lat, lng: coords.lng, locationContext: undefined });
-    setSelectedEvent(null);
+    setSelectedIncident(null);
     setIsEditing(false);
     setPanelMode('form');
 
@@ -154,19 +154,19 @@ export default function DashboardLayout() {
     });
   }, []);
 
-  const handleEventClick = useCallback((event) => {
-    setSelectedEvent(event);
+  const handleEventClick = useCallback((incident) => {
+    setSelectedIncident(incident);
     setIsEditing(false);
     setPanelMode('detail');
-    setFlyToCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
+    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
     setMarkerCoords(null);
   }, []);
 
-  const handleSearchSelect = useCallback((event) => {
-    setSelectedEvent(event);
+  const handleSearchSelect = useCallback((incident) => {
+    setSelectedIncident(incident);
     setIsEditing(false);
     setPanelMode('detail');
-    setFlyToCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
+    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
     setMarkerCoords(null);
   }, []);
 
@@ -175,9 +175,9 @@ export default function DashboardLayout() {
     setSearchModalOpen(true);
   }, []);
 
-  const handleAddEvent = () => {
+  const handleAddIncident = () => {
     setMarkerCoords(null);
-    setSelectedEvent(null);
+    setSelectedIncident(null);
     setIsEditing(false);
     setPanelMode('form');
   };
@@ -186,54 +186,54 @@ export default function DashboardLayout() {
     setDateRange({ from: today, to: today });
   };
 
-  const handleEditFromDetail = (event) => {
+  const handleEditFromDetail = (incident) => {
     setIsEditing(true);
     setPanelMode('form');
   };
 
   const handleClosePanel = () => {
     setPanelMode('empty');
-    setSelectedEvent(null);
+    setSelectedIncident(null);
     setMarkerCoords(null);
     setIsEditing(false);
   };
 
-  const handleSwitchToEventDate = (event) => {
-    const eventDate = event.start_date
+  const handleSwitchToIncidentDate = (incident) => {
+    const incidentDate = incident.start_date
       ? (() => {
-          const d = new Date(event.start_date);
+          const d = new Date(incident.start_date);
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         })()
       : today;
-    setDateRange({ from: eventDate, to: eventDate });
+    setDateRange({ from: incidentDate, to: incidentDate });
   };
 
-  // Determine if selected event is a "ghost" (outside current date range)
-  const ghostEvent = selectedEvent && !events.find((e) => e.id === selectedEvent.id)
-    ? selectedEvent
+  // Determine if selected incident is a "ghost" (outside current date range)
+  const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
+    ? selectedIncident
     : null;
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
     try {
-      if (isEditing && selectedEvent) {
-        await api.updateEvent(selectedEvent.id, payload);
-        setSelectedEvent((prev) => ({ ...prev, ...payload, start_date: payload.startDate, end_date: payload.endDate }));
+      if (isEditing && selectedIncident) {
+        await api.updateIncident(selectedIncident.id, payload);
+        setSelectedIncident((prev) => ({ ...prev, ...payload, start_date: payload.startDate, end_date: payload.endDate }));
         setIsEditing(false);
         setPanelMode('detail');
       } else {
-        const res = await api.createEvent(payload);
-        const newEvent = res.data.event;
-        setSelectedEvent(newEvent);
+        const res = await api.createIncident(payload);
+        const newIncident = res.data.incident;
+        setSelectedIncident(newIncident);
         setPanelMode('detail');
         setMarkerCoords(null);
 
-        // Notify admin if the event has already ended (grace period expired)
-        if (newEvent.end_date) {
-          const graceEnd = new Date(new Date(newEvent.end_date).getTime() + 24 * 60 * 60 * 1000);
+        // Notify admin if the incident has already ended (grace period expired)
+        if (newIncident.end_date) {
+          const graceEnd = new Date(new Date(newIncident.end_date).getTime() + 24 * 60 * 60 * 1000);
           if (graceEnd < new Date()) {
             setToast({
-              message: 'Event added successfully. It has already ended — use the date range picker to view it on the map.',
+              message: 'Incident added successfully. It has already ended — use the date range picker to view it on the map.',
               type: 'info',
             });
           }
@@ -247,32 +247,32 @@ export default function DashboardLayout() {
     }
   };
 
-  const handleSelectFromTable = (event) => {
-    handleEventClick(event);
+  const handleSelectFromTable = (incident) => {
+    handleEventClick(incident);
   };
 
-  const handleEditFromTable = (event) => {
-    setSelectedEvent(event);
+  const handleEditFromTable = (incident) => {
+    setSelectedIncident(incident);
     setIsEditing(true);
     setPanelMode('form');
-    setFlyToCoords({ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) });
+    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
     setMarkerCoords(null);
   };
 
-  const handleTableAction = (eventId) => {
+  const handleTableAction = (incidentId) => {
     setRefreshKey((k) => k + 1);
-    if (selectedEvent?.id === eventId) {
-      setSelectedEvent(null);
+    if (selectedIncident?.id === incidentId) {
+      setSelectedIncident(null);
       setPanelMode('empty');
     }
   };
 
   // Determine what to show in the right panel
   const renderPanel = () => {
-    if (panelMode === 'detail' && selectedEvent) {
+    if (panelMode === 'detail' && selectedIncident) {
       return (
-        <EventDetailPanel
-          eventId={selectedEvent.id}
+        <IncidentDetailPanel
+          incidentId={selectedIncident.id}
           onEdit={handleEditFromDetail}
           onClose={handleClosePanel}
         />
@@ -281,9 +281,9 @@ export default function DashboardLayout() {
 
     if (panelMode === 'form') {
       return (
-        <EventForm
+        <IncidentForm
           initialCoords={markerCoords}
-          initialData={isEditing ? selectedEvent : null}
+          initialData={isEditing ? selectedIncident : null}
           onSubmit={handleSubmit}
           onCancel={handleClosePanel}
           submitting={submitting}
@@ -320,10 +320,10 @@ export default function DashboardLayout() {
         </div>
         <div>
           <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-            No Event Selected
+            No Incident Selected
           </p>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Double-click the map to create an event
+            Double-click the map to create an incident
             <br />
             or click an existing marker to view details
           </p>
@@ -335,7 +335,7 @@ export default function DashboardLayout() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, var(--bg-deep) 55%)' }}>
       <TopBar
-        onAddEvent={handleAddEvent}
+        onAddEvent={handleAddIncident}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
         onResetToToday={handleResetToToday}
@@ -382,18 +382,18 @@ export default function DashboardLayout() {
           }}
         >
           <AdminMap
-            events={events}
-            selectedEventId={selectedEvent?.id}
+            incidents={incidents}
+            selectedEventId={selectedIncident?.id}
             onEventClick={handleEventClick}
             onMapDblClick={handleMapDblClick}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
             markerCoords={markerCoords}
-            ghostEvent={ghostEvent}
+            ghostIncident={ghostIncident}
           />
 
-          {/* Ghost event banner — outside current date range */}
-          {ghostEvent && (
+          {/* Ghost incident banner — outside current date range */}
+          {ghostIncident && (
             <div
               style={{
                 position: 'absolute',
@@ -434,12 +434,12 @@ export default function DashboardLayout() {
                   }}
                 >
                   <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                    {ghostEvent.title}
+                    {ghostIncident.title}
                   </span>{' '}
                   occurred on{' '}
                   <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
-                    {ghostEvent.start_date
-                      ? new Date(ghostEvent.start_date).toLocaleDateString('en-US', {
+                    {ghostIncident.start_date
+                      ? new Date(ghostIncident.start_date).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
@@ -450,7 +450,7 @@ export default function DashboardLayout() {
                 </p>
               </div>
               <button
-                onClick={() => handleSwitchToEventDate(ghostEvent)}
+                onClick={() => handleSwitchToIncidentDate(ghostIncident)}
                 style={{
                   padding: '6px 14px',
                   fontSize: '11px',
@@ -504,7 +504,7 @@ export default function DashboardLayout() {
             />
           </div>
 
-          {/* Event counter + viewport filtering indicator overlay */}
+          {/* Incident counter + viewport filtering indicator overlay */}
           <div
             style={{
               position: 'absolute',
@@ -523,8 +523,8 @@ export default function DashboardLayout() {
             }}
           >
             <div>
-              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{events.length}</span>
-              {' events visible'}
+              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{incidents.length}</span>
+              {' incidents visible'}
               {viewportFiltering === true && (
                 <span style={{ color: 'var(--text-muted)' }}> in current map area</span>
               )}
@@ -532,8 +532,8 @@ export default function DashboardLayout() {
             {viewportFiltering === true && totalEventCount > 100 && (
               <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '4px' }}>
                 {totalEventCount > 300
-                  ? `${totalEventCount}+ total events match this date range — zoom or pan to explore`
-                  : `${totalEventCount} total events match this date range — zoom or pan to explore`}
+                  ? `${totalEventCount}+ total incidents match this date range — zoom or pan to explore`
+                  : `${totalEventCount} total incidents match this date range — zoom or pan to explore`}
               </div>
             )}
           </div>
@@ -553,7 +553,7 @@ export default function DashboardLayout() {
         </div>
       </div>
 
-      {/* Event Table */}
+      {/* Incident Table */}
       <div
         style={{
           height: '220px',
@@ -563,7 +563,7 @@ export default function DashboardLayout() {
           overflowY: 'auto',
         }}
       >
-        <EventTable
+        <IncidentTable
           onSelect={handleSelectFromTable}
           onEdit={handleEditFromTable}
           onRefresh={handleTableAction}

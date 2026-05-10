@@ -31,7 +31,7 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getEvents: (params = {}) => {
+  getIncidents: (params = {}) => {
     const qs = new URLSearchParams();
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params.dateTo) qs.append('dateTo', params.dateTo);
@@ -40,9 +40,9 @@ export const api = {
     if (params.status) qs.append('status', params.status);
     if (params.viewport) qs.append('viewport', params.viewport);
     const query = qs.toString();
-    return request(`/events${query ? '?' + query : ''}`);
+    return request(`/incidents${query ? '?' + query : ''}`);
   },
-  searchEvents: (params = {}) => {
+  searchIncidents: (params = {}) => {
     const qs = new URLSearchParams();
     if (params.q) qs.append('q', params.q);
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
@@ -52,7 +52,7 @@ export const api = {
     if (params.limit) qs.append('limit', params.limit);
     if (params.offset !== undefined) qs.append('offset', params.offset);
     const query = qs.toString();
-    return request(`/events/search${query ? '?' + query : ''}`);
+    return request(`/incidents/search${query ? '?' + query : ''}`);
   },
-  getEvent: (id) => request(`/events/${id}`),
+  getIncident: (id) => request(`/incidents/${id}`),
 };

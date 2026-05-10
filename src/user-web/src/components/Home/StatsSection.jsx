@@ -8,13 +8,13 @@ export default function StatsSection() {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     Promise.all([
-      api.getEvents({ status: 'active' }),
-      api.getEvents({ dateFrom: today, dateTo: today }),
-      api.getEvents({}),
+      api.getIncidents({ status: 'active' }),
+      api.getIncidents({ dateFrom: today, dateTo: today }),
+      api.getIncidents({}),
     ])
       .then(([activeRes, todayRes, allRes]) => {
-        const events = allRes.data.events || [];
-        const countries = new Set(events.map((e) => e.location_context?.split(',').pop()?.trim()).filter(Boolean)).size;
+        const incidents = allRes.data.incidents || [];
+        const countries = new Set(incidents.map((i) => i.location_context?.split(',').pop()?.trim()).filter(Boolean)).size;
         setStats({
           active: activeRes.data.count || 0,
           today: todayRes.data.count || 0,

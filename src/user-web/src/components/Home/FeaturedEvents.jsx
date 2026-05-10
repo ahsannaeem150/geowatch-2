@@ -7,14 +7,14 @@ import { CATEGORY_LABELS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function FeaturedEvents() {
-  const [events, setEvents] = useState([]);
+  const [incidents, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
-      .getEvents({ status: 'active' })
+      .getIncidents({ status: 'active' })
       .then((res) => {
-        const active = res.data.events || [];
+        const active = res.data.incidents || [];
         // Sort by severity desc, then date desc
         active.sort((a, b) => {
           if (b.severity !== a.severity) return b.severity - a.severity;
@@ -30,13 +30,13 @@ export default function FeaturedEvents() {
     return (
       <section style={{ padding: '48px 24px', background: 'var(--bg-deep)' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-          Loading featured events...
+          Loading featured incidents...
         </div>
       </section>
     );
   }
 
-  if (events.length === 0) {
+  if (incidents.length === 0) {
     return null;
   }
 
@@ -79,10 +79,10 @@ export default function FeaturedEvents() {
             gap: '14px',
           }}
         >
-          {events.map((event) => (
+          {incidents.map((incident) => (
             <Link
-              key={event.id}
-              to={`/map?event=${event.id}`}
+              key={incident.id}
+              to={`/map?incident=${incident.id}`}
               style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-subtle)',
@@ -107,8 +107,8 @@ export default function FeaturedEvents() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
-                <SeverityBadge level={event.severity} />
+                <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+                <SeverityBadge level={incident.severity} />
               </div>
               <h3
                 style={{
@@ -119,7 +119,7 @@ export default function FeaturedEvents() {
                   lineHeight: 1.4,
                 }}
               >
-                {event.title}
+                {incident.title}
               </h3>
               <p
                 style={{
@@ -133,7 +133,7 @@ export default function FeaturedEvents() {
                   overflow: 'hidden',
                 }}
               >
-                {event.description || 'No description available.'}
+                {incident.description || 'No description available.'}
               </p>
               <div
                 style={{
@@ -145,9 +145,9 @@ export default function FeaturedEvents() {
                   fontFamily: 'var(--font-mono)',
                 }}
               >
-                {event.location_context || `${parseFloat(event.latitude).toFixed(2)}, ${parseFloat(event.longitude).toFixed(2)}`}
+                {incident.location_context || `${parseFloat(incident.latitude).toFixed(2)}, ${parseFloat(incident.longitude).toFixed(2)}`}
                 {' · '}
-                {event.start_date ? format(new Date(event.start_date), 'MMM d, yyyy') : 'Unknown date'}
+                {incident.start_date ? format(new Date(incident.start_date), 'MMM d, yyyy') : 'Unknown date'}
               </div>
             </Link>
           ))}

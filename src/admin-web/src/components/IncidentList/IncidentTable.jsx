@@ -6,30 +6,30 @@ import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { CATEGORY_LABELS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, dateRange }) {
-  const [events, setEvents] = useState([]);
+export default function IncidentTable({ onSelect, onEdit, onRefresh, refreshKey, dateRange }) {
+  const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Resolve modal state
   const [showResolveModal, setShowResolveModal] = useState(false);
-  const [resolveEventId, setResolveEventId] = useState(null);
+  const [resolveIncidentId, setResolveEventId] = useState(null);
   const [resolveDate, setResolveDate] = useState('');
 
   useEffect(() => {
     setLoading(true);
     api
-      .getEvents({ dateFrom: dateRange?.from, dateTo: dateRange?.to })
-      .then((res) => setEvents(res.data.events))
+      .getIncidents({ dateFrom: dateRange?.from, dateTo: dateRange?.to })
+      .then((res) => setIncidents(res.data.incidents))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [refreshKey, dateRange?.from, dateRange?.to]);
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
+    if (!confirm('Are you sure you want to delete this incident?')) return;
     try {
-      await api.deleteEvent(id);
-      setEvents(events.filter((e) => e.id !== id));
+      await api.deleteIncident(id);
+      setIncidents(incidents.filter((i) => i.id !== id));
       onRefresh?.(id);
     } catch (err) {
       alert(err.message);
@@ -49,14 +49,14 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
   };
 
   const confirmResolve = async () => {
-    if (!resolveEventId || !resolveDate) return;
+    if (!resolveIncidentId || !resolveDate) return;
     try {
-      await api.resolveEvent(resolveEventId, {
+      await api.resolveIncident(resolveIncidentId, {
         resolvedAt: new Date(resolveDate).toISOString(),
       });
-      setEvents(events.map((e) => (e.id === resolveEventId ? { ...e, status: 'resolved' } : e)));
+      setIncidents(incidents.map((i) => (i.id === resolveIncidentId ? { ...i, status: 'resolved' } : i)));
       closeResolveModal();
-      onRefresh?.(resolveEventId);
+      onRefresh?.(resolveIncidentId);
     } catch (err) {
       alert(err.message);
     }
@@ -85,7 +85,7 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
   if (loading) {
     return (
       <div style={{ padding: '20px', color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center', fontFamily: 'var(--font-sans)' }}>
-        Loading events...
+        Loading incidents...
       </div>
     );
   }
@@ -114,9 +114,9 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
           </tr>
         </thead>
         <tbody>
-          {events.map((event) => (
+          {incidents.map((incident) => (
             <tr
-              key={event.id}
+              key={incident.id}
               style={{
                 borderBottom: '1px solid var(--border-subtle)',
                 cursor: 'pointer',
@@ -125,40 +125,40 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <td style={tdStyle} onClick={() => onSelect?.(event)}>
-                <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{event.title}</span>
+              <td style={tdStyle} onClick={() => onSelect?.(incident)}>
+                <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{incident.title}</span>
               </td>
-              <td style={tdStyle} onClick={() => onSelect?.(event)}>
-                <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
+              <td style={tdStyle} onClick={() => onSelect?.(incident)}>
+                <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
               </td>
-              <td style={tdStyle} onClick={() => onSelect?.(event)}>
-                <SeverityBadge level={event.severity} />
+              <td style={tdStyle} onClick={() => onSelect?.(incident)}>
+                <SeverityBadge level={incident.severity} />
               </td>
-              <td style={tdStyle} onClick={() => onSelect?.(event)}>
-                <Badge status={event.status}>{event.status}</Badge>
+              <td style={tdStyle} onClick={() => onSelect?.(incident)}>
+                <Badge status={incident.status}>{incident.status}</Badge>
               </td>
               <td
                 style={{ ...tdStyle, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}
-                onClick={() => onSelect?.(event)}
+                onClick={() => onSelect?.(incident)}
               >
-                {event.start_date
+                {incident.start_date
                   ? (() => {
-                      const d = new Date(event.start_date);
+                      const d = new Date(incident.start_date);
                       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     })()
                   : '—'}
               </td>
               <td style={{ ...tdStyle, textAlign: 'right' }}>
                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                  <Button variant="ghost" size="sm" onClick={() => onEdit?.(event)}>
+                  <Button variant="ghost" size="sm" onClick={() => onEdit?.(incident)}>
                     Edit
                   </Button>
-                  {event.status !== 'resolved' && (
-                    <Button variant="secondary" size="sm" onClick={() => openResolveModal(event.id)}>
+                  {incident.status !== 'resolved' && (
+                    <Button variant="secondary" size="sm" onClick={() => openResolveModal(incident.id)}>
                       Resolve
                     </Button>
                   )}
-                  <Button variant="danger" size="sm" onClick={() => handleDelete(event.id)}>
+                  <Button variant="danger" size="sm" onClick={() => handleDelete(incident.id)}>
                     Delete
                   </Button>
                 </div>
@@ -167,9 +167,9 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
           ))}
         </tbody>
       </table>
-      {events.length === 0 && (
+      {incidents.length === 0 && (
         <p style={{ color: 'var(--text-muted)', padding: '32px', textAlign: 'center', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-          No events found for this date range.
+          No incidents found for this date range.
         </p>
       )}
 
@@ -212,7 +212,7 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
                 textAlign: 'center',
               }}
             >
-              Resolve Event
+              Resolve Incident
             </h3>
 
             <label

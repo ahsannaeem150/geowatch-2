@@ -7,7 +7,7 @@ import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { CATEGORY_LABELS, SEVERITY_SCALE, CATEGORY_COLORS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function EventDetailPanel({ eventId, onEdit, onClose }) {
+export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,7 +28,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.getEvent(eventId);
+      const res = await api.getIncident(incidentId);
       setData(res.data);
       setError('');
     } catch (err) {
@@ -40,7 +40,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
 
   useEffect(() => {
     fetchData();
-  }, [eventId]);
+  }, [incidentId]);
 
   const resetAddForm = () => {
     setIsAddingUpdate(false);
@@ -60,7 +60,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
     if (!newSummary.trim()) return;
     setTimelineLoading(true);
     try {
-      await api.addTimeline(eventId, {
+      await api.addTimeline(incidentId, {
         summary: newSummary.trim(),
         updateDate: newUpdateDate ? new Date(newUpdateDate).toISOString() : undefined,
         sourceUrl: newSourceUrl.trim() || undefined,
@@ -86,7 +86,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
       if (editSourceUrl !== undefined) {
         payload.sourceUrl = editSourceUrl.trim() || null;
       }
-      await api.updateTimeline(eventId, updateId, payload);
+      await api.updateTimeline(incidentId, updateId, payload);
       resetEditForm();
       await fetchData();
     } catch (err) {
@@ -100,7 +100,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
     if (!confirm('Are you sure you want to delete this timeline update?')) return;
     setTimelineLoading(true);
     try {
-      await api.deleteTimeline(eventId, updateId);
+      await api.deleteTimeline(incidentId, updateId);
       await fetchData();
     } catch (err) {
       alert(err.message);
@@ -130,7 +130,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
   if (loading) {
     return (
       <div style={{ padding: '24px', color: 'var(--text-secondary)' }}>
-        Loading event details...
+        Loading incident details...
       </div>
     );
   }
@@ -145,8 +145,8 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
 
   if (!data) return null;
 
-  const { event, sources, timeline } = data;
-  const catColor = CATEGORY_COLORS[event.category];
+  const { incident, sources, timeline } = data;
+  const catColor = CATEGORY_COLORS[incident.category];
 
   const sectionTitle = (text) => (
     <h4
@@ -209,14 +209,14 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
           }}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
-          <Badge status={event.status}>{event.status}</Badge>
+          <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+          <Badge status={incident.status}>{incident.status}</Badge>
         </div>
         <h2 style={{ fontSize: 'var(--text-h3)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', lineHeight: 1.2 }}>
-          {event.title}
+          {incident.title}
         </h2>
         <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-          {parseFloat(event.latitude ?? 0).toFixed(4)}, {parseFloat(event.longitude ?? 0).toFixed(4)}
+          {parseFloat(incident.latitude ?? 0).toFixed(4)}, {parseFloat(incident.longitude ?? 0).toFixed(4)}
         </p>
       </div>
 
@@ -228,14 +228,14 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
           gap: '10px',
         }}
       >
-        <MetaItem label="Severity" severity={event.severity} />
-        <MetaItem label="Start" date={format(new Date(event.start_date), 'MMM dd, yyyy')} time={format(new Date(event.start_date), 'h:mm a')} />
-        <MetaItem label="End" date={event.end_date ? format(new Date(event.end_date), 'MMM dd, yyyy') : 'Ongoing'} time={event.end_date ? format(new Date(event.end_date), 'h:mm a') : null} />
-        <MetaItem label="Created" date={format(new Date(event.created_at), 'MMM dd, yyyy')} time={format(new Date(event.created_at), 'h:mm a')} />
+        <MetaItem label="Severity" severity={incident.severity} />
+        <MetaItem label="Start" date={format(new Date(incident.start_date), 'MMM dd, yyyy')} time={format(new Date(incident.start_date), 'h:mm a')} />
+        <MetaItem label="End" date={incident.end_date ? format(new Date(incident.end_date), 'MMM dd, yyyy') : 'Ongoing'} time={incident.end_date ? format(new Date(incident.end_date), 'h:mm a') : null} />
+        <MetaItem label="Created" date={format(new Date(incident.created_at), 'MMM dd, yyyy')} time={format(new Date(incident.created_at), 'h:mm a')} />
       </div>
 
       {/* Description */}
-      {event.description && (
+      {incident.description && (
         <div>
           {sectionTitle('Description')}
           <p
@@ -249,7 +249,7 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
               border: '1px solid var(--border-subtle)',
             }}
           >
-            {event.description}
+            {incident.description}
           </p>
         </div>
       )}
@@ -479,8 +479,8 @@ export default function EventDetailPanel({ eventId, onEdit, onClose }) {
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: '10px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
-        <Button variant="primary" onClick={() => onEdit?.(event)}>
-          Edit Event
+        <Button variant="primary" onClick={() => onEdit?.(incident)}>
+          Edit Incident
         </Button>
         <Button variant="ghost" onClick={onClose}>
           Close

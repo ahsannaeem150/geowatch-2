@@ -1,16 +1,16 @@
 import { query } from '../config/database.js';
 
-const EVENT_COLUMNS = `
-  e.id, e.title, e.description, e.latitude, e.longitude,
-  e.category, e.severity, e.status, e.start_date, e.end_date,
-  e.created_by, e.created_at, e.updated_at, e.resolved_at, e.resolved_by,
-  e.location_context
+const INCIDENT_COLUMNS = `
+  i.id, i.title, i.description, i.latitude, i.longitude,
+  i.category, i.severity, i.status, i.start_date, i.end_date,
+  i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
+  i.location_context
 `;
 
 // ─── Helpers ───
 
-function buildEventWhereClause(filters, options = {}) {
-  const conditions = ["e.status != 'hidden'"];
+function buildIncidentWhereClause(filters, options = {}) {
+  const conditions = ["i.status != 'hidden'"];
   const params = [];
   let idx = 1;
 
@@ -22,60 +22,60 @@ function buildEventWhereClause(filters, options = {}) {
   const dateTo = filters.dateTo;
 
   if (date) {
-    // Legacy single-date mode: show events active ON this specific date
-    conditions.push(`e.start_date::date <= $${idx++}`);
+    // Legacy single-date mode: show incidents active ON this specific date
+    conditions.push(`i.start_date::date <= $${idx++}`);
     params.push(date);
     conditions.push(`(
-      e.end_date IS NULL
-      OR (e.status != 'resolved' AND e.end_date::date >= $${idx})
-      OR (e.status = 'resolved' AND e.end_date::date + interval '1 day' >= $${idx})
+      i.end_date IS NULL
+      OR (i.status != 'resolved' AND i.end_date::date >= $${idx})
+      OR (i.status = 'resolved' AND i.end_date::date + interval '1 day' >= $${idx})
     )`);
     params.push(date);
     idx++;
   } else if (dateFrom || dateTo) {
-    // Range mode: show events whose active period overlaps with [dateFrom, dateTo]
+    // Range mode: show incidents whose active period overlaps with [dateFrom, dateTo]
     const from = dateFrom || '1970-01-01';
     const to = dateTo || '2099-12-31';
 
-    // Event must have started before or on the end of the range
-    conditions.push(`e.start_date::date <= $${idx++}`);
+    // Incident must have started before or on the end of the range
+    conditions.push(`i.start_date::date <= $${idx++}`);
     params.push(to);
 
-    // Event must still be active (with grace) at the start of the range
+    // Incident must still be active (with grace) at the start of the range
     conditions.push(`(
-      e.end_date IS NULL
-      OR (e.status != 'resolved' AND e.end_date::date >= $${idx})
-      OR (e.status = 'resolved' AND e.end_date::date + interval '1 day' >= $${idx})
+      i.end_date IS NULL
+      OR (i.status != 'resolved' AND i.end_date::date >= $${idx})
+      OR (i.status = 'resolved' AND i.end_date::date + interval '1 day' >= $${idx})
     )`);
     params.push(from);
     idx++;
   } else if (!options.skipDefaultDate) {
-    // Default: show events active today
-    conditions.push(`e.start_date::date <= CURRENT_DATE`);
+    // Default: show incidents active today
+    conditions.push(`i.start_date::date <= CURRENT_DATE`);
     conditions.push(`(
-      e.end_date IS NULL
-      OR (e.status != 'resolved' AND e.end_date::date >= CURRENT_DATE)
-      OR (e.status = 'resolved' AND e.end_date::date + interval '1 day' >= CURRENT_DATE)
+      i.end_date IS NULL
+      OR (i.status != 'resolved' AND i.end_date::date >= CURRENT_DATE)
+      OR (i.status = 'resolved' AND i.end_date::date + interval '1 day' >= CURRENT_DATE)
     )`);
   }
 
   if (filters.category) {
-    conditions.push(`e.category = $${idx++}`);
+    conditions.push(`i.category = $${idx++}`);
     params.push(filters.category);
   }
   if (filters.severity) {
-    conditions.push(`e.severity = $${idx++}`);
+    conditions.push(`i.severity = $${idx++}`);
     params.push(filters.severity);
   }
   if (filters.status) {
-    conditions.push(`e.status = $${idx++}`);
+    conditions.push(`i.status = $${idx++}`);
     params.push(filters.status);
   }
 
   if (filters.viewport) {
     const [minLng, minLat, maxLng, maxLat] = filters.viewport.split(',').map(Number);
     conditions.push(
-      `ST_Within(e.geom, ST_MakeEnvelope($${idx++}, $${idx++}, $${idx++}, $${idx++}, 4326))`
+      `ST_Within(i.geom, ST_MakeEnvelope($${idx++}, $${idx++}, $${idx++}, $${idx++}, 4326))`
     );
     params.push(minLng, minLat, maxLng, maxLat);
   }
@@ -85,49 +85,49 @@ function buildEventWhereClause(filters, options = {}) {
 
 // ─── Public Queries ───
 
-export async function listEvents(filters) {
-  const { where, params } = buildEventWhereClause(filters);
+export async function listIncidents(filters) {
+  const { where, params } = buildIncidentWhereClause(filters);
 
   // Get exact count for smart viewport filtering decisions
   const countResult = await query(
-    `SELECT COUNT(*) as total FROM events e WHERE ${where}`,
+    `SELECT COUNT(*) as total FROM incidents i WHERE ${where}`,
     params
   );
   const count = parseInt(countResult.rows[0].total, 10);
 
-  // Fetch events capped at 301 so the frontend knows if there's more
+  // Fetch incidents capped at 301 so the frontend knows if there's more
   const sql = `
-    SELECT ${EVENT_COLUMNS}
-    FROM events e
+    SELECT ${INCIDENT_COLUMNS}
+    FROM incidents i
     WHERE ${where}
-    ORDER BY e.severity DESC, e.created_at DESC
+    ORDER BY i.severity DESC, i.created_at DESC
     LIMIT 301
   `;
 
   const result = await query(sql, params);
   return {
-    events: result.rows,
+    incidents: result.rows,
     count,
     hasMore: count > 300,
   };
 }
 
-export async function searchEvents(filters) {
-  const { where, params, nextIndex } = buildEventWhereClause(filters, { skipDefaultDate: true });
+export async function searchIncidents(filters) {
+  const { where, params, nextIndex } = buildIncidentWhereClause(filters, { skipDefaultDate: true });
   const searchQuery = filters.q;
   const limit = Math.min(filters.limit || 25, 100);
   const offset = Math.max(filters.offset || 0, 0);
 
   // On-the-fly full-text search (computes tsvector at query time)
-  // For best performance, run docs/migrations/add-event-search.sql as postgres
-  const tsVectorExpr = `to_tsvector('english', COALESCE(e.title, '') || ' ' || COALESCE(e.description, ''))`;
+  // For best performance, run docs/migrations/add-incident-search.sql as postgres
+  const tsVectorExpr = `to_tsvector('english', COALESCE(i.title, '') || ' ' || COALESCE(i.description, ''))`;
   const tsQuery = `plainto_tsquery('english', $${nextIndex})`;
 
   // Get exact count
   const countResult = await query(
-    `SELECT COUNT(DISTINCT e.id) as total
-     FROM events e
-     LEFT JOIN event_updates eu ON eu.event_id = e.id
+    `SELECT COUNT(DISTINCT i.id) as total
+     FROM incidents i
+     LEFT JOIN incident_updates eu ON eu.incident_id = i.id
      WHERE ${where}
        AND (${tsVectorExpr} @@ ${tsQuery}
             OR to_tsvector('english', COALESCE(eu.summary, '')) @@ ${tsQuery})`,
@@ -135,30 +135,30 @@ export async function searchEvents(filters) {
   );
   const count = parseInt(countResult.rows[0].total, 10);
 
-  // Fetch ranked events with proper pagination
-  // Use CTE to compute rank per event, then paginate in outer query
+  // Fetch ranked incidents with proper pagination
+  // Use CTE to compute rank per incident, then paginate in outer query
   const sql = `
     WITH ranked AS (
-      SELECT e.id,
+      SELECT i.id,
         MAX(ts_rank(${tsVectorExpr}, ${tsQuery})) as rank
-      FROM events e
-      LEFT JOIN event_updates eu ON eu.event_id = e.id
+      FROM incidents i
+      LEFT JOIN incident_updates eu ON eu.incident_id = i.id
       WHERE ${where}
         AND (${tsVectorExpr} @@ ${tsQuery}
              OR to_tsvector('english', COALESCE(eu.summary, '')) @@ ${tsQuery})
-      GROUP BY e.id
+      GROUP BY i.id
     )
-    SELECT ${EVENT_COLUMNS},
+    SELECT ${INCIDENT_COLUMNS},
       r.rank
     FROM ranked r
-    JOIN events e ON e.id = r.id
-    ORDER BY r.rank DESC, e.severity DESC, e.start_date DESC
+    JOIN incidents e ON i.id = r.id
+    ORDER BY r.rank DESC, i.severity DESC, i.start_date DESC
     LIMIT $${nextIndex + 1} OFFSET $${nextIndex + 2}
   `;
 
   const result = await query(sql, [...params, searchQuery, limit, offset]);
   return {
-    events: result.rows,
+    incidents: result.rows,
     count,
     limit,
     offset,
@@ -167,37 +167,37 @@ export async function searchEvents(filters) {
 }
 
 export async function getEventById(id) {
-  const eventResult = await query(
-    `SELECT ${EVENT_COLUMNS}
-     FROM events e
-     WHERE e.id = $1 AND e.status != 'hidden'`,
+  const incidentResult = await query(
+    `SELECT ${INCIDENT_COLUMNS}
+     FROM incidents i
+     WHERE i.id = $1 AND i.status != 'hidden'`,
     [id]
   );
 
-  if (eventResult.rows.length === 0) return null;
+  if (incidentResult.rows.length === 0) return null;
 
-  const event = eventResult.rows[0];
+  const incident = incidentResult.rows[0];
 
   const [sourcesResult, timelineResult] = await Promise.all([
     query(
       `SELECT id, source_type, source_url, embed_html, media_url, description, display_order, created_at
-       FROM event_sources
-       WHERE event_id = $1
+       FROM incident_sources
+       WHERE incident_id = $1
        ORDER BY display_order ASC, created_at ASC`,
       [id]
     ),
     query(
       `SELECT eu.id, eu.summary, eu.update_date, eu.source_url, eu.embed_html, eu.created_at, u.full_name as created_by_name
-       FROM event_updates eu
+       FROM incident_updates eu
        LEFT JOIN users u ON eu.created_by = u.id
-       WHERE eu.event_id = $1
+       WHERE eu.incident_id = $1
        ORDER BY eu.update_date DESC, eu.created_at DESC`,
       [id]
     ),
   ]);
 
   return {
-    event,
+    incident,
     sources: sourcesResult.rows,
     timeline: timelineResult.rows,
   };
@@ -205,7 +205,7 @@ export async function getEventById(id) {
 
 // ─── Admin Queries ───
 
-export async function createEvent(data, createdBy) {
+export async function createIncident(data, createdBy) {
   const {
     title,
     description,
@@ -218,11 +218,11 @@ export async function createEvent(data, createdBy) {
     locationContext,
   } = data;
 
-  // If an end date is provided, the event is considered resolved
+  // If an end date is provided, the incident is considered resolved
   const status = endDate ? 'resolved' : 'active';
 
   const result = await query(
-    `INSERT INTO events (
+    `INSERT INTO incidents (
       title, description, latitude, longitude, geom,
       category, severity, start_date, end_date, status, created_by, location_context
     ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12, $13)
@@ -233,7 +233,7 @@ export async function createEvent(data, createdBy) {
   return result.rows[0];
 }
 
-export async function updateEvent(id, data) {
+export async function updateIncident(id, data) {
   const fields = [];
   const values = [];
   let idx = 1;
@@ -279,22 +279,22 @@ export async function updateEvent(id, data) {
 
   values.push(id);
   const result = await query(
-    `UPDATE events SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+    `UPDATE incidents SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
     values
   );
 
   return result.rows[0] || null;
 }
 
-export async function deleteEvent(id) {
-  const result = await query('DELETE FROM events WHERE id = $1 RETURNING id', [id]);
+export async function deleteIncident(id) {
+  const result = await query('DELETE FROM incidents WHERE id = $1 RETURNING id', [id]);
   return result.rows[0] || null;
 }
 
-export async function resolveEvent(id, resolvedBy, resolvedAt) {
+export async function resolveIncident(id, resolvedBy, resolvedAt) {
   const resolvedTimestamp = resolvedAt || new Date().toISOString();
   const result = await query(
-    `UPDATE events
+    `UPDATE incidents
      SET status = 'resolved', resolved_at = $3, resolved_by = $2, end_date = $3
      WHERE id = $1
      RETURNING *`,

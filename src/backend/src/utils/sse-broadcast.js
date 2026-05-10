@@ -1,6 +1,6 @@
 /**
  * SSE Broadcast Manager
- * Maintains active SSE connections and broadcasts events to all clients.
+ * Maintains active SSE connections and broadcasts incidents to all clients.
  */
 
 const clients = new Set();

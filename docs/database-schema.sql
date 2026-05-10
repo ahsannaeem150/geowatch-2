@@ -19,7 +19,7 @@ CREATE TABLE users (
 -- ============================================
 -- EVENTS
 -- ============================================
-CREATE TABLE events (
+CREATE TABLE incidents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(500) NOT NULL,
     description TEXT,
@@ -39,11 +39,11 @@ CREATE TABLE events (
 );
 
 -- ============================================
--- EVENT SOURCES (Tabs in event detail)
+-- INCIDENT SOURCES (Tabs in event detail)
 -- ============================================
-CREATE TABLE event_sources (
+CREATE TABLE incident_sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     source_type VARCHAR(30) NOT NULL CHECK (source_type IN ('x_post', 'news_article', 'image', 'video', 'admin_note')),
     source_url TEXT,
     embed_html TEXT,
@@ -57,9 +57,9 @@ CREATE TABLE event_sources (
 -- ============================================
 -- EVENT TIMELINE UPDATES
 -- ============================================
-CREATE TABLE event_updates (
+CREATE TABLE incident_updates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     summary TEXT NOT NULL,
     update_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -88,17 +88,17 @@ CREATE TABLE zones (
 -- ============================================
 -- INDEXES
 -- ============================================
-CREATE INDEX idx_events_geom ON events USING GIST(geom);
+CREATE INDEX idx_incidents_geom ON incidents USING GIST(geom);
 CREATE INDEX idx_zones_geom ON zones USING GIST(geom);
-CREATE INDEX idx_events_dates ON events(start_date, end_date);
-CREATE INDEX idx_events_start_date ON events(start_date);
-CREATE INDEX idx_events_category ON events(category);
-CREATE INDEX idx_events_severity ON events(severity);
-CREATE INDEX idx_events_status ON events(status);
-CREATE INDEX idx_events_query ON events(status, start_date, end_date, category, severity);
-CREATE INDEX idx_events_created_by ON events(created_by);
-CREATE INDEX idx_event_sources_event_id ON event_sources(event_id);
-CREATE INDEX idx_event_updates_event_id ON event_updates(event_id);
+CREATE INDEX idx_incidents_dates ON incidents(start_date, end_date);
+CREATE INDEX idx_incidents_start_date ON incidents(start_date);
+CREATE INDEX idx_incidents_category ON incidents(category);
+CREATE INDEX idx_incidents_severity ON incidents(severity);
+CREATE INDEX idx_incidents_status ON incidents(status);
+CREATE INDEX idx_incidents_query ON incidents(status, start_date, end_date, category, severity);
+CREATE INDEX idx_incidents_created_by ON incidents(created_by);
+CREATE INDEX idx_incident_sources_incident_id ON event_sources(event_id);
+CREATE INDEX idx_incident_updates_incident_id ON event_updates(event_id);
 
 -- Full-text search (Post-MVP, schema-ready)
 ALTER TABLE events ADD COLUMN search_vector tsvector 
@@ -106,7 +106,7 @@ ALTER TABLE events ADD COLUMN search_vector tsvector
         setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
         setweight(to_tsvector('english', coalesce(description, '')), 'B')
     ) STORED;
-CREATE INDEX idx_events_search ON events USING GIN(search_vector);
+CREATE INDEX idx_incidents_search ON incidents USING GIN(search_vector);
 
 -- ============================================
 -- TRIGGERS
@@ -122,7 +122,7 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events
+CREATE TRIGGER update_incidents_updated_at BEFORE UPDATE ON incidents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_zones_updated_at BEFORE UPDATE ON zones

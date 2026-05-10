@@ -72,7 +72,7 @@ export default function HeroSection() {
           }}
         >
           Track conflicts, protests, and disasters as they unfold. GeoWatch monitors
-          global events so you can understand the story behind the headlines.
+          global incidents so you can understand the story behind the headlines.
         </p>
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>

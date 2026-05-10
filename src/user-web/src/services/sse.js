@@ -7,7 +7,7 @@ const listeners = new Set();
 export function connect() {
   if (source) return;
 
-  source = new EventSource(`${API_BASE}/events/stream`);
+  source = new EventSource(`${API_BASE}/incidents/stream`);
 
   source.onopen = () => {
     // console.log('[SSE] Connected');

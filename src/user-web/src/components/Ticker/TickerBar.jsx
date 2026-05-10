@@ -41,9 +41,9 @@ export default function TickerBar({ activities, onSelectEvent }) {
   }, [activities.length]);
 
   const config = {
-    event_created: { icon: '⚠️', color: 'var(--danger-light)' },
-    event_updated: { icon: '📝', color: 'var(--info)' },
-    event_resolved: { icon: '✅', color: 'var(--success)' },
+    incident_created: { icon: '⚠️', color: 'var(--danger-light)' },
+    incident_updated: { icon: '📝', color: 'var(--info)' },
+    incident_resolved: { icon: '✅', color: 'var(--success)' },
     timeline_added: { icon: '📢', color: 'var(--warning)' },
     timeline_updated: { icon: '✎', color: 'var(--info)' },
   };
@@ -107,8 +107,8 @@ export default function TickerBar({ activities, onSelectEvent }) {
 
           return (
             <button
-              key={`${activity.type}-${activity.eventId}-${activity.timestamp}-${index}`}
-              onClick={() => onSelectEvent?.(activity.eventId, activity.event)}
+              key={`${activity.type}-${activity.incidentId}-${activity.timestamp}-${index}`}
+              onClick={() => onSelectEvent?.(activity.incidentId, activity.incident)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -132,7 +132,7 @@ export default function TickerBar({ activities, onSelectEvent }) {
             >
               <span style={{ fontSize: '12px' }}>{c.icon}</span>
               <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                {activity.event?.title || 'Unknown event'}
+                {activity.incident?.title || 'Unknown incident'}
               </span>
               <span style={{ fontSize: '10px', color: c.color, fontWeight: 600 }}>
                 {timeAgo}

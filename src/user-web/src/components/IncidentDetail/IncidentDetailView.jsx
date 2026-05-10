@@ -6,7 +6,7 @@ import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { CATEGORY_LABELS, SEVERITY_SCALE, CATEGORY_COLORS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function EventDetailView({ eventId, onBack }) {
+export default function IncidentDetailView({ incidentId, onBack }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -15,19 +15,19 @@ export default function EventDetailView({ eventId, onBack }) {
   useEffect(() => {
     setLoading(true);
     api
-      .getEvent(eventId)
+      .getIncident(incidentId)
       .then((res) => {
         setData(res.data);
         setError('');
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [eventId]);
+  }, [incidentId]);
 
   if (loading) {
     return (
       <div style={{ padding: '24px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-        Loading event details...
+        Loading incident details...
       </div>
     );
   }
@@ -42,11 +42,11 @@ export default function EventDetailView({ eventId, onBack }) {
 
   if (!data) return null;
 
-  const { event, sources, timeline } = data;
-  const catColor = CATEGORY_COLORS[event.category];
+  const { incident, sources, timeline } = data;
+  const catColor = CATEGORY_COLORS[incident.category];
 
-  const dateStr = event.start_date
-    ? format(new Date(event.start_date), 'MMM d, yyyy · h:mm a')
+  const dateStr = incident.start_date
+    ? format(new Date(incident.start_date), 'MMM d, yyyy · h:mm a')
     : 'Unknown';
 
   return (
@@ -95,30 +95,30 @@ export default function EventDetailView({ eventId, onBack }) {
           }}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-          <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
-          <Badge status={event.status}>{event.status}</Badge>
+          <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+          <Badge status={incident.status}>{incident.status}</Badge>
         </div>
         <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px', lineHeight: 1.3 }}>
-          {event.title}
+          {incident.title}
         </h2>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
-          📍 {event.location_context || `${parseFloat(event.latitude).toFixed(4)}, ${parseFloat(event.longitude).toFixed(4)}`}
+          📍 {incident.location_context || `${parseFloat(incident.latitude).toFixed(4)}, ${parseFloat(incident.longitude).toFixed(4)}`}
         </p>
       </div>
 
       {/* Meta grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-        <MetaCard label="Severity" value={<SeverityBadge level={event.severity} wide />} />
+        <MetaCard label="Severity" value={<SeverityBadge level={incident.severity} wide />} />
         <MetaCard label="Start" value={dateStr} />
-        <MetaCard label="Status" value={event.status} color={event.status === 'active' ? 'var(--success)' : 'var(--text-muted)'} />
+        <MetaCard label="Status" value={incident.status} color={incident.status === 'active' ? 'var(--success)' : 'var(--text-muted)'} />
         <MetaCard
           label="End"
-          value={event.end_date ? format(new Date(event.end_date), 'MMM d, yyyy · h:mm a') : 'Ongoing'}
+          value={incident.end_date ? format(new Date(incident.end_date), 'MMM d, yyyy · h:mm a') : 'Ongoing'}
         />
       </div>
 
       {/* Description */}
-      {event.description && (
+      {incident.description && (
         <div>
           <SectionLabel>Description</SectionLabel>
           <p
@@ -133,7 +133,7 @@ export default function EventDetailView({ eventId, onBack }) {
               margin: 0,
             }}
           >
-            {event.description}
+            {incident.description}
           </p>
         </div>
       )}

@@ -46,7 +46,7 @@ export const api = {
   me: () => request('/auth/me'),
 
   // Events (public)
-  getEvents: (params = {}) => {
+  getIncidents: (params = {}) => {
     const qs = new URLSearchParams();
     if (params.date) qs.append('date', params.date);
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
@@ -56,9 +56,9 @@ export const api = {
     if (params.status) qs.append('status', params.status);
     if (params.viewport) qs.append('viewport', params.viewport);
     const query = qs.toString();
-    return request(`/events${query ? '?' + query : ''}`);
+    return request(`/incidents${query ? '?' + query : ''}`);
   },
-  searchEvents: (params = {}) => {
+  searchIncidents: (params = {}) => {
     const qs = new URLSearchParams();
     if (params.q) qs.append('q', params.q);
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
@@ -70,25 +70,25 @@ export const api = {
     if (params.limit) qs.append('limit', params.limit);
     if (params.offset !== undefined) qs.append('offset', params.offset);
     const query = qs.toString();
-    return request(`/events/search${query ? '?' + query : ''}`);
+    return request(`/incidents/search${query ? '?' + query : ''}`);
   },
-  getEvent: (id) => request(`/events/${id}`),
+  getIncident: (id) => request(`/incidents/${id}`),
 
   // Events (admin)
-  createEvent: (body) => request('/events', { method: 'POST', body: JSON.stringify(body) }),
-  updateEvent: (id, body) => request(`/events/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteEvent: (id) => request(`/events/${id}`, { method: 'DELETE' }),
-  resolveEvent: (id, body) => request(`/events/${id}/resolve`, { method: 'POST', body: JSON.stringify(body || {}) }),
+  createIncident: (body) => request('/incidents', { method: 'POST', body: JSON.stringify(body) }),
+  updateIncident: (id, body) => request(`/incidents/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteIncident: (id) => request(`/incidents/${id}`, { method: 'DELETE' }),
+  resolveIncident: (id, body) => request(`/incidents/${id}/resolve`, { method: 'POST', body: JSON.stringify(body || {}) }),
 
   // Timeline
-  addTimeline: (eventId, body) =>
-    request(`/events/${eventId}/timeline`, { method: 'POST', body: JSON.stringify(body) }),
-  updateTimeline: (eventId, updateId, body) =>
-    request(`/events/${eventId}/timeline/${updateId}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteTimeline: (eventId, updateId) =>
-    request(`/events/${eventId}/timeline/${updateId}`, { method: 'DELETE' }),
+  addTimeline: (incidentId, body) =>
+    request(`/incidents/${incidentId}/timeline`, { method: 'POST', body: JSON.stringify(body) }),
+  updateTimeline: (incidentId, updateId, body) =>
+    request(`/incidents/${incidentId}/timeline/${updateId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteTimeline: (incidentId, updateId) =>
+    request(`/incidents/${incidentId}/timeline/${updateId}`, { method: 'DELETE' }),
 
   // Sources
-  addSource: (eventId, body) =>
-    request(`/events/${eventId}/sources`, { method: 'POST', body: JSON.stringify(body) }),
+  addSource: (incidentId, body) =>
+    request(`/incidents/${incidentId}/sources`, { method: 'POST', body: JSON.stringify(body) }),
 };

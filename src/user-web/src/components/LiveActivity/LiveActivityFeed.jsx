@@ -226,14 +226,14 @@ export default function LiveActivityFeed({
           >
             <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }}>📡</div>
             <div>Waiting for activity...</div>
-            <div style={{ fontSize: '12px', marginTop: '4px' }}>New events will appear here in real time.</div>
+            <div style={{ fontSize: '12px', marginTop: '4px' }}>New incidents will appear here in real time.</div>
           </div>
         ) : (
           activities.map((activity, index) => (
             <ActivityItem
-              key={`${activity.type}-${activity.eventId}-${activity.timestamp}-${index}`}
+              key={`${activity.type}-${activity.incidentId}-${activity.timestamp}-${index}`}
               activity={activity}
-              onClick={() => onSelectEvent?.(activity.eventId, activity.event)}
+              onClick={() => onSelectEvent?.(activity.incidentId, activity.incident)}
               isUnread={activity.isUnread}
             />
           ))
@@ -272,13 +272,13 @@ export default function LiveActivityFeed({
 }
 
 function ActivityItem({ activity, onClick, isUnread }) {
-  const { type, event, timestamp } = activity;
+  const { type, incident, timestamp } = activity;
 
   const config = {
-    event_created: { icon: '⚠️', label: 'New Event', color: 'var(--danger-light)' },
-    event_updated: { icon: '📝', label: 'Updated', color: 'var(--info)' },
-    event_deleted: { icon: '🗑️', label: 'Deleted', color: 'var(--text-muted)' },
-    event_resolved: { icon: '✅', label: 'Resolved', color: 'var(--success)' },
+    incident_created: { icon: '⚠️', label: 'New Incident', color: 'var(--danger-light)' },
+    incident_updated: { icon: '📝', label: 'Updated', color: 'var(--info)' },
+    incident_deleted: { icon: '🗑️', label: 'Deleted', color: 'var(--text-muted)' },
+    incident_resolved: { icon: '✅', label: 'Resolved', color: 'var(--success)' },
     timeline_added: { icon: '📢', label: 'New Update', color: 'var(--warning)' },
     timeline_updated: { icon: '✎', label: 'Edit', color: 'var(--info)' },
     timeline_deleted: { icon: '🗑️', label: 'Removed', color: 'var(--text-muted)' },
@@ -325,8 +325,8 @@ function ActivityItem({ activity, onClick, isUnread }) {
         </span>
       </div>
 
-      {/* Event title */}
-      {event && (
+      {/* Incident title */}
+      {incident && (
         <div>
           <div
             style={{
@@ -337,13 +337,13 @@ function ActivityItem({ activity, onClick, isUnread }) {
               marginBottom: '4px',
             }}
           >
-            {event.title}
+            {incident.title}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            {event.category && (
-              <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
+            {incident.category && (
+              <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
             )}
-            {event.severity && <SeverityBadge level={Number(event.severity)} />}
+            {incident.severity && <SeverityBadge level={Number(incident.severity)} />}
           </div>
         </div>
       )}

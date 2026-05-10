@@ -28,7 +28,7 @@ ON CONFLICT (email) DO NOTHING;
 -- ============================================
 
 -- Sample Event 1: Conflict in Eastern Europe
-INSERT INTO events (
+INSERT INTO incidents (
     id, title, description, latitude, longitude, geom,
     category, severity, status, start_date, end_date,
     created_by, created_at, updated_at
@@ -45,7 +45,7 @@ INSERT INTO events (
 ON CONFLICT (id) DO NOTHING;
 
 -- Sample Event 2: Protest in South America
-INSERT INTO events (
+INSERT INTO incidents (
     id, title, description, latitude, longitude, geom,
     category, severity, status, start_date, end_date,
     created_by, created_at, updated_at
@@ -62,7 +62,7 @@ INSERT INTO events (
 ON CONFLICT (id) DO NOTHING;
 
 -- Sample Event 3: Natural Disaster in Asia
-INSERT INTO events (
+INSERT INTO incidents (
     id, title, description, latitude, longitude, geom,
     category, severity, status, start_date, end_date,
     created_by, created_at, updated_at
@@ -79,7 +79,7 @@ INSERT INTO events (
 ON CONFLICT (id) DO NOTHING;
 
 -- Sample Event 4: Diplomatic Event (Europe)
-INSERT INTO events (
+INSERT INTO incidents (
     id, title, description, latitude, longitude, geom,
     category, severity, status, start_date, end_date,
     created_by, created_at, updated_at
@@ -96,7 +96,7 @@ INSERT INTO events (
 ON CONFLICT (id) DO NOTHING;
 
 -- Sample Event 5: Humanitarian Crisis (Africa)
-INSERT INTO events (
+INSERT INTO incidents (
     id, title, description, latitude, longitude, geom,
     category, severity, status, start_date, end_date,
     created_by, created_at, updated_at
@@ -113,7 +113,7 @@ INSERT INTO events (
 ON CONFLICT (id) DO NOTHING;
 
 -- Sample Event 6: Historical / Resolved Event
-INSERT INTO events (
+INSERT INTO incidents (
     id, title, description, latitude, longitude, geom,
     category, severity, status, start_date, end_date,
     created_by, created_at, updated_at, resolved_at, resolved_by

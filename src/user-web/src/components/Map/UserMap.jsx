@@ -6,12 +6,12 @@ import { CATEGORY_COLORS, SEVERITY_SCALE } from '@shared/constants.js';
 const MAP_STYLE_URL = '/map-style-dark.json';
 
 export default function UserMap({
-  events,
+  incidents,
   selectedEventId,
   onEventClick,
   onViewportChange,
   flyToCoords,
-  ghostEvent,
+  ghostIncident,
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -75,14 +75,14 @@ export default function UserMap({
     });
   }, [flyToCoords]);
 
-  // Create / remove / update marker positions when events change
+  // Create / remove / update marker positions when incidents change
   useEffect(() => {
     if (!map.current) return;
 
-    const currentIds = new Set(events.map((e) => e.id));
+    const currentIds = new Set(incidents.map((i) => i.id));
     const existingIds = Array.from(markers.current.keys());
 
-    // Remove markers for events that no longer exist
+    // Remove markers for incidents that no longer exist
     existingIds.forEach((id) => {
       if (!currentIds.has(id)) {
         markers.current.get(id)?.remove();
@@ -91,21 +91,21 @@ export default function UserMap({
     });
 
     // Add new markers, update existing ones
-    events.forEach((event) => {
-      const existing = markers.current.get(event.id);
-      const lat = parseFloat(event.latitude);
-      const lng = parseFloat(event.longitude);
+    incidents.forEach((incident) => {
+      const existing = markers.current.get(incident.id);
+      const lat = parseFloat(incident.latitude);
+      const lng = parseFloat(incident.longitude);
 
       if (existing) {
         // Update position if changed
         existing.setLngLat([lng, lat]);
-        existing._eventData = event;
+        existing._incidentData = incident;
         return;
       }
 
       // Create new marker
-      const severityConfig = SEVERITY_SCALE.find((s) => s.value === event.severity) || SEVERITY_SCALE[2];
-      const color = CATEGORY_COLORS[event.category] || '#6b7280';
+      const severityConfig = SEVERITY_SCALE.find((s) => s.value === incident.severity) || SEVERITY_SCALE[2];
+      const color = CATEGORY_COLORS[incident.category] || '#6b7280';
       const size = severityConfig.radius;
 
       // Parent: MapLibre positions this via translate3d — DO NOT touch its transform
@@ -113,7 +113,7 @@ export default function UserMap({
       el.style.width = '0';
       el.style.height = '0';
       el.style.position = 'relative';
-      el.dataset.eventId = event.id;
+      el.dataset.incidentId = incident.id;
       el.dataset.color = color;
       el.dataset.size = String(size);
 
@@ -146,7 +146,7 @@ export default function UserMap({
 
       // Click: NO stopPropagation — let MapLibre clean up properly
       el.addEventListener('click', () => {
-        onEventClick?.(event);
+        onEventClick?.(incident);
       });
 
       el.appendChild(visual);
@@ -155,10 +155,10 @@ export default function UserMap({
         .setLngLat([lng, lat])
         .addTo(map.current);
 
-      marker._eventData = event;
-      markers.current.set(event.id, marker);
+      marker._incidentData = incident;
+      markers.current.set(incident.id, marker);
     });
-  }, [events]);
+  }, [incidents]);
 
   // Update selection styles WITHOUT recreating markers
   useEffect(() => {
@@ -169,7 +169,7 @@ export default function UserMap({
 
       const color = el.dataset.color;
       const size = parseInt(el.dataset.size, 10);
-      const isSelected = el.dataset.eventId === selectedEventId;
+      const isSelected = el.dataset.incidentId === selectedEventId;
 
       if (isSelected) {
         visual.style.border = '2px solid #fff';
@@ -181,7 +181,7 @@ export default function UserMap({
     });
   }, [selectedEventId]);
 
-  // Render ghost marker for out-of-range selected events
+  // Render ghost marker for out-of-range selected incidents
   useEffect(() => {
     if (!map.current) return;
 
@@ -190,10 +190,10 @@ export default function UserMap({
       ghostMarkerRef.current = null;
     }
 
-    if (ghostEvent) {
-      const lat = parseFloat(ghostEvent.latitude);
-      const lng = parseFloat(ghostEvent.longitude);
-      const color = CATEGORY_COLORS[ghostEvent.category] || '#6b7280';
+    if (ghostIncident) {
+      const lat = parseFloat(ghostIncident.latitude);
+      const lng = parseFloat(ghostIncident.longitude);
+      const color = CATEGORY_COLORS[ghostIncident.category] || '#6b7280';
       const size = 10;
 
       const el = document.createElement('div');
@@ -238,7 +238,7 @@ export default function UserMap({
       });
 
       el.addEventListener('click', () => {
-        onEventClick?.(ghostEvent);
+        onEventClick?.(ghostIncident);
       });
 
       el.appendChild(visual);
@@ -248,7 +248,7 @@ export default function UserMap({
         .setLngLat([lng, lat])
         .addTo(map.current);
     }
-  }, [ghostEvent, onEventClick]);
+  }, [ghostIncident, onEventClick]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

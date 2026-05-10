@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { SEVERITY_SCALE } from '@shared/constants.js';
-import EventListItem from './EventListItem.jsx';
-import EventDetailView from '../EventDetail/EventDetailView.jsx';
+import IncidentListItem from './IncidentListItem.jsx';
+import IncidentDetailView from '../IncidentDetail/IncidentDetailView.jsx';
 
-export default function EventSidebar({
-  events,
-  selectedEvent,
+export default function IncidentSidebar({
+  incidents,
+  selectedIncident,
   onSelectEvent,
   onBack,
   loading,
@@ -14,12 +14,12 @@ export default function EventSidebar({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredEvents = searchQuery.trim()
-    ? events.filter((e) =>
-        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (e.description && e.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredIncidents = searchQuery.trim()
+    ? incidents.filter((i) =>
+        i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase()))
       )
-    : events;
+    : incidents;
 
   return (
     <div
@@ -33,9 +33,9 @@ export default function EventSidebar({
         overflow: 'hidden',
       }}
     >
-      {selectedEvent ? (
+      {selectedIncident ? (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <EventDetailView eventId={selectedEvent.id} onBack={onBack} />
+          <IncidentDetailView incidentId={selectedIncident.id} onBack={onBack} />
         </div>
       ) : (
         <>
@@ -72,7 +72,7 @@ export default function EventSidebar({
                   borderRadius: '10px',
                 }}
               >
-                {events.length}
+                {incidents.length}
               </span>
             </div>
 
@@ -80,7 +80,7 @@ export default function EventSidebar({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search events..."
+              placeholder="Search incidents..."
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -180,25 +180,25 @@ export default function EventSidebar({
             </div>
           </div>
 
-          {/* Event list */}
+          {/* Incident list */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {loading ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                Loading events...
+                Loading incidents...
               </div>
-            ) : filteredEvents.length === 0 ? (
+            ) : filteredIncidents.length === 0 ? (
               <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
                 <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }}>🗺️</div>
-                <div>No events found.</div>
+                <div>No incidents found.</div>
                 <div style={{ fontSize: '12px', marginTop: '4px' }}>Try adjusting your filters.</div>
               </div>
             ) : (
-              filteredEvents.map((event) => (
-                <EventListItem
-                  key={event.id}
-                  event={event}
+              filteredIncidents.map((incident) => (
+                <IncidentListItem
+                  key={incident.id}
+                  incident={incident}
                   isSelected={false}
-                  onClick={() => onSelectEvent?.(event)}
+                  onClick={() => onSelectEvent?.(incident)}
                 />
               ))
             )}

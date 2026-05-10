@@ -4,9 +4,9 @@ import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { CATEGORY_LABELS } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function EventListItem({ event, isSelected, onClick }) {
-  const dateStr = event.start_date
-    ? format(new Date(event.start_date), 'MMM d, yyyy')
+export default function IncidentListItem({ incident, isSelected, onClick }) {
+  const dateStr = incident.start_date
+    ? format(new Date(incident.start_date), 'MMM d, yyyy')
     : 'Unknown date';
 
   return (
@@ -28,8 +28,8 @@ export default function EventListItem({ event, isSelected, onClick }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-        <Badge category={event.category}>{CATEGORY_LABELS[event.category]}</Badge>
-        <SeverityBadge level={event.severity} />
+        <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+        <SeverityBadge level={incident.severity} />
       </div>
 
       <h4
@@ -41,7 +41,7 @@ export default function EventListItem({ event, isSelected, onClick }) {
           lineHeight: 1.4,
         }}
       >
-        {event.title}
+        {incident.title}
       </h4>
 
       <p
@@ -56,7 +56,7 @@ export default function EventListItem({ event, isSelected, onClick }) {
           overflow: 'hidden',
         }}
       >
-        {event.description || 'No description available.'}
+        {incident.description || 'No description available.'}
       </p>
 
       <div
@@ -69,7 +69,7 @@ export default function EventListItem({ event, isSelected, onClick }) {
           gap: '8px',
         }}
       >
-        <span>📍 {event.location_context || `${parseFloat(event.latitude).toFixed(2)}, ${parseFloat(event.longitude).toFixed(2)}`}</span>
+        <span>📍 {incident.location_context || `${parseFloat(incident.latitude).toFixed(2)}, ${parseFloat(incident.longitude).toFixed(2)}`}</span>
         <span>·</span>
         <span>{dateStr}</span>
       </div>

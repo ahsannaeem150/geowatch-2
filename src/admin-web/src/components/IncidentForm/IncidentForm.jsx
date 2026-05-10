@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Button } from '@shared/components/Button.jsx';
 import { CATEGORY_LABELS, SEVERITY_SCALE } from '@shared/constants.js';
 
-export default function EventForm({
+export default function IncidentForm({
   initialCoords,
   initialData,
   onSubmit,
@@ -120,7 +120,7 @@ export default function EventForm({
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
         <div style={{ width: '3px', height: '20px', background: 'var(--accent)', borderRadius: '2px' }} />
         <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-          {isEdit ? 'Edit Event' : 'Create New Event'}
+          {isEdit ? 'Edit Incident' : 'Create New Incident'}
         </h3>
       </div>
 
@@ -128,7 +128,7 @@ export default function EventForm({
       <div style={sectionBox}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={labelBase}>Event Title</label>
+            <label style={labelBase}>Incident Title</label>
             <input
               type="text"
               value={title}
@@ -337,7 +337,7 @@ export default function EventForm({
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
         <Button type="submit" variant="primary" disabled={submitting}>
-          {submitting ? 'Saving...' : isEdit ? 'Update Event' : 'Create Event'}
+          {submitting ? 'Saving...' : isEdit ? 'Update Incident' : 'Create Incident'}
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>

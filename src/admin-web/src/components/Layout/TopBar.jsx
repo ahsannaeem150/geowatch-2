@@ -66,8 +66,8 @@ export default function TopBar({
     setSearchLoading(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const res = await api.searchEvents({ q: searchQuery.trim(), limit: 5 });
-        setSearchResults(res.data.events || []);
+        const res = await api.searchIncidents({ q: searchQuery.trim(), limit: 5 });
+        setSearchResults(res.data.incidents || []);
         setSearchTotal(res.data.count || 0);
         setShowDropdown(true);
         setHighlightedIndex(0);
@@ -98,10 +98,10 @@ export default function TopBar({
     setShowDropdown(false);
   };
 
-  const handleSelectEvent = (event) => {
+  const handleSelectIncident = (incident) => {
     setShowDropdown(false);
     setSearchQuery('');
-    onSearchSelect?.(event);
+    onSearchSelect?.(incident);
   };
 
   const handleViewAll = () => {
@@ -115,7 +115,7 @@ export default function TopBar({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (showDropdown && searchResults.length > 0 && highlightedIndex >= 0) {
-        handleSelectEvent(searchResults[highlightedIndex]);
+        handleSelectIncident(searchResults[highlightedIndex]);
       } else if (searchQuery.trim()) {
         handleViewAll();
       }
@@ -238,7 +238,7 @@ export default function TopBar({
             Today
           </button>
 
-          {/* Event Search */}
+          {/* Incident Search */}
           <div
             ref={searchContainerRef}
             style={{ position: 'relative', marginLeft: '12px', width: '280px' }}
@@ -251,7 +251,7 @@ export default function TopBar({
                 if (searchResults.length > 0) setShowDropdown(true);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search events..."
+              placeholder="Search incidents..."
               style={{
                 width: '100%',
                 padding: '5px 30px 5px 10px',
@@ -292,7 +292,7 @@ export default function TopBar({
                 results={searchResults}
                 totalCount={searchTotal}
                 loading={searchLoading}
-                onSelect={handleSelectEvent}
+                onSelect={handleSelectIncident}
                 onViewAll={handleViewAll}
                 onClose={() => setShowDropdown(false)}
                 highlightedIndex={highlightedIndex}
@@ -369,7 +369,7 @@ export default function TopBar({
         </div>
 
         <Button variant="primary" size="sm" onClick={onAddEvent}>
-          + Add Event
+          + Add Incident
         </Button>
         <Button variant="ghost" size="sm" onClick={logout}>
           Logout

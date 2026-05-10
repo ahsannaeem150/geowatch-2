@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const createEventSchema = z.object({
+export const createIncidentSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().optional(),
   latitude: z.number().min(-90).max(90),
@@ -19,7 +19,7 @@ export const createEventSchema = z.object({
   ).optional(),
 });
 
-export const updateEventSchema = z.object({
+export const updateIncidentSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   description: z.string().optional(),
   latitude: z.number().min(-90).max(90).optional(),
@@ -30,7 +30,7 @@ export const updateEventSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
 });
 
-export const listEventsQuerySchema = z.object({
+export const listIncidentsQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -40,7 +40,7 @@ export const listEventsQuerySchema = z.object({
   viewport: z.string().regex(/^-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*$/).optional(),
 });
 
-export const searchEventsQuerySchema = z.object({
+export const searchIncidentsQuerySchema = z.object({
   q: z.string().min(1).max(200),
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
