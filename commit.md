@@ -1724,3 +1724,75 @@ fix: restore /trial route and add missing marker radius to severity scale
 ```
 
 *End of fix*
+
+---
+
+## 📅 2026-05-11 — Feature: Real-Time SSE Live Activity Feed
+
+### Summary
+Built the complete real-time activity infrastructure for the user-web map explorer. Added a collapsible left sidebar that streams live events via Server-Sent Events (SSE), a bottom scrolling ticker, and a "while you were away" banner. Refactored the map page into a 3-column layout. Fixed the SSE route collision on the backend.
+
+### Backend Fix
+
+| File | Change |
+|:--|:--|
+| `src/backend/server.js` | Moved `GET /api/v1/events/stream` **before** `app.use('/api/v1/events', eventRoutes)` — the `/events/:id` route was catching `/events/stream` ("stream" parsed as a UUID), causing a 500 error. SSE endpoint now responds correctly. |
+
+### New Frontend Components
+
+| File | Purpose |
+|:--|:--|
+| `src/user-web/src/components/LiveActivity/LiveActivityFeed.jsx` | Collapsible left sidebar (300px / 44px). Chronological activity list newest-first. Unread items have red left border + tinted background. Shows category badge + severity badge per item. "Mark seen" button. Auto-scroll to top on new activity. New-activity button when scrolled down. |
+| `src/user-web/src/components/Ticker/TickerBar.jsx` | Bottom thin scrolling marquee of recent activity. Auto-scrolls at 0.8px/frame. Pauses on hover. Click to jump to event. Duplicates items for seamless looping. Masked fade edges. |
+| `src/user-web/src/components/AwayBanner/AwayBanner.jsx` | Centered dismissible banner: "While you were away · 3 new incidents · 2 updated events". "Jump to new" expands feed + marks seen. Dismiss sets lastSeenTimestamp. Slide-down animation. |
+
+### MapPage Refactor
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/MapPage.jsx` | Full rewrite to 3-column layout: Live Activity Feed (left) + Map (center, flex) + Event Sidebar (right, 480px). Added SSE `EventSource` connection. `activities` state (max 50). `lastSeenTimestamp` in localStorage. Unread counting. Away banner on `visibilitychange`. Right sidebar reduced from 580px → 480px to accommodate left panel. |
+| `src/user-web/src/index.css` | Added `pulse` and `slideDown` keyframe animations for the live dot and away banner. |
+
+### SSE Event Handling
+
+| Payload Type | Frontend Action |
+|:--|:--|
+| `event_created` | Add to activities, prepend to events list |
+| `event_updated` | Add to activities, update event in-place in events list |
+| `event_deleted` | Add to activities, remove from events list |
+| `event_resolved` | Add to activities, update event in-place |
+| `timeline_added` | Add to activities |
+| `timeline_updated` | Add to activities |
+| `timeline_deleted` | Add to activities |
+
+### Key Behaviors
+
+| Feature | Behavior |
+|:--|:--|
+| **Unread tracking** | Activity items with `timestamp > lastSeenTimestamp` get red left border + badge count |
+| **Mark all seen** | Sets `lastSeenTimestamp = Date.now()` in state + localStorage; all borders disappear |
+| **Click activity** | Fly map to event + open detail panel. Falls back to API fetch if event not in local list |
+| **Away detection** | On `document.visibilityState === 'visible'`, if away > 30s and there are new activities, show banner |
+| **Auto-scroll** | Feed auto-scrolls to top when new activity arrives; disabled if user has scrolled down |
+
+### Bug Fix
+
+| Issue | Fix |
+|:--|:--|
+| UUID event IDs compared with `parseInt` | Changed all `parseInt(eventId, 10)` to string comparison — event IDs are UUIDs, not integers |
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `user-web` | ✅ 370 modules, 1.08MB JS, 68KB CSS |
+| `admin-web` | ✅ 360 modules, 1.10MB JS, 69KB CSS |
+| `backend` | ✅ SSE endpoint responds with `: connected` |
+
+### Git Commit
+
+```
+feat: real-time SSE live activity feed, scrolling ticker, away banner, and 3-column map layout
+```
+
+*End of session*

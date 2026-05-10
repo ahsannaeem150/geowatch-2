@@ -8,6 +8,7 @@ import {
   resolveEvent,
 } from '../services/event.service.js';
 import { createEventSource } from '../services/source.service.js';
+import { broadcastEvent } from '../utils/sse-broadcast.js';
 
 export async function getEvents(req, res) {
   const filters = {
@@ -82,6 +83,7 @@ export async function createEventController(req, res) {
     }
   }
 
+  broadcastEvent({ type: 'event_created', event });
   res.apiSuccess({ event }, 'Event created successfully');
 }
 
@@ -90,6 +92,7 @@ export async function updateEventController(req, res) {
   if (!event) {
     return res.apiError('Event not found', 'NOT_FOUND', 404);
   }
+  broadcastEvent({ type: 'event_updated', event });
   res.apiSuccess({ event }, 'Event updated successfully');
 }
 
@@ -98,6 +101,7 @@ export async function deleteEventController(req, res) {
   if (!result) {
     return res.apiError('Event not found', 'NOT_FOUND', 404);
   }
+  broadcastEvent({ type: 'event_deleted', eventId: req.params.id });
   res.apiSuccess({ deleted: true });
 }
 
@@ -107,5 +111,6 @@ export async function resolveEventController(req, res) {
   if (!event) {
     return res.apiError('Event not found', 'NOT_FOUND', 404);
   }
+  broadcastEvent({ type: 'event_resolved', event });
   res.apiSuccess({ event });
 }

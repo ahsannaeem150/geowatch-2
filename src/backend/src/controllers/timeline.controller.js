@@ -3,9 +3,11 @@ import {
   updateTimelineEntry,
   deleteTimelineEntry,
 } from '../services/timeline.service.js';
+import { broadcastEvent } from '../utils/sse-broadcast.js';
 
 export async function createTimelineController(req, res) {
   const update = await createTimelineUpdate(req.params.id, req.body, req.user.id);
+  broadcastEvent({ type: 'timeline_added', eventId: req.params.id, update });
   res.apiSuccess({ update }, 'Timeline update added successfully');
 }
 
@@ -19,6 +21,7 @@ export async function updateTimelineController(req, res) {
   if (!update) {
     return res.apiError('Timeline update not found', 'NOT_FOUND', 404);
   }
+  broadcastEvent({ type: 'timeline_updated', eventId: req.params.id, updateId: req.params.updateId });
   res.apiSuccess({ update }, 'Timeline update modified successfully');
 }
 
@@ -27,5 +30,6 @@ export async function deleteTimelineController(req, res) {
   if (!result) {
     return res.apiError('Timeline update not found', 'NOT_FOUND', 404);
   }
+  broadcastEvent({ type: 'timeline_deleted', eventId: req.params.id, updateId: req.params.updateId });
   res.apiSuccess({ deleted: true }, 'Timeline update deleted successfully');
 }

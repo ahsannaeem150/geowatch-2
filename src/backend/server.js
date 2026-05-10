@@ -11,6 +11,7 @@ import authRoutes from './src/routes/auth.routes.js';
 import eventRoutes from './src/routes/event.routes.js';
 import timelineRoutes from './src/routes/timeline.routes.js';
 import sourceRoutes from './src/routes/source.routes.js';
+import { addClient, removeClient } from './src/utils/sse-broadcast.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -37,6 +38,24 @@ app.use(responseWrapper);
 
 // ─── Rate Limiting ───
 app.use(generalLimiter);
+
+// ─── SSE Stream Endpoint (must be before event routes to avoid /:id collision) ───
+app.get('/api/v1/events/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders?.();
+
+  // Send initial heartbeat
+  res.write(': connected\n\n');
+
+  addClient(res);
+
+  req.on('close', () => {
+    removeClient(res);
+  });
+});
 
 // ─── API Routes ───
 app.use('/api/v1', healthRoutes);
