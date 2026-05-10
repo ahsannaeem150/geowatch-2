@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import LoginPage from './components/Login/LoginPage.jsx';
 import DashboardLayout from './components/Layout/DashboardLayout.jsx';
+import DesignTrial from './components/DesignTrial/DesignTrial.jsx';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -29,6 +30,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/trial" element={<DesignTrial />} />
       <Route
         path="/*"
         element={

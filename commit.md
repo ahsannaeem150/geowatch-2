@@ -1702,3 +1702,25 @@ feat: apply Crimson Seal design system — maroon accent, Space Grotesk, flat se
 ```
 
 *End of design overhaul*
+
+---
+
+## 📅 2026-05-10 — Fix: Restore Trial Route + Marker Radius
+
+### Summary
+Restored the `/trial` route in App.jsx so the DesignTrial page remains accessible for future design iterations. Also fixed map marker sizes by restoring the `radius` property to `SEVERITY_SCALE` that was accidentally dropped during the design token overhaul.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/App.jsx` | Re-added `/trial` route pointing to `DesignTrial.jsx` |
+| `src/shared/constants.js` | Restored `radius: 6/8/10/12/14` to each `SEVERITY_SCALE` entry |
+
+### Git Commit
+
+```
+fix: restore /trial route and add missing marker radius to severity scale
+```
+
+*End of fix*
