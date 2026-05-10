@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { SEVERITY_SCALE } from '@shared/constants.js';
 import EventListItem from './EventListItem.jsx';
 import EventDetailView from '../EventDetail/EventDetailView.jsx';
 
@@ -126,6 +127,54 @@ export default function EventSidebar({
                   }}
                 >
                   {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Severity filter chips */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => onFilterChange?.({ ...filters, severity: '' })}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.6px',
+                  borderRadius: 'var(--radius-pill)',
+                  border: '1px solid',
+                  borderColor: !filters?.severity ? 'var(--accent-light)' : 'var(--border-subtle)',
+                  background: !filters?.severity ? 'rgba(159, 18, 57, 0.12)' : 'transparent',
+                  color: !filters?.severity ? 'var(--accent-light)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Any Severity
+              </button>
+              {SEVERITY_SCALE.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => onFilterChange?.({ ...filters, severity: String(s.value) })}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.6px',
+                    borderRadius: 'var(--radius-pill)',
+                    border: '1px solid',
+                    borderColor:
+                      filters?.severity === String(s.value) ? s.color : 'var(--border-subtle)',
+                    background:
+                      filters?.severity === String(s.value) ? `${s.color}15` : 'transparent',
+                    color:
+                      filters?.severity === String(s.value) ? s.color : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {s.value} {s.label}
                 </button>
               ))}
             </div>
