@@ -20,11 +20,11 @@ export const CATEGORY_LABELS = {
 };
 
 export const SEVERITY_SCALE = [
-  { value: 1, label: 'Minimal',  color: '#4ade80' },
-  { value: 2, label: 'Low',      color: '#fbbf24' },
-  { value: 3, label: 'Moderate', color: '#fb923c' },
-  { value: 4, label: 'Severe',   color: '#f87171' },
-  { value: 5, label: 'Critical', color: '#dc2626' },
+  { value: 1, label: 'Minimal',  color: '#4ade80', radius: 6 },
+  { value: 2, label: 'Low',      color: '#fbbf24', radius: 8 },
+  { value: 3, label: 'Moderate', color: '#fb923c', radius: 10 },
+  { value: 4, label: 'Severe',   color: '#f87171', radius: 12 },
+  { value: 5, label: 'Critical', color: '#dc2626', radius: 14 },
 ];
 
 export const EVENT_STATUS = {
