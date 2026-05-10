@@ -501,7 +501,7 @@ function MetaItem({ label, value, date, time, severity }) {
       </span>
       {severity !== undefined && (
         <div style={{ marginTop: '8px' }}>
-          <SeverityBadge level={severity} />
+          <SeverityBadge level={severity} wide />
         </div>
       )}
       {value && (
