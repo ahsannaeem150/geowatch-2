@@ -1796,3 +1796,55 @@ feat: real-time SSE live activity feed, scrolling ticker, away banner, and 3-col
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-11 — Feature: Smart Viewport, Marker Polish, Ghost Marker in User-Web
+
+### Summary
+Audited user-web map functionality against admin-web and ported all missing features: smart viewport filtering (100-event threshold), split marker effects with hover, programmatic move suppression during flyTo, and ghost markers with context banner for out-of-range events.
+
+### What Was Already the Same
+
+| Feature | Status |
+|:--|:--|
+| Viewport bounds reporting on `moveend` / `load` | ✅ Same |
+| `Map()` keyed by event ID for marker tracking | ✅ Same |
+| Removing dead markers when events change | ✅ Same |
+| In-place position updates for existing markers | ✅ Same |
+| Colored dot markers sized by severity | ✅ Same |
+
+### What Was Different — And What Changed
+
+| # | Feature | Admin-Web | User-Web (Before) | User-Web (After) |
+|:--|:--|:--|:--|:--|
+| 1 | **Smart viewport filtering** | Two-phase fetch: count first, enable filtering if `> 100` events | Single fetch, always sent viewport | Two-phase fetch with `viewportFiltering` state, refs, and conditional re-fetch on pan |
+| 2 | **Marker effect splitting** | `[events]` for create/remove/position + `[selectedEventId]` for style only | Single `[events, selectedEventId]` effect | Split into two effects matching admin |
+| 3 | **Hover effects** | `mouseenter`/`mouseleave` scales child to 1.5× | None | Added hover scale + glow + zIndex on child visual |
+| 4 | **Programmatic move detection** | `isProgrammaticMove` ref skips viewport reporting after `flyTo` | No flag — every flyTo triggered re-fetch | Added ref + suppression in `moveend` handler |
+| 5 | **Ghost marker** | Dashed-border semi-transparent marker + pulse ring + banner with "Switch to this date" | None | Full ghost marker with `ghost-pulse` animation + bottom-center context banner |
+| 6 | **Event counter** | Shows "in current map area" + total count warning | Plain "{n} events visible" | Added viewport context line + total count warning |
+| 7 | **Click propagation** | No `stopPropagation` | `e.stopPropagation()` on marker click | Removed stopPropagation |
+| 8 | **Stale closure guard** | `onViewportChangeRef.current` pattern | Closure captured in init effect | Added callback ref pattern |
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/components/Map/UserMap.jsx` | **Rewritten** — added `ghostEvent` prop, `isProgrammaticMove` ref, callback ref for `onViewportChange`, split marker effects (`[events]` + `[selectedEventId]`), hover effects on child visual, removed `stopPropagation`, ghost marker effect with `ghost-pulse` keyframes |
+| `src/user-web/src/pages/MapPage.jsx` | **Rewritten** — added `viewportFiltering` / `totalEventCount` state, `viewportBoundsRef` / `viewportFilteringRef`, two-phase fetch logic, conditional re-fetch in `handleViewportChange`, `ghostEvent` computation, ghost banner overlay with "Switch to this date" button, enhanced event counter with viewport context |
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `user-web` | ✅ 370 modules, 1.09MB JS, 68KB CSS |
+| `admin-web` | ✅ 360 modules, 1.10MB JS, 69KB CSS |
+
+### Git Commit
+
+```
+feat: smart viewport filtering, split marker effects, hover, ghost marker, and flyTo suppression in user-web
+```
+
+*End of session*

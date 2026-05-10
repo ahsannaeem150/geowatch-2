@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CATEGORY_COLORS, SEVERITY_SCALE } from '@shared/constants.js';
@@ -11,12 +11,17 @@ export default function UserMap({
   onEventClick,
   onViewportChange,
   flyToCoords,
+  ghostEvent,
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef(new Map());
+  const ghostMarkerRef = useRef(null);
+  const isProgrammaticMove = useRef(false);
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
 
-  // Initialize map
+  // Initialize map once
   useEffect(() => {
     if (map.current) return;
 
@@ -31,21 +36,29 @@ export default function UserMap({
     map.current.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     map.current.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
+    // Report initial bounds once the map is loaded
     map.current.on('load', () => {
-      if (onViewportChange) {
-        const b = map.current.getBounds();
-        onViewportChange(`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`);
-      }
+      if (!map.current) return;
+      const bounds = map.current.getBounds();
+      const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+      onViewportChangeRef.current?.(viewport);
     });
 
+    // Report viewport bounds on user-initiated map moves only
     map.current.on('moveend', () => {
-      if (onViewportChange) {
-        const b = map.current.getBounds();
-        onViewportChange(`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`);
+      if (isProgrammaticMove.current) {
+        isProgrammaticMove.current = false;
+        return;
       }
+      if (!map.current) return;
+      const bounds = map.current.getBounds();
+      const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+      onViewportChangeRef.current?.(viewport);
     });
 
     return () => {
+      markers.current.forEach((m) => m.remove());
+      ghostMarkerRef.current?.remove();
       map.current?.remove();
       map.current = null;
     };
@@ -54,6 +67,7 @@ export default function UserMap({
   // Fly to coordinates
   useEffect(() => {
     if (!map.current || !flyToCoords) return;
+    isProgrammaticMove.current = true;
     map.current.flyTo({
       center: [flyToCoords.lng, flyToCoords.lat],
       zoom: flyToCoords.zoom || 10,
@@ -61,29 +75,31 @@ export default function UserMap({
     });
   }, [flyToCoords]);
 
-  // Create/update markers
+  // Create / remove / update marker positions when events change
   useEffect(() => {
     if (!map.current) return;
 
-    const currentIds = new Set();
+    const currentIds = new Set(events.map((e) => e.id));
+    const existingIds = Array.from(markers.current.keys());
 
+    // Remove markers for events that no longer exist
+    existingIds.forEach((id) => {
+      if (!currentIds.has(id)) {
+        markers.current.get(id)?.remove();
+        markers.current.delete(id);
+      }
+    });
+
+    // Add new markers, update existing ones
     events.forEach((event) => {
-      currentIds.add(event.id);
-
       const existing = markers.current.get(event.id);
+      const lat = parseFloat(event.latitude);
+      const lng = parseFloat(event.longitude);
+
       if (existing) {
         // Update position if changed
-        existing.marker.setLngLat([parseFloat(event.longitude), parseFloat(event.latitude)]);
-        // Update selection state
-        const visual = existing.element.querySelector('.marker-visual');
-        if (visual) {
-          const isSelected = selectedEventId === event.id;
-          visual.style.borderColor = isSelected ? '#fff' : 'transparent';
-          visual.style.boxShadow = isSelected
-            ? `0 0 0 3px ${CATEGORY_COLORS[event.category]}80, 0 0 12px ${CATEGORY_COLORS[event.category]}60`
-            : `0 0 6px ${CATEGORY_COLORS[event.category]}40`;
-          visual.style.transform = isSelected ? 'scale(1.3)' : 'scale(1)';
-        }
+        existing.setLngLat([lng, lat]);
+        existing._eventData = event;
         return;
       }
 
@@ -92,14 +108,17 @@ export default function UserMap({
       const color = CATEGORY_COLORS[event.category] || '#6b7280';
       const size = severityConfig.radius;
 
+      // Parent: MapLibre positions this via translate3d — DO NOT touch its transform
       const el = document.createElement('div');
       el.style.width = '0';
       el.style.height = '0';
       el.style.position = 'relative';
-      el.style.cursor = 'pointer';
+      el.dataset.eventId = event.id;
+      el.dataset.color = color;
+      el.dataset.size = String(size);
 
+      // Child: handles all visual styling + hover scale — safe to transform
       const visual = document.createElement('div');
-      visual.className = 'marker-visual';
       visual.style.position = 'absolute';
       visual.style.left = `-${size}px`;
       visual.style.top = `-${size}px`;
@@ -107,40 +126,140 @@ export default function UserMap({
       visual.style.height = `${size * 2}px`;
       visual.style.borderRadius = '50%';
       visual.style.background = color;
-      visual.style.border = selectedEventId === event.id ? '2px solid #fff' : '2px solid transparent';
-      visual.style.boxShadow = selectedEventId === event.id
-        ? `0 0 0 3px ${color}80, 0 0 12px ${color}60`
-        : `0 0 6px ${color}40`;
-      visual.style.transition = 'all 0.2s ease';
-      visual.style.transform = selectedEventId === event.id ? 'scale(1.3)' : 'scale(1)';
+      visual.style.border = '1.5px solid rgba(255,255,255,0.3)';
+      visual.style.boxShadow = `0 0 ${size}px ${color}80`;
+      visual.style.cursor = 'pointer';
+      visual.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
+      visual.style.willChange = 'transform';
+
+      // Hover: scale the CHILD only, never the parent
+      visual.addEventListener('mouseenter', () => {
+        visual.style.transform = 'scale(1.5)';
+        visual.style.boxShadow = `0 0 ${size * 3}px ${color}`;
+        visual.style.zIndex = '10';
+      });
+      visual.addEventListener('mouseleave', () => {
+        visual.style.transform = 'scale(1)';
+        visual.style.boxShadow = `0 0 ${size}px ${color}80`;
+        visual.style.zIndex = '';
+      });
+
+      // Click: NO stopPropagation — let MapLibre clean up properly
+      el.addEventListener('click', () => {
+        onEventClick?.(event);
+      });
 
       el.appendChild(visual);
 
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([parseFloat(event.longitude), parseFloat(event.latitude)])
+        .setLngLat([lng, lat])
         .addTo(map.current);
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        onEventClick?.(event);
-      });
-
-      markers.current.set(event.id, { marker, element: el });
+      marker._eventData = event;
+      markers.current.set(event.id, marker);
     });
+  }, [events]);
 
-    // Remove markers for events no longer in list
-    markers.current.forEach((data, id) => {
-      if (!currentIds.has(id)) {
-        data.marker.remove();
-        markers.current.delete(id);
+  // Update selection styles WITHOUT recreating markers
+  useEffect(() => {
+    markers.current.forEach((marker) => {
+      const el = marker.getElement();
+      const visual = el.firstChild;
+      if (!visual) return;
+
+      const color = el.dataset.color;
+      const size = parseInt(el.dataset.size, 10);
+      const isSelected = el.dataset.eventId === selectedEventId;
+
+      if (isSelected) {
+        visual.style.border = '2px solid #fff';
+        visual.style.boxShadow = `0 0 0 4px ${color}40, 0 0 ${size * 2}px ${color}`;
+      } else {
+        visual.style.border = '1.5px solid rgba(255,255,255,0.3)';
+        visual.style.boxShadow = `0 0 ${size}px ${color}80`;
       }
     });
-  }, [events, selectedEventId]);
+  }, [selectedEventId]);
+
+  // Render ghost marker for out-of-range selected events
+  useEffect(() => {
+    if (!map.current) return;
+
+    if (ghostMarkerRef.current) {
+      ghostMarkerRef.current.remove();
+      ghostMarkerRef.current = null;
+    }
+
+    if (ghostEvent) {
+      const lat = parseFloat(ghostEvent.latitude);
+      const lng = parseFloat(ghostEvent.longitude);
+      const color = CATEGORY_COLORS[ghostEvent.category] || '#6b7280';
+      const size = 10;
+
+      const el = document.createElement('div');
+      el.style.width = '0';
+      el.style.height = '0';
+      el.style.position = 'relative';
+
+      const visual = document.createElement('div');
+      visual.style.position = 'absolute';
+      visual.style.left = `-${size}px`;
+      visual.style.top = `-${size}px`;
+      visual.style.width = `${size * 2}px`;
+      visual.style.height = `${size * 2}px`;
+      visual.style.borderRadius = '50%';
+      visual.style.background = color;
+      visual.style.opacity = '0.5';
+      visual.style.border = '2px dashed rgba(255,255,255,0.6)';
+      visual.style.boxShadow = `0 0 ${size}px ${color}60`;
+      visual.style.cursor = 'pointer';
+      visual.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+
+      // Pulsing ring
+      const ring = document.createElement('div');
+      ring.style.position = 'absolute';
+      ring.style.left = `-${size + 6}px`;
+      ring.style.top = `-${size + 6}px`;
+      ring.style.width = `${size * 2 + 12}px`;
+      ring.style.height = `${size * 2 + 12}px`;
+      ring.style.borderRadius = '50%';
+      ring.style.border = `1.5px dashed ${color}`;
+      ring.style.opacity = '0.4';
+      ring.style.animation = 'ghost-pulse 2s ease-in-out infinite';
+      ring.style.pointerEvents = 'none';
+
+      visual.addEventListener('mouseenter', () => {
+        visual.style.transform = 'scale(1.4)';
+        visual.style.opacity = '0.8';
+      });
+      visual.addEventListener('mouseleave', () => {
+        visual.style.transform = 'scale(1)';
+        visual.style.opacity = '0.5';
+      });
+
+      el.addEventListener('click', () => {
+        onEventClick?.(ghostEvent);
+      });
+
+      el.appendChild(visual);
+      el.appendChild(ring);
+
+      ghostMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lng, lat])
+        .addTo(map.current);
+    }
+  }, [ghostEvent, onEventClick]);
 
   return (
-    <div
-      ref={mapContainer}
-      style={{ width: '100%', height: '100%', background: 'var(--bg-deep)' }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      <style>{`
+        @keyframes ghost-pulse {
+          0% { transform: scale(1); opacity: 0.4; }
+          50% { transform: scale(1.15); opacity: 0.2; }
+          100% { transform: scale(1); opacity: 0.4; }
+        }
+      `}</style>
+    </div>
   );
 }

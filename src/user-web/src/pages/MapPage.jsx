@@ -35,7 +35,12 @@ export default function MapPage() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(null);
   const [filters, setFilters] = useState({ category: '', severity: '' });
-  const [viewportBounds, setViewportBounds] = useState(null);
+
+  // ─── Smart Viewport Filtering ───
+  const [viewportFiltering, setViewportFiltering] = useState(null); // null = unknown, true = on, false = off
+  const [totalEventCount, setTotalEventCount] = useState(0);
+  const viewportBoundsRef = useRef(null);
+  const viewportFilteringRef = useRef(null);
 
   // ─── Live Activity ───
   const [activities, setActivities] = useState([]);
@@ -46,25 +51,63 @@ export default function MapPage() {
 
   const esRef = useRef(null);
 
-  // ─── Fetch events ───
+  // ─── Fetch events with smart viewport filtering ───
   useEffect(() => {
-    setLoading(true);
-    const params = {
-      dateFrom: dateRange.from,
-      dateTo: dateRange.to,
-    };
-    if (filters.category) params.category = filters.category;
-    if (filters.severity) params.severity = filters.severity;
-    if (viewportBounds) params.viewport = viewportBounds;
+    let cancelled = false;
 
-    api
-      .getEvents(params)
-      .then((res) => {
-        setEvents(res.data.events || []);
-      })
-      .catch(() => setEvents([]))
-      .finally(() => setLoading(false));
-  }, [dateRange.from, dateRange.to, filters.category, filters.severity, viewportBounds]);
+    const doFetch = async () => {
+      setLoading(true);
+      setViewportFiltering(null);
+      viewportFilteringRef.current = null;
+
+      const baseParams = {};
+      if (filters.category) baseParams.category = filters.category;
+      if (filters.severity) baseParams.severity = filters.severity;
+
+      // Step 1: Fetch without viewport to count total events for this date range
+      const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
+      const res1 = await api.getEvents(params1);
+
+      if (cancelled) return;
+      setTotalEventCount(res1.data.count);
+
+      if (res1.data.count <= 100) {
+        // Light load: show all events, no viewport filtering needed
+        setEvents(res1.data.events || []);
+        setViewportFiltering(false);
+        viewportFilteringRef.current = false;
+        setLoading(false);
+      } else {
+        // Heavy load: enable viewport filtering
+        setViewportFiltering(true);
+        viewportFilteringRef.current = true;
+
+        // Step 2: If viewport bounds are already known, fetch with them
+        if (viewportBoundsRef.current) {
+          const params2 = {
+            dateFrom: dateRange.from,
+            dateTo: dateRange.to,
+            viewport: viewportBoundsRef.current,
+            ...baseParams,
+          };
+          const res2 = await api.getEvents(params2);
+          if (cancelled) return;
+          setEvents(res2.data.events || []);
+          setTotalEventCount(res2.data.count);
+        } else {
+          // Bounds not ready yet — show the first batch temporarily
+          setEvents(res1.data.events || []);
+        }
+        setLoading(false);
+      }
+    };
+
+    doFetch();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dateRange.from, dateRange.to, filters.category, filters.severity]);
 
   // ─── Handle event ID from URL ───
   useEffect(() => {
@@ -75,6 +118,30 @@ export default function MapPage() {
       }
     }
   }, [eventIdFromUrl, events]);
+
+  // ─── Handle viewport bounds changes from the map ───
+  const handleViewportChange = useCallback((bounds) => {
+    viewportBoundsRef.current = bounds;
+
+    // If viewport filtering is already active, re-fetch with new bounds
+    if (viewportFilteringRef.current === true) {
+      const params = {
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to,
+        viewport: bounds,
+      };
+      if (filters.category) params.category = filters.category;
+      if (filters.severity) params.severity = filters.severity;
+
+      api
+        .getEvents(params)
+        .then((res) => {
+          setEvents(res.data.events || []);
+          setTotalEventCount(res.data.count);
+        })
+        .catch(() => setEvents([]));
+    }
+  }, [dateRange.from, dateRange.to, filters.category, filters.severity]);
 
   // ─── SSE Connection ───
   useEffect(() => {
@@ -222,10 +289,6 @@ export default function MapPage() {
     setSelectedEvent(null);
   }, []);
 
-  const handleViewportChange = useCallback((bounds) => {
-    setViewportBounds(bounds);
-  }, []);
-
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });
   }, [today]);
@@ -254,12 +317,21 @@ export default function MapPage() {
     setFeedCollapsed(false);
     handleMarkAllRead();
     setShowAwayBanner(false);
-    // Scroll to top of feed is handled by LiveActivityFeed autoScroll
   }, [handleMarkAllRead]);
 
   const handleToggleCollapse = useCallback(() => {
     setFeedCollapsed((prev) => !prev);
   }, []);
+
+  const handleSwitchToEventDate = (event) => {
+    const eventDate = event.start_date ? event.start_date.slice(0, 10) : today;
+    setDateRange({ from: eventDate, to: eventDate });
+  };
+
+  // Determine if selected event is a "ghost" (outside current date range)
+  const ghostEvent = selectedEvent && !events.find((e) => e.id === selectedEvent.id)
+    ? selectedEvent
+    : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
@@ -283,6 +355,7 @@ export default function MapPage() {
             onEventClick={handleSelectEvent}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
+            ghostEvent={ghostEvent}
           />
 
           {/* Map controls overlay — top center */}
@@ -315,8 +388,8 @@ export default function MapPage() {
             <LocationSearch
               onSelect={handleLocationSelect}
               viewbox={(() => {
-                if (!viewportBounds) return null;
-                const [minLng, minLat, maxLng, maxLat] = viewportBounds.split(',').map(Number);
+                if (!viewportBoundsRef.current) return null;
+                const [minLng, minLat, maxLng, maxLat] = viewportBoundsRef.current.split(',').map(Number);
                 return `${minLng},${maxLat},${maxLng},${minLat}`;
               })()}
             />
@@ -326,7 +399,7 @@ export default function MapPage() {
           <div
             style={{
               position: 'absolute',
-              top: feedCollapsed ? '72px' : '72px',
+              top: '72px',
               left: '12px',
               background: 'var(--bg-surface)',
               backdropFilter: 'blur(8px)',
@@ -336,11 +409,98 @@ export default function MapPage() {
               fontSize: '12px',
               color: 'var(--text-secondary)',
               zIndex: 10,
+              maxWidth: '340px',
             }}
           >
-            <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{events.length}</span>
-            {' events visible'}
+            <div>
+              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{events.length}</span>
+              {' events visible'}
+              {viewportFiltering === true && ' in current map area'}
+            </div>
+            {viewportFiltering === true && totalEventCount > 100 && (
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                {totalEventCount} total events match this date range — zoom or pan to explore
+              </div>
+            )}
           </div>
+
+          {/* Ghost event banner — outside current date range */}
+          {ghostEvent && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 20,
+                background: 'var(--bg-surface)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                boxShadow: 'var(--shadow-md)',
+                maxWidth: '90%',
+              }}
+            >
+              <div
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: 'var(--text-muted)',
+                  border: '2px dashed rgba(255,255,255,0.5)',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4 }}>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+                    {ghostEvent.title}
+                  </span>{' '}
+                  occurred on{' '}
+                  <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
+                    {ghostEvent.start_date
+                      ? new Date(ghostEvent.start_date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : 'unknown date'}
+                  </span>
+                  {' — outside your current date range'}
+                </p>
+              </div>
+              <button
+                onClick={() => handleSwitchToEventDate(ghostEvent)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--accent-light)',
+                  background: 'rgba(159, 18, 57, 0.1)',
+                  color: 'var(--accent-light)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(159, 18, 57, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(159, 18, 57, 0.1)';
+                }}
+              >
+                Switch to this date
+              </button>
+            </div>
+          )}
 
           {/* Away banner */}
           {showAwayBanner && (
