@@ -163,19 +163,39 @@ export default function MapPage() {
         // Skip initial comment/heartbeat
         if (!payload.type) return;
 
-        const activity = {
-          type: payload.type,
-          eventId: payload.eventId || payload.event?.id,
-          event: payload.event || null,
-          update: payload.update || null,
-          updateId: payload.updateId || null,
-          timestamp: Date.now(),
-          isUnread: true,
-        };
+        // Skip deletion events — users don't need to see admin deletions
+        if (payload.type === 'event_deleted' || payload.type === 'timeline_deleted') {
+          // Still update the events list if an event was deleted
+          if (payload.type === 'event_deleted') {
+            setEvents((prev) => prev.filter((ev) => ev.id !== payload.eventId));
+          }
+          return;
+        }
 
         setActivities((prev) => {
-          const next = [activity, ...prev].slice(0, MAX_ACTIVITIES);
-          return next;
+          // Deduplicate: skip if the most recent activity is identical (same type + eventId within 2s)
+          const last = prev[0];
+          const now = Date.now();
+          if (
+            last &&
+            last.type === payload.type &&
+            last.eventId === (payload.eventId || payload.event?.id) &&
+            now - last.timestamp < 2000
+          ) {
+            return prev;
+          }
+
+          const activity = {
+            type: payload.type,
+            eventId: payload.eventId || payload.event?.id,
+            event: payload.event || null,
+            update: payload.update || null,
+            updateId: payload.updateId || null,
+            timestamp: now,
+            isUnread: true,
+          };
+
+          return [activity, ...prev].slice(0, MAX_ACTIVITIES);
         });
 
         // If the activity is about an event we know, refresh it in our list
@@ -187,11 +207,6 @@ export default function MapPage() {
             }
             return [payload.event, ...prev];
           });
-        }
-
-        // If event deleted, remove from list
-        if (payload.type === 'event_deleted') {
-          setEvents((prev) => prev.filter((ev) => ev.id !== payload.eventId));
         }
       } catch (err) {
         console.warn('[SSE] Failed to parse message:', err);

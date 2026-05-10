@@ -43,17 +43,14 @@ export default function TickerBar({ activities, onSelectEvent }) {
   const config = {
     event_created: { icon: '⚠️', color: 'var(--danger-light)' },
     event_updated: { icon: '📝', color: 'var(--info)' },
-    event_deleted: { icon: '🗑️', color: 'var(--text-muted)' },
     event_resolved: { icon: '✅', color: 'var(--success)' },
     timeline_added: { icon: '📢', color: 'var(--warning)' },
     timeline_updated: { icon: '✎', color: 'var(--info)' },
-    timeline_deleted: { icon: '🗑️', color: 'var(--text-muted)' },
   };
 
   if (activities.length === 0) return null;
 
-  // Duplicate items for seamless looping
-  const items = [...activities, ...activities];
+  const items = activities;
 
   return (
     <div
@@ -110,7 +107,7 @@ export default function TickerBar({ activities, onSelectEvent }) {
 
           return (
             <button
-              key={`${activity.type}-${activity.eventId}-${index}`}
+              key={`${activity.type}-${activity.eventId}-${activity.timestamp}-${index}`}
               onClick={() => onSelectEvent?.(activity.eventId, activity.event)}
               style={{
                 display: 'inline-flex',
