@@ -324,7 +324,12 @@ export default function MapPage() {
   }, []);
 
   const handleSwitchToEventDate = (event) => {
-    const eventDate = event.start_date ? event.start_date.slice(0, 10) : today;
+    const eventDate = event.start_date
+      ? (() => {
+          const d = new Date(event.start_date);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        })()
+      : today;
     setDateRange({ from: eventDate, to: eventDate });
   };
 

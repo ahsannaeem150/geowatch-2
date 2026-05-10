@@ -141,7 +141,12 @@ export default function EventTable({ onSelect, onEdit, onRefresh, refreshKey, da
                 style={{ ...tdStyle, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}
                 onClick={() => onSelect?.(event)}
               >
-                {event.start_date?.slice(0, 10)}
+                {event.start_date
+                  ? (() => {
+                      const d = new Date(event.start_date);
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    })()
+                  : '—'}
               </td>
               <td style={{ ...tdStyle, textAlign: 'right' }}>
                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
