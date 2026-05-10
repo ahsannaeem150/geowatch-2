@@ -93,7 +93,7 @@ export default function MapPage() {
       </div>
 
       {/* Sidebar */}
-      <div style={{ width: '400px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '580px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
         <EventSidebar
           events={events}
           selectedEvent={selectedEvent}
