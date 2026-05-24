@@ -1974,3 +1974,62 @@ refactor: rename Event → Incident across backend, frontends, database, docs, a
 ```
 
 *End of refactor*
+
+---
+
+## 📅 2026-05-11 — Feature: Soft-Boundary Dynamic Max Zoom
+
+### Summary
+Implemented dynamic zoom clamping with a soft boundary transition. Inside the hot region (where z14 vector tiles exist), users can zoom to street-level detail (z14). Outside the hot region, zoom is limited to z10 to prevent blank tiles. A 3° buffer zone provides a smooth transition between the two limits.
+
+### The Problem
+The merged `tiles.mbtiles` has z14 tiles only within the hot region (25.3125°E–105.1831°E, 4.7626°N–42.5531°N). Outside this box, tiles exist only to z10. When users zoomed past z10 in Europe, the map went blank.
+
+### The Solution
+
+**Soft-boundary zoom clamping** based on map center:
+- Inside hot bbox → maxZoom = 14
+- Outside hot bbox but within 3° buffer → maxZoom smoothly interpolated from 14 down to 10
+- Beyond buffer → maxZoom = 10
+- If the user pans out of the hot region while zoomed past the new limit, the map smoothly flyTo's back to the allowed zoom
+
+**Math:**
+```js
+dx = max(0, minLng - lng, lng - maxLng)
+dy = max(0, minLat - lat, lat - maxLat)
+n = max(dx / 3, dy / 3)  // normalized distance (0 = inside, 1 = at buffer edge)
+maxZoom = 14 - min(n, 1) * 4
+```
+
+**Examples:**
+| Location | Distance from bbox | Max Zoom |
+|:--|:--|:--|
+| Lahore (inside) | 0° | 14 |
+| Just west of bbox (2.3° out) | 0.77 | ~10.9 |
+| Mediterranean (5.3° out) | 1.77 | 10 |
+| Northern Europe | >3° | 10 |
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `HOT_BBOX`, `getMaxZoomForCenter`, `move` listener with soft zoom clamping + smooth flyTo fallback |
+| `src/user-web/src/components/Map/UserMap.jsx` | Same changes |
+
+### Key Implementation Detail
+The `move` listener reuses the existing `isProgrammaticMove` ref to prevent recursion and to skip viewport reporting during the auto-zoom-out animation.
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 360 modules, 1.11MB JS, 69KB CSS |
+| `user-web` | ✅ 370 modules, 1.09MB JS, 68KB CSS |
+
+### Git Commit
+
+```
+feat: soft-boundary dynamic max zoom — z14 in hot region, z10 elsewhere with 3° buffer transition
+```
+
+*End of session*

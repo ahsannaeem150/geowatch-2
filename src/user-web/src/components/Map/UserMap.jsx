@@ -5,6 +5,20 @@ import { CATEGORY_COLORS, SEVERITY_SCALE } from '@shared/constants.js';
 
 const MAP_STYLE_URL = '/map-style-dark.json';
 
+// Hard boundary for z14 tile coverage.
+// Inset by 1° from the actual tile boundary so that even at z14 the entire
+// viewport stays inside the region where tiles exist. No smooth transition:
+// tiles are either present (z0-14) or not (z0-10 only), so the allowed zoom
+// must switch cleanly between 14 and 10.
+const TILE_BBOX = [25.3125, 4.7626, 105.1831, 42.5531];
+const HOT_BBOX = [26.3125, 5.7626, 104.1831, 41.5531]; // 1° inset
+
+function getMaxZoomForCenter(lng, lat) {
+  const [minLng, minLat, maxLng, maxLat] = HOT_BBOX;
+  const inside = lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
+  return inside ? 14 : 10;
+}
+
 export default function UserMap({
   incidents,
   selectedEventId,
@@ -18,6 +32,7 @@ export default function UserMap({
   const markers = useRef(new Map());
   const ghostMarkerRef = useRef(null);
   const isProgrammaticMove = useRef(false);
+  const isClamping = useRef(false);
   const onViewportChangeRef = useRef(onViewportChange);
   onViewportChangeRef.current = onViewportChange;
 
@@ -42,9 +57,31 @@ export default function UserMap({
       const bounds = map.current.getBounds();
       const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
       onViewportChangeRef.current?.(viewport);
+      // Set initial maxZoom based on starting center
+      const center = map.current.getCenter();
+      map.current.setMaxZoom(getMaxZoomForCenter(center.lng, center.lat));
     });
 
-    // Report viewport bounds on user-initiated map moves only
+    // During active pan, update maxZoom and clamp immediately if over-zoomed.
+    // jumpTo is used instead of flyTo so we don't fight the user's gesture;
+    // it snaps the zoom instantly before the viewport can drift into no-tile land.
+    map.current.on('move', () => {
+      if (!map.current || isProgrammaticMove.current || isClamping.current) return;
+      const center = map.current.getCenter();
+      const newMaxZoom = getMaxZoomForCenter(center.lng, center.lat);
+      map.current.setMaxZoom(newMaxZoom);
+
+      const currentZoom = map.current.getZoom();
+      if (currentZoom > newMaxZoom) {
+        isClamping.current = true;
+        map.current.jumpTo({ zoom: newMaxZoom });
+        setTimeout(() => {
+          isClamping.current = false;
+        }, 0);
+      }
+    });
+
+    // Report viewport bounds on user-initiated map moves
     map.current.on('moveend', () => {
       if (isProgrammaticMove.current) {
         isProgrammaticMove.current = false;
@@ -54,6 +91,27 @@ export default function UserMap({
       const bounds = map.current.getBounds();
       const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
       onViewportChangeRef.current?.(viewport);
+    });
+
+    // Mouse-wheel and double-click zoom don't always fire moveend; clamp here too
+    map.current.on('zoomend', () => {
+      if (isProgrammaticMove.current) {
+        isProgrammaticMove.current = false;
+        return;
+      }
+      if (!map.current) return;
+      const center = map.current.getCenter();
+      const newMaxZoom = getMaxZoomForCenter(center.lng, center.lat);
+      map.current.setMaxZoom(newMaxZoom);
+      if (map.current.getZoom() > newMaxZoom) {
+        isProgrammaticMove.current = true;
+        map.current.flyTo({
+          center: [center.lng, center.lat],
+          zoom: newMaxZoom,
+          duration: 500,
+          essential: true,
+        });
+      }
     });
 
     return () => {
