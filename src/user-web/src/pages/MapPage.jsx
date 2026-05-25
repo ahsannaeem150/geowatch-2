@@ -543,7 +543,7 @@ export default function MapPage() {
         </div>
 
         {/* Right — Incident sidebar */}
-        <div style={{ width: '480px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: '630px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
           <IncidentSidebar
             incidents={incidents}
             selectedIncident={selectedIncident}
