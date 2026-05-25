@@ -2,6 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../services/api.js';
 
+const ICON_EMOJIS = {
+  shield: '🛡️',
+  bomb: '💣',
+  crosshair: '🎯',
+  flame: '🔥',
+  swords: '⚔️',
+  waves: '🌊',
+  factory: '🏭',
+  'heart-pulse': '🏥',
+  users: '👥',
+  landmark: '🏛️',
+  wifi: '🌐',
+  anchor: '⚓',
+  'trending-down': '📉',
+  leaf: '🌿',
+  radiation: '☢️',
+  plane: '✈️',
+  eye: '👁️',
+};
+
 export default function CategoryGrid() {
   const [domains, setDomains] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -94,7 +114,7 @@ export default function CategoryGrid() {
                   e.currentTarget.style.transform = 'none';
                 }}
               >
-                <span style={{ fontSize: '28px' }}>{domain.icon || '📌'}</span>
+                <span style={{ fontSize: '28px' }}>{ICON_EMOJIS[domain.icon] || '📌'}</span>
                 <span
                   style={{
                     fontSize: '13px',
