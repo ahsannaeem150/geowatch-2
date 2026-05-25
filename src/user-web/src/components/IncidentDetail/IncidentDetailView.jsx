@@ -3,7 +3,7 @@ import { api } from '../../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
-import { CATEGORY_LABELS, SEVERITY_SCALE, CATEGORY_COLORS } from '@shared/constants.js';
+import { SEVERITY_SCALE } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function IncidentDetailView({ incidentId, onBack }) {
@@ -43,7 +43,7 @@ export default function IncidentDetailView({ incidentId, onBack }) {
   if (!data) return null;
 
   const { incident, sources, timeline } = data;
-  const catColor = CATEGORY_COLORS[incident.category];
+  const catColor = incident.domain_color || '#6b7280';
 
   const dateStr = incident.start_date
     ? format(new Date(incident.start_date), 'MMM d, yyyy · h:mm a')
@@ -95,7 +95,7 @@ export default function IncidentDetailView({ incidentId, onBack }) {
           }}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-          <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+          <Badge color={incident.domain_color}>{incident.category_name}</Badge>
           <Badge status={incident.status}>{incident.status}</Badge>
         </div>
         <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px', lineHeight: 1.3 }}>
@@ -281,7 +281,7 @@ function SourceCard({ source }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-        <Badge category={source.source_type === 'x_post' ? 'diplomacy' : source.source_type === 'news_article' ? 'diplomacy' : 'other'}>
+        <Badge>
           {source.source_type}
         </Badge>
         {source.source_url && (

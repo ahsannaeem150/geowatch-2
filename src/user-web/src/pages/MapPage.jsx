@@ -34,7 +34,16 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(null);
-  const [filters, setFilters] = useState({ category: '', severity: '' });
+  const [filters, setFilters] = useState({
+    categoryId: searchParams.get('categoryId') || '',
+    severity: '',
+  });
+
+  // Sync categoryId filter from URL params
+  useEffect(() => {
+    const cid = searchParams.get('categoryId');
+    setFilters((prev) => ({ ...prev, categoryId: cid || '' }));
+  }, [searchParams]);
 
   // ─── Smart Viewport Filtering ───
   const [viewportFiltering, setViewportFiltering] = useState(null); // null = unknown, true = on, false = off
@@ -61,7 +70,7 @@ export default function MapPage() {
       viewportFilteringRef.current = null;
 
       const baseParams = {};
-      if (filters.category) baseParams.category = filters.category;
+      if (filters.categoryId) baseParams.categoryId = filters.categoryId;
       if (filters.severity) baseParams.severity = filters.severity;
 
       // Step 1: Fetch without viewport to count total incidents for this date range
@@ -107,7 +116,7 @@ export default function MapPage() {
     return () => {
       cancelled = true;
     };
-  }, [dateRange.from, dateRange.to, filters.category, filters.severity]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity]);
 
   // ─── Handle incident ID from URL ───
   useEffect(() => {
@@ -130,7 +139,7 @@ export default function MapPage() {
         dateTo: dateRange.to,
         viewport: bounds,
       };
-      if (filters.category) params.category = filters.category;
+      if (filters.categoryId) params.categoryId = filters.categoryId;
       if (filters.severity) params.severity = filters.severity;
 
       api
@@ -141,7 +150,7 @@ export default function MapPage() {
         })
         .catch(() => setIncidents([]));
     }
-  }, [dateRange.from, dateRange.to, filters.category, filters.severity]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity]);
 
   // ─── SSE Connection ───
   useEffect(() => {

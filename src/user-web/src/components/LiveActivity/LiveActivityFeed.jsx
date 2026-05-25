@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
-import { CATEGORY_LABELS } from '@shared/constants.js';
+
 import { formatDistanceToNow } from 'date-fns';
 
 export default function LiveActivityFeed({
@@ -340,8 +340,8 @@ function ActivityItem({ activity, onClick, isUnread }) {
             {incident.title}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            {incident.category && (
-              <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+            {incident.domain_name && (
+              <Badge color={incident.domain_color}>{incident.domain_name}</Badge>
             )}
             {incident.severity && <SeverityBadge level={Number(incident.severity)} />}
           </div>

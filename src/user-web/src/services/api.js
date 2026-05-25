@@ -31,11 +31,14 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  getCategories: () => request('/categories'),
+  getDomains: () => request('/categories/domains'),
+
   getIncidents: (params = {}) => {
     const qs = new URLSearchParams();
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params.dateTo) qs.append('dateTo', params.dateTo);
-    if (params.category) qs.append('category', params.category);
+    if (params.categoryId) qs.append('categoryId', params.categoryId);
     if (params.severity) qs.append('severity', params.severity);
     if (params.status) qs.append('status', params.status);
     if (params.viewport) qs.append('viewport', params.viewport);
@@ -47,7 +50,7 @@ export const api = {
     if (params.q) qs.append('q', params.q);
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params.dateTo) qs.append('dateTo', params.dateTo);
-    if (params.category) qs.append('category', params.category);
+    if (params.categoryId) qs.append('categoryId', params.categoryId);
     if (params.severity) qs.append('severity', params.severity);
     if (params.limit) qs.append('limit', params.limit);
     if (params.offset !== undefined) qs.append('offset', params.offset);

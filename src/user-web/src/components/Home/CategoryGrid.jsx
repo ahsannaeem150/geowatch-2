@@ -1,17 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CATEGORY_LABELS, CATEGORY_COLORS } from '@shared/constants.js';
-
-const categoryIcons = {
-  conflict: '⚔️',
-  protest: '📢',
-  disaster: '🌊',
-  diplomacy: '🤝',
-  humanitarian: '🏥',
-  other: '📌',
-};
+import { api } from '../../services/api.js';
 
 export default function CategoryGrid() {
+  const [domains, setDomains] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([api.getDomains(), api.getCategories()])
+      .then(([domainsRes, categoriesRes]) => {
+        setDomains(domainsRes.data?.domains || []);
+        setCategories(categoriesRes.data?.categories || []);
+      })
+      .catch(() => {
+        setDomains([]);
+        setCategories([]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <section style={{ padding: '48px 24px', background: 'var(--bg-surface)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center', color: 'var(--text-muted)' }}>
+          Loading categories...
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section style={{ padding: '48px 24px', background: 'var(--bg-surface)' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -44,12 +62,14 @@ export default function CategoryGrid() {
             gap: '12px',
           }}
         >
-          {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
-            const color = CATEGORY_COLORS[key];
+          {domains.map((domain) => {
+            const color = domain.color || '#6b7280';
+            const firstCategory = categories.find((c) => c.domain_id === domain.id);
+            const categoryId = firstCategory?.id;
             return (
               <Link
-                key={key}
-                to={`/map?category=${key}`}
+                key={domain.slug}
+                to={categoryId ? `/map?categoryId=${categoryId}` : '/map'}
                 style={{
                   background: `${color}08`,
                   border: `1px solid ${color}25`,
@@ -74,7 +94,7 @@ export default function CategoryGrid() {
                   e.currentTarget.style.transform = 'none';
                 }}
               >
-                <span style={{ fontSize: '28px' }}>{categoryIcons[key]}</span>
+                <span style={{ fontSize: '28px' }}>{domain.icon || '📌'}</span>
                 <span
                   style={{
                     fontSize: '13px',
@@ -84,7 +104,7 @@ export default function CategoryGrid() {
                     letterSpacing: '0.8px',
                   }}
                 >
-                  {label}
+                  {domain.name}
                 </span>
               </Link>
             );

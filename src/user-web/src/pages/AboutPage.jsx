@@ -50,9 +50,10 @@ export default function AboutPage() {
         Coverage
       </h2>
       <p style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '16px' }}>
-        GeoWatch currently monitors incidents across six categories: Conflict, Protest, Disaster,
-        Diplomacy, Humanitarian, and Other. Events are tracked from initial report through
-        resolution, with timeline updates providing context as situations develop.
+        GeoWatch currently monitors incidents across multiple domains and categories, from
+        conflict and security to diplomacy, humanitarian crises, and natural disasters.
+        Events are tracked from initial report through resolution, with timeline updates
+        providing context as situations develop.
       </p>
 
       <h2

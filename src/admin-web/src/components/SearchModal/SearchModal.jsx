@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
-import { CATEGORY_LABELS, CATEGORY_COLORS, SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE } from '@shared/constants.js';
+import { useCategories } from '@shared/hooks/useCategories.js';
 import { format } from 'date-fns';
 
 const SORT_OPTIONS = [
@@ -12,7 +13,6 @@ const SORT_OPTIONS = [
   { value: 'severity_asc', label: 'Severity: Low to High' },
 ];
 
-const CATEGORIES = ['all', 'conflict', 'protest', 'disaster', 'diplomacy', 'humanitarian', 'other'];
 const STATUSES = ['all', 'active', 'resolved'];
 
 export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEvent }) {
@@ -33,6 +33,8 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  const { categories, loading: catLoading } = useCategories();
 
   const searchTimeoutRef = useRef(null);
   const inputRef = useRef(null);
@@ -66,7 +68,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
           limit,
           offset: currentOffset,
         };
-        if (categoryFilter !== 'all') params.category = categoryFilter;
+        if (categoryFilter !== 'all') params.categoryId = parseInt(categoryFilter, 10);
         if (severityFilter !== 'all') params.severity = parseInt(severityFilter, 10);
         if (statusFilter !== 'all') params.status = statusFilter;
         if (dateFrom) params.dateFrom = dateFrom;
@@ -276,11 +278,16 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
               ))}
             </select>
 
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={selectBase}>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              style={selectBase}
+              disabled={catLoading}
+            >
               <option value="all">All Categories</option>
-              {CATEGORIES.filter((c) => c !== 'all').map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABELS[c]}
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.domain_name} › {c.name}
                 </option>
               ))}
             </select>
@@ -410,7 +417,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
               </thead>
               <tbody>
                 {results.map((incident) => {
-                  const catColor = CATEGORY_COLORS[incident.category];
+                  const catColor = incident.domain_color;
                   const dateStr = incident.start_date
                     ? format(new Date(incident.start_date), 'MMM dd, yyyy')
                     : '';
@@ -454,16 +461,13 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                       </td>
                       <td style={tdStyle}>
                         <Badge
-                          category={incident.category}
+                          color={incident.domain_color}
                           style={{
                             fontSize: '10px',
                             padding: '2px 8px',
-                            background: `${catColor}18`,
-                            borderColor: `${catColor}40`,
-                            color: catColor,
                           }}
                         >
-                          {CATEGORY_LABELS[incident.category]}
+                          {incident.domain_name}
                         </Badge>
                       </td>
                       <td style={{ ...tdStyle, fontFamily: 'var(--font-mono)', fontSize: '12px' }}>

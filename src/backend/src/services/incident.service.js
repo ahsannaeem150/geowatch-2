@@ -2,9 +2,18 @@ import { query } from '../config/database.js';
 
 const INCIDENT_COLUMNS = `
   i.id, i.title, i.description, i.latitude, i.longitude,
-  i.category, i.severity, i.status, i.start_date, i.end_date,
+  i.severity, i.status, i.start_date, i.end_date,
   i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
-  i.location_context
+  i.location_context,
+  i.category_id,
+  c.name AS category_name, c.slug AS category_slug,
+  d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color
+`;
+
+const INCIDENT_FROM = `
+  FROM incidents i
+  LEFT JOIN categories c ON i.category_id = c.id
+  LEFT JOIN domains d ON c.domain_id = d.id
 `;
 
 // ─── Helpers ───
@@ -15,14 +24,11 @@ function buildIncidentWhereClause(filters, options = {}) {
   let idx = 1;
 
   // ─── Date filtering ───
-  // Priority: single `date` param > `dateFrom`+`dateTo` range > default to today
-  // skipDefaultDate: for universal search — no default today filter, but explicit dates still apply
   const date = filters.date;
   const dateFrom = filters.dateFrom;
   const dateTo = filters.dateTo;
 
   if (date) {
-    // Legacy single-date mode: show incidents active ON this specific date
     conditions.push(`i.start_date::date <= $${idx++}`);
     params.push(date);
     conditions.push(`(
@@ -33,15 +39,12 @@ function buildIncidentWhereClause(filters, options = {}) {
     params.push(date);
     idx++;
   } else if (dateFrom || dateTo) {
-    // Range mode: show incidents whose active period overlaps with [dateFrom, dateTo]
     const from = dateFrom || '1970-01-01';
     const to = dateTo || '2099-12-31';
 
-    // Incident must have started before or on the end of the range
     conditions.push(`i.start_date::date <= $${idx++}`);
     params.push(to);
 
-    // Incident must still be active (with grace) at the start of the range
     conditions.push(`(
       i.end_date IS NULL
       OR (i.status != 'resolved' AND i.end_date::date >= $${idx})
@@ -50,7 +53,6 @@ function buildIncidentWhereClause(filters, options = {}) {
     params.push(from);
     idx++;
   } else if (!options.skipDefaultDate) {
-    // Default: show incidents active today
     conditions.push(`i.start_date::date <= CURRENT_DATE`);
     conditions.push(`(
       i.end_date IS NULL
@@ -59,9 +61,9 @@ function buildIncidentWhereClause(filters, options = {}) {
     )`);
   }
 
-  if (filters.category) {
-    conditions.push(`i.category = $${idx++}`);
-    params.push(filters.category);
+  if (filters.categoryId) {
+    conditions.push(`i.category_id = $${idx++}`);
+    params.push(filters.categoryId);
   }
   if (filters.severity) {
     conditions.push(`i.severity = $${idx++}`);
@@ -88,17 +90,15 @@ function buildIncidentWhereClause(filters, options = {}) {
 export async function listIncidents(filters) {
   const { where, params } = buildIncidentWhereClause(filters);
 
-  // Get exact count for smart viewport filtering decisions
   const countResult = await query(
     `SELECT COUNT(*) as total FROM incidents i WHERE ${where}`,
     params
   );
   const count = parseInt(countResult.rows[0].total, 10);
 
-  // Fetch incidents capped at 301 so the frontend knows if there's more
   const sql = `
     SELECT ${INCIDENT_COLUMNS}
-    FROM incidents i
+    ${INCIDENT_FROM}
     WHERE ${where}
     ORDER BY i.severity DESC, i.created_at DESC
     LIMIT 301
@@ -118,12 +118,9 @@ export async function searchIncidents(filters) {
   const limit = Math.min(filters.limit || 25, 100);
   const offset = Math.max(filters.offset || 0, 0);
 
-  // On-the-fly full-text search (computes tsvector at query time)
-  // For best performance, run docs/migrations/add-incident-search.sql as postgres
   const tsVectorExpr = `to_tsvector('english', COALESCE(i.title, '') || ' ' || COALESCE(i.description, ''))`;
   const tsQuery = `plainto_tsquery('english', $${nextIndex})`;
 
-  // Get exact count
   const countResult = await query(
     `SELECT COUNT(DISTINCT i.id) as total
      FROM incidents i
@@ -135,8 +132,6 @@ export async function searchIncidents(filters) {
   );
   const count = parseInt(countResult.rows[0].total, 10);
 
-  // Fetch ranked incidents with proper pagination
-  // Use CTE to compute rank per incident, then paginate in outer query
   const sql = `
     WITH ranked AS (
       SELECT i.id,
@@ -151,7 +146,9 @@ export async function searchIncidents(filters) {
     SELECT ${INCIDENT_COLUMNS},
       r.rank
     FROM ranked r
-    JOIN incidents e ON i.id = r.id
+    JOIN incidents i ON i.id = r.id
+    ${INCIDENT_FROM.replace('FROM incidents i', '')}
+    WHERE ${where.replace(/i\./g, 'i.')}
     ORDER BY r.rank DESC, i.severity DESC, i.start_date DESC
     LIMIT $${nextIndex + 1} OFFSET $${nextIndex + 2}
   `;
@@ -169,7 +166,7 @@ export async function searchIncidents(filters) {
 export async function getEventById(id) {
   const incidentResult = await query(
     `SELECT ${INCIDENT_COLUMNS}
-     FROM incidents i
+     ${INCIDENT_FROM}
      WHERE i.id = $1 AND i.status != 'hidden'`,
     [id]
   );
@@ -211,23 +208,22 @@ export async function createIncident(data, createdBy) {
     description,
     latitude,
     longitude,
-    category,
+    categoryId,
     severity,
     startDate,
     endDate,
     locationContext,
   } = data;
 
-  // If an end date is provided, the incident is considered resolved
   const status = endDate ? 'resolved' : 'active';
 
   const result = await query(
     `INSERT INTO incidents (
       title, description, latitude, longitude, geom,
-      category, severity, start_date, end_date, status, created_by, location_context
+      category_id, severity, start_date, end_date, status, created_by, location_context
     ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12, $13)
     RETURNING *`,
-    [title, description || null, latitude, longitude, longitude, latitude, category, severity, startDate, endDate || null, status, createdBy, locationContext || null]
+    [title, description || null, latitude, longitude, longitude, latitude, categoryId, severity, startDate, endDate || null, status, createdBy, locationContext || null]
   );
 
   return result.rows[0];
@@ -247,13 +243,12 @@ export async function updateIncident(id, data) {
 
   addField('title', data.title);
   addField('description', data.description);
-  addField('category', data.category);
+  addField('category_id', data.categoryId);
   addField('severity', data.severity);
   addField('start_date', data.startDate);
   addField('end_date', data.endDate);
   addField('location_context', data.locationContext);
 
-  // Auto-set status based on end_date presence
   if (data.endDate === null) {
     addField('status', 'active');
   } else if (data.endDate !== undefined) {

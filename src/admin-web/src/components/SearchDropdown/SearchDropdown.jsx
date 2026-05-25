@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Badge } from '@shared/components/Badge.jsx';
-import { CATEGORY_LABELS, CATEGORY_COLORS, SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function SearchDropdown({
@@ -161,7 +161,7 @@ export default function SearchDropdown({
       {!loading &&
         results.map((incident, index) => {
           const isHighlighted = highlightedIndex === index;
-          const catColor = CATEGORY_COLORS[incident.category];
+          const catColor = incident.domain_color;
           const dateStr = incident.start_date
             ? format(new Date(incident.start_date), 'MMM dd, yyyy')
             : '';
@@ -242,16 +242,13 @@ export default function SearchDropdown({
                 }}
               >
                 <Badge
-                  category={incident.category}
+                  color={incident.domain_color}
                   style={{
                     fontSize: '9px',
                     padding: '2px 8px',
-                    background: `${catColor}18`,
-                    borderColor: `${catColor}40`,
-                    color: catColor,
                   }}
                 >
-                  {CATEGORY_LABELS[incident.category]}
+                  {incident.domain_name}
                 </Badge>
                 <Badge
                   status={incident.status}

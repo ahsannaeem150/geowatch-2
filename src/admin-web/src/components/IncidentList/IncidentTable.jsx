@@ -3,7 +3,7 @@ import { api } from '../../services/api.js';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
-import { CATEGORY_LABELS } from '@shared/constants.js';
+
 import { format } from 'date-fns';
 
 export default function IncidentTable({ onSelect, onEdit, onRefresh, refreshKey, dateRange }) {
@@ -129,7 +129,8 @@ export default function IncidentTable({ onSelect, onEdit, onRefresh, refreshKey,
                 <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{incident.title}</span>
               </td>
               <td style={tdStyle} onClick={() => onSelect?.(incident)}>
-                <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+                <Badge color={incident.domain_color}>{incident.domain_name}</Badge>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{incident.category_name}</div>
               </td>
               <td style={tdStyle} onClick={() => onSelect?.(incident)}>
                 <SeverityBadge level={incident.severity} />

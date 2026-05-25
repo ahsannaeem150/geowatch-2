@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SEVERITY_SCALE } from '@shared/constants.js';
+import { useCategories } from '@shared/hooks/useCategories.js';
 import IncidentListItem from './IncidentListItem.jsx';
 import IncidentDetailView from '../IncidentDetail/IncidentDetailView.jsx';
 
@@ -13,6 +14,7 @@ export default function IncidentSidebar({
   onFilterChange,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { domains, getCategoriesByDomain } = useCategories();
 
   const filteredIncidents = searchQuery.trim()
     ? incidents.filter((i) =>
@@ -96,39 +98,61 @@ export default function IncidentSidebar({
               onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
             />
 
-            {/* Category filter chips */}
+            {/* Domain filter chips */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {['all', 'conflict', 'protest', 'disaster', 'diplomacy'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => onFilterChange?.({ ...filters, category: cat === 'all' ? '' : cat })}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.6px',
-                    borderRadius: 'var(--radius-pill)',
-                    border: '1px solid',
-                    borderColor:
-                      (cat === 'all' && !filters?.category) || filters?.category === cat
-                        ? 'var(--accent-light)'
-                        : 'var(--border-subtle)',
-                    background:
-                      (cat === 'all' && !filters?.category) || filters?.category === cat
-                        ? 'rgba(159, 18, 57, 0.12)'
-                        : 'transparent',
-                    color:
-                      (cat === 'all' && !filters?.category) || filters?.category === cat
-                        ? 'var(--accent-light)'
-                        : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {cat}
-                </button>
-              ))}
+              <button
+                onClick={() => onFilterChange?.({ ...filters, categoryId: '' })}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.6px',
+                  borderRadius: 'var(--radius-pill)',
+                  border: '1px solid',
+                  borderColor: !filters?.categoryId ? 'var(--accent-light)' : 'var(--border-subtle)',
+                  background: !filters?.categoryId ? 'rgba(159, 18, 57, 0.12)' : 'transparent',
+                  color: !filters?.categoryId ? 'var(--accent-light)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                All
+              </button>
+              {domains.map((domain) => {
+                const domainCategories = getCategoriesByDomain(domain.id);
+                const firstCategoryId = domainCategories[0]?.id;
+                if (!firstCategoryId) return null;
+                const isActive = String(filters?.categoryId) === String(firstCategoryId);
+                const color = domain.color || 'var(--accent-light)';
+                return (
+                  <button
+                    key={domain.slug}
+                    onClick={() =>
+                      onFilterChange?.({
+                        ...filters,
+                        categoryId: isActive ? '' : String(firstCategoryId),
+                      })
+                    }
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.6px',
+                      borderRadius: 'var(--radius-pill)',
+                      border: '1px solid',
+                      borderColor: isActive ? color : 'var(--border-subtle)',
+                      background: isActive ? `${color}15` : 'transparent',
+                      color: isActive ? color : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {domain.name}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Severity filter chips */}

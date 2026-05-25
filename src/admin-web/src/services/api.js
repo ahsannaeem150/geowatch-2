@@ -45,13 +45,17 @@ export const api = {
     request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request('/auth/me'),
 
+  // Categories
+  getCategories: () => request('/categories'),
+  getDomains: () => request('/categories/domains'),
+
   // Events (public)
   getIncidents: (params = {}) => {
     const qs = new URLSearchParams();
     if (params.date) qs.append('date', params.date);
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params.dateTo) qs.append('dateTo', params.dateTo);
-    if (params.category) qs.append('category', params.category);
+    if (params.categoryId) qs.append('categoryId', params.categoryId);
     if (params.severity) qs.append('severity', params.severity);
     if (params.status) qs.append('status', params.status);
     if (params.viewport) qs.append('viewport', params.viewport);
@@ -63,7 +67,7 @@ export const api = {
     if (params.q) qs.append('q', params.q);
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params.dateTo) qs.append('dateTo', params.dateTo);
-    if (params.category) qs.append('category', params.category);
+    if (params.categoryId) qs.append('categoryId', params.categoryId);
     if (params.severity) qs.append('severity', params.severity);
     if (params.status) qs.append('status', params.status);
     if (params.viewport) qs.append('viewport', params.viewport);

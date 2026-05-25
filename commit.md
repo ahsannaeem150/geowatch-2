@@ -2033,3 +2033,116 @@ feat: soft-boundary dynamic max zoom — z14 in hot region, z10 elsewhere with 3
 ```
 
 *End of session*
+
+
+---
+
+## 📅 2026-05-25 — Feature: Full Incident Taxonomy (17 Domains, 162 Categories)
+
+### Summary
+Replaced the flat 6-string category system with a full hierarchical taxonomy: 17 domains and 162 categories, all stored in the database and configurable by superadmin. Incidents now reference `category_id` (integer FK) instead of a `category` string. The frontend dynamically fetches domains and categories from the API.
+
+### New Taxonomy Structure
+
+| # | Domain | Categories | Color |
+|:--|:--|:--|:--|
+| 1 | Conflict | 12 | `#ef4444` |
+| 2 | Terrorism & Asymmetric | 11 | `#b91c1c` |
+| 3 | Counter-Terrorism & Security Ops | 6 | `#3b82f6` |
+| 4 | Civil Unrest | 9 | `#f59e0b` |
+| 5 | Military Posture & Movement | 13 | `#64748b` |
+| 6 | Natural Hazard | 13 | `#0ea5e9` |
+| 7 | Infrastructure & Industrial | 9 | `#8b5cf6` |
+| 8 | Health Emergency | 7 | `#10b981` |
+| 9 | Humanitarian & Migration | 13 | `#eab308` |
+| 10 | Political & Governance | 12 | `#94a3b8` |
+| 11 | Cyber & Information | 10 | `#06b6d4` |
+| 12 | Maritime | 9 | `#0369a1` |
+| 13 | Economic Shock | 9 | `#84cc16` |
+| 14 | Environmental | 8 | `#22c55e` |
+| 15 | CBRN & WMD | 6 | `#7f1d1d` |
+| 16 | Transport & Aviation | 5 | `#a855f7` |
+| 17 | Intelligence | 10 | `#6366f1` |
+
+### Database Changes
+
+| File | Purpose |
+|:--|:--|
+| `docs/migrations/add-domains-and-categories.sql` | Creates `domains` and `categories` tables; seeds all 17 domains + 162 categories |
+| `docs/migrations/add-category-id-to-incidents.sql` | Adds `category_id` to `incidents` and `zones`; migrates old string categories to new IDs |
+
+**Schema:**
+```sql
+CREATE TABLE domains (id, name, slug, description, color, icon, sort_order, is_active)
+CREATE TABLE categories (id, domain_id FK, name, slug, description, severity_schema JSONB, default_severity, sort_order, is_active)
+```
+
+### Backend Changes
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/category.service.js` | **New** — `getDomains()`, `getDomainWithCategories()`, `getAllCategories()` |
+| `src/backend/src/controllers/category.controller.js` | **New** — Public GET endpoints for domains and categories |
+| `src/backend/src/routes/category.routes.js` | **New** — `/api/v1/categories`, `/categories/domains`, `/categories/domains/:slug` |
+| `src/backend/server.js` | Mounted category routes |
+| `src/backend/src/services/incident.service.js` | JOINs `categories` + `domains` on all SELECT queries; returns `domain_name`, `domain_color`, `category_name`, etc. |
+| `src/backend/src/validators/incident.schema.js` | `category` → `categoryId` (integer) |
+| `src/backend/src/controllers/incident.controller.js` | Passes `categoryId` through filters |
+
+### Frontend Changes
+
+| File | Change |
+|:--|:--|
+| `src/shared/hooks/useCategories.js` | **New** — Fetches `/categories`, builds lookup maps, caches results globally |
+| `src/shared/components/Badge.jsx` | Now accepts `color` prop instead of `category` prop |
+| `src/shared/constants.js` | Removed `CATEGORY_COLORS` and `CATEGORY_LABELS` |
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | Hierarchical picker: Domain dropdown → Category dropdown (filtered by domain). Submits `categoryId`. |
+| `src/admin-web/src/components/SearchModal/SearchModal.jsx` | Category filter now uses `categoryId` with dynamic options from API |
+| `src/admin-web/src/components/IncidentList/IncidentTable.jsx` | Displays `domain_name` badge + `category_name` text |
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx` | Domain badge + category name display |
+| `src/admin-web/src/components/SearchDropdown/SearchDropdown.jsx` | Uses `domain_color` and `domain_name` |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Marker colors from `incident.domain_color` |
+| `src/user-web/src/components/Home/CategoryGrid.jsx` | Fetches domains from API, renders 17 domain cards with dynamic colors |
+| `src/user-web/src/components/Map/UserMap.jsx` | Marker colors from `incident.domain_color` |
+| `src/user-web/src/pages/MapPage.jsx` | Filter uses `categoryId` |
+| `src/user-web/src/components/IncidentList/IncidentSidebar.jsx` | Uses domain/category names and colors |
+| `src/user-web/src/components/IncidentList/IncidentListItem.jsx` | Uses domain/category names and colors |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` | Uses domain/category names and colors |
+| `src/user-web/src/components/LiveActivity/LiveActivityFeed.jsx` | Uses domain/category names and colors |
+| `src/user-web/src/components/Home/FeaturedEvents.jsx` | Uses domain/category names and colors |
+
+### API Changes
+
+| Endpoint | Change |
+|:--|:--|
+| `GET /api/v1/categories` | **New** — Returns all active categories with joined domain info |
+| `GET /api/v1/categories/domains` | **New** — Returns all active domains |
+| `GET /api/v1/categories/domains/:slug` | **New** — Returns single domain with its categories |
+| `GET /api/v1/incidents?categoryId=123` | `category` param replaced with `categoryId` |
+| `POST /api/v1/incidents` | Body field `category` replaced with `categoryId` (integer) |
+| `PATCH /api/v1/incidents/:id` | Body field `category` replaced with `categoryId` (integer) |
+
+### Migration Note
+
+Run the postgres script to add `category_id` to existing incidents:
+```bash
+sudo -u postgres psql -d geowatch_dev -f docs/migrations/add-category-id-to-incidents.sql
+```
+
+Old categories are mapped to "Unclassified *" categories within their respective domains so admins can reclassify them later.
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 361 modules, 1.11MB JS, 69KB CSS |
+| `user-web` | ✅ 370 modules, 1.09MB JS, 68KB CSS |
+| `backend` | ✅ Syntax verified |
+
+### Git Commit
+
+```
+feat: implement full incident taxonomy — 17 domains, 162 categories, DB-driven with superadmin-ready schema
+```
+
+*End of session*

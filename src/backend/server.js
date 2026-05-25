@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from './src/middleware/error-handler.js
 
 import healthRoutes from './src/routes/health.routes.js';
 import authRoutes from './src/routes/auth.routes.js';
+import categoryRoutes from './src/routes/category.routes.js';
 import incidentRoutes from './src/routes/incident.routes.js';
 import timelineRoutes from './src/routes/timeline.routes.js';
 import sourceRoutes from './src/routes/source.routes.js';
@@ -59,6 +60,7 @@ app.get('/api/v1/incidents/stream', (req, res) => {
 // ─── API Routes ───
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/incidents', incidentRoutes);
 app.use('/api/v1/incidents/:id/timeline', timelineRoutes);
 app.use('/api/v1/incidents/:id/sources', sourceRoutes);

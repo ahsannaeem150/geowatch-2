@@ -1,24 +1,6 @@
 // GeoWatch Shared Constants
 // Used by both user-web and admin-web
 
-export const CATEGORY_COLORS = {
-  conflict: '#ef4444',
-  protest: '#f59e0b',
-  disaster: '#a855f7',
-  diplomacy: '#3b82f6',
-  humanitarian: '#14b8a6',
-  other: '#6b7280',
-};
-
-export const CATEGORY_LABELS = {
-  conflict: 'Conflict',
-  protest: 'Protest',
-  disaster: 'Disaster',
-  diplomacy: 'Diplomacy',
-  humanitarian: 'Humanitarian',
-  other: 'Other',
-};
-
 export const SEVERITY_SCALE = [
   { value: 1, label: 'Minimal',  color: '#4ade80', radius: 6 },
   { value: 2, label: 'Low',      color: '#fbbf24', radius: 8 },

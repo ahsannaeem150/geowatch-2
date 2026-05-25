@@ -4,7 +4,7 @@ import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
-import { CATEGORY_LABELS, SEVERITY_SCALE, CATEGORY_COLORS } from '@shared/constants.js';
+import { SEVERITY_SCALE } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
@@ -146,7 +146,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
   if (!data) return null;
 
   const { incident, sources, timeline } = data;
-  const catColor = CATEGORY_COLORS[incident.category];
+  const catColor = incident.domain_color;
 
   const sectionTitle = (text) => (
     <h4
@@ -209,7 +209,10 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
           }}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Badge color={incident.domain_color}>{incident.domain_name}</Badge>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{incident.category_name}</span>
+          </div>
           <Badge status={incident.status}>{incident.status}</Badge>
         </div>
         <h2 style={{ fontSize: 'var(--text-h3)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', lineHeight: 1.2 }}>
@@ -588,7 +591,7 @@ function SourceItem({ source }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-        <Badge category={source.source_type === 'x_post' ? 'diplomacy' : source.source_type === 'news_article' ? 'info' : 'other'}>
+        <Badge color={source.source_type === 'x_post' ? '#3b82f6' : source.source_type === 'news_article' ? '#8b5cf6' : '#6b7280'}>
           {source.source_type}
         </Badge>
         {source.source_url && (

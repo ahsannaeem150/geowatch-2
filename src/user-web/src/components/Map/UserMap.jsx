@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CATEGORY_COLORS, SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE } from '@shared/constants.js';
 
 const MAP_STYLE_URL = '/map-style-dark.json';
 
@@ -163,7 +163,7 @@ export default function UserMap({
 
       // Create new marker
       const severityConfig = SEVERITY_SCALE.find((s) => s.value === incident.severity) || SEVERITY_SCALE[2];
-      const color = CATEGORY_COLORS[incident.category] || '#6b7280';
+      const color = incident.domain_color || '#6b7280';
       const size = severityConfig.radius;
 
       // Parent: MapLibre positions this via translate3d — DO NOT touch its transform
@@ -251,7 +251,7 @@ export default function UserMap({
     if (ghostIncident) {
       const lat = parseFloat(ghostIncident.latitude);
       const lng = parseFloat(ghostIncident.longitude);
-      const color = CATEGORY_COLORS[ghostIncident.category] || '#6b7280';
+      const color = ghostIncident.domain_color || '#6b7280';
       const size = 10;
 
       const el = document.createElement('div');

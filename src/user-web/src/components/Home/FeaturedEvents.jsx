@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
-import { CATEGORY_LABELS } from '@shared/constants.js';
+
 import { format } from 'date-fns';
 
 export default function FeaturedEvents() {
@@ -107,7 +107,7 @@ export default function FeaturedEvents() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+                <Badge color={incident.domain_color}>{incident.domain_name}</Badge>
                 <SeverityBadge level={incident.severity} />
               </div>
               <h3

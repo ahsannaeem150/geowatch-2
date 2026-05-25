@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
-import { CATEGORY_LABELS } from '@shared/constants.js';
+
 import { format } from 'date-fns';
 
 export default function IncidentListItem({ incident, isSelected, onClick }) {
@@ -28,7 +28,7 @@ export default function IncidentListItem({ incident, isSelected, onClick }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-        <Badge category={incident.category}>{CATEGORY_LABELS[incident.category]}</Badge>
+        <Badge color={incident.domain_color}>{incident.category_name}</Badge>
         <SeverityBadge level={incident.severity} />
       </div>
 

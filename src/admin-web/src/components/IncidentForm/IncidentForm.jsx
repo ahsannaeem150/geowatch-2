@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@shared/components/Button.jsx';
-import { CATEGORY_LABELS, SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE } from '@shared/constants.js';
+import { useCategories } from '@shared/hooks/useCategories.js';
 
 export default function IncidentForm({
   initialCoords,
@@ -11,6 +12,7 @@ export default function IncidentForm({
   submitting,
 }) {
   const isEdit = !!initialData;
+  const { categories, domains, loading: catsLoading, getCategoryById, getCategoriesByDomain } = useCategories();
 
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
@@ -18,7 +20,8 @@ export default function IncidentForm({
   const [longitude, setLongitude] = useState(initialData?.longitude?.toString() || initialCoords?.lng?.toString() || '');
   const [locationContext, setLocationContext] = useState(initialData?.location_context || initialCoords?.locationContext || '');
   const [locationLoading, setLocationLoading] = useState(false);
-  const [category, setCategory] = useState(initialData?.category || 'conflict');
+  const [domainId, setDomainId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [severity, setSeverity] = useState(initialData?.severity?.toString() || '3');
   const [startDate, setStartDate] = useState(
     initialData?.start_date
@@ -31,6 +34,42 @@ export default function IncidentForm({
       : ''
   );
   const [sources, setSources] = useState([{ sourceType: 'admin_note', sourceUrl: '', description: '' }]);
+
+  // Set initial domain/category for edit mode once categories load
+  useEffect(() => {
+    if (isEdit && initialData?.category_id != null && categories.length > 0 && !domainId) {
+      const cat = getCategoryById(initialData.category_id);
+      if (cat) {
+        setDomainId(String(cat.domain_id));
+        setCategoryId(String(initialData.category_id));
+      }
+    }
+  }, [isEdit, initialData?.category_id, categories, getCategoryById, domainId]);
+
+  // Set defaults for create mode once domains load
+  useEffect(() => {
+    if (!isEdit && domains.length > 0 && !domainId) {
+      const firstDomain = domains[0];
+      setDomainId(String(firstDomain.id));
+      const cats = getCategoriesByDomain(firstDomain.id);
+      if (cats.length > 0) {
+        setCategoryId(String(cats[0].id));
+      }
+    }
+  }, [isEdit, domains, domainId, getCategoriesByDomain]);
+
+  // When domain changes, ensure selected category belongs to that domain
+  useEffect(() => {
+    if (domainId && categories.length > 0) {
+      const cats = getCategoriesByDomain(parseInt(domainId, 10));
+      if (cats.length > 0) {
+        const currentInDomain = cats.some((c) => String(c.id) === categoryId);
+        if (!currentInDomain) {
+          setCategoryId(String(cats[0].id));
+        }
+      }
+    }
+  }, [domainId, categories, getCategoriesByDomain]);
 
   useEffect(() => {
     if (initialCoords) {
@@ -69,7 +108,7 @@ export default function IncidentForm({
       description: description || undefined,
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude),
-      category,
+      categoryId: parseInt(categoryId, 10),
       severity: parseInt(severity, 10),
       startDate: new Date(startDate).toISOString(),
       endDate: endDate ? new Date(endDate).toISOString() : null,
@@ -190,7 +229,7 @@ export default function IncidentForm({
             marginTop: '8px',
             padding: '8px 12px',
             background: locationContext ? 'rgba(159, 18, 57, 0.08)' : 'var(--bg-deep)',
-            border: `1px solid ${locationContext ? 'rgba(159, 18, 57, 0.25)' : 'var(--border-subtle)'}`,},{
+            border: `1px solid ${locationContext ? 'rgba(159, 18, 57, 0.25)' : 'var(--border-subtle)'}`,
             borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
@@ -230,18 +269,35 @@ export default function IncidentForm({
       <div style={sectionBox}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <div>
-            <label style={labelBase}>Category</label>
+            <label style={labelBase}>Domain</label>
             <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={domainId}
+              onChange={(e) => setDomainId(e.target.value)}
               required
+              disabled={catsLoading}
               style={{ ...inputBase, cursor: 'pointer' }}
             >
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              {domains.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
           </div>
+          <div>
+            <label style={labelBase}>Category</label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              required
+              disabled={catsLoading}
+              style={{ ...inputBase, cursor: 'pointer' }}
+            >
+              {getCategoriesByDomain(parseInt(domainId, 10)).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
           <div>
             <label style={labelBase}>Severity</label>
             <select
@@ -336,7 +392,7 @@ export default function IncidentForm({
       )}
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-        <Button type="submit" variant="primary" disabled={submitting}>
+        <Button type="submit" variant="primary" disabled={submitting || catsLoading}>
           {submitting ? 'Saving...' : isEdit ? 'Update Incident' : 'Create Incident'}
         </Button>
         {onCancel && (
