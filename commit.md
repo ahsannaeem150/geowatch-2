@@ -2468,3 +2468,96 @@ fix: live-sync selected incident detail view via SSE with "updated just now" fla
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Fix: White Markers + Real-Time Verification Sync
+
+### Summary
+Fixed two critical bugs: (1) all incident markers appearing white/gray because SSE broadcasts sent raw incidents without joined `domain_color`, and (2) verification status changes not reflecting in real time on the user web because `updateSourceVerification` didn't broadcast any SSE event.
+
+### Bug 1: White Markers — Root Cause
+
+When an admin created or updated an incident, the backend broadcasted the **raw** incident row from `INSERT/UPDATE ... RETURNING *`. This raw row did NOT include joined fields like `domain_color`, `domain_name`, or `category_name`.
+
+The user web's SSE handler then **replaced** the enriched incident (with proper color from the initial `listIncidents` fetch) with this raw payload. Result: markers lost their color and fell back to gray.
+
+**Confirmation:**
+```
+Raw incident keys: ['id', 'title', 'description', 'latitude', ...]
+Has domain_color? false
+```
+
+### Bug 1: Fix
+
+**Backend controllers now fetch the enriched incident before broadcasting:**
+
+| Controller | Before | After |
+|:--|:--|:--|
+| `createIncidentController` | Broadcast raw `RETURNING *` row | Creates sources, then calls `getEventById()` to get enriched incident with joins + computed verification, broadcasts that |
+| `updateIncidentController` | Broadcast raw `RETURNING *` row | Calls `getEventById()` after update, broadcasts enriched incident |
+| `resolveIncidentController` | Broadcast raw `RETURNING *` row | Calls `getEventById()` after resolve, broadcasts enriched incident |
+
+**User web SSE handler now merges instead of replacing:**
+```js
+// Before (destructive — loses existing fields)
+return prev.map((ev) => (ev.id === payload.incident.id ? payload.incident : ev));
+
+// After (preserves existing joined fields)
+return prev.map((ev) => (ev.id === payload.incident.id ? { ...ev, ...payload.incident } : ev));
+```
+
+### Bug 2: Real-Time Verification Not Syncing — Root Cause
+
+When an admin verified/disputed/debunked a source via `PATCH /incidents/:id/sources/:sourceId`, the `updateSourceVerificationController` updated the database but **never broadcasted an SSE event**. The user web had no way of knowing anything changed.
+
+Additionally, `updateIncidentController` (which handles verification override changes) broadcasted a raw incident without computed `verification_status`, so even if the event arrived, the verification badge wouldn't update.
+
+### Bug 2: Fix
+
+**`source.controller.js`** now fetches the enriched incident and broadcasts `incident_updated` after any source verification change:
+
+```js
+const enriched = await getEventById(req.params.id);
+broadcastEvent({ type: 'incident_updated', incident: enriched?.incident });
+```
+
+This triggers the user web's existing live-sync logic: the detail view auto-refreshes, the marker dot updates, and the sidebar badge updates.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/controllers/incident.controller.js` | All create/update/resolve controllers now call `getEventById()` after DB mutation and broadcast the **enriched** incident (with `domain_color`, `verification_status`, joined category/domain data) |
+| `src/backend/src/controllers/source.controller.js` | `updateSourceVerificationController` now fetches enriched incident via `getEventById()` and broadcasts `incident_updated` event |
+| `src/user-web/src/pages/MapPage.jsx` | SSE handler merges payload with existing incident using `{ ...ev, ...payload.incident }` instead of full replacement |
+
+### Important: Restart Backend
+
+These are backend controller changes. **Restart the backend** for them to take effect:
+
+```bash
+# If using the launcher:
+./scripts/stop-geowatch.sh
+./scripts/start-geowatch.sh
+
+# Or manually:
+# Stop existing node process, then:
+cd src/backend && npm run dev
+```
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 361 modules, 1.12MB JS, 69KB CSS |
+| `user-web` | ✅ 371 modules, 1.09MB JS, 68KB CSS |
+| `backend` | ✅ Syntax verified |
+
+### Git Commit
+
+```
+fix: broadcast enriched incidents via SSE to preserve domain_color + add source verification SSE broadcast
+```
+
+*End of session*

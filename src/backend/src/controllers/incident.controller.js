@@ -77,14 +77,17 @@ export async function createIncidentController(req, res) {
           sourceUrl: src.sourceUrl,
           description: src.description,
           displayOrder: src.displayOrder,
+          verificationStatus: src.verificationStatus,
         },
         req.user.id
       );
     }
   }
 
-  broadcastEvent({ type: 'incident_created', incident });
-  res.apiSuccess({ incident }, 'Incident created successfully');
+  // Fetch enriched incident (with joined domain/category data) for broadcast
+  const enriched = await getEventById(incident.id);
+  broadcastEvent({ type: 'incident_created', incident: enriched?.incident || incident });
+  res.apiSuccess({ incident: enriched?.incident || incident }, 'Incident created successfully');
 }
 
 export async function updateIncidentController(req, res) {
@@ -92,8 +95,11 @@ export async function updateIncidentController(req, res) {
   if (!incident) {
     return res.apiError('Incident not found', 'NOT_FOUND', 404);
   }
-  broadcastEvent({ type: 'incident_updated', incident });
-  res.apiSuccess({ incident }, 'Incident updated successfully');
+
+  // Fetch enriched incident (with joined domain/category data + computed verification) for broadcast
+  const enriched = await getEventById(req.params.id);
+  broadcastEvent({ type: 'incident_updated', incident: enriched?.incident || incident });
+  res.apiSuccess({ incident: enriched?.incident || incident }, 'Incident updated successfully');
 }
 
 export async function deleteIncidentController(req, res) {
@@ -111,6 +117,9 @@ export async function resolveIncidentController(req, res) {
   if (!incident) {
     return res.apiError('Incident not found', 'NOT_FOUND', 404);
   }
-  broadcastEvent({ type: 'incident_resolved', incident });
-  res.apiSuccess({ incident });
+
+  // Fetch enriched incident for broadcast
+  const enriched = await getEventById(req.params.id);
+  broadcastEvent({ type: 'incident_resolved', incident: enriched?.incident || incident });
+  res.apiSuccess({ incident: enriched?.incident || incident });
 }

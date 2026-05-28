@@ -222,7 +222,8 @@ export default function MapPage() {
           setIncidents((prev) => {
             const exists = prev.find((ev) => ev.id === payload.incident.id);
             if (exists) {
-              return prev.map((ev) => (ev.id === payload.incident.id ? payload.incident : ev));
+              // Merge payload with existing data so we don't lose joined fields (domain_color, etc.)
+              return prev.map((ev) => (ev.id === payload.incident.id ? { ...ev, ...payload.incident } : ev));
             }
             return [payload.incident, ...prev];
           });
