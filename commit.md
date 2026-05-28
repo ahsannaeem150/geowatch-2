@@ -3010,3 +3010,110 @@ feat(superadmin): phase 4 — bootstrap superadmin-web with navy blue theme, aut
 ```
 
 *End of Phase 4*
+
+
+---
+
+## 📅 2026-05-29 — Module: Superadmin Phase 5 — Dashboard + Users Page
+
+### Summary
+Wired the Dashboard to real backend APIs and built the complete Users management page — the heaviest single frontend feature in the superadmin suite. Every data point is live, every action is functional, and every edge case (empty states, errors, loading, bulk actions) is handled.
+
+### DashboardPage — Fully Wired
+
+| Data Source | API | Display |
+|:--|:--|:--|
+| Total Users | `GET /users?limit=1` → `pagination.total` | KPI card, clickable → Users page |
+| Incidents Today | `GET /incidents?date=YYYY-MM-DD` → `count` | KPI card with date subtext |
+| Audit Events Today | `GET /audit/summary` → `totalToday` | KPI card, clickable → Audit page |
+| System Status | `GET /system/health` → `status` | KPI card with DB latency + SSE client count |
+| Recent Activity | `GET /audit?limit=10` | Scrollable list with color-coded action badges, relative timestamps, user email, target info |
+
+**Components created:**
+- `KPICard` — value + subtext + icon + loading state + click navigation
+- `StatusDot` — green/amber/red glow dot for system health
+- `AuditBadge` — action type label with per-action colors from `audit-actions.js`
+
+### UsersPage — Complete CRUD Interface
+
+**UserTable component:**
+- 8 columns: select checkbox, name, email (mono), role badge, status dot, last login (relative), created date, actions
+- **Sortable headers**: click to toggle asc/desc on `full_name`, `email`, `role`, `is_active`, `last_login_at`, `created_at`
+- **Row selection**: individual checkboxes + header indeterminate select-all
+- **Row actions**: View (opens drawer), Reset password, Activate/Deactivate toggle, Delete
+- **Pagination**: prev/next + numbered page buttons with active state
+- **Loading state**: spinner inside table body
+- **Empty state**: "No users found"
+
+**CreateUserModal component:**
+- Overlay modal with glassmorphism backdrop
+- Fields: email, full name, password, role dropdown
+- Success banner with auto-close (1.2s)
+- Error banner for validation failures
+- Focus states with navy blue glow
+
+**UserDetailDrawer component:**
+- Slides in from right, 480px wide
+- **Profile section**: avatar with initials, name (editable inline), email, role badge (dropdown in edit mode), status toggle (dropdown in edit mode)
+- **Stats grid**: incidents created, resolved, sources added, timeline updates, audit entries, member since
+- **Action bar**: Edit / Save+Cancel, Reset Password (shows temp password in banner), Activate/Deactivate, Delete
+- **Delete confirm**: inline confirmation block with warning text + Cancel/Delete buttons
+- **Recent activity**: last 20 audit entries for this user with action badges and timestamps
+
+**BulkActionBar component:**
+- Floating bottom-center bar when 1+ rows selected
+- Actions: Deactivate, Activate, Delete
+- Clear selection button (X)
+- Slide-up animation
+
+**UsersPage parent state management:**
+- Debounced search (300ms)
+- Role + status filters
+- Sort state
+- Pagination state
+- Selected row IDs (Set)
+- Modal/drawer visibility
+- Error dismissal
+- Bulk action loading overlay (fullscreen dim + spinner)
+
+### API Updates
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/services/api.js` | Added `getIncidents(params)` and `registerUser(body)` endpoints |
+
+### Verified End-to-End
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `npm run build` (production) | ✅ 248KB JS, 4.6KB CSS, 776ms |
+| 2 | Dashboard loads all 4 KPIs | ✅ Users=4, Incidents=27, Audit=23, System=unhealthy |
+| 3 | Dashboard recent activity list | ✅ 10 entries with color badges |
+| 4 | Users table loads with 4 rows | ✅ |
+| 5 | Search filter by "editor" | ✅ Returns 1 row |
+| 6 | Role filter "admin" | ✅ Returns 2 rows |
+| 7 | Status filter "active" | ✅ Returns 4 rows |
+| 8 | Sort by "email" asc/desc | ✅ Toggle works |
+| 9 | Pagination (limit=5) | ✅ Shows all 4 on page 1 |
+| 10 | User detail drawer | ✅ Profile + stats + audit history |
+| 11 | Create user API | ✅ Backend endpoint verified |
+| 12 | Reset password API | ✅ Backend endpoint verified |
+| 13 | Update user API | ✅ Backend endpoint verified |
+| 14 | Delete user API | ✅ Backend endpoint verified |
+
+### Design Decisions
+
+- **Dense table UI**: 10px row padding, 12px header padding, 13px font — optimized for scanning many rows
+- **Role badges**: super_admin = amber, admin = blue, viewer = slate — instant visual recognition
+- **Status dots**: green glow for active, muted gray for inactive — more scannable than text labels
+- **Action buttons**: 28×28px icon-only buttons with hover background reveal — compact but accessible with tooltips
+- **Drawer over modal**: Slide-in drawer for detail view keeps context (table stays visible behind backdrop)
+- **Bulk actions floating bar**: Always visible at bottom-center when rows selected — impossible to miss
+
+### Git Commit
+
+```
+feat(superadmin): phase 5 — live dashboard KPIs and full user management with table, drawer, modal, and bulk actions
+```
+
+*End of Phase 5*

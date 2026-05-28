@@ -94,3 +94,19 @@ export function getAuditSummary() {
 export function getSystemHealth() {
   return request('/system/health');
 }
+
+// ─── Incidents ───
+
+export function getIncidents(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/incidents?${qs}`);
+}
+
+// ─── Register (for creating users from superadmin) ───
+
+export function registerUser(body) {
+  return request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
