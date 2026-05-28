@@ -6,6 +6,7 @@ const INCIDENT_COLUMNS = `
   i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
   i.location_context,
   i.category_id,
+  i.verification_override,
   c.name AS category_name, c.slug AS category_slug,
   d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color
 `;
@@ -17,6 +18,21 @@ const INCIDENT_FROM = `
 `;
 
 // ─── Helpers ───
+
+function computeVerificationStatus(sources, override) {
+  if (override) return override;
+  if (!sources || sources.length === 0) return 'unverified';
+
+  const statuses = sources.map((s) => s.verification_status);
+  const verifiedCount = statuses.filter((s) => s === 'verified').length;
+  const hasDisputed = statuses.includes('disputed');
+  const hasDebunked = statuses.includes('debunked');
+
+  if (hasDebunked || hasDisputed) return 'contested';
+  if (verifiedCount >= 2) return 'confirmed';
+  if (verifiedCount >= 1) return 'verified';
+  return 'unverified';
+}
 
 function buildIncidentWhereClause(filters, options = {}) {
   const conditions = ["i.status != 'hidden'"];
@@ -105,8 +121,30 @@ export async function listIncidents(filters) {
   `;
 
   const result = await query(sql, params);
+
+  // Fetch sources for verification computation
+  const incidentIds = result.rows.map((r) => r.id);
+  let sourcesMap = new Map();
+  if (incidentIds.length > 0) {
+    const sourcesResult = await query(
+      `SELECT incident_id, verification_status FROM incident_sources WHERE incident_id = ANY($1)`,
+      [incidentIds]
+    );
+    for (const src of sourcesResult.rows) {
+      if (!sourcesMap.has(src.incident_id)) {
+        sourcesMap.set(src.incident_id, []);
+      }
+      sourcesMap.get(src.incident_id).push(src);
+    }
+  }
+
+  const incidents = result.rows.map((row) => ({
+    ...row,
+    verification_status: computeVerificationStatus(sourcesMap.get(row.id) || [], row.verification_override),
+  }));
+
   return {
-    incidents: result.rows,
+    incidents,
     count,
     hasMore: count > 300,
   };
@@ -154,8 +192,30 @@ export async function searchIncidents(filters) {
   `;
 
   const result = await query(sql, [...params, searchQuery, limit, offset]);
+
+  // Fetch sources for verification computation
+  const incidentIds = result.rows.map((r) => r.id);
+  let sourcesMap = new Map();
+  if (incidentIds.length > 0) {
+    const sourcesResult = await query(
+      `SELECT incident_id, verification_status FROM incident_sources WHERE incident_id = ANY($1)`,
+      [incidentIds]
+    );
+    for (const src of sourcesResult.rows) {
+      if (!sourcesMap.has(src.incident_id)) {
+        sourcesMap.set(src.incident_id, []);
+      }
+      sourcesMap.get(src.incident_id).push(src);
+    }
+  }
+
+  const incidents = result.rows.map((row) => ({
+    ...row,
+    verification_status: computeVerificationStatus(sourcesMap.get(row.id) || [], row.verification_override),
+  }));
+
   return {
-    incidents: result.rows,
+    incidents,
     count,
     limit,
     offset,
@@ -177,7 +237,7 @@ export async function getEventById(id) {
 
   const [sourcesResult, timelineResult] = await Promise.all([
     query(
-      `SELECT id, source_type, source_url, embed_html, media_url, description, display_order, created_at
+      `SELECT id, source_type, source_url, embed_html, media_url, description, display_order, verification_status, created_at
        FROM incident_sources
        WHERE incident_id = $1
        ORDER BY display_order ASC, created_at ASC`,
@@ -193,9 +253,12 @@ export async function getEventById(id) {
     ),
   ]);
 
+  const sources = sourcesResult.rows;
+  const verificationStatus = computeVerificationStatus(sources, incident.verification_override);
+
   return {
-    incident,
-    sources: sourcesResult.rows,
+    incident: { ...incident, verification_status: verificationStatus },
+    sources,
     timeline: timelineResult.rows,
   };
 }
@@ -213,6 +276,7 @@ export async function createIncident(data, createdBy) {
     startDate,
     endDate,
     locationContext,
+    verificationOverride,
   } = data;
 
   const status = endDate ? 'resolved' : 'active';
@@ -220,10 +284,10 @@ export async function createIncident(data, createdBy) {
   const result = await query(
     `INSERT INTO incidents (
       title, description, latitude, longitude, geom,
-      category_id, severity, start_date, end_date, status, created_by, location_context
-    ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12, $13)
+      category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
+    ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING *`,
-    [title, description || null, latitude, longitude, longitude, latitude, categoryId, severity, startDate, endDate || null, status, createdBy, locationContext || null]
+    [title, description || null, latitude, longitude, longitude, latitude, categoryId, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null]
   );
 
   return result.rows[0];
@@ -248,6 +312,7 @@ export async function updateIncident(id, data) {
   addField('start_date', data.startDate);
   addField('end_date', data.endDate);
   addField('location_context', data.locationContext);
+  addField('verification_override', data.verificationOverride);
 
   if (data.endDate === null) {
     addField('status', 'active');

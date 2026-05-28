@@ -1,7 +1,7 @@
 import React from 'react';
 import DatePicker from '../DatePicker/DatePicker.jsx';
 
-export default function MapControls({ dateRange, onDateRangeChange, onResetToToday }) {
+export default function MapControls({ dateRange, onDateRangeChange, onResetToToday, verifiedOnly, onVerifiedOnlyChange }) {
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const isLive = dateRange.from === today && dateRange.to === today;
@@ -116,6 +116,41 @@ export default function MapControls({ dateRange, onDateRangeChange, onResetToTod
         }}
       >
         Today
+      </button>
+
+      {/* Divider */}
+      <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
+
+      {/* Verified only toggle */}
+      <button
+        onClick={() => onVerifiedOnlyChange?.(!verifiedOnly)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '5px 12px',
+          fontSize: '11px',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          borderRadius: 'var(--radius-sm)',
+          border: `1px solid ${verifiedOnly ? '#22c55e' : 'var(--border-subtle)'}`,
+          background: verifiedOnly ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-input)',
+          color: verifiedOnly ? '#22c55e' : 'var(--text-muted)',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        <span
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: verifiedOnly ? '#22c55e' : 'var(--text-muted)',
+            opacity: verifiedOnly ? 1 : 0.4,
+          }}
+        />
+        Verified Only
       </button>
     </div>
   );

@@ -190,6 +190,36 @@ export default function UserMap({
       visual.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
       visual.style.willChange = 'transform';
 
+      // Verification indicator (small dot)
+      const vStatus = incident.verification_status;
+      if (vStatus === 'verified' || vStatus === 'confirmed') {
+        const vDot = document.createElement('div');
+        vDot.style.position = 'absolute';
+        vDot.style.top = '-2px';
+        vDot.style.right = '-2px';
+        vDot.style.width = '8px';
+        vDot.style.height = '8px';
+        vDot.style.borderRadius = '50%';
+        vDot.style.background = '#22c55e';
+        vDot.style.border = '1.5px solid #fff';
+        vDot.style.boxShadow = '0 0 4px rgba(34,197,94,0.6)';
+        vDot.style.pointerEvents = 'none';
+        visual.appendChild(vDot);
+      } else if (vStatus === 'contested') {
+        const vDot = document.createElement('div');
+        vDot.style.position = 'absolute';
+        vDot.style.top = '-2px';
+        vDot.style.right = '-2px';
+        vDot.style.width = '8px';
+        vDot.style.height = '8px';
+        vDot.style.borderRadius = '50%';
+        vDot.style.background = '#ef4444';
+        vDot.style.border = '1.5px solid #fff';
+        vDot.style.boxShadow = '0 0 4px rgba(239,68,68,0.6)';
+        vDot.style.pointerEvents = 'none';
+        visual.appendChild(vDot);
+      }
+
       // Hover: scale the CHILD only, never the parent
       visual.addEventListener('mouseenter', () => {
         visual.style.transform = 'scale(1.5)';

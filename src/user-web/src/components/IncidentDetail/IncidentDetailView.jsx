@@ -3,7 +3,7 @@ import { api } from '../../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
-import { SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function IncidentDetailView({ incidentId, onBack }) {
@@ -97,6 +97,9 @@ export default function IncidentDetailView({ incidentId, onBack }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
           <Badge color={incident.domain_color}>{incident.category_name}</Badge>
           <Badge status={incident.status}>{incident.status}</Badge>
+          {incident.verification_status && (
+            <VerificationBadge status={incident.verification_status} />
+          )}
         </div>
         <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px', lineHeight: 1.3 }}>
           {incident.title}
@@ -190,6 +193,26 @@ export default function IncidentDetailView({ incidentId, onBack }) {
   );
 }
 
+function VerificationBadge({ status }) {
+  const cfg = VERIFICATION_CONFIG[status] || VERIFICATION_CONFIG.unverified;
+  return (
+    <span
+      style={{
+        fontSize: '10px',
+        fontWeight: 700,
+        color: cfg.color,
+        background: `${cfg.color}15`,
+        padding: '2px 8px',
+        borderRadius: 'var(--radius-pill)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+      }}
+    >
+      {cfg.icon} {cfg.label}
+    </span>
+  );
+}
+
 function MetaCard({ label, value, color }) {
   return (
     <div
@@ -244,6 +267,7 @@ function SectionLabel({ children, style = {} }) {
 
 function SourceCard({ source }) {
   const embedRef = React.useRef(null);
+  const vConfig = SOURCE_VERIFICATION_CONFIG[source.verification_status] || SOURCE_VERIFICATION_CONFIG.unverified;
 
   const darkEmbedHtml = source.embed_html
     ? source.embed_html.replace(/class="twitter-tweet"/g, 'class="twitter-tweet" data-theme="dark"')
@@ -255,19 +279,59 @@ function SourceCard({ source }) {
     }
   }, [darkEmbedHtml]);
 
+  const VerificationLabel = () => (
+    <span
+      style={{
+        fontSize: '10px',
+        fontWeight: 700,
+        color: vConfig.color,
+        background: `${vConfig.color}15`,
+        padding: '2px 8px',
+        borderRadius: 'var(--radius-pill)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+      }}
+    >
+      {vConfig.icon} {vConfig.label}
+    </span>
+  );
+
   if (darkEmbedHtml) {
     return (
       <div
-        ref={embedRef}
         style={{
           background: 'var(--bg-elevated)',
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-subtle)',
           overflow: 'hidden',
-          padding: '12px',
         }}
-        dangerouslySetInnerHTML={{ __html: darkEmbedHtml }}
-      />
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-input)',
+          }}
+        >
+          <Badge>
+            {source.source_type}
+          </Badge>
+          <VerificationLabel />
+        </div>
+        <div
+          ref={embedRef}
+          style={{ padding: '12px' }}
+          dangerouslySetInnerHTML={{ __html: darkEmbedHtml }}
+        />
+        {source.description && (
+          <p style={{ padding: '0 12px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            {source.description}
+          </p>
+        )}
+      </div>
     );
   }
 
@@ -280,10 +344,11 @@ function SourceCard({ source }) {
         border: '1px solid var(--border-subtle)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
         <Badge>
           {source.source_type}
         </Badge>
+        <VerificationLabel />
         {source.source_url && (
           <a
             href={source.source_url}

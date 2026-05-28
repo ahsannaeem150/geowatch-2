@@ -4,8 +4,8 @@ import { validateRequest } from '../middleware/validate-request.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
 import { adminWriteLimiter } from '../middleware/rate-limiter.js';
-import { createSourceSchema } from '../validators/source.schema.js';
-import { createSourceController } from '../controllers/source.controller.js';
+import { createSourceSchema, updateSourceVerificationSchema } from '../validators/source.schema.js';
+import { createSourceController, updateSourceVerificationController } from '../controllers/source.controller.js';
 
 const router = Router({ mergeParams: true });
 
@@ -16,6 +16,15 @@ router.post(
   adminWriteLimiter,
   validateRequest(createSourceSchema, 'body'),
   asyncHandler(createSourceController)
+);
+
+router.patch(
+  '/:sourceId',
+  authenticate,
+  requireRole(['admin', 'super_admin']),
+  adminWriteLimiter,
+  validateRequest(updateSourceVerificationSchema, 'body'),
+  asyncHandler(updateSourceVerificationController)
 );
 
 export default router;

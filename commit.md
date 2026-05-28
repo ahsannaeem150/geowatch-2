@@ -2300,3 +2300,99 @@ feat: add resolve incident action to detail panel and top bar with grace-period 
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Feature: Source-Level + Incident-Level Verification System (Option 3)
+
+### Summary
+Implemented a full hybrid verification system: every source gets a verification status (`unverified` | `verified` | `disputed` | `debunked`), and each incident auto-computes its badge from sources with an optional admin override. Verified-only filter on user map. Visual indicators everywhere.
+
+### Database Changes
+
+**Migration file:** `docs/migrations/add-verification-system.sql`
+
+```sql
+ALTER TABLE incident_sources ADD COLUMN verification_status VARCHAR(20) NOT NULL DEFAULT 'unverified';
+ALTER TABLE incidents ADD COLUMN verification_override VARCHAR(20) DEFAULT NULL;
+```
+
+> ⚠️ **Run this as postgres:**
+> ```bash
+> sudo -u postgres psql -d geowatch_dev -f docs/migrations/add-verification-system.sql
+> ```
+
+### Verification Status Logic (Backend)
+
+| Sources Mix | Computed Status |
+|:--|:--|
+| No sources | `unverified` |
+| All unverified | `unverified` |
+| ≥1 verified, no disputes | `verified` |
+| ≥2 independent verified, no disputes | `confirmed` |
+| Any disputed or debunked | `contested` |
+
+Admin can override via `verification_override` column: `unverified` | `verified` | `confirmed` | `contested`.
+
+### Backend Changes
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/source.service.js` | `createEventSource` accepts `verificationStatus`. **New** `updateSourceVerification(sourceId, status)` |
+| `src/backend/src/controllers/source.controller.js` | **New** `updateSourceVerificationController` |
+| `src/backend/src/routes/source.routes.js` | **New** `PATCH /incidents/:id/sources/:sourceId` route |
+| `src/backend/src/validators/source.schema.js` | `createSourceSchema` adds `verificationStatus`. **New** `updateSourceVerificationSchema` |
+| `src/backend/src/services/incident.service.js` | `computeVerificationStatus(sources, override)` helper. All list/search/get queries now compute and return `verification_status`. `createIncident`/`updateIncident` accept `verificationOverride` |
+| `src/backend/src/validators/incident.schema.js` | `createIncidentSchema` and `updateIncidentSchema` add `verificationOverride` |
+
+### Admin Web Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/services/api.js` | **New** `updateSourceVerification(incidentId, sourceId, body)` |
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | Added "Verification Override" dropdown. Sources include `verificationStatus` on creation |
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx` | Header shows verification badge + override dropdown (auto/unverified/verified/confirmed/contested). Each source shows verification status badge + toggle buttons (Verify/Dispute/Debunk/Unverify). Resolve modal retained |
+| `src/admin-web/src/components/LiveActivity/AdminLiveFeed.jsx` | **New** "✓ Verify" quick-action button on `incident_created` activities for rapid triage |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Map markers show green dot for verified/confirmed, red dot for contested |
+
+### User Web Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/services/api.js` | No changes (verification is computed server-side) |
+| `src/user-web/src/components/Map/MapControls.jsx` | **New** "Verified Only" toggle button with green indicator |
+| `src/user-web/src/pages/MapPage.jsx` | `filters.verifiedOnly` state. Client-side filters incidents to `verified` \| `confirmed` when on |
+| `src/user-web/src/components/Map/UserMap.jsx` | Map markers show green dot (verified/confirmed) or red dot (contested) |
+| `src/user-web/src/components/IncidentList/IncidentListItem.jsx` | Shows verification badge next to severity |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` | Header shows incident verification badge. Each source shows its verification status badge |
+
+### Shared Changes
+
+| File | Change |
+|:--|:--|
+| `src/shared/constants.js` | **New** `VERIFICATION_STATUS`, `VERIFICATION_CONFIG`, `SOURCE_VERIFICATION_STATUS`, `SOURCE_VERIFICATION_CONFIG` |
+
+### Visual Language
+
+| Status | Icon | Color | Meaning |
+|:--|:--|:--|:--|
+| `unverified` | `?` | `#9ca3af` gray | Not yet reviewed |
+| `verified` | `✓` | `#22c55e` green | At least 1 verified source |
+| `confirmed` | `✓✓` | `#15803d` dark green | 2+ independent verified sources |
+| `contested` | `!` | `#ef4444` red | Has disputed or debunked sources |
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 361 modules, 1.12MB JS, 69KB CSS |
+| `user-web` | ✅ 371 modules, 1.09MB JS, 68KB CSS |
+| `backend` | ✅ Syntax verified |
+
+### Git Commit
+
+```
+feat: implement hybrid verification system — source-level verify/dispute/debunk + incident auto-compute with admin override
+```
+
+*End of session*

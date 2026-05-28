@@ -95,4 +95,6 @@ export const api = {
   // Sources
   addSource: (incidentId, body) =>
     request(`/incidents/${incidentId}/sources`, { method: 'POST', body: JSON.stringify(body) }),
+  updateSourceVerification: (incidentId, sourceId, body) =>
+    request(`/incidents/${incidentId}/sources/${sourceId}`, { method: 'PATCH', body: JSON.stringify(body) }),
 };

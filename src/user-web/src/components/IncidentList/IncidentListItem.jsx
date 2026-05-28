@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
+import { VERIFICATION_CONFIG } from '@shared/constants.js';
 
 import { format } from 'date-fns';
 
@@ -30,6 +31,9 @@ export default function IncidentListItem({ incident, isSelected, onClick }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
         <Badge color={incident.domain_color}>{incident.category_name}</Badge>
         <SeverityBadge level={incident.severity} />
+        {incident.verification_status && (
+          <VerificationBadge status={incident.verification_status} />
+        )}
       </div>
 
       <h4
@@ -74,5 +78,25 @@ export default function IncidentListItem({ incident, isSelected, onClick }) {
         <span>{dateStr}</span>
       </div>
     </div>
+  );
+}
+
+function VerificationBadge({ status }) {
+  const cfg = VERIFICATION_CONFIG[status] || VERIFICATION_CONFIG.unverified;
+  return (
+    <span
+      style={{
+        fontSize: '10px',
+        fontWeight: 700,
+        color: cfg.color,
+        background: `${cfg.color}15`,
+        padding: '2px 8px',
+        borderRadius: 'var(--radius-pill)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+      }}
+    >
+      {cfg.icon} {cfg.label}
+    </span>
   );
 }

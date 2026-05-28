@@ -566,6 +566,15 @@ export default function DashboardLayout() {
           activities={activities}
           onSelectEvent={handleSelectFromActivity}
           onEditEvent={handleEditFromActivity}
+          onQuickVerify={(incidentId, incidentData) => {
+            // Quick verify: set incident verification override to 'verified'
+            api.updateIncident(incidentId, { verificationOverride: 'verified' })
+              .then(() => {
+                setRefreshKey((k) => k + 1);
+                setToast({ message: 'Incident marked as verified', type: 'success' });
+              })
+              .catch((err) => alert(err.message));
+          }}
           isCollapsed={feedCollapsed}
           onToggleCollapse={handleToggleCollapse}
           unreadCount={unreadCount}

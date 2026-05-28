@@ -4,7 +4,7 @@ import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
-import { SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolve, resolveTrigger }) {
@@ -29,6 +29,9 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolveDate, setResolveDate] = useState('');
   const [resolveLoading, setResolveLoading] = useState(false);
+
+  // Verification override state
+  const [overrideLoading, setOverrideLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -64,6 +67,27 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   const openResolveModal = () => {
     setResolveDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
     setShowResolveModal(true);
+  };
+
+  const handleUpdateOverride = async (newOverride) => {
+    setOverrideLoading(true);
+    try {
+      await api.updateIncident(incidentId, { verificationOverride: newOverride || null });
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setOverrideLoading(false);
+    }
+  };
+
+  const handleUpdateSourceVerification = async (sourceId, status) => {
+    try {
+      await api.updateSourceVerification(incidentId, sourceId, { verificationStatus: status });
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const closeResolveModal = () => {
@@ -275,7 +299,33 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
             <Badge color={incident.domain_color}>{incident.domain_name}</Badge>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{incident.category_name}</span>
           </div>
-          <Badge status={incident.status}>{incident.status}</Badge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Verification override dropdown */}
+            <select
+              value={incident.verification_override || incident.verification_status || 'unverified'}
+              onChange={(e) => handleUpdateOverride(e.target.value === 'auto' ? null : e.target.value)}
+              disabled={overrideLoading}
+              style={{
+                background: 'var(--bg-deep)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-sans)',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="auto">🤖 Auto: {(incident.verification_status || 'unverified')}</option>
+              <option value="unverified">⚪ Unverified</option>
+              <option value="verified">🟢 Verified</option>
+              <option value="confirmed">🟢 Confirmed</option>
+              <option value="contested">🔴 Contested</option>
+            </select>
+            <Badge status={incident.status}>{incident.status}</Badge>
+          </div>
         </div>
         <h2 style={{ fontSize: 'var(--text-h3)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', lineHeight: 1.2 }}>
           {incident.title}
@@ -325,7 +375,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
           {sectionTitle('Sources')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {sources.map((src) => (
-              <SourceItem key={src.id} source={src} />
+              <SourceItem key={src.id} source={src} onUpdateVerification={handleUpdateSourceVerification} />
             ))}
           </div>
         </div>
@@ -703,8 +753,9 @@ function MetaItem({ label, value, date, time, severity }) {
   );
 }
 
-function SourceItem({ source }) {
+function SourceItem({ source, onUpdateVerification }) {
   const embedRef = useRef(null);
+  const vConfig = SOURCE_VERIFICATION_CONFIG[source.verification_status] || SOURCE_VERIFICATION_CONFIG.unverified;
 
   // Force dark theme on all Twitter embeds (new + existing in DB)
   const darkEmbedHtml = source.embed_html
@@ -720,6 +771,32 @@ function SourceItem({ source }) {
     }
   }, [darkEmbedHtml]);
 
+  const VerificationToggle = () => (
+    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
+      {Object.entries(SOURCE_VERIFICATION_CONFIG).map(([status, cfg]) => (
+        <button
+          key={status}
+          onClick={() => onUpdateVerification?.(source.id, status)}
+          style={{
+            padding: '3px 8px',
+            borderRadius: 'var(--radius-pill)',
+            border: `1px solid ${source.verification_status === status ? cfg.color : 'var(--border-subtle)'}`,
+            background: source.verification_status === status ? `${cfg.color}20` : 'var(--bg-elevated)',
+            color: source.verification_status === status ? cfg.color : 'var(--text-muted)',
+            fontSize: '10px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}
+        >
+          {cfg.icon} {cfg.label}
+        </button>
+      ))}
+    </div>
+  );
+
   if (darkEmbedHtml) {
     return (
       <div
@@ -731,6 +808,32 @@ function SourceItem({ source }) {
         }}
       >
         <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-elevated)',
+          }}
+        >
+          <Badge color={source.source_type === 'x_post' ? '#3b82f6' : source.source_type === 'news_article' ? '#8b5cf6' : '#6b7280'}>
+            {source.source_type}
+          </Badge>
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: vConfig.color,
+              background: `${vConfig.color}15`,
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-pill)',
+            }}
+          >
+            {vConfig.icon} {vConfig.label}
+          </span>
+        </div>
+        <div
           ref={embedRef}
           style={{ padding: '12px' }}
           dangerouslySetInnerHTML={{ __html: darkEmbedHtml }}
@@ -740,6 +843,9 @@ function SourceItem({ source }) {
             {source.description}
           </p>
         )}
+        <div style={{ padding: '0 12px 12px' }}>
+          <VerificationToggle />
+        </div>
       </div>
     );
   }
@@ -753,10 +859,22 @@ function SourceItem({ source }) {
         border: '1px solid var(--border-subtle)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
         <Badge color={source.source_type === 'x_post' ? '#3b82f6' : source.source_type === 'news_article' ? '#8b5cf6' : '#6b7280'}>
           {source.source_type}
         </Badge>
+        <span
+          style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: vConfig.color,
+            background: `${vConfig.color}15`,
+            padding: '2px 8px',
+            borderRadius: 'var(--radius-pill)',
+          }}
+        >
+          {vConfig.icon} {vConfig.label}
+        </span>
         {source.source_url && (
           <a
             href={source.source_url}
@@ -771,6 +889,7 @@ function SourceItem({ source }) {
       {source.description && (
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{source.description}</p>
       )}
+      <VerificationToggle />
     </div>
   );
 }

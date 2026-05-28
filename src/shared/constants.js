@@ -32,5 +32,33 @@ export const USER_ROLES = {
 export const API_BASE_URL =
   import.meta.env?.VITE_API_URL || 'http://localhost:3000/api/v1';
 
+export const VERIFICATION_STATUS = {
+  UNVERIFIED: 'unverified',
+  VERIFIED: 'verified',
+  CONFIRMED: 'confirmed',
+  CONTESTED: 'contested',
+};
+
+export const VERIFICATION_CONFIG = {
+  unverified: { label: 'Unverified', color: '#9ca3af', icon: '?' },
+  verified:   { label: 'Verified',   color: '#22c55e', icon: '✓' },
+  confirmed:  { label: 'Confirmed',  color: '#15803d', icon: '✓✓' },
+  contested:  { label: 'Contested',  color: '#ef4444', icon: '!' },
+};
+
+export const SOURCE_VERIFICATION_STATUS = {
+  UNVERIFIED: 'unverified',
+  VERIFIED: 'verified',
+  DISPUTED: 'disputed',
+  DEBUNKED: 'debunked',
+};
+
+export const SOURCE_VERIFICATION_CONFIG = {
+  unverified: { label: 'Unverified', color: '#9ca3af', icon: '?' },
+  verified:   { label: 'Verified',   color: '#22c55e', icon: '✓' },
+  disputed:   { label: 'Disputed',   color: '#f59e0b', icon: '⚠' },
+  debunked:   { label: 'Debunked',   color: '#ef4444', icon: '✕' },
+};
+
 export const MARTIN_URL =
   import.meta.env?.VITE_MARTIN_URL || 'http://localhost:8080';

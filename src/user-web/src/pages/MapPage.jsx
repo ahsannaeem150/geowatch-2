@@ -37,6 +37,7 @@ export default function MapPage() {
   const [filters, setFilters] = useState({
     categoryId: searchParams.get('categoryId') || '',
     severity: '',
+    verifiedOnly: false,
   });
 
   // Sync categoryId filter from URL params
@@ -357,6 +358,11 @@ export default function MapPage() {
     setDateRange({ from: incidentDate, to: incidentDate });
   };
 
+  // Filter incidents by verification status
+  const visibleIncidents = filters.verifiedOnly
+    ? incidents.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed')
+    : incidents;
+
   // Determine if selected incident is a "ghost" (outside current date range)
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
     ? selectedIncident
@@ -379,7 +385,7 @@ export default function MapPage() {
         {/* Center — Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <UserMap
-            incidents={incidents}
+            incidents={visibleIncidents}
             selectedEventId={selectedIncident?.id}
             onEventClick={handleSelectIncident}
             onViewportChange={handleViewportChange}
@@ -442,7 +448,7 @@ export default function MapPage() {
             }}
           >
             <div>
-              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{incidents.length}</span>
+              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{visibleIncidents.length}</span>
               {' incidents visible'}
               {viewportFiltering === true && ' in current map area'}
             </div>
@@ -545,7 +551,7 @@ export default function MapPage() {
         {/* Right — Incident sidebar */}
         <div style={{ width: '630px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
           <IncidentSidebar
-            incidents={incidents}
+            incidents={visibleIncidents}
             selectedIncident={selectedIncident}
             onSelectEvent={handleSelectIncident}
             onBack={handleBack}
@@ -558,6 +564,7 @@ export default function MapPage() {
 
       {/* Bottom — Ticker bar */}
       <TickerBar activities={activities} onSelectEvent={handleSelectEventFromActivity} />
+
     </div>
   );
 }

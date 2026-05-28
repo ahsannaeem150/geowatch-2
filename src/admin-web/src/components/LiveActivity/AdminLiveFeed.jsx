@@ -7,6 +7,7 @@ export default function AdminLiveFeed({
   activities,
   onSelectEvent,
   onEditEvent,
+  onQuickVerify,
   isCollapsed,
   onToggleCollapse,
   unreadCount,
@@ -285,6 +286,7 @@ export default function AdminLiveFeed({
               activity={activity}
               onView={() => onSelectEvent?.(activity.incidentId, activity.incident)}
               onEdit={() => onEditEvent?.(activity.incidentId, activity.incident)}
+              onQuickVerify={() => onQuickVerify?.(activity.incidentId, activity.incident)}
               isUnread={activity.isUnread}
             />
           ))
@@ -322,7 +324,7 @@ export default function AdminLiveFeed({
   );
 }
 
-function ActivityItem({ activity, onView, onEdit, isUnread }) {
+function ActivityItem({ activity, onView, onEdit, onQuickVerify, isUnread }) {
   const { type, incident, timestamp } = activity;
 
   const config = {
@@ -449,6 +451,33 @@ function ActivityItem({ activity, onView, onEdit, isUnread }) {
             >
               Edit
             </button>
+            {activity.type === 'incident_created' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickVerify?.();
+                }}
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#22c55e',
+                  background: 'rgba(34, 197, 94, 0.08)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '3px 10px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.08)';
+                }}
+              >
+                ✓ Verify
+              </button>
+            )}
           </div>
         </div>
       )}
