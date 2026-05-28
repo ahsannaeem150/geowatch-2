@@ -7,7 +7,7 @@ import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
+export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolve, resolveTrigger }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,6 +24,11 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
   const [editSourceUrl, setEditSourceUrl] = useState('');
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' = latest first, 'asc' = oldest first
+
+  // Resolve modal state
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolveDate, setResolveDate] = useState('');
+  const [resolveLoading, setResolveLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -55,6 +60,63 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
     setEditUpdateDate('');
     setEditSourceUrl('');
   };
+
+  const openResolveModal = () => {
+    setResolveDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+    setShowResolveModal(true);
+  };
+
+  const closeResolveModal = () => {
+    setShowResolveModal(false);
+    setResolveDate('');
+    setResolveLoading(false);
+  };
+
+  const handleConfirmResolve = async () => {
+    if (!resolveDate) return;
+    setResolveLoading(true);
+    try {
+      await api.resolveIncident(incidentId, {
+        resolvedAt: new Date(resolveDate).toISOString(),
+      });
+      closeResolveModal();
+      onResolve?.(incidentId);
+      // Refresh data to show updated status
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setResolveLoading(false);
+    }
+  };
+
+  // Calculate smart warning message
+  const getResolveWarning = () => {
+    if (!resolveDate) return null;
+    const resolvedAt = new Date(resolveDate);
+    const now = new Date();
+    const graceEnd = new Date(resolvedAt.getTime() + 24 * 60 * 60 * 1000);
+    const hoursRemaining = Math.max(0, Math.ceil((graceEnd - now) / (1000 * 60 * 60)));
+
+    if (hoursRemaining <= 0) {
+      return { text: 'Marker will disappear from the map.', highlight: null };
+    }
+
+    const isNearCurrent = Math.abs(now - resolvedAt) < 5 * 60 * 1000;
+    if (isNearCurrent) {
+      return { text: 'Marker will be removed from the map after ', highlight: '24 hours' };
+    }
+
+    return { text: 'Marker will disappear in ', highlight: `${hoursRemaining} hours` };
+  };
+
+  // Open resolve modal when triggered from TopBar
+  useEffect(() => {
+    if (resolveTrigger && resolveTrigger > 0) {
+      openResolveModal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolveTrigger]);
 
   const handleAddUpdate = async () => {
     if (!newSummary.trim()) return;
@@ -480,8 +542,109 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose }) {
         </div>
       </div>
 
+      {/* Resolve Modal */}
+      {showResolveModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeResolveModal();
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px',
+              width: '400px',
+              maxWidth: '90vw',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+          >
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+              Resolve Incident
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Mark <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{incident.title}</span> as resolved.
+            </p>
+
+            <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+              Resolution Date & Time
+            </label>
+            <input
+              type="datetime-local"
+              value={resolveDate}
+              onChange={(e) => setResolveDate(e.target.value)}
+              style={{
+                background: 'var(--bg-deep)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '10px 12px',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontFamily: 'var(--font-mono)',
+                width: '100%',
+                outline: 'none',
+                marginBottom: '12px',
+              }}
+            />
+
+            {resolveDate && (
+              <div
+                style={{
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '10px 12px',
+                  fontSize: '12px',
+                  color: 'var(--warning)',
+                  marginBottom: '16px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {(() => {
+                  const warning = getResolveWarning();
+                  if (!warning) return null;
+                  return (
+                    <span>
+                      {warning.text}
+                      {warning.highlight && (
+                        <span style={{ fontWeight: 700 }}>{warning.highlight}</span>
+                      )}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <Button variant="ghost" size="sm" onClick={closeResolveModal}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleConfirmResolve} disabled={!resolveDate || resolveLoading}>
+                {resolveLoading ? 'Resolving...' : 'Confirm Resolve'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '10px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+      <div style={{ display: 'flex', gap: '10px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+        {incident.status === 'active' && (
+          <Button variant="danger" onClick={openResolveModal}>
+            Resolve
+          </Button>
+        )}
         <Button variant="primary" onClick={() => onEdit?.(incident)}>
           Edit Incident
         </Button>

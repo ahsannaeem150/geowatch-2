@@ -13,6 +13,8 @@ export default function TopBar({
   onResetToToday,
   onSearchSelect,
   onOpenSearchModal,
+  selectedIncident,
+  onResolve,
 }) {
   const { user, logout } = useAuth();
   // Use local timezone date, not UTC (toISOString returns UTC which can be a day behind)
@@ -368,6 +370,11 @@ export default function TopBar({
           </Badge>
         </div>
 
+        {selectedIncident && selectedIncident.status === 'active' && (
+          <Button variant="danger" size="sm" onClick={onResolve}>
+            Resolve
+          </Button>
+        )}
         <Button variant="primary" size="sm" onClick={onAddEvent}>
           + Add Incident
         </Button>

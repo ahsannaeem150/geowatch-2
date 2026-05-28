@@ -67,6 +67,7 @@ export default function DashboardLayout() {
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchModalQuery, setSearchModalQuery] = useState('');
+  const [resolveTrigger, setResolveTrigger] = useState(0);
 
   // Smart viewport filtering state
   const [viewportFiltering, setViewportFiltering] = useState(null);
@@ -477,6 +478,11 @@ export default function DashboardLayout() {
           incidentId={selectedIncident.id}
           onEdit={handleEditFromDetail}
           onClose={handleClosePanel}
+          onResolve={(id) => {
+            setRefreshKey((k) => k + 1);
+            // Keep panel open but refresh data
+          }}
+          resolveTrigger={resolveTrigger}
         />
       );
     }
@@ -507,6 +513,15 @@ export default function DashboardLayout() {
         onResetToToday={handleResetToToday}
         onSearchSelect={handleSearchSelect}
         onOpenSearchModal={handleOpenSearchModal}
+        selectedIncident={selectedIncident}
+        onResolve={() => {
+          // If panel is not showing detail, switch to it first
+          if (panelMode !== 'detail' && selectedIncident) {
+            setPanelMode('detail');
+          }
+          // Trigger the resolve modal in the detail panel
+          setResolveTrigger((t) => t + 1);
+        }}
       />
 
       {/* Toast Notification */}

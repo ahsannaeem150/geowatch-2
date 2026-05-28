@@ -2229,3 +2229,74 @@ feat: admin layout redesign — map-first HUD with live feed, domain filters, to
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Feature: Resolve Incident — Detail Panel + TopBar
+
+### Summary
+Added the resolve action back to the admin dashboard in two places: a prominent "Resolve" button in the incident detail panel, and a contextual "Resolve" button in the TopBar when an active incident is selected. Includes the full resolve modal with datetime picker and smart grace-period warning.
+
+### Why This Was Needed
+
+The bottom incident table (which contained the resolve action) was removed during the HUD layout redesign. Admins still need a visible, one-click way to mark incidents as resolved.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx` | **Added resolve modal + button.** New state: `showResolveModal`, `resolveDate`, `resolveLoading`. `openResolveModal()` / `closeResolveModal()` / `handleConfirmResolve()` handlers. Smart grace-period warning logic (same as old table). Resolve button (danger variant) appears in bottom action row only when `incident.status === 'active'`. Modal is a centered overlay with datetime-local input, warning box, Cancel/Confirm buttons. Also accepts `resolveTrigger` prop to open modal programmatically from TopBar. |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | **Added contextual Resolve button.** Accepts `selectedIncident` and `onResolve` props. When an active incident is selected, a red "Resolve" button appears to the left of "+ Add Incident". This provides always-visible access to the resolve action regardless of scroll position. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | **Wired resolve flow.** Added `resolveTrigger` state. Passes `selectedIncident` and `onResolve` to TopBar. When TopBar resolve is clicked, increments `resolveTrigger` (and ensures panel is in detail mode). Passes `resolveTrigger` down to `IncidentDetailPanel` to programmatically open its modal. `onResolve` callback from detail panel refreshes incident data. |
+
+### Resolve Flow
+
+```
+Admin selects incident on map
+    ↓
+Right panel slides in with detail view
+    ↓
+Two ways to resolve:
+    ├─→ Click [Resolve] in TopBar (always visible)
+    └─→ Click [Resolve] at bottom of detail panel
+    ↓
+Resolve modal opens with datetime-local picker
+    ↓
+Smart warning shown:
+    • "Marker will be removed after 24 hours" (if resolving now)
+    • "Marker will disappear in N hours" (if resolving in past)
+    • "Marker will disappear from the map" (if >24h ago)
+    ↓
+Click [Confirm Resolve] → API call → modal closes → data refreshes
+```
+
+### Visual Placement
+
+**TopBar (when active incident selected):**
+```
+[GeoWatch] [Admin] [Date Range] [Search]          [Live/Historic Pill]    [Resolve] [+ Add Incident] [Logout]
+                                                                                ↑
+                                                                          Red danger button
+```
+
+**Detail Panel bottom actions:**
+```
+[Resolve] [Edit Incident] [Close]
+   ↑
+Red danger button, only shown for active incidents
+```
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 361 modules, 1.12MB JS, 69KB CSS |
+| `user-web` | ✅ 371 modules, 1.09MB JS, 68KB CSS |
+
+### Git Commit
+
+```
+feat: add resolve incident action to detail panel and top bar with grace-period modal
+```
+
+*End of session*
