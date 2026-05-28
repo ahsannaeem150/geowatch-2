@@ -18,6 +18,7 @@ export const AUDIT_ACTIONS = {
   USER_CREATED: 'user_created',
   USER_UPDATED: 'user_updated',
   USER_DEACTIVATED: 'user_deactivated',
+  USER_DELETED: 'user_deleted',
   USER_ACTIVATED: 'user_activated',
   USER_PASSWORD_RESET: 'user_password_reset',
 
@@ -56,6 +57,7 @@ export const AUDIT_ACTION_LABELS = {
   [AUDIT_ACTIONS.USER_CREATED]: 'User Created',
   [AUDIT_ACTIONS.USER_UPDATED]: 'User Updated',
   [AUDIT_ACTIONS.USER_DEACTIVATED]: 'User Deactivated',
+  [AUDIT_ACTIONS.USER_DELETED]: 'User Deleted',
   [AUDIT_ACTIONS.USER_ACTIVATED]: 'User Activated',
   [AUDIT_ACTIONS.USER_PASSWORD_RESET]: 'Password Reset',
 
@@ -88,6 +90,7 @@ export const AUDIT_ACTION_COLORS = {
   [AUDIT_ACTIONS.USER_CREATED]: '#22c55e',
   [AUDIT_ACTIONS.USER_UPDATED]: '#f59e0b',
   [AUDIT_ACTIONS.USER_DEACTIVATED]: '#ef4444',
+  [AUDIT_ACTIONS.USER_DELETED]: '#7f1d1d',
   [AUDIT_ACTIONS.USER_ACTIVATED]: '#22c55e',
   [AUDIT_ACTIONS.USER_PASSWORD_RESET]: '#f59e0b',
 

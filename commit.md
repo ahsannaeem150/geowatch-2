@@ -2872,3 +2872,74 @@ feat(superadmin): phase 1 — audit logging foundation with audit_logs table, la
 ```
 
 *End of Phase 1*
+
+
+---
+
+## 📅 2026-05-29 — Module: Superadmin Phase 2 — Users, Audit & System Health APIs
+
+### Summary
+Built the complete backend API layer for superadmin user management, audit log querying, and system health monitoring. All endpoints are `super_admin` exclusive, paginated, filterable, and fully audited. Every file passes syntax check and every endpoint was tested with real HTTP requests.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/backend/src/validators/user.schema.js` | Zod schemas: `listUsersQuerySchema` (search, role, isActive, sort, pagination) + `updateUserBodySchema` (role, isActive, fullName) |
+| `src/backend/src/validators/audit.schema.js` | Zod schema: `listAuditQuerySchema` (action, userId, targetType, targetId, dateFrom, dateTo, pagination) |
+| `src/backend/src/services/user.service.js` | `listUsers` (dynamic WHERE + ILIKE search + sorting + pagination), `getUserById`, `getUserStats` (incidents created/resolved, sources, timeline, audit entries), `updateUser`, `getUserDependencyCounts`, `deleteUser`, `generateTempPassword`, `resetUserPassword` |
+| `src/backend/src/services/audit.service.js` | `listAuditLogs` (dynamic WHERE + LEFT JOIN users for full_name + pagination), `getAuditSummary` (today's total actions, unique users, breakdown by action type) |
+| `src/backend/src/services/system.service.js` | `getSystemHealth` — DB latency check (`SELECT 1`), Martin tile server HTTP health check (with /health fallback to root), SSE client count |
+| `src/backend/src/controllers/user.controller.js` | `listUsersController`, `getUserController` (with stats), `updateUserController` (audits `user_updated`/`activated`/`deactivated`), `deleteUserController` (dependency check → 409 or hard delete + `user_deleted` audit), `resetPasswordController` (generates 12-char temp password + `user_password_reset` audit) |
+| `src/backend/src/controllers/audit.controller.js` | `listAuditController`, `getAuditSummaryController` |
+| `src/backend/src/controllers/system.controller.js` | `getHealthController` — returns 200 for healthy/degraded, 503 for unhealthy |
+| `src/backend/src/routes/user.routes.js` | `GET /users`, `GET /users/:id`, `PATCH /users/:id`, `DELETE /users/:id`, `POST /users/:id/reset-password` — all guarded by `authenticate + requireRole('super_admin')` |
+| `src/backend/src/routes/audit.routes.js` | `GET /audit`, `GET /audit/summary` — super_admin only |
+| `src/backend/src/routes/system.routes.js` | `GET /system/health` — super_admin only |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/backend/server.js` | Imported and mounted `/api/v1/users`, `/api/v1/audit`, `/api/v1/system` routes |
+| `src/backend/src/utils/audit-actions.js` | Added `USER_DELETED` action constant, label, and color (`#7f1d1d` dark red) |
+| `src/backend/src/controllers/user.controller.js` | Delete action uses `USER_DELETED` instead of `USER_DEACTIVATED` |
+
+### Verified Endpoints (All Tested with curl)
+
+| # | Endpoint | Result |
+|:--|:--|:--|
+| 1 | `GET /users` | ✅ Returns 4 users, paginated (page/limit/total/totalPages) |
+| 2 | `GET /users?search=editor` | ✅ Filters by email/full_name ILIKE |
+| 3 | `GET /users?role=viewer` | ✅ Filters by role |
+| 4 | `GET /users?isActive=true` | ✅ Filters by active status |
+| 5 | `GET /users?isActive=false` | ✅ Returns 0 inactive users |
+| 6 | `GET /users/:id` | ✅ Returns user + stats (incidentsCreated, resolved, sources, timeline, auditEntries) |
+| 7 | `PATCH /users/:id` | ✅ Updates fullName, returns updated user, audits `user_updated` |
+| 8 | `POST /users/:id/reset-password` | ✅ Generates 12-char temp password, audits `user_password_reset` |
+| 9 | `DELETE /users/:id` (no deps) | ✅ Hard deletes user with no content, audits `user_deleted` |
+| 10 | `DELETE /users/:id` (with deps) | ✅ Returns 409 CONFLICT with dependency counts |
+| 11 | `GET /audit` | ✅ Returns 20 logs, paginated |
+| 12 | `GET /audit?action=user_login` | ✅ Filters to 14 login entries |
+| 13 | `GET /audit/summary` | ✅ Returns totalToday=20, uniqueUsers=2, 7 action breakdowns |
+| 14 | `GET /system/health` | ✅ DB=up, Martin=down (expected, not running), SSE=up, 0 clients |
+| 15 | `GET /users` (admin token) | ✅ Returns 403 FORBIDDEN |
+| 16 | `GET /audit` (admin token) | ✅ Returns 403 FORBIDDEN |
+| 17 | `GET /system/health` (admin token) | ✅ Returns 403 FORBIDDEN |
+| 18 | All syntax checks | ✅ 12/12 files pass `node --check` |
+
+### Key Design Decisions
+
+- **Dependency-aware deletes:** `deleteUserController` checks incidents, sources, timeline, and zones before allowing hard delete. If dependencies exist, returns 409 with counts so the superadmin can decide to deactivate instead.
+- **Audit log JOIN:** `listAuditLogs` LEFT JOINs `users` to get `full_name` for display, avoiding N+1 queries.
+- **Date range for summary:** `getAuditSummary` uses `new Date()` boundaries (midnight to 23:59:59.999) in the server's local timezone.
+- **Martin health fallback:** First tries `/health`, falls back to root URL if `/health` doesn't exist (Martin's default endpoints vary by version).
+- **Temp password generation:** Uses `crypto.randomBytes` with a 72-char alphabet for high entropy in 12 characters.
+
+### Git Commit
+
+```
+feat(superadmin): phase 2 — users CRUD, audit log API, and system health endpoints
+```
+
+*End of Phase 2*

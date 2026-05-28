@@ -1,0 +1,107 @@
+import {
+  listUsers,
+  getUserById,
+  getUserStats,
+  updateUser,
+  getUserDependencyCounts,
+  deleteUser,
+  generateTempPassword,
+  resetUserPassword,
+} from '../services/user.service.js';
+import { auditLog } from '../utils/audit-log.js';
+import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+
+export async function listUsersController(req, res) {
+  const filters = {
+    search: req.query.search,
+    role: req.query.role,
+    isActive: req.query.isActive,
+    sortBy: req.query.sortBy,
+    sortOrder: req.query.sortOrder,
+    page: req.query.page,
+    limit: req.query.limit,
+  };
+
+  const result = await listUsers(filters);
+  res.apiSuccess(result);
+}
+
+export async function getUserController(req, res) {
+  const user = await getUserById(req.params.id);
+  if (!user) {
+    return res.apiError('User not found', 'NOT_FOUND', 404);
+  }
+
+  const stats = await getUserStats(req.params.id);
+  res.apiSuccess({ user, stats });
+}
+
+export async function updateUserController(req, res) {
+  const { role, isActive, fullName } = req.body;
+  const updated = await updateUser(req.params.id, { role, isActive, fullName });
+
+  if (!updated) {
+    return res.apiError('User not found', 'NOT_FOUND', 404);
+  }
+
+  // Determine specific audit action
+  let action = AUDIT_ACTIONS.USER_UPDATED;
+  if (isActive !== undefined) {
+    action = isActive ? AUDIT_ACTIONS.USER_ACTIVATED : AUDIT_ACTIONS.USER_DEACTIVATED;
+  }
+
+  await auditLog(req, action, 'user', updated.id, {
+    email: updated.email,
+    role: updated.role,
+    isActive: updated.is_active,
+    fullName: updated.full_name,
+    changedFields: { role, isActive, fullName },
+  });
+
+  res.apiSuccess({ user: updated });
+}
+
+export async function deleteUserController(req, res) {
+  const deps = await getUserDependencyCounts(req.params.id);
+  const hasDeps = deps.incidents > 0 || deps.sources > 0 || deps.timeline > 0 || deps.zones > 0;
+
+  if (hasDeps) {
+    return res.apiError(
+      'Cannot delete user with existing content. Deactivate instead.',
+      'CONFLICT',
+      409,
+      { dependencies: deps }
+    );
+  }
+
+  const deleted = await deleteUser(req.params.id);
+  if (!deleted) {
+    return res.apiError('User not found', 'NOT_FOUND', 404);
+  }
+
+  await auditLog(req, AUDIT_ACTIONS.USER_DELETED, 'user', req.params.id, {
+    note: 'User permanently deleted',
+    deletedAt: new Date().toISOString(),
+  });
+
+  res.apiSuccess({ deleted: true });
+}
+
+export async function resetPasswordController(req, res) {
+  const user = await getUserById(req.params.id);
+  if (!user) {
+    return res.apiError('User not found', 'NOT_FOUND', 404);
+  }
+
+  const tempPassword = generateTempPassword();
+  await resetUserPassword(req.params.id, tempPassword);
+
+  await auditLog(req, AUDIT_ACTIONS.USER_PASSWORD_RESET, 'user', req.params.id, {
+    email: user.email,
+  });
+
+  res.apiSuccess(
+    { tempPassword },
+    'Password reset successfully. Share the temporary password securely with the user.'
+  );
+}
