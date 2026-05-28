@@ -1,84 +1,115 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api.js';
+import { useCountUp } from './useCountUp.js';
+import { useInView } from './useInView.js';
+import FadeIn from './FadeIn.jsx';
+
+function StatCard({ value, label, color, delay }) {
+  const { ref, isInView } = useInView();
+  const count = useCountUp(value, 1400, isInView);
+
+  return (
+    <FadeIn delay={delay}>
+      <div
+        ref={ref}
+        className="home-stat-card"
+        style={{ color }}
+      >
+        <div className="home-stat-card__value">{count.toLocaleString()}</div>
+        <div className="home-stat-card__label" style={{ color: 'var(--text-muted)' }}>
+          {label}
+        </div>
+      </div>
+    </FadeIn>
+  );
+}
+
+function StatSkeleton() {
+  return (
+    <div className="home-skeleton-grid">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="home-skeleton-card">
+          <div className="home-skeleton-card__number" />
+          <div className="home-skeleton-card__label" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function StatsSection() {
-  const [stats, setStats] = useState({ active: 0, today: 0, countries: 0 });
+  const [stats, setStats] = useState({ active: 0, today: 0, countries: 0, sources: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    Promise.all([
-      api.getIncidents({ status: 'active' }),
-      api.getIncidents({ dateFrom: today, dateTo: today }),
-      api.getIncidents({}),
-    ])
+
+    const fetchActive = api.getIncidents({ status: 'active' }).catch((err) => {
+      console.error('Stats: failed to fetch active incidents', err);
+      return { data: { incidents: [], count: 0 } };
+    });
+
+    const fetchToday = api.getIncidents({ dateFrom: today, dateTo: today }).catch((err) => {
+      console.error('Stats: failed to fetch today incidents', err);
+      return { data: { incidents: [], count: 0 } };
+    });
+
+    const fetchAll = api.getIncidents({}).catch((err) => {
+      console.error('Stats: failed to fetch all incidents', err);
+      return { data: { incidents: [], count: 0 } };
+    });
+
+    Promise.all([fetchActive, fetchToday, fetchAll])
       .then(([activeRes, todayRes, allRes]) => {
-        const incidents = allRes.data.incidents || [];
-        const countries = new Set(incidents.map((i) => i.location_context?.split(',').pop()?.trim()).filter(Boolean)).size;
+        const activeData = activeRes.data || {};
+        const todayData = todayRes.data || {};
+        const allData = allRes.data || {};
+
+        const incidents = allData.incidents || [];
+        const countries = new Set(
+          incidents
+            .map((i) => i.location_context?.split(',').pop()?.trim())
+            .filter(Boolean)
+        ).size;
+
+        const sourceNames = new Set(
+          incidents.map((i) => i.source_name).filter(Boolean)
+        );
+
         setStats({
-          active: activeRes.data.count || 0,
-          today: todayRes.data.count || 0,
+          active: activeData.count ?? activeData.incidents?.length ?? 0,
+          today: todayData.count ?? todayData.incidents?.length ?? 0,
           countries: countries || 0,
+          sources: sourceNames.size || 0,
         });
       })
-      .catch(() => setStats({ active: 0, today: 0, countries: 0 }))
+      .catch((err) => {
+        console.error('Stats: unexpected error', err);
+        setStats({ active: 0, today: 0, countries: 0, sources: 0 });
+      })
       .finally(() => setLoading(false));
   }, []);
 
+  if (loading) {
+    return (
+      <section className="home-stats">
+        <StatSkeleton />
+      </section>
+    );
+  }
+
   const items = [
-    { label: 'Active Events', value: stats.active, color: 'var(--danger-light)' },
-    { label: 'Events Today', value: stats.today, color: 'var(--success)' },
-    { label: 'Countries Monitored', value: stats.countries, color: 'var(--info)' },
+    { label: 'Active Events', value: stats.active, color: 'var(--danger-light)', delay: 0 },
+    { label: 'Events Today', value: stats.today, color: 'var(--success)', delay: 100 },
+    { label: 'Countries Monitored', value: stats.countries, color: 'var(--info)', delay: 200 },
+    { label: 'Data Sources', value: stats.sources, color: 'var(--warning)', delay: 300 },
   ];
 
   return (
-    <section style={{ padding: '48px 24px', background: 'var(--bg-deep)' }}>
-      <div
-        style={{
-          maxWidth: '900px',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-        }}
-      >
+    <section className="home-stats">
+      <div className="home-stats__grid">
         {items.map((item) => (
-          <div
-            key={item.label}
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '24px',
-              textAlign: 'center',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '36px',
-                fontWeight: 700,
-                color: item.color,
-                lineHeight: 1,
-                marginBottom: '8px',
-                fontFamily: 'var(--font-mono)',
-                letterSpacing: '-2px',
-              }}
-            >
-              {loading ? '—' : item.value.toLocaleString()}
-            </div>
-            <div
-              style={{
-                fontSize: '12px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '1.2px',
-                color: 'var(--text-muted)',
-              }}
-            >
-              {item.label}
-            </div>
-          </div>
+          <StatCard key={item.label} {...item} />
         ))}
       </div>
     </section>

@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Search } from 'lucide-react';
 
 export default function Header() {
   const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const navLinks = [
     { path: '/', label: 'Home' },
@@ -15,7 +25,7 @@ export default function Header() {
     <header
       style={{
         height: '56px',
-        background: 'var(--bg-surface)',
+        background: scrolled ? 'rgba(10, 10, 12, 0.85)' : 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
@@ -24,6 +34,9 @@ export default function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
+        backdropFilter: scrolled ? 'blur(12px)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(12px)' : 'none',
+        transition: 'background 0.3s ease, backdrop-filter 0.3s ease',
       }}
     >
       {/* Logo */}
@@ -40,6 +53,7 @@ export default function Header() {
             fontSize: '13px',
             fontWeight: 700,
             color: '#f2f2f2',
+            fontFamily: 'var(--font-mono)',
           }}
         >
           G
@@ -89,9 +103,16 @@ export default function Header() {
           fontSize: '13px',
           cursor: 'pointer',
           fontFamily: 'var(--font-sans)',
+          transition: 'all 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border-hover)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border-subtle)';
         }}
       >
-        <span>🔍</span>
+        <Search size={14} />
         <span>Search</span>
         <span
           style={{
@@ -101,6 +122,7 @@ export default function Header() {
             borderRadius: '4px',
             color: 'var(--text-muted)',
             marginLeft: '4px',
+            fontFamily: 'var(--font-mono)',
           }}
         >
           ⌘K
