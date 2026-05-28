@@ -2943,3 +2943,70 @@ feat(superadmin): phase 2 — users CRUD, audit log API, and system health endpo
 ```
 
 *End of Phase 2*
+
+
+---
+
+## 📅 2026-05-29 — Module: Superadmin Phase 4 — Frontend Bootstrap
+
+### Summary
+Bootstrapped `superadmin-web` — a third, separate Vite React frontend running on `localhost:5175`. Built the complete auth flow, layout shell with collapsible sidebar and top bar, navy blue design system, and placeholder pages for all seven superadmin modules. The backend CORS was already configured for `:5175` in Phase 1.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/superadmin-web/package.json` | Workspace package with React, Router, Vite, date-fns, lucide-react |
+| `src/superadmin-web/vite.config.js` | Vite config with `@shared` path alias, dev server on port 5175 |
+| `src/superadmin-web/index.html` | HTML entry with Space Grotesk + JetBrains Mono Google Fonts |
+| `src/superadmin-web/.env` | `VITE_API_URL` and `VITE_MARTIN_URL` pointing to localhost |
+| `src/superadmin-web/src/main.jsx` | React 18 DOM root renderer |
+| `src/superadmin-web/src/index.css` | Navy blue design tokens overriding shared design-tokens.css. Custom properties for `--navy-50` through `--navy-900`, `--primary: #2563eb`, glass/card utility classes, fadeIn/slideIn/pulse-glow animations, custom scrollbar styling |
+| `src/superadmin-web/src/services/api.js` | Fetch wrapper with Bearer token injection. Exports: `login`, `getMe`, `listUsers`, `getUser`, `updateUser`, `deleteUser`, `resetUserPassword`, `listAuditLogs`, `getAuditSummary`, `getSystemHealth` |
+| `src/superadmin-web/src/contexts/AuthContext.jsx` | JWT auth state with `localStorage` persistence. `bootstrap()` auto-refreshes on mount via `/auth/me`. `login()` validates `role === 'super_admin'` before accepting token. `logout()` clears storage and reloads. Returns `{ user, isLoading, isAuthenticated, isSuperAdmin, login, logout }` |
+| `src/superadmin-web/src/components/Layout/Sidebar.jsx` | Collapsible left sidebar (220px → 64px). GeoWatch logo with Shield icon. 6 nav items with `NavLink` active states (navy blue background + border). Collapse toggle at bottom with Chevron icons. Keyboard-friendly hover states |
+| `src/superadmin-web/src/components/Layout/TopBar.jsx` | Glassmorphism sticky header with search input, notification bell with red dot, user profile dropdown (avatar initials, name, role badge, logout button). Click-outside dismiss on dropdown |
+| `src/superadmin-web/src/components/Layout/Layout.jsx` | Main layout wrapper: Sidebar fixed left + content area with TopBar + `<Outlet>` |
+| `src/superadmin-web/src/components/Login/LoginPage.jsx` | Dark login screen with navy blue gradient shield icon, gradient "GeoWatch Console" headline, email/password form with focus glow, password visibility toggle, error alert banner, loading state on submit button |
+| `src/superadmin-web/src/App.jsx` | React Router setup: `/login` → `RedirectIfAuthenticated`, `/superadmin/*` → `RequireSuperAdmin` → `Layout` → pages, `/` → redirect to dashboard, `*` → 404. `RequireSuperAdmin` shows "Access Denied" for non-superadmins. `LoadingScreen` spinner during auth bootstrap |
+| `src/superadmin-web/src/pages/DashboardPage.jsx` | Placeholder with 4 stat cards and "Dashboard widgets coming in Phase 5" |
+| `src/superadmin-web/src/pages/UsersPage.jsx` | Placeholder: "User management coming in Phase 5" |
+| `src/superadmin-web/src/pages/AuditPage.jsx` | Placeholder: "Audit log viewer coming in Phase 6" |
+| `src/superadmin-web/src/pages/DomainsPage.jsx` | Placeholder: "Domain manager coming in Phase 7" |
+| `src/superadmin-web/src/pages/SystemPage.jsx` | Placeholder: "System monitoring coming in Phase 8" |
+| `src/superadmin-web/src/pages/ExportPage.jsx` | Placeholder: "Data export coming in Phase 8" |
+| `src/superadmin-web/src/pages/NotFoundPage.jsx` | 404 page with navy blue gradient number, back-to-dashboard link |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `package.json` (root) | Added `src/superadmin-web` to workspaces. Added `dev:superadmin-web` and `build:superadmin-web` scripts |
+
+### Verified End-to-End
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `npm run build` (production) | ✅ 196KB JS, 4.6KB CSS, 750ms build |
+| 2 | Dev server starts on `:5175` | ✅ |
+| 3 | HTML page loads (200) | ✅ |
+| 4 | CORS preflight from `:5175` | ✅ All methods/headers allowed |
+| 5 | Login API from `:5175` origin | ✅ Returns token + super_admin user |
+| 6 | `/users` with Bearer token | ✅ Returns 4 users |
+| 7 | `/audit/summary` with Bearer token | ✅ Returns today's stats |
+| 8 | `/system/health` with Bearer token | ✅ Returns health object |
+
+### Design Decisions
+
+- **Navy blue accent:** `#2563eb` (blue-600) as primary, `#1d4ed8` hover, `#1e40af` dark, `#3b82f6` glow. Chosen for visibility on dark backgrounds while reading as authoritative "navy."
+- **Separate project:** Third frontend keeps superadmin concerns isolated from incident ops (admin-web) and public site (user-web).
+- **No external UI library:** Pure React + CSS + Lucide icons, consistent with the rest of the codebase.
+- **Role guard on context level:** AuthContext rejects non-super_admin tokens immediately; AppRoutes shows "Access Denied" screen for authenticated but unauthorized users.
+
+### Git Commit
+
+```
+feat(superadmin): phase 4 — bootstrap superadmin-web with navy blue theme, auth, layout, and routing
+```
+
+*End of Phase 4*

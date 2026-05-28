@@ -6,15 +6,18 @@
   "workspaces": [
     "src/backend",
     "src/user-web",
-    "src/admin-web"
+    "src/admin-web",
+    "src/superadmin-web"
   ],
   "scripts": {
     "setup:martin": "./scripts/download-martin.sh",
     "dev:backend": "npm run dev -w src/backend",
     "dev:user-web": "npm run dev -w src/user-web",
     "dev:admin-web": "npm run dev -w src/admin-web",
+    "dev:superadmin-web": "npm run dev -w src/superadmin-web",
     "build:user-web": "npm run build -w src/user-web",
-    "build:admin-web": "npm run build -w src/admin-web"
+    "build:admin-web": "npm run build -w src/admin-web",
+    "build:superadmin-web": "npm run build -w src/superadmin-web"
   },
   "engines": {
     "node": ">=20.0.0",
