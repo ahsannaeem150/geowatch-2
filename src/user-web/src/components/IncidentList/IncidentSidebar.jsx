@@ -12,6 +12,7 @@ export default function IncidentSidebar({
   loading,
   filters,
   onFilterChange,
+  detailRefreshKey,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const { domains, getCategoriesByDomain } = useCategories();
@@ -37,7 +38,7 @@ export default function IncidentSidebar({
     >
       {selectedIncident ? (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <IncidentDetailView incidentId={selectedIncident.id} onBack={onBack} />
+          <IncidentDetailView incidentId={selectedIncident.id} onBack={onBack} refreshKey={detailRefreshKey} />
         </div>
       ) : (
         <>

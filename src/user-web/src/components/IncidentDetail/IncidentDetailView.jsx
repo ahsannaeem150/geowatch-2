@@ -6,13 +6,14 @@ import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function IncidentDetailView({ incidentId, onBack }) {
+export default function IncidentDetailView({ incidentId, onBack, refreshKey }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedUpdateId, setExpandedUpdateId] = useState(null);
+  const [justUpdated, setJustUpdated] = useState(false);
 
-  useEffect(() => {
+  const fetchData = () => {
     setLoading(true);
     api
       .getIncident(incidentId)
@@ -22,7 +23,21 @@ export default function IncidentDetailView({ incidentId, onBack }) {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [incidentId]);
+
+  // Re-fetch when refreshKey changes (SSE-driven live update)
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+      fetchData();
+      setJustUpdated(true);
+      const timer = setTimeout(() => setJustUpdated(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [refreshKey]);
 
   if (loading) {
     return (
@@ -109,6 +124,35 @@ export default function IncidentDetailView({ incidentId, onBack }) {
         </p>
       </div>
 
+      {/* Live update indicator */}
+      {justUpdated && (
+        <div
+          style={{
+            background: 'rgba(34, 197, 94, 0.08)',
+            border: '1px solid rgba(34, 197, 94, 0.25)',
+            borderRadius: 'var(--radius-md)',
+            padding: '8px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'fadeInOut 3s ease-out forwards',
+          }}
+        >
+          <div
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#22c55e',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }}
+          />
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e' }}>
+            Updated just now
+          </span>
+        </div>
+      )}
+
       {/* Meta grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
         <MetaCard label="Severity" value={<SeverityBadge level={incident.severity} wide />} />
@@ -189,6 +233,15 @@ export default function IncidentDetailView({ incidentId, onBack }) {
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translateY(-4px); }
+          10% { opacity: 1; transform: translateY(0); }
+          80% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-4px); }
+        }
+      `}</style>
     </div>
   );
 }

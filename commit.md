@@ -2396,3 +2396,75 @@ feat: implement hybrid verification system — source-level verify/dispute/debun
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Fix: Live Update Sync for Selected Incident Detail View
+
+### Summary
+Fixed a stale-data bug where users viewing an incident's detail panel would not see admin updates until they clicked away and back. Now the detail view auto-refreshes via SSE when the selected incident is updated, with a subtle "Updated just now" flash indicator.
+
+### Problem
+
+| Step | What Happened |
+|:--|:--|
+| 1 | User selects an incident → detail panel fetches data once |
+| 2 | Admin edits/resolves/updates the incident |
+| 3 | Backend broadcasts SSE event |
+| 4 | Map + sidebar update from SSE, but **detail panel stays stale** |
+| 5 | User must click another incident and back to see changes |
+
+### Root Cause
+`IncidentDetailView` only fetches data in a `useEffect([incidentId])`. Since `incidentId` doesn't change when the same incident is updated, the detail never re-fetches.
+
+### Solution
+
+**Three-layer fix:**
+
+1. **SSE handler watches for selected incident** (`MapPage.jsx`):
+   - Added `selectedIncidentRef` to track current selection inside the SSE handler (avoids stale closure since the handler is in a `useEffect([])`)
+   - When any SSE event arrives for the currently selected incident ID, calls `api.getIncident()` to fetch fresh data
+   - Updates `selectedIncident` state AND patches the `incidents` array so sidebar + map stay in sync
+
+2. **Detail view re-fetches on demand** (`IncidentDetailView.jsx`):
+   - New `refreshKey` prop — when incremented, triggers `api.getIncident()` re-fetch
+   - Added to `useEffect` dependency array alongside `incidentId`
+
+3. **Visual feedback** (`IncidentDetailView.jsx`):
+   - "Updated just now" green flash banner appears for 3 seconds after a live refresh
+   - Uses `fadeInOut` CSS keyframe animation (fade in → hold → fade out)
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/MapPage.jsx` | `selectedIncidentRef` keeps ref synced with state. SSE handler checks if event affects selected incident → refetches detail + updates `selectedIncident` + patches `incidents` list. `detailRefreshKey` state passed to sidebar |
+| `src/user-web/src/components/IncidentList/IncidentSidebar.jsx` | Passes `detailRefreshKey` through to `IncidentDetailView` as `refreshKey` prop |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` | `refreshKey` prop triggers re-fetch in `useEffect`. `justUpdated` state shows green flash banner with pulsing dot. `fadeInOut` CSS animation |
+
+### Coverage
+
+All SSE event types now trigger detail refresh for the selected incident:
+
+| Event Type | Detail Refreshes? |
+|:--|:--|
+| `incident_updated` | ✅ Yes |
+| `incident_resolved` | ✅ Yes |
+| `timeline_added` | ✅ Yes (refetch gets new timeline) |
+| `timeline_updated` | ✅ Yes |
+| `timeline_deleted` | ✅ Yes |
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `user-web` | ✅ 371 modules, 1.09MB JS, 68KB CSS |
+| `admin-web` | ✅ 361 modules, 1.12MB JS, 69KB CSS |
+
+### Git Commit
+
+```
+fix: live-sync selected incident detail view via SSE with "updated just now" flash indicator
+```
+
+*End of session*

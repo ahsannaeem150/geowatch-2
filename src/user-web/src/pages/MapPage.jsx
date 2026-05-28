@@ -60,6 +60,15 @@ export default function MapPage() {
   const [awayStats, setAwayStats] = useState({ newEvents: 0, updatedEvents: 0 });
 
   const esRef = useRef(null);
+  const selectedIncidentRef = useRef(null);
+
+  // Detail refresh key — increments when SSE triggers an update for selected incident
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
+
+  // Keep ref in sync with state for SSE handler
+  useEffect(() => {
+    selectedIncidentRef.current = selectedIncident;
+  }, [selectedIncident]);
 
   // ─── Fetch incidents with smart viewport filtering ───
   useEffect(() => {
@@ -217,6 +226,32 @@ export default function MapPage() {
             }
             return [payload.incident, ...prev];
           });
+        }
+
+        // NEW: If this event affects the currently selected incident, refresh detail
+        const currentSelected = selectedIncidentRef.current;
+        const affectedIncidentId = payload.incidentId || payload.incident?.id;
+        if (currentSelected?.id && affectedIncidentId === currentSelected.id) {
+          // Update selectedIncident with payload data if available
+          if (payload.incident) {
+            setSelectedIncident(payload.incident);
+          }
+          // Always trigger a detail refresh (for timeline events that don't include full incident)
+          api.getIncident(currentSelected.id)
+            .then((res) => {
+              if (res.data?.incident) {
+                setSelectedIncident(res.data.incident);
+                // Also update in the incidents list
+                setIncidents((prev) =>
+                  prev.map((i) => (i.id === currentSelected.id ? res.data.incident : i))
+                );
+                // Trigger detail view re-render with flash
+                setDetailRefreshKey((k) => k + 1);
+              }
+            })
+            .catch(() => {
+              // Silent fail — detail will still show old data
+            });
         }
       } catch (err) {
         console.warn('[SSE] Failed to parse message:', err);
@@ -558,6 +593,7 @@ export default function MapPage() {
             loading={loading}
             filters={filters}
             onFilterChange={setFilters}
+            detailRefreshKey={detailRefreshKey}
           />
         </div>
       </div>
