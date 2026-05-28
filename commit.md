@@ -2146,3 +2146,86 @@ feat: implement full incident taxonomy — 17 domains, 162 categories, DB-driven
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Feature: Admin Layout Redesign — Map-First HUD
+
+### Summary
+Complete admin dashboard layout redesign. The map is now the hero element taking most of the screen. Removed the dead bottom event table. Added a live activity feed on the left, a 630px slide-in right panel, domain filter badges, toast notifications, and map pulse animations for new incidents.
+
+### Pain Points Addressed
+
+| # | Pain Point | Fix |
+|:--|:--|:--|
+| 1 | Sidebar too wide (~50% screen) | Map now fills remaining space; right panel is 630px slide-in only when needed |
+| 2 | Bottom event table felt dead | Removed entirely; replaced with live activity feed |
+| 3 | No awareness of new events | Real-time SSE feed + toast notifications + unread badges |
+| 4 | Map not the hero | Map is now the dominant element; panels are overlays |
+
+### New Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/LiveActivity/AdminLiveFeed.jsx` | Collapsible 280px/44px live activity feed with domain filter badges, admin View/Edit actions |
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | **Complete rewrite** — 3-column HUD layout: left live feed (280px) + center map (flex:1) + right 630px slide-in panel. SSE stream integration. Domain filter state. Toast notifications. Removed IncidentTable. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `newIncidentIds` prop with pulsing ring animation for newly created incidents |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | No changes — LIVE mode indicator already present |
+
+### Layout Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              TopBar (60px)                              │
+├──────────┬─────────────────────────────────────────┬────────────────────┤
+│          │                                         │                    │
+│  Live    │                                         │   Right Panel      │
+│  Feed    │              MAP (hero)                 │   (630px)          │
+│ (280px)  │                                         │   slide-in when    │
+│          │                                         │   incident selected│
+│          │                                         │                    │
+├──────────┴─────────────────────────────────────────┴────────────────────┤
+│                           (no bottom table)                             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Live Activity Feed Features
+
+- **Collapsible:** 280px expanded → 44px icon bar with unread badge
+- **Real-time SSE:** Connects to `/api/v1/incidents/stream`
+- **Unread tracking:** Persisted in localStorage, "Mark seen" button
+- **Domain filter badges:** Shows all visible domains with counts; click to filter map
+- **Admin actions:** Each activity has "View" and "Edit" buttons
+- **Auto-scroll:** Scrolls to top on new activity; stops if user scrolls down
+
+### Toast Notifications
+
+- Appears bottom-center when new incidents arrive via SSE
+- Clicking toast navigates to the incident
+- Auto-dismisses after 6 seconds
+
+### Map Pulse Animation
+
+- New incidents (from SSE `incident_created`) get a 1.8s expanding ring pulse
+- Ring color matches the incident's domain color
+- Auto-clears after animation completes
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 361 modules, 1.11MB JS, 69KB CSS |
+| `user-web` | ✅ 371 modules, 1.09MB JS, 68KB CSS |
+
+### Git Commit
+
+```
+feat: admin layout redesign — map-first HUD with live feed, domain filters, toast notifications, pulse animations
+```
+
+*End of session*

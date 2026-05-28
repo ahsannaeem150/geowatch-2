@@ -1,13 +1,26 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
-import IncidentTable from '../IncidentList/IncidentTable.jsx';
 import IncidentDetailPanel from '../IncidentDetail/IncidentDetailPanel.jsx';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
+import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
+import { API_BASE_URL } from '@shared/constants.js';
+
+const MAX_ACTIVITIES = 50;
+const LS_KEY = 'geowatch_admin_last_seen';
+
+function getLastSeen() {
+  const raw = localStorage.getItem(LS_KEY);
+  return raw ? parseInt(raw, 10) : Date.now();
+}
+
+function setLastSeen(ts) {
+  localStorage.setItem(LS_KEY, String(ts));
+}
 
 function getZoomForLocation(type, cls) {
   const t = (type || '').toLowerCase();
@@ -36,7 +49,7 @@ function getZoomForLocation(type, cls) {
 }
 
 export default function DashboardLayout() {
-  // Use local timezone date, not UTC (toISOString returns UTC which can be a day behind)
+  // Use local timezone date, not UTC
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -56,12 +69,50 @@ export default function DashboardLayout() {
   const [searchModalQuery, setSearchModalQuery] = useState('');
 
   // Smart viewport filtering state
-  const [viewportFiltering, setViewportFiltering] = useState(null); // null = unknown, true = on, false = off
+  const [viewportFiltering, setViewportFiltering] = useState(null);
   const [totalEventCount, setTotalEventCount] = useState(0);
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
-  // Fetch incidents: date-based with smart viewport only (search is independent)
+  // ─── Live Activity Feed ───
+  const [activities, setActivities] = useState([]);
+  const [feedCollapsed, setFeedCollapsed] = useState(false);
+  const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
+  const [newIncidentIds, setNewIncidentIds] = useState(new Set());
+  const esRef = useRef(null);
+
+  // ─── Domain Filters ───
+  const [activeDomainFilter, setActiveDomainFilter] = useState(null);
+
+  // Compute domain filter badges from current incidents
+  const domainFilters = useMemo(() => {
+    const counts = new Map();
+    incidents.forEach((i) => {
+      const id = i.domain_id || i.domain_name || 'unknown';
+      const name = i.domain_name || 'Unknown';
+      const color = i.domain_color || '#6b7280';
+      const icon = i.domain_icon || '•';
+      if (!counts.has(id)) {
+        counts.set(id, { id, name, color, icon, count: 0 });
+      }
+      counts.get(id).count += 1;
+    });
+    return Array.from(counts.values()).map((df) => ({
+      ...df,
+      active: activeDomainFilter === df.id,
+    }));
+  }, [incidents, activeDomainFilter]);
+
+  // Filtered incidents for display (domain filter applied)
+  const filteredIncidents = useMemo(() => {
+    if (!activeDomainFilter) return incidents;
+    return incidents.filter((i) => {
+      const id = i.domain_id || i.domain_name;
+      return id === activeDomainFilter;
+    });
+  }, [incidents, activeDomainFilter]);
+
+  // Fetch incidents: date-based with smart viewport only
   useEffect(() => {
     let cancelled = false;
 
@@ -69,36 +120,36 @@ export default function DashboardLayout() {
       setViewportFiltering(null);
       viewportFilteringRef.current = null;
 
+      const baseParams = {};
+      if (activeDomainFilter) baseParams.categoryId = ''; // domain filter is client-side for now
+
       // Step 1: Fetch without viewport to count total incidents for this date range
-      const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to };
+      const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
       const res1 = await api.getIncidents(params1);
 
       if (cancelled) return;
       setTotalEventCount(res1.data.count);
 
       if (res1.data.count <= 100) {
-        // Light load: show all incidents, no viewport filtering needed
         setEvents(res1.data.incidents);
         setViewportFiltering(false);
         viewportFilteringRef.current = false;
       } else {
-        // Heavy load: enable viewport filtering
         setViewportFiltering(true);
         viewportFilteringRef.current = true;
 
-        // Step 2: If viewport bounds are already known, fetch with them
         if (viewportBoundsRef.current) {
           const params2 = {
             dateFrom: dateRange.from,
             dateTo: dateRange.to,
             viewport: viewportBoundsRef.current,
+            ...baseParams,
           };
           const res2 = await api.getIncidents(params2);
           if (cancelled) return;
           setEvents(res2.data.incidents);
           setTotalEventCount(res2.data.count);
         } else {
-          // Bounds not ready yet — show the first batch temporarily
           setEvents(res1.data.incidents);
         }
       }
@@ -109,13 +160,12 @@ export default function DashboardLayout() {
     return () => {
       cancelled = true;
     };
-  }, [dateRange.from, dateRange.to, refreshKey]);
+  }, [dateRange.from, dateRange.to, refreshKey, activeDomainFilter]);
 
   // Handle viewport bounds changes from the map
   const handleViewportChange = useCallback((bounds) => {
     viewportBoundsRef.current = bounds;
 
-    // If viewport filtering is already active, re-fetch with new bounds
     if (viewportFilteringRef.current === true) {
       const params = {
         dateFrom: dateRange.from,
@@ -131,6 +181,116 @@ export default function DashboardLayout() {
     }
   }, [dateRange.from, dateRange.to]);
 
+  // ─── SSE Connection ───
+  useEffect(() => {
+    if (typeof EventSource === 'undefined') return;
+
+    const url = `${API_BASE_URL}/incidents/stream`;
+    const es = new EventSource(url);
+    esRef.current = es;
+
+    es.onopen = () => {
+      console.log('[SSE] Admin connected to GeoWatch stream');
+    };
+
+    es.onmessage = (e) => {
+      if (!e.data) return;
+      try {
+        const payload = JSON.parse(e.data);
+        if (!payload.type) return;
+
+        setActivities((prev) => {
+          const last = prev[0];
+          const ts = Date.now();
+          if (
+            last &&
+            last.type === payload.type &&
+            last.incidentId === (payload.incidentId || payload.incident?.id) &&
+            ts - last.timestamp < 2000
+          ) {
+            return prev;
+          }
+
+          const activity = {
+            type: payload.type,
+            incidentId: payload.incidentId || payload.incident?.id,
+            incident: payload.incident || null,
+            update: payload.update || null,
+            updateId: payload.updateId || null,
+            timestamp: ts,
+            isUnread: true,
+          };
+
+          return [activity, ...prev].slice(0, MAX_ACTIVITIES);
+        });
+
+        // If the activity is about an incident we know, refresh it in our list
+        if (payload.incident) {
+          setEvents((prev) => {
+            const exists = prev.find((ev) => ev.id === payload.incident.id);
+            if (exists) {
+              return prev.map((ev) => (ev.id === payload.incident.id ? payload.incident : ev));
+            }
+            return [payload.incident, ...prev];
+          });
+
+          // Mark as new for pulse animation
+          if (payload.type === 'incident_created') {
+            setNewIncidentIds((prev) => {
+              const next = new Set(prev);
+              next.add(payload.incident.id);
+              return next;
+            });
+
+            // Show toast notification
+            setToast({
+              message: `New incident: ${payload.incident.title}`,
+              type: 'info',
+              incidentId: payload.incident.id,
+            });
+
+            // Auto-clear pulse after 8 seconds
+            setTimeout(() => {
+              setNewIncidentIds((prev) => {
+                const next = new Set(prev);
+                next.delete(payload.incident.id);
+                return next;
+              });
+            }, 8000);
+          }
+        }
+
+        // Handle deletions
+        if (payload.type === 'incident_deleted') {
+          setEvents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
+        }
+      } catch (err) {
+        console.warn('[SSE] Failed to parse message:', err);
+      }
+    };
+
+    es.onerror = (err) => {
+      console.warn('[SSE] Connection error, will retry:', err);
+    };
+
+    return () => {
+      es.close();
+      esRef.current = null;
+    };
+  }, []);
+
+  // Mark unread items based on lastSeenTimestamp
+  useEffect(() => {
+    setActivities((prev) =>
+      prev.map((a) => ({
+        ...a,
+        isUnread: a.timestamp > lastSeenTimestamp,
+      }))
+    );
+  }, [lastSeenTimestamp]);
+
+  const unreadCount = activities.filter((a) => a.isUnread).length;
+
   // Auto-dismiss toast after 6 seconds
   useEffect(() => {
     if (!toast) return;
@@ -139,13 +299,11 @@ export default function DashboardLayout() {
   }, [toast]);
 
   const handleMapDblClick = useCallback((coords) => {
-    // Open form immediately — locationContext: undefined means "loading"
     setMarkerCoords({ lat: coords.lat, lng: coords.lng, locationContext: undefined });
     setSelectedIncident(null);
     setIsEditing(false);
     setPanelMode('form');
 
-    // Reverse geocode in background, update form when ready
     reverseGeocode(coords.lat, coords.lng).then((locationContext) => {
       setMarkerCoords((prev) => {
         if (!prev) return null;
@@ -228,7 +386,6 @@ export default function DashboardLayout() {
         setPanelMode('detail');
         setMarkerCoords(null);
 
-        // Notify admin if the incident has already ended (grace period expired)
         if (newIncident.end_date) {
           const graceEnd = new Date(new Date(newIncident.end_date).getTime() + 24 * 60 * 60 * 1000);
           if (graceEnd < new Date()) {
@@ -247,25 +404,70 @@ export default function DashboardLayout() {
     }
   };
 
-  const handleSelectFromTable = (incident) => {
-    handleEventClick(incident);
-  };
+  const handleSelectFromActivity = useCallback(
+    (incidentId, incidentData) => {
+      if (incidentData && incidentData.latitude && incidentData.longitude) {
+        setSelectedIncident(incidentData);
+        setIsEditing(false);
+        setPanelMode('detail');
+        setFlyToCoords({ lat: parseFloat(incidentData.latitude), lng: parseFloat(incidentData.longitude) });
+        setMarkerCoords(null);
+        return;
+      }
+      const found = incidents.find((i) => i.id === incidentId);
+      if (found) {
+        setSelectedIncident(found);
+        setIsEditing(false);
+        setPanelMode('detail');
+        setFlyToCoords({ lat: parseFloat(found.latitude), lng: parseFloat(found.longitude) });
+        setMarkerCoords(null);
+        return;
+      }
+      api
+        .getIncident(incidentId)
+        .then((res) => {
+          if (res.data?.incident) {
+            setSelectedIncident(res.data.incident);
+            setIsEditing(false);
+            setPanelMode('detail');
+            setFlyToCoords({ lat: parseFloat(res.data.incident.latitude), lng: parseFloat(res.data.incident.longitude) });
+            setMarkerCoords(null);
+          }
+        })
+        .catch(() => {
+          console.warn('Could not fetch incident', incidentId);
+        });
+    },
+    [incidents]
+  );
 
-  const handleEditFromTable = (incident) => {
-    setSelectedIncident(incident);
-    setIsEditing(true);
-    setPanelMode('form');
-    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
-    setMarkerCoords(null);
-  };
+  const handleEditFromActivity = useCallback(
+    (incidentId, incidentData) => {
+      const found = incidents.find((i) => i.id === incidentId) || incidentData;
+      if (found) {
+        setSelectedIncident(found);
+        setIsEditing(true);
+        setPanelMode('form');
+        setFlyToCoords({ lat: parseFloat(found.latitude), lng: parseFloat(found.longitude) });
+        setMarkerCoords(null);
+      }
+    },
+    [incidents]
+  );
 
-  const handleTableAction = (incidentId) => {
-    setRefreshKey((k) => k + 1);
-    if (selectedIncident?.id === incidentId) {
-      setSelectedIncident(null);
-      setPanelMode('empty');
-    }
-  };
+  const handleMarkAllRead = useCallback(() => {
+    const nowTs = Date.now();
+    setLastSeenTimestamp(nowTs);
+    setLastSeen(nowTs);
+  }, []);
+
+  const handleToggleCollapse = useCallback(() => {
+    setFeedCollapsed((prev) => !prev);
+  }, []);
+
+  const handleDomainFilterChange = useCallback((domainId) => {
+    setActiveDomainFilter((prev) => (prev === domainId ? null : domainId));
+  }, []);
 
   // Determine what to show in the right panel
   const renderPanel = () => {
@@ -291,46 +493,10 @@ export default function DashboardLayout() {
       );
     }
 
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          gap: '16px',
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '50%',
-            border: '2px dashed var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-          }}
-        >
-          🗺️
-        </div>
-        <div>
-          <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-            No Incident Selected
-          </p>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Double-click the map to create an incident
-            <br />
-            or click an existing marker to view details
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   };
+
+  const isPanelOpen = panelMode !== 'empty';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, var(--bg-deep) 55%)' }}>
@@ -365,24 +531,46 @@ export default function DashboardLayout() {
             textAlign: 'center',
             lineHeight: 1.5,
             animation: 'slideUp 0.3s ease-out',
+            cursor: toast.incidentId ? 'pointer' : 'default',
+          }}
+          onClick={() => {
+            if (toast.incidentId) {
+              const found = incidents.find((i) => i.id === toast.incidentId);
+              if (found) handleEventClick(found);
+              setToast(null);
+            }
           }}
         >
           {toast.message}
         </div>
       )}
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Map */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+        {/* Left — Live Activity Feed */}
+        <AdminLiveFeed
+          activities={activities}
+          onSelectEvent={handleSelectFromActivity}
+          onEditEvent={handleEditFromActivity}
+          isCollapsed={feedCollapsed}
+          onToggleCollapse={handleToggleCollapse}
+          unreadCount={unreadCount}
+          onMarkAllRead={handleMarkAllRead}
+          domainFilters={domainFilters}
+          onDomainFilterChange={handleDomainFilterChange}
+        />
+
+        {/* Center — Map */}
         <div
           style={{
-            width: '60%',
+            flex: 1,
             position: 'relative',
-            borderRight: '1px solid var(--border-subtle)',
+            borderRight: isPanelOpen ? '1px solid var(--border-subtle)' : 'none',
             background: 'var(--bg-deep)',
+            minWidth: 0,
           }}
         >
           <AdminMap
-            incidents={incidents}
+            incidents={filteredIncidents}
             selectedEventId={selectedIncident?.id}
             onEventClick={handleEventClick}
             onMapDblClick={handleMapDblClick}
@@ -390,9 +578,10 @@ export default function DashboardLayout() {
             flyToCoords={flyToCoords}
             markerCoords={markerCoords}
             ghostIncident={ghostIncident}
+            newIncidentIds={newIncidentIds}
           />
 
-          {/* Ghost incident banner — outside current date range */}
+          {/* Ghost incident banner */}
           {ghostIncident && (
             <div
               style={{
@@ -498,7 +687,6 @@ export default function DashboardLayout() {
                 const b = viewportBoundsRef.current;
                 if (!b) return null;
                 const [minLng, minLat, maxLng, maxLat] = b.split(',').map(Number);
-                // Nominatim viewbox format: left,top,right,bottom
                 return `${minLng},${maxLat},${maxLng},${minLat}`;
               })()}
             />
@@ -523,10 +711,13 @@ export default function DashboardLayout() {
             }}
           >
             <div>
-              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{incidents.length}</span>
+              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{filteredIncidents.length}</span>
               {' incidents visible'}
               {viewportFiltering === true && (
                 <span style={{ color: 'var(--text-muted)' }}> in current map area</span>
+              )}
+              {activeDomainFilter && (
+                <span style={{ color: 'var(--text-muted)' }}> (filtered)</span>
               )}
             </div>
             {viewportFiltering === true && totalEventCount > 100 && (
@@ -539,37 +730,22 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div
-          style={{
-            width: '40%',
-            overflowY: 'auto',
-            padding: '20px',
-            background: 'var(--bg-surface)',
-            borderLeft: '1px solid var(--border-subtle)',
-          }}
-        >
-          {renderPanel()}
-        </div>
-      </div>
-
-      {/* Incident Table */}
-      <div
-        style={{
-          height: '220px',
-          flexShrink: 0,
-          borderTop: '1px solid var(--border-subtle)',
-          background: 'var(--bg-deep)',
-          overflowY: 'auto',
-        }}
-      >
-        <IncidentTable
-          onSelect={handleSelectFromTable}
-          onEdit={handleEditFromTable}
-          onRefresh={handleTableAction}
-          refreshKey={refreshKey}
-          dateRange={dateRange}
-        />
+        {/* Right Panel — 630px slide-in */}
+        {isPanelOpen && (
+          <div
+            style={{
+              width: '630px',
+              overflowY: 'auto',
+              padding: '20px',
+              background: 'var(--bg-surface)',
+              borderLeft: '1px solid var(--border-subtle)',
+              flexShrink: 0,
+              animation: 'slideInRight 0.25s ease-out',
+            }}
+          >
+            {renderPanel()}
+          </div>
+        )}
       </div>
 
       {/* Search Modal */}
@@ -579,6 +755,14 @@ export default function DashboardLayout() {
         onClose={() => setSearchModalOpen(false)}
         onSelectEvent={handleSearchSelect}
       />
+
+      {/* Slide-in animation */}
+      <style>{`
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -28,12 +28,14 @@ export default function AdminMap({
   flyToCoords,
   markerCoords,
   ghostIncident,
+  newIncidentIds = new Set(),
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef(new Map());
   const tempMarker = useRef(null);
   const ghostMarkerRef = useRef(null);
+  const pulseMarkers = useRef(new Map());
   const isProgrammaticMove = useRef(false);
   const isClamping = useRef(false);
   const onViewportChangeRef = useRef(onViewportChange);
@@ -224,7 +226,51 @@ export default function AdminMap({
       marker._incidentData = incident;
       markers.current.set(incident.id, marker);
     });
-  }, [incidents]);
+
+    // Handle new incident pulse animations
+    if (newIncidentIds.size > 0) {
+      incidents.forEach((incident) => {
+        if (!newIncidentIds.has(incident.id)) return;
+        const existingPulse = pulseMarkers.current.get(incident.id);
+        if (existingPulse) return; // already pulsing
+
+        const lat = parseFloat(incident.latitude);
+        const lng = parseFloat(incident.longitude);
+        const color = incident.domain_color || '#6b7280';
+
+        const el = document.createElement('div');
+        el.style.width = '0';
+        el.style.height = '0';
+        el.style.position = 'relative';
+
+        const ring = document.createElement('div');
+        ring.style.position = 'absolute';
+        ring.style.left = '-24px';
+        ring.style.top = '-24px';
+        ring.style.width = '48px';
+        ring.style.height = '48px';
+        ring.style.borderRadius = '50%';
+        ring.style.border = `2px solid ${color}`;
+        ring.style.animation = 'new-pulse 1.8s ease-out 2';
+        ring.style.pointerEvents = 'none';
+        ring.style.opacity = '0.8';
+
+        el.appendChild(ring);
+
+        const pulseMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([lng, lat])
+          .addTo(map.current);
+
+        pulseMarkers.current.set(incident.id, pulseMarker);
+
+        // Remove after animation completes
+        setTimeout(() => {
+          pulseMarker.remove();
+          pulseMarkers.current.delete(incident.id);
+        }, 3600);
+      });
+    }
+  }, [incidents, newIncidentIds]);
 
   // Update selection styles WITHOUT recreating markers
   useEffect(() => {
@@ -374,6 +420,10 @@ export default function AdminMap({
           0% { transform: scale(1); opacity: 0.4; }
           50% { transform: scale(1.15); opacity: 0.2; }
           100% { transform: scale(1); opacity: 0.4; }
+        }
+        @keyframes new-pulse {
+          0% { transform: scale(0.5); opacity: 0.8; }
+          100% { transform: scale(3); opacity: 0; }
         }
       `}</style>
     </div>
