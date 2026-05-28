@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, Copy, Check } from 'lucide-react';
 import { api } from '../../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
@@ -12,6 +13,7 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey }) {
   const [error, setError] = useState('');
   const [expandedUpdateId, setExpandedUpdateId] = useState(null);
   const [justUpdated, setJustUpdated] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fetchData = () => {
     setLoading(true);
@@ -38,6 +40,14 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey }) {
       return () => clearTimeout(timer);
     }
   }, [refreshKey]);
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/map?incident=${incidentId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (loading) {
     return (
@@ -66,25 +76,49 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '13px',
-          fontWeight: 600,
-          color: 'var(--text-secondary)',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '0',
-          width: 'fit-content',
-        }}
-      >
-        ← Back to results
-      </button>
+      {/* Back + Share row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button
+          onClick={onBack}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0',
+            width: 'fit-content',
+          }}
+        >
+          ← Back to results
+        </button>
+
+        <button
+          onClick={handleCopyLink}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '12px',
+            fontWeight: 600,
+            color: copied ? 'var(--success)' : 'var(--text-muted)',
+            background: copied ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-elevated)',
+            border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.25)' : 'var(--border-subtle)'}`,
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+            padding: '6px 12px',
+            transition: 'all 0.2s ease',
+          }}
+          title="Copy shareable link"
+        >
+          {copied ? <Check size={14} /> : <Link size={14} />}
+          {copied ? 'Copied!' : 'Copy link'}
+        </button>
+      </div>
 
       {/* Header card */}
       <div

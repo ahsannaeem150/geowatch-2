@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from './components/Layout/Header.jsx';
@@ -18,6 +18,14 @@ const pageTransition = {
   ease: [0.16, 1, 0.3, 1],
 };
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
 
@@ -30,7 +38,7 @@ function AnimatedRoutes() {
         exit="exit"
         variants={pageVariants}
         transition={pageTransition}
-        style={{ flex: 1 }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
       >
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
@@ -45,20 +53,40 @@ function AnimatedRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <div
+      <AppContent />
+    </BrowserRouter>
+  );
+}
+
+function AppContent() {
+  const location = useLocation();
+  const isMapPage = location.pathname === '/map';
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--bg-deep)',
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-sans)',
+        overflow: isMapPage ? 'hidden' : 'auto',
+      }}
+    >
+      <ScrollToTop />
+      <Header />
+      <main
         style={{
-          minHeight: '100vh',
+          flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          background: 'var(--bg-deep)',
-          color: 'var(--text-primary)',
-          fontFamily: 'var(--font-sans)',
+          overflow: isMapPage ? 'hidden' : 'visible',
         }}
       >
-        <Header />
         <AnimatedRoutes />
-        <Footer />
-      </div>
-    </BrowserRouter>
+      </main>
+      {!isMapPage && <Footer />}
+    </div>
   );
 }

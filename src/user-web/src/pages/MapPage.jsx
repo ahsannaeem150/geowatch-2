@@ -40,6 +40,9 @@ export default function MapPage() {
     verifiedOnly: false,
   });
 
+  // Ghost fetch tracking
+  const ghostFetchAttempted = useRef(false);
+
   // Sync categoryId filter from URL params
   useEffect(() => {
     const cid = searchParams.get('categoryId');
@@ -128,15 +131,45 @@ export default function MapPage() {
     };
   }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity]);
 
-  // ─── Handle incident ID from URL ───
+  // ─── Handle incident ID from URL — robust deep-linking with ghost support ───
   useEffect(() => {
-    if (incidentIdFromUrl && incidents.length > 0) {
-      const incident = incidents.find((i) => i.id === incidentIdFromUrl);
-      if (incident) {
-        handleSelectIncident(incident);
-      }
+    if (!incidentIdFromUrl) {
+      ghostFetchAttempted.current = false;
+      return;
     }
-  }, [incidentIdFromUrl, incidents]);
+
+    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
+    if (inList) {
+      handleSelectIncident(inList);
+      ghostFetchAttempted.current = true;
+      return;
+    }
+
+    // Incident not in current list — fetch as ghost after initial load completes
+    if (incidents.length > 0 && !ghostFetchAttempted.current) {
+      ghostFetchAttempted.current = true;
+      api
+        .getIncident(incidentIdFromUrl)
+        .then((res) => {
+          if (res.data?.incident) {
+            setSelectedIncident(res.data.incident);
+            setFlyToCoords({
+              lat: parseFloat(res.data.incident.latitude),
+              lng: parseFloat(res.data.incident.longitude),
+              zoom: 10,
+            });
+          }
+        })
+        .catch(() => {
+          // Incident not found or deleted — clean up URL
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('incident');
+            return next;
+          });
+        });
+    }
+  }, [incidentIdFromUrl, incidents.length]);
 
   // ─── Handle viewport bounds changes from the map ───
   const handleViewportChange = useCallback((bounds) => {
@@ -316,7 +349,12 @@ export default function MapPage() {
         lng: parseFloat(incident.longitude),
         zoom: 10,
       });
-      setSearchParams({});
+      // Update URL to make incident shareable, preserving other params
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('incident', incident.id);
+        return next;
+      });
     },
     [setSearchParams]
   );
@@ -348,7 +386,13 @@ export default function MapPage() {
 
   const handleBack = useCallback(() => {
     setSelectedIncident(null);
-  }, []);
+    // Clear incident from URL while preserving other params
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('incident');
+      return next;
+    });
+  }, [setSearchParams]);
 
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });

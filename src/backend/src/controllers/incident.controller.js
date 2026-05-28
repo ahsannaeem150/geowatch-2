@@ -9,6 +9,8 @@ import {
 } from '../services/incident.service.js';
 import { createEventSource } from '../services/source.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
+import { auditLog } from '../utils/audit-log.js';
+import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
 export async function getIncidents(req, res) {
   const filters = {
@@ -87,6 +89,15 @@ export async function createIncidentController(req, res) {
   // Fetch enriched incident (with joined domain/category data) for broadcast
   const enriched = await getEventById(incident.id);
   broadcastEvent({ type: 'incident_created', incident: enriched?.incident || incident });
+
+  await auditLog(req, AUDIT_ACTIONS.INCIDENT_CREATED, 'incident', incident.id, {
+    title: incident.title,
+    severity: incident.severity,
+    categoryId: incident.category_id,
+    latitude: incident.latitude,
+    longitude: incident.longitude,
+  });
+
   res.apiSuccess({ incident: enriched?.incident || incident }, 'Incident created successfully');
 }
 
@@ -99,6 +110,12 @@ export async function updateIncidentController(req, res) {
   // Fetch enriched incident (with joined domain/category data + computed verification) for broadcast
   const enriched = await getEventById(req.params.id);
   broadcastEvent({ type: 'incident_updated', incident: enriched?.incident || incident });
+
+  await auditLog(req, AUDIT_ACTIONS.INCIDENT_UPDATED, 'incident', req.params.id, {
+    title: incident.title,
+    changedFields: Object.keys(req.body),
+  });
+
   res.apiSuccess({ incident: enriched?.incident || incident }, 'Incident updated successfully');
 }
 
@@ -108,6 +125,11 @@ export async function deleteIncidentController(req, res) {
     return res.apiError('Incident not found', 'NOT_FOUND', 404);
   }
   broadcastEvent({ type: 'incident_deleted', incidentId: req.params.id });
+
+  await auditLog(req, AUDIT_ACTIONS.INCIDENT_DELETED, 'incident', req.params.id, {
+    deletedAt: new Date().toISOString(),
+  });
+
   res.apiSuccess({ deleted: true });
 }
 
@@ -121,5 +143,12 @@ export async function resolveIncidentController(req, res) {
   // Fetch enriched incident for broadcast
   const enriched = await getEventById(req.params.id);
   broadcastEvent({ type: 'incident_resolved', incident: enriched?.incident || incident });
+
+  await auditLog(req, AUDIT_ACTIONS.INCIDENT_RESOLVED, 'incident', req.params.id, {
+    title: incident.title,
+    resolvedAt: incident.resolved_at,
+    resolvedBy: req.user.id,
+  });
+
   res.apiSuccess({ incident: enriched?.incident || incident });
 }

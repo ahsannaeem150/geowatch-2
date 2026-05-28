@@ -21,6 +21,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const allowedOrigins = [
   process.env.USER_WEB_URL || 'http://localhost:5173',
   process.env.ADMIN_WEB_URL || 'http://localhost:5174',
+  process.env.SUPERADMIN_WEB_URL || 'http://localhost:5175',
 ].filter(Boolean);
 
 app.use(

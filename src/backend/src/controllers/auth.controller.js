@@ -3,9 +3,12 @@ import {
   createUser,
   listAdmins,
   updateAdmin,
+  updateLastLogin,
   comparePassword,
   generateToken,
 } from '../services/auth.service.js';
+import { auditLog } from '../utils/audit-log.js';
+import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
 /**
  * POST /auth/login
@@ -28,8 +31,19 @@ export async function login(req, res) {
     return res.apiError('Account is deactivated', 'FORBIDDEN', 403);
   }
 
-  const token = generateToken(user);
-  const { password_hash, ...userWithoutPassword } = user;
+  // Update last login timestamp
+  await updateLastLogin(user.id);
+
+  // Refetch user so last_login_at is current in the response
+  const refreshedUser = await findUserByEmail(user.email);
+  const token = generateToken(refreshedUser);
+  const { password_hash, ...userWithoutPassword } = refreshedUser;
+
+  // Audit: successful login
+  await auditLog(req, AUDIT_ACTIONS.USER_LOGIN, 'user', refreshedUser.id, {
+    email: refreshedUser.email,
+    role: refreshedUser.role,
+  }, refreshedUser);
 
   res.apiSuccess({ token, user: userWithoutPassword });
 }
@@ -52,6 +66,15 @@ export async function register(req, res) {
   }
 
   const user = await createUser({ email, password, fullName, role });
+
+  // Audit: user created
+  await auditLog(req, AUDIT_ACTIONS.USER_CREATED, 'user', user.id, {
+    email: user.email,
+    fullName: user.full_name,
+    role: user.role,
+    createdBy: req.user.email,
+  });
+
   res.apiSuccess({ user }, 'User created successfully');
 }
 
@@ -85,6 +108,19 @@ export async function updateAdminController(req, res) {
   if (!updated) {
     return res.apiError('Admin not found', 'NOT_FOUND', 404);
   }
+
+  // Determine the specific audit action based on what changed
+  let action = AUDIT_ACTIONS.USER_UPDATED;
+  if (isActive !== undefined) {
+    action = isActive ? AUDIT_ACTIONS.USER_ACTIVATED : AUDIT_ACTIONS.USER_DEACTIVATED;
+  }
+
+  await auditLog(req, action, 'user', updated.id, {
+    email: updated.email,
+    role: updated.role,
+    isActive: updated.is_active,
+    changedFields: { role, isActive },
+  });
 
   res.apiSuccess({ user: updated });
 }

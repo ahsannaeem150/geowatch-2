@@ -12,6 +12,13 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 
 // ─── Helpers ───
 
+export async function updateLastLogin(id) {
+  await query(
+    'UPDATE users SET last_login_at = NOW() WHERE id = $1',
+    [id]
+  );
+}
+
 export function hashPassword(plainPassword) {
   return bcrypt.hashSync(plainPassword, BCRYPT_ROUNDS);
 }
@@ -36,7 +43,7 @@ export function verifyToken(token) {
 
 export async function findUserByEmail(email) {
   const result = await query(
-    'SELECT id, email, password_hash, full_name, role, is_active, created_at FROM users WHERE email = $1',
+    'SELECT id, email, password_hash, full_name, role, is_active, created_at, last_login_at FROM users WHERE email = $1',
     [email.toLowerCase().trim()]
   );
   return result.rows[0] || null;
@@ -44,7 +51,7 @@ export async function findUserByEmail(email) {
 
 export async function findUserById(id) {
   const result = await query(
-    'SELECT id, email, full_name, role, is_active, created_at FROM users WHERE id = $1',
+    'SELECT id, email, full_name, role, is_active, created_at, last_login_at FROM users WHERE id = $1',
     [id]
   );
   return result.rows[0] || null;
@@ -63,7 +70,7 @@ export async function createUser({ email, password, fullName, role }) {
 
 export async function listAdmins() {
   const result = await query(
-    `SELECT id, email, full_name, role, is_active, created_at
+    `SELECT id, email, full_name, role, is_active, created_at, last_login_at
      FROM users
      WHERE role IN ('super_admin', 'admin')
      ORDER BY created_at DESC`
@@ -91,7 +98,7 @@ export async function updateAdmin(id, { role, isActive }) {
 
   values.push(id);
   const result = await query(
-    `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING id, email, full_name, role, is_active, created_at`,
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING id, email, full_name, role, is_active, created_at, last_login_at`,
     values
   );
   return result.rows[0] || null;

@@ -2639,3 +2639,236 @@ feat: add hover preview popup on map markers for both user and admin webs
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-10 — Feature: Awwwards-Level Homepage Overhaul + Hero Map + Shareable URLs
+
+### Summary
+Completely rebuilt the user-web homepage from a basic landing page into a production-grade, awwwards-level experience. Added a live MapLibre map as the hero background, animated stats, Lucide icons, scroll-driven reveals, a boot sequence, news ticker, and robust shareable incident URLs via deep-linking with ghost incident support.
+
+---
+
+### 1. Homepage Foundation
+
+**Installed dependencies:**
+- `lucide-react` — professional SVG icons replacing all emojis
+- `framer-motion` — page transitions and scroll animations
+
+**New animation infrastructure:**
+| File | Purpose |
+|:--|:--|
+| `src/user-web/src/components/Home/useInView.js` | Intersection Observer hook for scroll-triggered animations |
+| `src/user-web/src/components/Home/useCountUp.js` | RAF-based number counter with ease-out-quart |
+| `src/user-web/src/components/Home/FadeIn.jsx` | Reusable scroll-triggered fade-in wrapper |
+| `src/user-web/src/pages/HomePage.css` | 500+ lines of homepage-specific styles (keyframes, hover states, responsive) |
+
+**New global keyframes in `index.css`:**
+- `pulse-ring` / `pulse-ring-delayed` — concentric radar rings
+- `fade-in-up` / `fade-in` / `scale-in` — entrance animations
+- `scroll-indicator` — animated dot traveling down a line
+- `marquee` — infinite horizontal scroll
+- `boot-cursor` / `boot-line` — terminal boot sequence
+- `gradient-shift` — animated gradient background
+- `scan-line` — traveling glow dot on section dividers
+
+---
+
+### 2. Hero Section — Live Map Background
+
+**Replaced particle canvas with live MapLibre map:**
+- `HeroMap.jsx` — fetches active incidents, plots colored glow dots sized by severity
+- Very slow auto-drift animation (orbital movement)
+- Hover: dots scale 1.5×, click → navigates to incident on full map
+- `interactive: false` so page scroll still works
+
+**Text readability layers:**
+- Radial gradient: center 30% dark → edges 95% dark
+- Vertical gradient: top/bottom heavily darkened
+- Horizontal gradient: left/right edges darkened
+- Subtle scanline texture overlay
+
+**Typography:**
+- Headline: `clamp(48px, 10vw, 96px)` with `-webkit-background-clip: text` gradient on accent phrase
+- Text shadow glow: `drop-shadow(0 0 40px rgba(159, 18, 57, 0.3))`
+
+---
+
+### 3. Stats Section
+
+| Feature | Detail |
+|:--|:--|
+| **4th stat** | "Data Sources" — counts unique `source_name` from all incidents |
+| **Count-up animation** | Numbers animate from 0 over 1.4s with ease-out-quart when scrolled into view |
+| **Staggered reveal** | Cards appear 100ms apart, sliding up + fading in |
+| **Hover glow** | Border + top accent line glows in the stat's color |
+| **Skeleton loading** | Shimmering rectangles instead of "—" text |
+
+---
+
+### 4. Category Grid — Command Tiles
+
+- **Lucide icons** — `Shield`, `Target`, `Flame`, `Swords`, `Waves`, `Globe`, `Plane`, `Eye`, etc. Zero emojis
+- **Bigger cards** — `minmax(220px, 1fr)`, `min-height: 160px`
+- **Hover expansion** — Card lifts, icon scales + rotates 3°, incident count fades in below title
+- **Dynamic counts** — Fetches active incidents and counts per domain in real-time
+- **Skeleton loading** — Proper shimmer skeletons for the entire grid
+
+---
+
+### 5. Featured Events — Intelligence Briefings
+
+- **Domain-colored top border** — 2px strip in the incident's domain color
+- **Severity strip** — 3px vertical bar on left edge (green → red), widens on hover
+- **Better hover** — `translateY(-4px) scale(1.01)` + shadow + border glow
+- **Improved typography** — 16px title with `letter-spacing: 0.2px`, proper line-clamp
+- **Empty state** — Shows "No active incidents" message instead of returning `null`
+
+---
+
+### 6. Global Polish
+
+| Feature | Detail |
+|:--|:--|
+| **Scroll-triggered reveals** | Every section fades in + slides up when entering viewport |
+| **News ticker marquee** | Horizontal infinite scroll of recent incident titles, pauses on hover |
+| **Section dividers** | Thin line with glowing dot that travels across |
+| **Skeleton states everywhere** | No more "Loading..." text |
+| **Custom scrollbar** | Crimson-tinted thumb |
+| **Boot sequence** | Terminal-style 1.4s boot animation on first visit per session |
+| **Page transitions** | Framer Motion `AnimatePresence` — smooth fade/slide between pages |
+| **Header glassmorphism** | Transparent + blur when scrolled, solid when at top |
+| **Footer upgrade** | Grid texture, operational status badge, version number |
+
+---
+
+### 7. Map Page Scroll Fix
+
+**Problem:** Navigating from homepage (scrolled down) to map page preserved scroll position. Footer on map page caused extra scrollable height.
+
+**Fixes in `App.jsx`:**
+- `ScrollToTop` component — calls `window.scrollTo(0, 0)` on every route change
+- Footer hidden when `location.pathname === '/map'`
+- `<main>` gets `overflow: hidden` on map page
+
+---
+
+### 8. Shareable Incident URLs (Ghost Incident Deep-Linking)
+
+**Problem:** `/map?incident=uuid` only worked if the incident was in the current date range.
+
+**Solution in `MapPage.jsx`:**
+1. When `?incident=uuid` is present and incident is NOT in loaded list → fetch via `api.getIncident(id)`
+2. Set `selectedIncident` directly → `ghostIncident` is automatically computed (not in `incidents` list)
+3. Map shows **ghost marker** (dashed border, muted color)
+4. **Ghost banner** appears: "[Title] occurred on [date] — outside your current date range" with "Switch to this date" button
+5. Detail panel opens with full incident info
+
+**URL sync on select/clear:**
+- Select incident → URL updates to `/map?incident=uuid` (preserves other params like `categoryId`)
+- Back/close → URL param cleared
+- Address bar is always copy-paste ready
+
+**"Copy link" button in `IncidentDetailView.jsx`:**
+- Lucide `Link` / `Check` icons
+- Copies `${window.location.origin}/map?incident=${id}` to clipboard
+- "Copied!" green feedback for 2 seconds
+
+**Deleted/hidden incident handling:**
+- API 404 → URL param auto-cleared, page stays functional
+
+---
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/index.css` | 10+ new keyframe animations, smooth scroll, crimson scrollbar |
+| `src/user-web/src/pages/HomePage.css` | **New** — 500+ lines of homepage styles |
+| `src/user-web/src/pages/HomePage.jsx` | Rewrote — boot sequence, news ticker, section dividers |
+| `src/user-web/src/components/Home/HeroSection.jsx` | Rewrote — live map background, massive typography, glassmorphism badge |
+| `src/user-web/src/components/Home/HeroMap.jsx` | **New** — MapLibre map with incident dots, auto-drift, hover/click |
+| `src/user-web/src/components/Home/StatsSection.jsx` | Rewrote — count-up, 4th stat, staggered reveal, skeletons |
+| `src/user-web/src/components/Home/CategoryGrid.jsx` | Rewrote — Lucide icons, hover stats, skeletons |
+| `src/user-web/src/components/Home/FeaturedEvents.jsx` | Rewrote — severity strips, domain borders, empty state, skeletons |
+| `src/user-web/src/components/Home/ParticleCanvas.jsx` | **New** — canvas particle network (replaced by HeroMap) |
+| `src/user-web/src/components/Home/BootSequence.jsx` | **New** — terminal boot animation |
+| `src/user-web/src/components/Home/NewsTicker.jsx` | **New** — infinite marquee ticker |
+| `src/user-web/src/components/Home/FadeIn.jsx` | **New** — scroll-triggered fade-in wrapper |
+| `src/user-web/src/components/Home/useInView.js` | **New** — Intersection Observer hook |
+| `src/user-web/src/components/Home/useCountUp.js` | **New** — RAF-based count-up with easing |
+| `src/user-web/src/components/Layout/Header.jsx` | Updated — glassmorphism on scroll |
+| `src/user-web/src/components/Layout/Footer.jsx` | Updated — grid texture, status badge, version |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` | Updated — "Copy link" button with clipboard API |
+| `src/user-web/src/pages/MapPage.jsx` | Updated — ghost incident deep-linking, URL sync on select/back |
+| `src/user-web/src/App.jsx` | Updated — ScrollToTop, conditional footer, overflow lock on map |
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `user-web` | ✅ 371 modules, 1.25MB JS, 81KB CSS |
+
+### Git Commit
+
+```
+feat: awwwards-level homepage with live map hero, animated stats, shareable incident urls
+```
+
+*End of session*
+
+
+---
+
+## 📅 2026-05-29 — Module: Superadmin Phase 1 — Audit Logging Foundation
+
+### Summary
+Built the complete audit logging foundation for the superadmin panel. Created the `audit_logs` table, added `last_login_at` to `users`, built a bulletproof `auditLog()` utility, and wired it into every mutating controller across the backend. Every create, update, delete, resolve, login, and user-management action is now immutably recorded.
+
+### Database Changes
+
+| Change | Details |
+|:--|:--|
+| `audit_logs` table (new) | `id BIGSERIAL, user_id UUID FK, user_email, action VARCHAR(50), target_type, target_id, details JSONB, ip_address INET, user_agent TEXT, created_at TIMESTAMPTZ` |
+| Indexes (5) | `idx_audit_logs_user_id`, `idx_audit_logs_action`, `idx_audit_logs_target`, `idx_audit_logs_created_at` — optimized for superadmin filtering |
+| `users.last_login_at` | New `TIMESTAMPTZ` column; updated on every successful login |
+| Grants | `geowatch_user` granted `SELECT, INSERT` on `audit_logs` + sequence usage |
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `docs/migrations/001_superadmin_foundation.sql` | Complete migration script: audit_logs table, indexes, user column, grants |
+| `src/backend/src/utils/audit-actions.js` | 17 action constants (`user_*`, `incident_*`, `source_*`, `timeline_*`, `export_*`, `setting_*`) with human-readable labels and UI color codes |
+| `src/backend/src/utils/audit-log.js` | Bulletproof audit logger: IP extraction (X-Forwarded-For aware), detail sanitization (strips passwords/tokens), NEVER throws — failures logged to stderr only, supports `userOverride` for login where `req.user` doesn't exist |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/auth.service.js` | Added `last_login_at` to all user SELECTs; added `updateLastLogin(id)` function |
+| `src/backend/src/controllers/auth.controller.js` | Login: updates `last_login_at` + audits `user_login`; Register: audits `user_created`; UpdateAdmin: audits `user_updated` / `user_deactivated` / `user_activated` based on what changed; login response refetches user so `last_login_at` is current |
+| `src/backend/src/controllers/incident.controller.js` | Create: audits `incident_created` with title/severity/geo; Update: audits `incident_updated` with changed fields; Delete: audits `incident_deleted`; Resolve: audits `incident_resolved` with resolved timestamp |
+| `src/backend/src/controllers/source.controller.js` | Create: audits `source_added` with source type; Update verification: audits `source_updated` with verification status |
+| `src/backend/src/controllers/timeline.controller.js` | Create: audits `timeline_added` with summary; Update: audits `timeline_updated` with changed fields; Delete: audits `timeline_deleted` |
+| `src/backend/server.js` | Added `SUPERADMIN_WEB_URL` to CORS allowed origins |
+| `src/backend/.env.development` | Added `SUPERADMIN_WEB_URL=http://localhost:5175` |
+
+### Verified End-to-End
+
+| Test | Result |
+|:--|:--|
+| Login → `last_login_at` updated in DB | ✅ |
+| Login → `user_login` audit entry with email/role/IP | ✅ |
+| Login response includes current `last_login_at` | ✅ |
+| Incident create → `incident_created` audit with title/severity/lat/lng | ✅ |
+| Incident delete → `incident_deleted` audit with timestamp | ✅ |
+| All syntax checks pass | ✅ |
+
+### Git Commit
+
+```
+feat(superadmin): phase 1 — audit logging foundation with audit_logs table, last_login_at, and wired controllers
+```
+
+*End of Phase 1*
