@@ -1,7 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
+import { format } from 'date-fns';
 
 const MAP_STYLE_URL = '/map-style-dark.json';
 
@@ -36,6 +37,8 @@ export default function AdminMap({
   const tempMarker = useRef(null);
   const ghostMarkerRef = useRef(null);
   const pulseMarkers = useRef(new Map());
+  const popupRef = useRef(null);
+  const popupTimeoutRef = useRef(null);
   const isProgrammaticMove = useRef(false);
   const isClamping = useRef(false);
   const onViewportChangeRef = useRef(onViewportChange);
@@ -126,6 +129,7 @@ export default function AdminMap({
     return () => {
       markers.current.forEach((m) => m.remove());
       tempMarker.current?.remove();
+      popupRef.current?.remove();
       map.current?.remove();
     };
   }, []);
@@ -242,8 +246,39 @@ export default function AdminMap({
         visual.style.zIndex = '';
       });
 
+      // Hover popup
+      const showPopup = () => {
+        const data = marker._incidentData;
+        if (!data) return;
+        if (popupRef.current) popupRef.current.remove();
+        popupRef.current = new maplibregl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 12,
+          className: 'geowatch-popup',
+        })
+          .setLngLat([parseFloat(data.longitude), parseFloat(data.latitude)])
+          .setHTML(buildPopupHTML(data, true))
+          .addTo(map.current);
+      };
+
+      const hidePopup = () => {
+        clearTimeout(popupTimeoutRef.current);
+        if (popupRef.current) {
+          popupRef.current.remove();
+          popupRef.current = null;
+        }
+      };
+
+      visual.addEventListener('mouseenter', () => {
+        clearTimeout(popupTimeoutRef.current);
+        popupTimeoutRef.current = setTimeout(showPopup, 200);
+      });
+      visual.addEventListener('mouseleave', hidePopup);
+
       // Click: NO stopPropagation — let MapLibre clean up properly
       el.addEventListener('click', () => {
+        hidePopup();
         onEventClick?.(incident);
       });
 
@@ -455,7 +490,70 @@ export default function AdminMap({
           0% { transform: scale(0.5); opacity: 0.8; }
           100% { transform: scale(3); opacity: 0; }
         }
+        .geowatch-popup .maplibregl-popup-content {
+          background: var(--bg-surface);
+          color: var(--text-primary);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-subtle);
+          padding: 0;
+          box-shadow: var(--shadow-lg);
+          font-family: var(--font-sans);
+          max-width: 280px;
+        }
+        .geowatch-popup .maplibregl-popup-tip {
+          border-top-color: var(--bg-surface);
+        }
       `}</style>
     </div>
   );
+}
+
+function buildPopupHTML(incident, isAdmin) {
+  const vCfg = incident.verification_status ? VERIFICATION_CONFIG[incident.verification_status] : null;
+  const sevCfg = SEVERITY_SCALE.find((s) => s.value === incident.severity) || SEVERITY_SCALE[2];
+  const dateStr = incident.start_date
+    ? format(new Date(incident.start_date), 'MMM d, yyyy · h:mm a')
+    : '';
+  const desc = incident.description
+    ? incident.description.length > 100
+      ? incident.description.slice(0, 100) + '...'
+      : incident.description
+    : '';
+
+  const adminActions = isAdmin
+    ? `<div style="display: flex; gap: 6px; margin-top: 8px;">
+        <span style="font-size: 11px; color: var(--accent-light); font-weight: 600; cursor: pointer;">Click to edit →</span>
+      </div>`
+    : `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
+        <span style="font-size: 11px; color: var(--accent-light); font-weight: 600;">Click for details →</span>
+      </div>`;
+
+  return `
+    <div style="padding: 12px;">
+      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;">
+        <span style="font-size: 10px; font-weight: 700; color: ${incident.domain_color || '#6b7280'}; background: ${(incident.domain_color || '#6b7280') + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+          ${incident.domain_name || 'Unknown'}
+        </span>
+        <span style="font-size: 10px; font-weight: 700; color: ${sevCfg.color}; background: ${sevCfg.color + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+          ${sevCfg.label}
+        </span>
+        ${vCfg ? `<span style="font-size: 10px; font-weight: 700; color: ${vCfg.color}; background: ${vCfg.color + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">${vCfg.icon} ${vCfg.label}</span>` : ''}
+      </div>
+      <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">
+        ${escapeHtml(incident.title)}
+      </div>
+      ${desc ? `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.4;">${escapeHtml(desc)}</div>` : ''}
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
+        <span>📍 ${incident.location_context ? escapeHtml(incident.location_context) : `${parseFloat(incident.latitude).toFixed(3)}, ${parseFloat(incident.longitude).toFixed(3)}`}</span>
+      </div>
+      ${dateStr ? `<div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px;">📅 ${dateStr}</div>` : ''}
+      ${adminActions}
+    </div>
+  `;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }

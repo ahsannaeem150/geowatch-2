@@ -2561,3 +2561,81 @@ fix: broadcast enriched incidents via SSE to preserve domain_color + add source 
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-05-09 — Feature: Hover Preview Popup on Map Markers
+
+### Summary
+Added a MapLibre hover popup that appears next to markers when the user hovers over them. Shows key incident info (title, domain, severity, verification, location, date, truncated description) without requiring a click. Clicking still opens the full detail panel.
+
+### How It Works
+
+| Action | Result |
+|:--|:--|
+| Hover over marker | A styled card appears next to the marker after 200ms (prevents flicker on fast mouse movement) |
+| Mouse leaves marker | Popup fades out immediately |
+| Click marker | Popup closes, full detail panel opens (existing behavior) |
+
+### Popup Content
+
+```
+┌────────────────────────────────┐
+│ 🔴 Conflict    ✓ Verified      │  ← Badges row
+│                                │
+│ Shelling near Gaza Strip       │  ← Title
+│ Reports of heavy shelling...   │  ← Truncated description (100 chars)
+│                                │
+│ 📍 Gaza City                   │  ← Location
+│ 📅 May 5, 2026 · 2:30 PM       │  ← Date
+│ ─────────────────────────────  │
+│ Click for details →            │  ← CTA (admin: "Click to edit →")
+└────────────────────────────────┘
+```
+
+### Technical Details
+
+- **MapLibre `Popup`** with `closeButton: false`, `closeOnClick: false`, `offset: 12`
+- **200ms hover delay** — `setTimeout` on `mouseenter`, cleared on `mouseleave`
+- **Single popup instance** — reused across markers, removed before showing a new one
+- **Reads `_incidentData`** — so updated incidents (from SSE) always show fresh data
+- **Custom dark CSS** — `.geowatch-popup .maplibregl-popup-content` styled with `var(--bg-surface)`, `var(--border-subtle)`, `var(--shadow-lg)`
+- **Smart positioning** — MapLibre auto-flips the popup if the marker is near the viewport edge
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/components/Map/UserMap.jsx` | Added `popupRef` + `popupTimeoutRef`. Hover handlers on each marker's visual element: `mouseenter` → delayed popup show, `mouseleave` → popup hide, `click` → popup hide then `onEventClick`. `buildPopupHTML()` helper generates styled HTML card. Popup CSS added to `<style>` block |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Same popup logic as user map. `buildPopupHTML()` includes admin CTA text ("Click to edit →"). Popup cleanup added to unmount effect |
+
+### Popup Styling (shared)
+
+```css
+.geowatch-popup .maplibregl-popup-content {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  padding: 0;
+  box-shadow: var(--shadow-lg);
+  max-width: 280px;
+}
+.geowatch-popup .maplibregl-popup-tip {
+  border-top-color: var(--bg-surface);
+}
+```
+
+### Build Verification
+
+| App | Result |
+|:--|:--|
+| `admin-web` | ✅ 361 modules, 1.13MB JS, 69KB CSS |
+| `user-web` | ✅ 371 modules, 1.10MB JS, 68KB CSS |
+
+### Git Commit
+
+```
+feat: add hover preview popup on map markers for both user and admin webs
+```
+
+*End of session*
