@@ -1,15 +1,39 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Info } from 'lucide-react';
-import ParticleCanvas from './ParticleCanvas.jsx';
+import HeroMap from './HeroMap.jsx';
 import FadeIn from './FadeIn.jsx';
 
 export default function HeroSection() {
   return (
     <section className="home-hero">
-      <ParticleCanvas />
-      <div className="home-hero__grid" />
-      <div className="home-hero__vignette" />
+      <HeroMap />
+
+      {/* Strong multi-layer gradient overlays for text readability */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: 'none',
+          background: `
+            radial-gradient(ellipse 60% 50% at 50% 50%, rgba(5,5,5,0.3) 0%, rgba(5,5,5,0.7) 70%, rgba(5,5,5,0.95) 100%),
+            linear-gradient(to bottom, rgba(5,5,5,0.8) 0%, rgba(5,5,5,0.2) 30%, rgba(5,5,5,0.2) 70%, rgba(5,5,5,0.9) 100%),
+            linear-gradient(to right, rgba(5,5,5,0.6) 0%, rgba(5,5,5,0) 30%, rgba(5,5,5,0) 70%, rgba(5,5,5,0.6) 100%)
+          `,
+        }}
+      />
+
+      {/* Subtle animated scan line */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: 'none',
+          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)',
+        }}
+      />
 
       <div className="home-hero__content">
         <FadeIn delay={200}>
