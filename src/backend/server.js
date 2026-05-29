@@ -42,10 +42,7 @@ app.use(express.urlencoded({ extended: true }));
 // ─── Response Wrapper ───
 app.use(responseWrapper);
 
-// ─── Rate Limiting ───
-app.use(generalLimiter);
-
-// ─── SSE Stream Endpoint (must be before incident routes to avoid /:id collision) ───
+// ─── SSE Stream Endpoint (before rate limiter — long-lived connections should not count toward the general limit) ───
 app.get('/api/v1/incidents/stream', authenticate, (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -61,6 +58,9 @@ app.get('/api/v1/incidents/stream', authenticate, (req, res) => {
     removeClient(res);
   });
 });
+
+// ─── Rate Limiting (applied to all API routes, NOT the SSE stream) ───
+app.use(generalLimiter);
 
 // ─── API Routes ───
 app.use('/api/v1', healthRoutes);

@@ -30,6 +30,11 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   const [resolveDate, setResolveDate] = useState('');
   const [resolveLoading, setResolveLoading] = useState(false);
 
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
   // Verification override state
   const [overrideLoading, setOverrideLoading] = useState(false);
 
@@ -67,6 +72,25 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   const openResolveModal = () => {
     setResolveDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
     setShowResolveModal(true);
+  };
+  const openDeleteModal = () => setShowDeleteModal(true);
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteError('');
+  };
+  const handleConfirmDelete = async () => {
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      await api.deleteIncident(incidentId);
+      setShowDeleteModal(false);
+      onClose?.();
+      window.dispatchEvent(new CustomEvent('incident-deleted', { detail: { incidentId, incidentTitle: data?.incident?.title } }));
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete incident');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const handleUpdateOverride = async (newOverride) => {
@@ -698,10 +722,46 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
         <Button variant="primary" onClick={() => onEdit?.(incident)}>
           Edit Incident
         </Button>
+        <Button variant="ghost" style={{ color: 'var(--danger)' }} onClick={openDeleteModal}>
+          Delete
+        </Button>
         <Button variant="ghost" onClick={onClose}>
           Close
         </Button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1100,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: 'rgba(28, 28, 36, 0.5)', borderRadius: '8px', padding: '24px', width: '420px', maxWidth: '90%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.08)'
+          }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: '18px' }}>Delete Incident</h3>
+            <p style={{ margin: '0 0 16px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+              Are you sure you want to delete <strong>{incident.title}</strong>?
+              It will be moved to the Recycle Bin and can be restored within 30 days.
+            </p>
+            {deleteError && (
+              <div style={{ color: 'var(--danger)', fontSize: '13px', marginBottom: '12px' }}>{deleteError}</div>
+            )}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <Button variant="ghost" size="sm" onClick={closeDeleteModal} disabled={deleteLoading}>
+                Cancel
+              </Button>
+              <Button variant="danger" size="sm" onClick={handleConfirmDelete} disabled={deleteLoading}>
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

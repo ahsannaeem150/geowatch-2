@@ -18,6 +18,10 @@ import {
   createIncidentController,
   updateIncidentController,
   deleteIncidentController,
+  restoreIncidentController,
+  purgeIncidentController,
+  listDeletedIncidentsController,
+  getDeletedIncidentController,
   resolveIncidentController,
 } from '../controllers/incident.controller.js';
 
@@ -26,6 +30,22 @@ const router = Router();
 // Public routes
 router.get('/', validateRequest(listIncidentsQuerySchema, 'query'), asyncHandler(getIncidents));
 router.get('/search', validateRequest(searchIncidentsQuerySchema, 'query'), asyncHandler(searchIncidentsController));
+
+// Superadmin recycle bin routes (must be before /:id to avoid "deleted" being parsed as an ID)
+router.get(
+  '/deleted',
+  authenticate,
+  requireRole(['super_admin']),
+  asyncHandler(listDeletedIncidentsController)
+);
+
+router.get(
+  '/deleted/:id',
+  authenticate,
+  requireRole(['super_admin']),
+  asyncHandler(getDeletedIncidentController)
+);
+
 router.get('/:id', asyncHandler(getIncident));
 
 // Admin routes
@@ -61,6 +81,22 @@ router.post(
   requireRole(['admin', 'super_admin']),
   adminWriteLimiter,
   asyncHandler(resolveIncidentController)
+);
+
+router.post(
+  '/:id/restore',
+  authenticate,
+  requireRole(['super_admin']),
+  adminWriteLimiter,
+  asyncHandler(restoreIncidentController)
+);
+
+router.post(
+  '/:id/purge',
+  authenticate,
+  requireRole(['super_admin']),
+  adminWriteLimiter,
+  asyncHandler(purgeIncidentController)
 );
 
 export default router;

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-const RECONNECT_DELAY = 3000;
-const MAX_RECONNECT_ATTEMPTS = 10;
+const RECONNECT_DELAY = 5000;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 /**
  * React hook for Server-Sent Events (SSE)
@@ -19,6 +19,18 @@ export function useEventSource({ onEvent, onConnect, onDisconnect }) {
   const esRef = useRef(null);
   const timersRef = useRef([]);
 
+  // Use refs for callbacks so connect() doesn't recreate on every render
+  const onEventRef = useRef(onEvent);
+  const onConnectRef = useRef(onConnect);
+  const onDisconnectRef = useRef(onDisconnect);
+  const reconnectAttemptRef = useRef(reconnectAttempt);
+
+  // Keep refs in sync with latest props/state
+  onEventRef.current = onEvent;
+  onConnectRef.current = onConnect;
+  onDisconnectRef.current = onDisconnect;
+  reconnectAttemptRef.current = reconnectAttempt;
+
   const clearTimers = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
@@ -33,10 +45,12 @@ export function useEventSource({ onEvent, onConnect, onDisconnect }) {
     }
 
     const token = localStorage.getItem('superadmin_token');
+    if (!token) {
+      // No token available — skip connection, will retry on next render if token appears
+      return;
+    }
     const url = `${API_BASE}/incidents/stream`;
-
-    // EventSource does not support custom headers, so we append token as query param
-    const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
+    const fullUrl = `${url}?token=${encodeURIComponent(token)}`;
 
     const es = new EventSource(fullUrl);
     esRef.current = es;
@@ -44,14 +58,14 @@ export function useEventSource({ onEvent, onConnect, onDisconnect }) {
     es.onopen = () => {
       setConnected(true);
       setReconnectAttempt(0);
-      onConnect?.();
+      onConnectRef.current?.();
     };
 
     es.onmessage = (e) => {
       if (!e.data || e.data.startsWith(':')) return; // heartbeat
       try {
         const data = JSON.parse(e.data);
-        onEvent?.(data);
+        onEventRef.current?.(data);
       } catch (err) {
         console.warn('SSE parse error:', err);
       }
@@ -59,12 +73,12 @@ export function useEventSource({ onEvent, onConnect, onDisconnect }) {
 
     es.onerror = () => {
       setConnected(false);
-      onDisconnect?.();
+      onDisconnectRef.current?.();
       es.close();
 
-      // Exponential backoff reconnect
-      if (reconnectAttempt < MAX_RECONNECT_ATTEMPTS) {
-        const delay = Math.min(RECONNECT_DELAY * (reconnectAttempt + 1), 30000);
+      const attempt = reconnectAttemptRef.current;
+      if (attempt < MAX_RECONNECT_ATTEMPTS) {
+        const delay = Math.min(RECONNECT_DELAY * (attempt + 1), 30000);
         const timer = setTimeout(() => {
           setReconnectAttempt((a) => a + 1);
           connect();
@@ -72,8 +86,9 @@ export function useEventSource({ onEvent, onConnect, onDisconnect }) {
         timersRef.current.push(timer);
       }
     };
-  }, [onEvent, onConnect, onDisconnect, reconnectAttempt, clearTimers]);
+  }, [clearTimers]);
 
+  // Connect on mount, cleanup on unmount
   useEffect(() => {
     connect();
     return () => {
@@ -83,8 +98,7 @@ export function useEventSource({ onEvent, onConnect, onDisconnect }) {
         esRef.current = null;
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // Connect once on mount; reconnect logic is internal
+  }, [connect, clearTimers]);
 
   return { connected, reconnectAttempt };
 }

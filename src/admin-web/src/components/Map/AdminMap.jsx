@@ -154,12 +154,21 @@ export default function AdminMap({
     const existingIds = Array.from(markers.current.keys());
 
     // Remove markers for incidents that no longer exist
+    let didRemoveAny = false;
     existingIds.forEach((id) => {
       if (!currentIds.has(id)) {
         markers.current.get(id)?.remove();
         markers.current.delete(id);
+        didRemoveAny = true;
       }
     });
+
+    // If any marker was removed, also remove any open popup to prevent it getting stuck
+    if (didRemoveAny) {
+      popupRef.current?.remove();
+      popupRef.current = null;
+      clearTimeout(popupTimeoutRef.current);
+    }
 
     // Add new markers, update existing ones
     incidents.forEach((incident) => {

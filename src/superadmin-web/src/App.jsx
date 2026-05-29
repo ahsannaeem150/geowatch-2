@@ -9,6 +9,7 @@ import AuditPage from './pages/AuditPage.jsx';
 import DomainsPage from './pages/DomainsPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
+import RecycleBinPage from './pages/RecycleBinPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 function LoadingScreen() {
@@ -119,6 +120,7 @@ function AppRoutes() {
           <Route path="/superadmin/domains" element={<DomainsPage />} />
           <Route path="/superadmin/system" element={<SystemPage />} />
           <Route path="/superadmin/export" element={<ExportPage />} />
+          <Route path="/superadmin/recycle-bin" element={<RecycleBinPage />} />
         </Route>
       </Route>
 

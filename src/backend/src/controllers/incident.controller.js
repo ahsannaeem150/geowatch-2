@@ -6,6 +6,10 @@ import {
   updateIncident,
   deleteIncident,
   resolveIncident,
+  restoreIncident,
+  purgeIncident,
+  listDeletedIncidents,
+  getDeletedIncidentById,
 } from '../services/incident.service.js';
 import { createEventSource } from '../services/source.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
@@ -120,17 +124,61 @@ export async function updateIncidentController(req, res) {
 }
 
 export async function deleteIncidentController(req, res) {
-  const result = await deleteIncident(req.params.id);
-  if (!result) {
+  const incident = await deleteIncident(req.params.id, req.user.id);
+  if (!incident) {
     return res.apiError('Incident not found', 'NOT_FOUND', 404);
   }
   broadcastEvent({ type: 'incident_deleted', incidentId: req.params.id });
 
   await auditLog(req, AUDIT_ACTIONS.INCIDENT_DELETED, 'incident', req.params.id, {
+    title: incident.title,
     deletedAt: new Date().toISOString(),
+    originalStatus: incident.status === 'hidden' ? 'active' : incident.status,
   });
 
-  res.apiSuccess({ deleted: true });
+  res.apiSuccess({ deleted: true, incidentId: req.params.id }, 'Incident moved to recycle bin');
+}
+
+export async function restoreIncidentController(req, res) {
+  const incident = await restoreIncident(req.params.id, req.user.id);
+  if (!incident) {
+    return res.apiError('Incident not found or not in recycle bin', 'NOT_FOUND', 404);
+  }
+  broadcastEvent({ type: 'incident_created', incident });
+
+  await auditLog(req, AUDIT_ACTIONS.INCIDENT_RESTORED, 'incident', req.params.id, {
+    title: incident.title,
+    restoredAt: new Date().toISOString(),
+  });
+
+  res.apiSuccess({ incident }, 'Incident restored successfully');
+}
+
+export async function purgeIncidentController(req, res) {
+  const result = await purgeIncident(req.params.id, req.user.id);
+  if (!result) {
+    return res.apiError('Incident not found', 'NOT_FOUND', 404);
+  }
+  broadcastEvent({ type: 'incident_deleted', incidentId: req.params.id });
+
+  await auditLog(req, AUDIT_ACTIONS.INCIDENT_PURGED, 'incident', req.params.id, {
+    purgedAt: new Date().toISOString(),
+  });
+
+  res.apiSuccess({ purged: true, incidentId: req.params.id }, 'Incident permanently deleted');
+}
+
+export async function listDeletedIncidentsController(req, res) {
+  const incidents = await listDeletedIncidents();
+  res.apiSuccess({ incidents, count: incidents.length });
+}
+
+export async function getDeletedIncidentController(req, res) {
+  const incident = await getDeletedIncidentById(req.params.id);
+  if (!incident) {
+    return res.apiError('Incident not found in recycle bin', 'NOT_FOUND', 404);
+  }
+  res.apiSuccess({ incident });
 }
 
 export async function resolveIncidentController(req, res) {

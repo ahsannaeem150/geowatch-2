@@ -27,6 +27,8 @@ export const AUDIT_ACTIONS = {
   INCIDENT_UPDATED: 'incident_updated',
   INCIDENT_RESOLVED: 'incident_resolved',
   INCIDENT_DELETED: 'incident_deleted',
+  INCIDENT_RESTORED: 'incident_restored',
+  INCIDENT_PURGED: 'incident_purged',
 
   // Source operations
   SOURCE_ADDED: 'source_added',
@@ -65,6 +67,8 @@ export const AUDIT_ACTION_LABELS = {
   [AUDIT_ACTIONS.INCIDENT_UPDATED]: 'Incident Updated',
   [AUDIT_ACTIONS.INCIDENT_RESOLVED]: 'Incident Resolved',
   [AUDIT_ACTIONS.INCIDENT_DELETED]: 'Incident Deleted',
+  [AUDIT_ACTIONS.INCIDENT_RESTORED]: 'Incident Restored',
+  [AUDIT_ACTIONS.INCIDENT_PURGED]: 'Incident Purged',
 
   [AUDIT_ACTIONS.SOURCE_ADDED]: 'Source Added',
   [AUDIT_ACTIONS.SOURCE_UPDATED]: 'Source Updated',
@@ -98,6 +102,8 @@ export const AUDIT_ACTION_COLORS = {
   [AUDIT_ACTIONS.INCIDENT_UPDATED]: '#f59e0b',
   [AUDIT_ACTIONS.INCIDENT_RESOLVED]: '#6366f1',
   [AUDIT_ACTIONS.INCIDENT_DELETED]: '#ef4444',
+  [AUDIT_ACTIONS.INCIDENT_RESTORED]: '#22c55e',
+  [AUDIT_ACTIONS.INCIDENT_PURGED]: '#7f1d1d',
 
   [AUDIT_ACTIONS.SOURCE_ADDED]: '#22c55e',
   [AUDIT_ACTIONS.SOURCE_UPDATED]: '#f59e0b',

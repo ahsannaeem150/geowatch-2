@@ -346,8 +346,113 @@ export async function updateIncident(id, data) {
   return result.rows[0] || null;
 }
 
-export async function deleteIncident(id) {
+export async function deleteIncident(id, deletedBy) {
+  // Soft delete: set status to 'hidden' and log the deletion
+  const incidentResult = await query(
+    `UPDATE incidents SET status = 'hidden', updated_at = NOW() WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  if (incidentResult.rows.length === 0) return null;
+
+  const incident = incidentResult.rows[0];
+
+  // Record in deletion log
+  await query(
+    `INSERT INTO deleted_incidents_log (incident_id, deleted_by, deleted_at, original_status)
+     VALUES ($1, $2, NOW(), $3)
+     ON CONFLICT (incident_id) WHERE restored_at IS NULL AND purged_at IS NULL
+     DO UPDATE SET deleted_by = $2, deleted_at = NOW(), original_status = $3, restored_at = NULL, restored_by = NULL, purged_at = NULL, purged_by = NULL`,
+    [id, deletedBy, incident.status === 'hidden' ? 'active' : incident.status]
+  );
+
+  return incident;
+}
+
+export async function restoreIncident(id, restoredBy) {
+  // Find the original status from the deletion log
+  const logResult = await query(
+    `SELECT original_status FROM deleted_incidents_log
+     WHERE incident_id = $1 AND restored_at IS NULL AND purged_at IS NULL`,
+    [id]
+  );
+  if (logResult.rows.length === 0) return null;
+
+  const originalStatus = logResult.rows[0].original_status;
+
+  const result = await query(
+    `UPDATE incidents SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+    [id, originalStatus]
+  );
+  if (result.rows.length === 0) return null;
+
+  // Mark log as restored
+  await query(
+    `UPDATE deleted_incidents_log SET restored_at = NOW(), restored_by = $2 WHERE incident_id = $1 AND restored_at IS NULL AND purged_at IS NULL`,
+    [id, restoredBy]
+  );
+
+  return result.rows[0];
+}
+
+export async function purgeIncident(id, purgedBy) {
+  // Permanently delete the incident
   const result = await query('DELETE FROM incidents WHERE id = $1 RETURNING id', [id]);
+  if (result.rows.length === 0) return null;
+
+  // Mark log as purged
+  await query(
+    `UPDATE deleted_incidents_log SET purged_at = NOW(), purged_by = $2 WHERE incident_id = $1`,
+    [id, purgedBy]
+  );
+
+  return result.rows[0];
+}
+
+export async function listDeletedIncidents() {
+  const sql = `
+    SELECT
+      i.id, i.title, i.description, i.latitude, i.longitude,
+      i.severity, i.status, i.start_date, i.end_date,
+      i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
+      i.location_context, i.category_id, i.verification_override,
+      c.name AS category_name, c.slug AS category_slug,
+      d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
+      l.deleted_at, l.deleted_by, l.original_status,
+      u.email AS deleted_by_email, u.full_name AS deleted_by_name
+    FROM incidents i
+    JOIN deleted_incidents_log l ON i.id = l.incident_id
+    LEFT JOIN categories c ON i.category_id = c.id
+    LEFT JOIN domains d ON c.domain_id = d.id
+    LEFT JOIN users u ON l.deleted_by = u.id
+    WHERE i.status = 'hidden'
+      AND l.restored_at IS NULL
+      AND l.purged_at IS NULL
+      AND l.deleted_at > NOW() - INTERVAL '30 days'
+    ORDER BY l.deleted_at DESC
+  `;
+  const result = await query(sql);
+  return result.rows;
+}
+
+export async function getDeletedIncidentById(id) {
+  const sql = `
+    SELECT
+      i.id, i.title, i.description, i.latitude, i.longitude,
+      i.severity, i.status, i.start_date, i.end_date,
+      i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
+      i.location_context, i.category_id, i.verification_override,
+      c.name AS category_name, c.slug AS category_slug,
+      d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
+      l.deleted_at, l.deleted_by, l.original_status
+    FROM incidents i
+    JOIN deleted_incidents_log l ON i.id = l.incident_id
+    LEFT JOIN categories c ON i.category_id = c.id
+    LEFT JOIN domains d ON c.domain_id = d.id
+    WHERE i.id = $1 AND i.status = 'hidden'
+      AND l.restored_at IS NULL
+      AND l.purged_at IS NULL
+  `;
+  const result = await query(sql, [id]);
   return result.rows[0] || null;
 }
 

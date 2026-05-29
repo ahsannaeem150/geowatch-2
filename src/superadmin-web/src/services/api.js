@@ -102,6 +102,20 @@ export function getIncidents(params = {}) {
   return request(`/incidents?${qs}`);
 }
 
+// ─── Recycle Bin ───
+
+export function listDeletedIncidents() {
+  return request('/incidents/deleted');
+}
+
+export function restoreIncident(id) {
+  return request(`/incidents/${id}/restore`, { method: 'POST' });
+}
+
+export function purgeIncident(id) {
+  return request(`/incidents/${id}/purge`, { method: 'POST' });
+}
+
 // ─── Register (for creating users from superadmin) ───
 
 export function registerUser(body) {

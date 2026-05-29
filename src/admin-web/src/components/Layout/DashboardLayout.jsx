@@ -186,98 +186,140 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
 
+    const token = localStorage.getItem('geowatch_token');
     const url = `${API_BASE_URL}/incidents/stream`;
-    const es = new EventSource(url);
-    esRef.current = es;
+    const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
 
-    es.onopen = () => {
-      console.log('[SSE] Admin connected to GeoWatch stream');
-    };
+    let reconnectTimer = null;
+    let reconnectAttempt = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const RECONNECT_DELAY = 5000;
 
-    es.onmessage = (e) => {
-      if (!e.data) return;
-      try {
-        const payload = JSON.parse(e.data);
-        if (!payload.type) return;
+    const connect = () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
 
-        setActivities((prev) => {
-          const last = prev[0];
-          const ts = Date.now();
-          if (
-            last &&
-            last.type === payload.type &&
-            last.incidentId === (payload.incidentId || payload.incident?.id) &&
-            ts - last.timestamp < 2000
-          ) {
-            return prev;
-          }
+      const es = new EventSource(fullUrl);
+      esRef.current = es;
 
-          const activity = {
-            type: payload.type,
-            incidentId: payload.incidentId || payload.incident?.id,
-            incident: payload.incident || null,
-            update: payload.update || null,
-            updateId: payload.updateId || null,
-            timestamp: ts,
-            isUnread: true,
-          };
+      es.onopen = () => {
+        reconnectAttempt = 0;
+        console.log('[SSE] Admin connected to GeoWatch stream');
+      };
 
-          return [activity, ...prev].slice(0, MAX_ACTIVITIES);
-        });
+      es.onmessage = (e) => {
+        if (!e.data || e.data.startsWith(':')) return;
+        try {
+          const payload = JSON.parse(e.data);
+          if (!payload.type) return;
 
-        // If the activity is about an incident we know, refresh it in our list
-        if (payload.incident) {
-          setEvents((prev) => {
-            const exists = prev.find((ev) => ev.id === payload.incident.id);
-            if (exists) {
-              return prev.map((ev) => (ev.id === payload.incident.id ? payload.incident : ev));
+          setActivities((prev) => {
+            const last = prev[0];
+            const ts = Date.now();
+            if (
+              last &&
+              last.type === payload.type &&
+              last.incidentId === (payload.incidentId || payload.incident?.id) &&
+              ts - last.timestamp < 2000
+            ) {
+              return prev;
             }
-            return [payload.incident, ...prev];
+
+            const activity = {
+              type: payload.type,
+              incidentId: payload.incidentId || payload.incident?.id,
+              incident: payload.incident || null,
+              update: payload.update || null,
+              updateId: payload.updateId || null,
+              timestamp: ts,
+              isUnread: true,
+            };
+
+            return [activity, ...prev].slice(0, MAX_ACTIVITIES);
           });
 
-          // Mark as new for pulse animation
-          if (payload.type === 'incident_created') {
-            setNewIncidentIds((prev) => {
-              const next = new Set(prev);
-              next.add(payload.incident.id);
-              return next;
+          // If the activity is about an incident we know, refresh it in our list
+          if (payload.incident) {
+            setEvents((prev) => {
+              const exists = prev.find((ev) => ev.id === payload.incident.id);
+              if (exists) {
+                return prev.map((ev) => (ev.id === payload.incident.id ? payload.incident : ev));
+              }
+              return [payload.incident, ...prev];
             });
 
-            // Show toast notification
-            setToast({
-              message: `New incident: ${payload.incident.title}`,
-              type: 'info',
-              incidentId: payload.incident.id,
-            });
-
-            // Auto-clear pulse after 8 seconds
-            setTimeout(() => {
+            // Mark as new for pulse animation
+            if (payload.type === 'incident_created') {
               setNewIncidentIds((prev) => {
                 const next = new Set(prev);
-                next.delete(payload.incident.id);
+                next.add(payload.incident.id);
                 return next;
               });
-            }, 8000);
+
+              // Show toast notification
+              setToast({
+                message: `New incident: ${payload.incident.title}`,
+                type: 'info',
+                incidentId: payload.incident.id,
+              });
+
+              // Auto-clear pulse after 8 seconds
+              setTimeout(() => {
+                setNewIncidentIds((prev) => {
+                  const next = new Set(prev);
+                  next.delete(payload.incident.id);
+                  return next;
+                });
+              }, 8000);
+            }
           }
-        }
 
-        // Handle deletions
-        if (payload.type === 'incident_deleted') {
-          setEvents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
+          // Handle deletions
+          if (payload.type === 'incident_deleted') {
+            setEvents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
+          }
+        } catch (err) {
+          console.warn('[SSE] Failed to parse message:', err);
         }
-      } catch (err) {
-        console.warn('[SSE] Failed to parse message:', err);
-      }
+      };
+
+      es.onerror = () => {
+        es.close(); // Prevent browser native auto-reconnect
+        if (reconnectAttempt < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempt += 1;
+          reconnectTimer = setTimeout(connect, RECONNECT_DELAY * reconnectAttempt);
+        }
+      };
     };
 
-    es.onerror = (err) => {
-      console.warn('[SSE] Connection error, will retry:', err);
-    };
+    connect();
 
     return () => {
-      es.close();
-      esRef.current = null;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (esRef.current) {
+        try { esRef.current.close(); } catch { /* ignore */ }
+        esRef.current = null;
+      }
     };
+  }, []);
+
+  // Listen for incident deletion from detail panel and refresh list
+  useEffect(() => {
+    const handleDeleted = (e) => {
+      setRefreshKey((k) => k + 1);
+      setPanelMode('empty');
+      setSelectedIncident(null);
+      setToast({
+        message: e?.detail?.incidentTitle
+          ? `"${e.detail.incidentTitle}" moved to Recycle Bin`
+          : 'Incident moved to Recycle Bin',
+        type: 'info',
+      });
+    };
+    window.addEventListener('incident-deleted', handleDeleted);
+    return () => window.removeEventListener('incident-deleted', handleDeleted);
   }, []);
 
   // Mark unread items based on lastSeenTimestamp
