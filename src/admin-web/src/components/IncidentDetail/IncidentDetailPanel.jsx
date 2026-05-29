@@ -734,46 +734,45 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
         <Button variant="primary" onClick={() => onEdit?.(incident)}>
           Edit Incident
         </Button>
-        <button
-          onClick={handleCopyLink}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: copied ? '#22c55e' : 'var(--text-secondary)',
-            background: copied ? 'rgba(34, 197, 94, 0.08)' : 'transparent',
-            border: '1px solid',
-            borderColor: copied ? 'rgba(34, 197, 94, 0.3)' : 'transparent',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-sans)',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (!copied) {
-              e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.background = 'var(--bg-hover)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!copied) {
-              e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.background = 'transparent';
-            }
-          }}
-        >
-          {copied ? <Check size={14} /> : <Link size={14} />}
-          {copied ? 'Copied!' : 'Copy link'}
-        </button>
         <Button variant="ghost" style={{ color: 'var(--danger)' }} onClick={openDeleteModal}>
           Delete
         </Button>
         <Button variant="ghost" onClick={onClose}>
           Close
         </Button>
+        <button
+          onClick={handleCopyLink}
+          title="Copy shareable link"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '12px',
+            fontWeight: 500,
+            color: copied ? '#22c55e' : 'var(--text-muted)',
+            background: 'transparent',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            transition: 'all 0.15s ease',
+            marginLeft: 'auto',
+          }}
+          onMouseEnter={(e) => {
+            if (!copied) {
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!copied) {
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }
+          }}
+        >
+          {copied ? <Check size={13} /> : <Link size={13} />}
+          {copied ? 'Copied!' : 'Copy link'}
+        </button>
       </div>
 
       {/* Delete Confirmation Modal */}
