@@ -7,6 +7,7 @@ import IncidentDetailPanel from '../IncidentDetail/IncidentDetailPanel.jsx';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
 import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
+import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
@@ -81,6 +82,10 @@ export default function DashboardLayout() {
   const incidentIdFromUrl = searchParams.get('incident');
   const ghostFetchAttempted = useRef(false);
 
+  // ─── Domain Filter / Legend ───
+  const [domains, setDomains] = useState([]);
+  const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
+
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
   const [feedCollapsed, setFeedCollapsed] = useState(false);
@@ -112,12 +117,20 @@ export default function DashboardLayout() {
 
   // Filtered incidents for display (domain filter applied)
   const filteredIncidents = useMemo(() => {
-    if (!activeDomainFilter) return incidents;
-    return incidents.filter((i) => {
-      const id = i.domain_id || i.domain_name;
-      return id === activeDomainFilter;
-    });
-  }, [incidents, activeDomainFilter]);
+    let result = incidents;
+    // Top-bar single domain filter
+    if (activeDomainFilter) {
+      result = result.filter((i) => {
+        const id = i.domain_id || i.domain_name;
+        return id === activeDomainFilter;
+      });
+    }
+    // Legend multi-domain filter
+    if (activeDomainFilters.size > 0) {
+      result = result.filter((i) => activeDomainFilters.has(i.domain_slug));
+    }
+    return result;
+  }, [incidents, activeDomainFilter, activeDomainFilters]);
 
   // Fetch incidents: date-based with smart viewport only
   useEffect(() => {
@@ -216,6 +229,36 @@ export default function DashboardLayout() {
         });
     }
   }, [incidentIdFromUrl, incidents.length]);
+
+  // Fetch domains for legend
+  useEffect(() => {
+    api.getDomains()
+      .then((res) => {
+        setDomains(res.data.domains || []);
+      })
+      .catch(() => setDomains([]));
+  }, []);
+
+  // Legend handlers
+  const handleToggleDomain = useCallback((slug) => {
+    setActiveDomainFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleShowAllDomains = useCallback(() => {
+    setActiveDomainFilters(new Set());
+  }, []);
+
+  const handleHideAllDomains = useCallback(() => {
+    setActiveDomainFilters(new Set(domains.map((d) => d.slug)));
+  }, [domains]);
 
   // Handle viewport bounds changes from the map
   const handleViewportChange = useCallback((bounds) => {
@@ -708,6 +751,14 @@ export default function DashboardLayout() {
             markerCoords={markerCoords}
             ghostIncident={ghostIncident}
             newIncidentIds={newIncidentIds}
+          />
+
+          <MapLegend
+            domains={domains}
+            activeDomainFilters={activeDomainFilters}
+            onToggleDomain={handleToggleDomain}
+            onShowAll={handleShowAllDomains}
+            onHideAll={handleHideAllDomains}
           />
 
           {/* Ghost incident banner */}

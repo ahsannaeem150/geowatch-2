@@ -1,7 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
+import { SEVERITY_SCALE } from '@shared/constants.js';
+import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { format } from 'date-fns';
 
 const MAP_STYLE_URL = '/map-style-dark.json';
@@ -36,7 +37,6 @@ export default function AdminMap({
   const markers = useRef(new Map());
   const tempMarker = useRef(null);
   const ghostMarkerRef = useRef(null);
-  const pulseMarkers = useRef(new Map());
   const popupRef = useRef(null);
   const popupTimeoutRef = useRef(null);
   const isProgrammaticMove = useRef(false);
@@ -184,66 +184,16 @@ export default function AdminMap({
         return;
       }
 
-      // Create new marker
+      // Create new marker with domain icon
       const severityConfig = SEVERITY_SCALE.find((s) => s.value === incident.severity) || SEVERITY_SCALE[2];
-      const color = incident.domain_color || '#6b7280';
       const size = severityConfig.radius;
+      const isNew = newIncidentIds.has(incident.id);
 
-      // Parent: MapLibre positions this via translate3d — DO NOT touch its transform
-      const el = document.createElement('div');
-      el.style.width = '0';
-      el.style.height = '0';
-      el.style.position = 'relative';
-      el.dataset.incidentId = incident.id;
-      el.dataset.color = color;
-      el.dataset.size = String(size);
-
-      // Child: handles all visual styling + hover scale — safe to transform
-      const visual = document.createElement('div');
-      visual.style.position = 'absolute';
-      visual.style.left = `-${size}px`;
-      visual.style.top = `-${size}px`;
-      visual.style.width = `${size * 2}px`;
-      visual.style.height = `${size * 2}px`;
-      visual.style.borderRadius = '50%';
-      visual.style.background = color;
-      visual.style.border = '1.5px solid rgba(255,255,255,0.3)';
-      visual.style.boxShadow = `0 0 ${size}px ${color}80`;
-      visual.style.cursor = 'pointer';
-      visual.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
-      visual.style.willChange = 'transform';
-
-      // Verification indicator (small dot)
-      const vStatus = incident.verification_status;
-      if (vStatus === 'verified' || vStatus === 'confirmed') {
-        const vDot = document.createElement('div');
-        vDot.style.position = 'absolute';
-        vDot.style.top = '-2px';
-        vDot.style.right = '-2px';
-        vDot.style.width = '8px';
-        vDot.style.height = '8px';
-        vDot.style.borderRadius = '50%';
-        vDot.style.background = '#22c55e';
-        vDot.style.border = '1.5px solid #fff';
-        vDot.style.boxShadow = '0 0 4px rgba(34,197,94,0.6)';
-        vDot.style.pointerEvents = 'none';
-        visual.appendChild(vDot);
-      } else if (vStatus === 'contested') {
-        const vDot = document.createElement('div');
-        vDot.style.position = 'absolute';
-        vDot.style.top = '-2px';
-        vDot.style.right = '-2px';
-        vDot.style.width = '8px';
-        vDot.style.height = '8px';
-        vDot.style.borderRadius = '50%';
-        vDot.style.background = '#ef4444';
-        vDot.style.border = '1.5px solid #fff';
-        vDot.style.boxShadow = '0 0 4px rgba(239,68,68,0.6)';
-        vDot.style.pointerEvents = 'none';
-        visual.appendChild(vDot);
-      }
+      const el = buildMarkerElement(incident, { size, isNew });
+      const visual = el.firstChild;
 
       // Hover: scale the CHILD only, never the parent
+      const color = incident.domain_color || '#6b7280';
       visual.addEventListener('mouseenter', () => {
         visual.style.transform = 'scale(1.5)';
         visual.style.boxShadow = `0 0 ${size * 3}px ${color}`;
@@ -291,8 +241,6 @@ export default function AdminMap({
         onEventClick?.(incident);
       });
 
-      el.appendChild(visual);
-
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([lng, lat])
         .addTo(map.current);
@@ -301,69 +249,14 @@ export default function AdminMap({
       markers.current.set(incident.id, marker);
     });
 
-    // Handle new incident pulse animations
-    if (newIncidentIds.size > 0) {
-      incidents.forEach((incident) => {
-        if (!newIncidentIds.has(incident.id)) return;
-        const existingPulse = pulseMarkers.current.get(incident.id);
-        if (existingPulse) return; // already pulsing
-
-        const lat = parseFloat(incident.latitude);
-        const lng = parseFloat(incident.longitude);
-        const color = incident.domain_color || '#6b7280';
-
-        const el = document.createElement('div');
-        el.style.width = '0';
-        el.style.height = '0';
-        el.style.position = 'relative';
-
-        const ring = document.createElement('div');
-        ring.style.position = 'absolute';
-        ring.style.left = '-24px';
-        ring.style.top = '-24px';
-        ring.style.width = '48px';
-        ring.style.height = '48px';
-        ring.style.borderRadius = '50%';
-        ring.style.border = `2px solid ${color}`;
-        ring.style.animation = 'new-pulse 1.8s ease-out 2';
-        ring.style.pointerEvents = 'none';
-        ring.style.opacity = '0.8';
-
-        el.appendChild(ring);
-
-        const pulseMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([lng, lat])
-          .addTo(map.current);
-
-        pulseMarkers.current.set(incident.id, pulseMarker);
-
-        // Remove after animation completes
-        setTimeout(() => {
-          pulseMarker.remove();
-          pulseMarkers.current.delete(incident.id);
-        }, 3600);
-      });
-    }
   }, [incidents, newIncidentIds]);
 
   // Update selection styles WITHOUT recreating markers
   useEffect(() => {
     markers.current.forEach((marker) => {
       const el = marker.getElement();
-      const visual = el.firstChild;
-      if (!visual) return;
-
-      const color = el.dataset.color;
-      const size = parseInt(el.dataset.size, 10);
       const isSelected = el.dataset.incidentId === selectedEventId;
-
-      if (isSelected) {
-        visual.style.border = '2px solid #fff';
-        visual.style.boxShadow = `0 0 0 4px ${color}40, 0 0 ${size * 2}px ${color}`;
-      } else {
-        visual.style.border = '1.5px solid rgba(255,255,255,0.3)';
-        visual.style.boxShadow = `0 0 ${size}px ${color}80`;
-      }
+      updateMarkerSelection(el, isSelected);
     });
   }, [selectedEventId]);
 
@@ -425,40 +318,10 @@ export default function AdminMap({
     if (ghostIncident) {
       const lat = parseFloat(ghostIncident.latitude);
       const lng = parseFloat(ghostIncident.longitude);
-      const color = ghostIncident.domain_color || '#6b7280';
       const size = 10;
 
-      const el = document.createElement('div');
-      el.style.width = '0';
-      el.style.height = '0';
-      el.style.position = 'relative';
-
-      const visual = document.createElement('div');
-      visual.style.position = 'absolute';
-      visual.style.left = `-${size}px`;
-      visual.style.top = `-${size}px`;
-      visual.style.width = `${size * 2}px`;
-      visual.style.height = `${size * 2}px`;
-      visual.style.borderRadius = '50%';
-      visual.style.background = color;
-      visual.style.opacity = '0.5';
-      visual.style.border = '2px dashed rgba(255,255,255,0.6)';
-      visual.style.boxShadow = `0 0 ${size}px ${color}60`;
-      visual.style.cursor = 'pointer';
-      visual.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
-
-      // Pulsing ring
-      const ring = document.createElement('div');
-      ring.style.position = 'absolute';
-      ring.style.left = `-${size + 6}px`;
-      ring.style.top = `-${size + 6}px`;
-      ring.style.width = `${size * 2 + 12}px`;
-      ring.style.height = `${size * 2 + 12}px`;
-      ring.style.borderRadius = '50%';
-      ring.style.border = `1.5px dashed ${color}`;
-      ring.style.opacity = '0.4';
-      ring.style.animation = 'ghost-pulse 2s ease-in-out infinite';
-      ring.style.pointerEvents = 'none';
+      const el = buildMarkerElement(ghostIncident, { size, isGhost: true });
+      const visual = el.firstChild;
 
       visual.addEventListener('mouseenter', () => {
         visual.style.transform = 'scale(1.4)';
@@ -472,9 +335,6 @@ export default function AdminMap({
       el.addEventListener('click', () => {
         onEventClick?.(ghostIncident);
       });
-
-      el.appendChild(visual);
-      el.appendChild(ring);
 
       ghostMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([lng, lat])
@@ -495,9 +355,9 @@ export default function AdminMap({
           50% { transform: scale(1.15); opacity: 0.2; }
           100% { transform: scale(1); opacity: 0.4; }
         }
-        @keyframes new-pulse {
-          0% { transform: scale(0.5); opacity: 0.8; }
-          100% { transform: scale(3); opacity: 0; }
+        @keyframes marker-pulse-new {
+          0% { transform: scale(0.8); opacity: 0.7; }
+          100% { transform: scale(2.2); opacity: 0; }
         }
         .geowatch-popup .maplibregl-popup-content {
           background: var(--bg-surface);

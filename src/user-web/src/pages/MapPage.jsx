@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
@@ -9,6 +9,7 @@ import IncidentSidebar from '../components/IncidentList/IncidentSidebar.jsx';
 import LiveActivityFeed from '../components/LiveActivity/LiveActivityFeed.jsx';
 import TickerBar from '../components/Ticker/TickerBar.jsx';
 import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
+import MapLegend from '@shared/components/MapLegend.jsx';
 
 const LS_KEY = 'geowatch_last_seen';
 const MAX_ACTIVITIES = 50;
@@ -39,6 +40,10 @@ export default function MapPage() {
     severity: '',
     verifiedOnly: false,
   });
+
+  // ─── Domain Filter / Legend ───
+  const [domains, setDomains] = useState([]);
+  const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
 
   // Ghost fetch tracking
   const ghostFetchAttempted = useRef(false);
@@ -170,6 +175,42 @@ export default function MapPage() {
         });
     }
   }, [incidentIdFromUrl, incidents.length]);
+
+  // Fetch domains for legend
+  useEffect(() => {
+    api.getDomains()
+      .then((res) => {
+        setDomains(res.data.domains || []);
+      })
+      .catch(() => setDomains([]));
+  }, []);
+
+  // Filtered incidents for map
+  const filteredIncidents = useMemo(() => {
+    if (activeDomainFilters.size === 0) return incidents;
+    return incidents.filter((i) => activeDomainFilters.has(i.domain_slug));
+  }, [incidents, activeDomainFilters]);
+
+  // Legend handlers
+  const handleToggleDomain = useCallback((slug) => {
+    setActiveDomainFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleShowAllDomains = useCallback(() => {
+    setActiveDomainFilters(new Set());
+  }, []);
+
+  const handleHideAllDomains = useCallback(() => {
+    setActiveDomainFilters(new Set(domains.map((d) => d.slug)));
+  }, [domains]);
 
   // ─── Handle viewport bounds changes from the map ───
   const handleViewportChange = useCallback((bounds) => {
@@ -438,10 +479,17 @@ export default function MapPage() {
     setDateRange({ from: incidentDate, to: incidentDate });
   };
 
-  // Filter incidents by verification status
-  const visibleIncidents = filters.verifiedOnly
-    ? incidents.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed')
-    : incidents;
+  // Filter incidents by verification status and domain legend
+  const visibleIncidents = useMemo(() => {
+    let result = incidents;
+    if (filters.verifiedOnly) {
+      result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
+    }
+    if (activeDomainFilters.size > 0) {
+      result = result.filter((i) => activeDomainFilters.has(i.domain_slug));
+    }
+    return result;
+  }, [incidents, filters.verifiedOnly, activeDomainFilters]);
 
   // Determine if selected incident is a "ghost" (outside current date range)
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
@@ -471,6 +519,14 @@ export default function MapPage() {
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
             ghostIncident={ghostIncident}
+          />
+
+          <MapLegend
+            domains={domains}
+            activeDomainFilters={activeDomainFilters}
+            onToggleDomain={handleToggleDomain}
+            onShowAll={handleShowAllDomains}
+            onHideAll={handleHideAllDomains}
           />
 
           {/* Map controls overlay — top center */}
