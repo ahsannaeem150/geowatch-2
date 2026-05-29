@@ -6,32 +6,32 @@ function buildAuditWhereClause(filters) {
   let idx = 1;
 
   if (filters.action) {
-    conditions.push(`action = $${idx++}`);
+    conditions.push(`al.action = $${idx++}`);
     params.push(filters.action);
   }
 
   if (filters.userId) {
-    conditions.push(`user_id = $${idx++}`);
+    conditions.push(`al.user_id = $${idx++}`);
     params.push(filters.userId);
   }
 
   if (filters.targetType) {
-    conditions.push(`target_type = $${idx++}`);
+    conditions.push(`al.target_type = $${idx++}`);
     params.push(filters.targetType);
   }
 
   if (filters.targetId) {
-    conditions.push(`target_id = $${idx++}`);
+    conditions.push(`al.target_id = $${idx++}`);
     params.push(filters.targetId);
   }
 
   if (filters.dateFrom) {
-    conditions.push(`created_at >= $${idx++}`);
+    conditions.push(`al.created_at >= $${idx++}`);
     params.push(filters.dateFrom);
   }
 
   if (filters.dateTo) {
-    conditions.push(`created_at <= $${idx++}`);
+    conditions.push(`al.created_at <= $${idx++}`);
     params.push(filters.dateTo);
   }
 
@@ -45,7 +45,7 @@ export async function listAuditLogs(filters) {
   const offset = (filters.page - 1) * limit;
 
   const countResult = await query(
-    `SELECT COUNT(*) as total FROM audit_logs ${where}`,
+    `SELECT COUNT(*) as total FROM audit_logs al ${where}`,
     params
   );
   const total = parseInt(countResult.rows[0].total, 10);

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { listUsers, getIncidents, getAuditSummary, getSystemHealth, listAuditLogs } from '../services/api.js';
 import { formatDistanceToNow } from 'date-fns';
+import { getAuditActionColor } from '../utils/audit-colors.js';
 
 function KPICard({ label, value, subtext, icon: Icon, color, loading, onClick }) {
   return (
@@ -73,21 +74,7 @@ function StatusDot({ status }) {
 }
 
 function AuditBadge({ action }) {
-  const colors = {
-    user_login: '#6366f1',
-    user_created: '#22c55e',
-    user_updated: '#f59e0b',
-    user_deactivated: '#ef4444',
-    user_activated: '#22c55e',
-    user_password_reset: '#f59e0b',
-    user_deleted: '#7f1d1d',
-    incident_created: '#22c55e',
-    incident_updated: '#f59e0b',
-    incident_resolved: '#6366f1',
-    incident_deleted: '#ef4444',
-  };
-
-  const bg = colors[action] || 'var(--text-muted)';
+  const color = getAuditActionColor(action);
   return (
     <span
       style={{
@@ -98,8 +85,8 @@ function AuditBadge({ action }) {
         letterSpacing: '0.04em',
         padding: '3px 8px',
         borderRadius: 4,
-        background: `${bg}18`,
-        color: bg,
+        background: `${color}18`,
+        color,
         fontFamily: 'var(--font-mono)',
       }}
     >

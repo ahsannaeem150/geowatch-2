@@ -3117,3 +3117,67 @@ feat(superadmin): phase 5 — live dashboard KPIs and full user management with 
 ```
 
 *End of Phase 5*
+
+
+---
+
+## 📅 2026-05-29 — Module: Superadmin Phase 6 — Audit Log Page
+
+### Summary
+Built the complete Audit Log page — a dense, filterable, exportable read-only interface for the immutable audit trail. Every filter combination was tested against the backend, and a critical SQL ambiguity bug was fixed in the audit service.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/superadmin-web/src/utils/audit-colors.js` | Shared audit action color mapping and short labels — mirrors backend `AUDIT_ACTION_COLORS` exactly. Used by Dashboard, Audit Log, and any future audit display |
+| `src/superadmin-web/src/utils/csv-export.js` | Client-side CSV export utility. Escapes commas/quotes/newlines, generates downloadable blob with timestamped filename |
+| `src/superadmin-web/src/components/Audit/AuditFilters.jsx` | Full filter bar: action type dropdown (17 actions), user dropdown (fetched from `/users`), target type dropdown (user/incident/source/timeline), date from→to range inputs, active filter pills with individual dismiss, "Clear all" button, Export CSV button |
+| `src/superadmin-web/src/components/Audit/AuditTable.jsx` | Dense data table with 6 columns: Time (MMM d, HH:mm:ss + year), User (name + email, clickable to filter), Action (color-coded badge with dot prefix), Target (type + truncated ID, clickable), Details (collapsible JSON with expand/collapse), IP (monospace). Hover row highlighting. Server-side pagination with numbered page buttons |
+| `src/superadmin-web/src/pages/AuditPage.jsx` | Main page composing filters + table. Manages filter state, pagination, data fetching with auto-reset to page 1 on filter change, CSV export handler, refresh button, error banner with dismiss, result count summary |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/DashboardPage.jsx` | Replaced hardcoded `AuditBadge` color map with import from `audit-colors.js` |
+| `src/backend/src/services/audit.service.js` | **Bugfix:** Qualified all `buildAuditWhereClause` columns with `al.` prefix to resolve "column reference 'created_at' is ambiguous" error when filtering audit logs with date range (both `audit_logs` and `users` tables have `created_at`). Updated COUNT query to use `FROM audit_logs al` |
+
+### Backend Bugfix Details
+
+**Problem:** `GET /audit?dateFrom=...&dateTo=...` returned `SERVER_ERROR: column reference "created_at" is ambiguous`
+
+**Root cause:** The `listAuditLogs` function LEFT JOINs `users` table to get `full_name`. Both tables have a `created_at` column. The WHERE clause used unqualified `created_at >= $1` which PostgreSQL couldn't resolve.
+
+**Fix:** All filter conditions in `buildAuditWhereClause` now use `al.` prefix (`al.action`, `al.user_id`, `al.target_type`, `al.target_id`, `al.created_at`). The COUNT query was also updated from `FROM audit_logs` to `FROM audit_logs al` for consistency.
+
+### Verified End-to-End
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `npm run build` | ✅ 278KB JS, 4.6KB CSS, 841ms |
+| 2 | List all audit logs (no filters) | ✅ 26 entries |
+| 3 | Filter by action `user_login` | ✅ 20 entries |
+| 4 | Filter by userId | ✅ 1 entry |
+| 5 | Filter by targetType `incident` | ✅ 2 entries |
+| 6 | Filter by date range | ✅ 26 entries (after bugfix) |
+| 7 | Combined filters (action + targetType) | ✅ 20 entries |
+| 8 | Audit log structure | ✅ All fields present including `user_full_name` |
+| 9 | Pagination | ✅ Page 1 of N with numbered buttons |
+
+### Design Decisions
+
+- **Read-only, dense UI:** 12px font, 10px row padding, monospace for IDs/IPs/dates — optimized for scanning hundreds of entries
+- **Action badges with dot prefix:** Small colored dot + prefix + verb (e.g., "● user login") — scannable at a glance
+- **Collapsible JSON details:** Truncated to 80 chars with expand/collapse — keeps rows compact while preserving full detail access
+- **Clickable user/target:** Click user name → auto-filters audit to that user. Click target ID → navigates or filters by target type
+- **Date inputs:** Native `<input type="date">` with `color-scheme: dark` — no external date picker dependency
+- **Export current view:** Downloads only the loaded page as CSV (not all pages) — fast and predictable. Full export would need a dedicated backend endpoint
+
+### Git Commit
+
+```
+feat(superadmin): phase 6 — audit log page with filters, dense table, CSV export, and backend ambiguity fix
+```
+
+*End of Phase 6*
