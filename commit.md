@@ -3181,3 +3181,76 @@ feat(superadmin): phase 6 — audit log page with filters, dense table, CSV expo
 ```
 
 *End of Phase 6*
+
+---
+
+## Phase 7 — Domain & Category Manager (Taxonomy CRUD)
+
+**Date:** 2026-05-05
+**Scope:** Full backend CRUD for domains/categories + complete frontend taxonomy manager UI
+
+### New Backend Files
+
+| File | Purpose |
+|:-----|:--------|
+| `src/backend/src/validators/category.schema.js` | Zod schemas for domain/category CRUD with auto-slugify transform, hex color regex, severity schema shape validation |
+
+### Modified Backend Files
+
+| File | Change |
+|:-----|:-------|
+| `src/backend/src/services/category.service.js` | Full CRUD: `createDomain`, `updateDomain`, `deleteDomain`, `createCategory`, `updateCategory`, `deleteCategory`, `reorderCategories`, `getDomains`, `getDomainWithCategories`, `getAllCategories`. SELECT queries alias `requires_casualties → requires_photo` and `requires_property_damage → requires_video` for frontend alignment. INSERT/UPDATE map `requiresPhoto`/`requiresVideo` to legacy DB columns |
+| `src/backend/src/controllers/category.controller.js` | REST controllers with `auditLog()` on every mutation. Conflict checks for duplicate slugs, dependency checks before delete (domain→categories, category→incidents/zones) |
+| `src/backend/src/routes/category.routes.js` | Public GET + `super_admin` protected mutation routes for domains and categories |
+
+### New Frontend Files
+
+| File | Purpose |
+|:-----|:--------|
+| `src/superadmin-web/src/components/Domains/IconPicker.jsx` | Searchable dropdown grid of 90 curated Lucide icons. 6-column grid, live search filter, selected state highlight. `getIconComponent(name)` helper for runtime icon lookup |
+| `src/superadmin-web/src/components/Domains/DomainModal.jsx` | Create/edit modal: name, description, color picker (native `<input type="color">` + hex text), icon picker, sort order number input. Consistent navy modal styling with slideUp animation |
+| `src/superadmin-web/src/components/Domains/CategoryModal.jsx` | Create/edit modal: domain select, name, description, severity schema JSON editor (textarea with validation, default 4-level scale template), default severity text, requires location/photo/video checkboxes |
+| `src/superadmin-web/src/pages/DomainsPage.jsx` | Main taxonomy manager: expandable domain cards with color swatch + icon, category count badge, inline action buttons (add/edit/delete). Expanded view shows category rows with severity badge, requirement pills, edit/delete. Delete confirmation modal with dependency warnings |
+
+### Modified Frontend Files
+
+| File | Change |
+|:-----|:-------|
+| `src/superadmin-web/src/services/api.js` | Added `listDomains`, `getDomain`, `createDomain`, `updateDomain`, `deleteDomain`, `listAllCategories`, `createCategory`, `updateCategory`, `deleteCategory`, `reorderCategories`. Response wrappers extract `.domains` / `.categories` from nested API structure |
+
+### Backend Schema Alignment
+
+**Problem:** DB columns `requires_casualties` / `requires_property_damage` didn't match frontend's `requires_photo` / `requires_video`.
+
+**Fix:** Service layer aliases on SELECT and maps on INSERT/UPDATE — no DB migration needed (insufficient privileges). Zod schemas updated to use `requiresPhoto` / `requiresVideo`.
+
+### Auto-Slugify
+
+**Problem:** Frontend never sends `slug`; backend Zod schema required it.
+
+**Fix:** Added `.transform((data) => ({ ...data, slug: data.slug || slugify(data.name) }))` to both `createDomainSchema` and `createCategorySchema`. Slug generated from lowercase, stripped special chars, hyphenated, truncated to 60 chars.
+
+### Verified End-to-End
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `npm run build` (superadmin-web) | ✅ 348KB JS, 4.6KB CSS, 849ms |
+| 2 | List domains (17 active) | ✅ All with color, icon, slug, sort_order |
+| 3 | List categories (162) | ✅ All with requires_photo/video aliases |
+| 4 | Create domain (no slug) | ✅ Auto-slugified, color/icon/sort persisted |
+| 5 | Create category (no slug) | ✅ Auto-slugified, severity schema JSON stored |
+| 6 | Update category (toggle requiresPhoto) | ✅ DB updated, alias returned correctly |
+| 7 | Update domain (change color) | ✅ Persisted, audit logged |
+| 8 | Delete category with no incidents | ✅ Soft-delete via is_active |
+| 9 | Delete category with incidents | ✅ 409 CONFLICT blocked |
+| 10 | Delete domain with categories | ✅ 409 CONFLICT blocked |
+| 11 | Delete domain after clearing categories | ✅ Success |
+| 12 | Audit logs for all mutations | ✅ setting_updated with name/changedFields/action |
+
+### Git Commit
+
+```
+feat(superadmin): phase 7 — domain & category taxonomy manager with full CRUD, icon/color pickers, severity schema editor
+```
+
+*End of Phase 7*

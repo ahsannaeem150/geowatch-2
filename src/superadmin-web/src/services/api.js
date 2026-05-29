@@ -110,3 +110,64 @@ export function registerUser(body) {
     body: JSON.stringify(body),
   });
 }
+
+// ─── Domains ───
+
+export async function listDomains() {
+  const res = await request('/categories/domains');
+  return res.domains || [];
+}
+
+export function getDomain(slug) {
+  return request(`/categories/domains/${slug}`);
+}
+
+export function createDomain(body) {
+  return request('/categories/domains', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateDomain(id, body) {
+  return request(`/categories/domains/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteDomain(id) {
+  return request(`/categories/domains/${id}`, { method: 'DELETE' });
+}
+
+// ─── Categories ───
+
+export async function listAllCategories() {
+  const res = await request('/categories');
+  return res.categories || [];
+}
+
+export function createCategory(body) {
+  return request('/categories', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateCategory(id, body) {
+  return request(`/categories/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteCategory(id) {
+  return request(`/categories/${id}`, { method: 'DELETE' });
+}
+
+export function reorderCategories(body) {
+  return request('/categories/reorder', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
