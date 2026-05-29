@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
@@ -74,6 +75,11 @@ export default function DashboardLayout() {
   const [totalEventCount, setTotalEventCount] = useState(0);
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
+
+  // ─── URL Sharing (Deep-linking) ───
+  const [searchParams, setSearchParams] = useSearchParams();
+  const incidentIdFromUrl = searchParams.get('incident');
+  const ghostFetchAttempted = useRef(false);
 
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
@@ -162,6 +168,54 @@ export default function DashboardLayout() {
       cancelled = true;
     };
   }, [dateRange.from, dateRange.to, refreshKey, activeDomainFilter]);
+
+  // ─── Handle incident ID from URL — deep-linking with ghost support ───
+  useEffect(() => {
+    if (!incidentIdFromUrl) {
+      ghostFetchAttempted.current = false;
+      return;
+    }
+
+    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
+    if (inList) {
+      setSelectedIncident(inList);
+      setIsEditing(false);
+      setPanelMode('detail');
+      setFlyToCoords({ lat: parseFloat(inList.latitude), lng: parseFloat(inList.longitude) });
+      setMarkerCoords(null);
+      ghostFetchAttempted.current = true;
+      return;
+    }
+
+    // Incident not in current list — fetch as ghost after initial load completes
+    if (incidents.length > 0 && !ghostFetchAttempted.current) {
+      ghostFetchAttempted.current = true;
+      api
+        .getIncident(incidentIdFromUrl)
+        .then((res) => {
+          if (res.data?.incident) {
+            const incident = res.data.incident;
+            setSelectedIncident(incident);
+            setIsEditing(false);
+            setPanelMode('detail');
+            setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
+            setMarkerCoords(null);
+          }
+        })
+        .catch(() => {
+          // Incident not found or deleted — clean up URL
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('incident');
+            return next;
+          });
+          setToast({
+            message: 'Incident not found or has been deleted',
+            type: 'error',
+          });
+        });
+    }
+  }, [incidentIdFromUrl, incidents.length]);
 
   // Handle viewport bounds changes from the map
   const handleViewportChange = useCallback((bounds) => {
@@ -361,7 +415,13 @@ export default function DashboardLayout() {
     setPanelMode('detail');
     setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
     setMarkerCoords(null);
-  }, []);
+    // Update URL to make incident shareable
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('incident', incident.id);
+      return next;
+    });
+  }, [setSearchParams]);
 
   const handleSearchSelect = useCallback((incident) => {
     setSelectedIncident(incident);
@@ -369,7 +429,13 @@ export default function DashboardLayout() {
     setPanelMode('detail');
     setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
     setMarkerCoords(null);
-  }, []);
+    // Update URL to make incident shareable
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('incident', incident.id);
+      return next;
+    });
+  }, [setSearchParams]);
 
   const handleOpenSearchModal = useCallback((query) => {
     setSearchModalQuery(query);
@@ -397,6 +463,12 @@ export default function DashboardLayout() {
     setSelectedIncident(null);
     setMarkerCoords(null);
     setIsEditing(false);
+    // Clear incident from URL while preserving other params
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('incident');
+      return next;
+    });
   };
 
   const handleSwitchToIncidentDate = (incident) => {

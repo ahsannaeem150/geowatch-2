@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Link, Check } from 'lucide-react';
 import { api } from '../../services/api.js';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
@@ -34,6 +35,9 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // Copy link state
+  const [copied, setCopied] = useState(false);
 
   // Verification override state
   const [overrideLoading, setOverrideLoading] = useState(false);
@@ -91,6 +95,14 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
     } finally {
       setDeleteLoading(false);
     }
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/dashboard?incident=${incidentId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const handleUpdateOverride = async (newOverride) => {
@@ -722,6 +734,40 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
         <Button variant="primary" onClick={() => onEdit?.(incident)}>
           Edit Incident
         </Button>
+        <button
+          onClick={handleCopyLink}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: copied ? '#22c55e' : 'var(--text-secondary)',
+            background: copied ? 'rgba(34, 197, 94, 0.08)' : 'transparent',
+            border: '1px solid',
+            borderColor: copied ? 'rgba(34, 197, 94, 0.3)' : 'transparent',
+            borderRadius: '6px',
+            padding: '6px 12px',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            if (!copied) {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'var(--bg-hover)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!copied) {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.background = 'transparent';
+            }
+          }}
+        >
+          {copied ? <Check size={14} /> : <Link size={14} />}
+          {copied ? 'Copied!' : 'Copy link'}
+        </button>
         <Button variant="ghost" style={{ color: 'var(--danger)' }} onClick={openDeleteModal}>
           Delete
         </Button>
