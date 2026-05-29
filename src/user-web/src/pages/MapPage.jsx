@@ -622,7 +622,7 @@ export default function MapPage() {
                   height: '10px',
                   borderRadius: '50%',
                   background: 'var(--text-muted)',
-                  border: '2px dashed rgba(255,255,255,0.5)',
+                  border: '2px dashed var(--text-muted)',
                   flexShrink: 0,
                 }}
               />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Search } from 'lucide-react';
+import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 
 export default function Header() {
   const location = useLocation();
@@ -25,7 +26,7 @@ export default function Header() {
     <header
       style={{
         height: '56px',
-        background: scrolled ? 'rgba(10, 10, 12, 0.85)' : 'var(--bg-surface)',
+        background: scrolled ? 'var(--bg-glass)' : 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
@@ -88,8 +89,10 @@ export default function Header() {
         })}
       </nav>
 
-      {/* Search trigger */}
-      <button
+      {/* Theme toggle + Search trigger */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <ThemeToggle />
+        <button
         onClick={() => setSearchOpen(!searchOpen)}
         style={{
           display: 'flex',
@@ -128,6 +131,7 @@ export default function Header() {
           ⌘K
         </span>
       </button>
+      </div>
     </header>
   );
 }

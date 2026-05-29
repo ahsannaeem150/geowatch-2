@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, ChevronDown, LogOut, User } from 'lucide-react';
+import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
 export default function TopBar() {
@@ -24,7 +25,7 @@ export default function TopBar() {
     <header
       style={{
         height: 'var(--topbar-height)',
-        background: 'rgba(12, 12, 20, 0.85)',
+        background: 'var(--bg-glass)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--border-subtle)',
@@ -71,7 +72,8 @@ export default function TopBar() {
 
       {/* Right section */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        {/* Notification bell */}
+        {/* Theme toggle + Notification bell */}
+        <ThemeToggle />
         <button
           style={{
             position: 'relative',

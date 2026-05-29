@@ -676,7 +676,7 @@ export default function DashboardLayout() {
   const isPanelOpen = panelMode !== 'empty';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, var(--bg-deep) 55%)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
       <TopBar
         onAddEvent={handleAddIncident}
         dateRange={dateRange}
@@ -803,7 +803,7 @@ export default function DashboardLayout() {
                   borderRadius: '50%',
                   background: 'var(--text-muted)',
                   opacity: 0.5,
-                  border: '2px dashed rgba(255,255,255,0.4)',
+                  border: '2px dashed var(--text-muted)',
                   flexShrink: 0,
                 }}
               />

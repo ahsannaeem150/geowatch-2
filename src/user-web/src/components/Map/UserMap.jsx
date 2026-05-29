@@ -3,9 +3,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
+import { useTheme } from '@shared/useTheme.js';
 import { format } from 'date-fns';
-
-const MAP_STYLE_URL = '/map-style-dark.json';
 
 // Hard boundary for z14 tile coverage.
 // Inset by 1° from the actual tile boundary so that even at z14 the entire
@@ -29,6 +28,7 @@ export default function UserMap({
   flyToCoords,
   ghostIncident,
 }) {
+  const { theme } = useTheme();
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef(new Map());
@@ -44,9 +44,12 @@ export default function UserMap({
   useEffect(() => {
     if (map.current) return;
 
+    const styleUrl = document.documentElement.getAttribute('data-theme') === 'light'
+      ? '/map-style-light.json'
+      : '/map-style-dark.json';
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: MAP_STYLE_URL,
+      style: styleUrl,
       center: [69.3451, 30.3753],
       zoom: 4.5,
       attributionControl: false,
@@ -136,6 +139,13 @@ export default function UserMap({
       essential: true,
     });
   }, [flyToCoords]);
+
+  // Switch map style when theme changes
+  useEffect(() => {
+    if (!map.current) return;
+    const newStyle = theme === 'light' ? '/map-style-light.json' : '/map-style-dark.json';
+    map.current.setStyle(newStyle);
+  }, [theme]);
 
   // Create / remove / update marker positions when incidents change
   useEffect(() => {

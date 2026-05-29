@@ -5,6 +5,7 @@ import { Badge } from '@shared/components/Badge.jsx';
 import SearchDropdown from '../SearchDropdown/SearchDropdown.jsx';
 import DatePicker from '../DatePicker/DatePicker.jsx';
 import { api } from '../../services/api.js';
+import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 
 export default function TopBar({
   onAddEvent,
@@ -343,6 +344,7 @@ export default function TopBar({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <ThemeToggle />
         <div
           style={{
             display: 'flex',

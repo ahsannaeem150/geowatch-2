@@ -70,6 +70,38 @@
   --transition-base: 250ms ease;
 }
 
+/* ─── Light Theme Overrides for Superadmin ─── */
+[data-theme="light"] {
+  --bg-deep: #f2f2f5;
+  --bg-base: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f5f5f7;
+  --bg-hover: #eaeaec;
+  --bg-active: #f0f0f2;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+
+  --text-primary: #1a1a1e;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --text-disabled: #b0b0b8;
+
+  --border-subtle: #e5e5e8;
+  --border-default: #d1d1d6;
+  --border-strong: #b8b8c0;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.1);
+
+  /* Keep navy as primary accent even in light mode */
+  --primary: var(--navy-600);
+  --primary-hover: var(--navy-700);
+  --primary-dark: var(--navy-800);
+  --primary-light: var(--navy-500);
+  --primary-glow: var(--navy-400);
+}
+
 /* ============================================
    Base Reset
    ============================================ */
@@ -132,7 +164,7 @@ body {
 }
 
 .console-glass {
-  background: rgba(15, 15, 26, 0.8);
+  background: var(--bg-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-default);
