@@ -443,6 +443,13 @@ export default function DashboardLayout() {
     setSelectedIncident(null);
     setIsEditing(false);
     setPanelMode('form');
+    // Clear any stale incident ID from URL so the deep-link effect doesn't
+    // re-trigger after the incident list refreshes post-creation.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('incident');
+      return next;
+    });
 
     reverseGeocode(coords.lat, coords.lng).then((locationContext) => {
       setMarkerCoords((prev) => {
@@ -450,7 +457,7 @@ export default function DashboardLayout() {
         return { ...prev, locationContext: locationContext || null };
       });
     });
-  }, []);
+  }, [setSearchParams]);
 
   const handleEventClick = useCallback((incident) => {
     setSelectedIncident(incident);
@@ -540,9 +547,16 @@ export default function DashboardLayout() {
       } else {
         const res = await api.createIncident(payload);
         const newIncident = res.data.incident;
+        // Open the newly created incident in the sidebar, but do NOT fly the map
+        // — it's already centered where the user double-clicked.
         setSelectedIncident(newIncident);
         setPanelMode('detail');
         setMarkerCoords(null);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('incident', newIncident.id);
+          return next;
+        });
 
         if (newIncident.end_date) {
           const graceEnd = new Date(new Date(newIncident.end_date).getTime() + 24 * 60 * 60 * 1000);
