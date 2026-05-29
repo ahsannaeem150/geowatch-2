@@ -35,7 +35,7 @@ export default function MapLegend({
 
   if (domains.length === 0) return null;
 
-  const allActive = activeDomainFilters.size === 0 || activeDomainFilters.size === domains.length;
+  const allActive = activeDomainFilters.size === 0;
   const someActive = activeDomainFilters.size > 0 && activeDomainFilters.size < domains.length;
 
   return (
@@ -151,7 +151,7 @@ export default function MapLegend({
 
           {/* Domain list */}
           {domains.map((domain) => {
-            const isActive = activeDomainFilters.size === 0 || activeDomainFilters.has(domain.slug);
+            const isActive = !activeDomainFilters.has(domain.slug);
             const icon = getMarkerIcon(domain.slug);
             return (
               <button
@@ -204,6 +204,7 @@ export default function MapLegend({
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={{ overflow: 'visible' }}
                   >
                     <path d={icon.path} />
                   </svg>

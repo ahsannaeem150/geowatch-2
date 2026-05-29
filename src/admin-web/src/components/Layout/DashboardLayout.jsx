@@ -125,9 +125,9 @@ export default function DashboardLayout() {
         return id === activeDomainFilter;
       });
     }
-    // Legend multi-domain filter
+    // Legend multi-domain filter (exclusion model: Set contains HIDDEN domains)
     if (activeDomainFilters.size > 0) {
-      result = result.filter((i) => activeDomainFilters.has(i.domain_slug));
+      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
     }
     return result;
   }, [incidents, activeDomainFilter, activeDomainFilters]);

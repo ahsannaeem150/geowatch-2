@@ -6,7 +6,7 @@
 export const DOMAIN_MARKER_ICONS = {
   // Conflict & Violence
   'conflict': {
-    path: 'M14.5 17.5L3 6V3h3l11.5 11.5M10 10l4 4M14.5 6.5L3 18v3h3l11.5-11.5',
+    path: 'M12 3L4 20h16L12 3z',
     viewBox: '0 0 24 24',
   },
   'terrorism-asymmetric': {
@@ -118,7 +118,7 @@ export function buildMarkerIconSVG(domainSlug, size) {
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      style="pointer-events: none;"
+      style="pointer-events: none; overflow: visible;"
     >
       <path d="${icon.path}" />
     </svg>

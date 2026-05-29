@@ -188,7 +188,7 @@ export default function MapPage() {
   // Filtered incidents for map
   const filteredIncidents = useMemo(() => {
     if (activeDomainFilters.size === 0) return incidents;
-    return incidents.filter((i) => activeDomainFilters.has(i.domain_slug));
+    return incidents.filter((i) => !activeDomainFilters.has(i.domain_slug));
   }, [incidents, activeDomainFilters]);
 
   // Legend handlers
@@ -486,7 +486,7 @@ export default function MapPage() {
       result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
     }
     if (activeDomainFilters.size > 0) {
-      result = result.filter((i) => activeDomainFilters.has(i.domain_slug));
+      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
     }
     return result;
   }, [incidents, filters.verifiedOnly, activeDomainFilters]);
