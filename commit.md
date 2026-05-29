@@ -3254,3 +3254,55 @@ feat(superadmin): phase 7 — domain & category taxonomy manager with full CRUD,
 ```
 
 *End of Phase 7*
+
+---
+
+## Script Suite Overhaul — PID-Based Process Management
+
+**Date:** 2026-05-29
+**Scope:** Robust start/stop/status scripts with PID files, selective service control, superadmin-web support
+
+### Modified Files
+
+| File | Change |
+|:-----|:-------|
+| `scripts/start-geowatch.sh` | Complete rewrite. PID-file-based process tracking (replaces flaky `pgrep` string-matching). Helper launcher scripts for proper `cd` + `nohup` support. Selective service start: `./start-geowatch.sh admin-web`. `--no-browser` flag. Added **superadmin-web** (port 5175). Individual start commands shown in help footer |
+| `scripts/stop-geowatch.sh` | PID-file-based termination with graceful `TERM` → force `KILL` fallback. Selective stop: `./stop-geowatch.sh admin-web`. `pgrep` fallback for stale/missing PID files |
+| `scripts/logs-geowatch.sh` | Added **superadmin-web** to log rotation. Optional per-service live tail: `./logs-geowatch.sh admin-web` |
+
+### New Files
+
+| File | Purpose |
+|:-----|:--------|
+| `scripts/status-geowatch.sh` | Live service status with HTTP health probes. Shows PID, HTTP status code, running/stopped state per service |
+
+### Why PID Files Instead of pgrep
+
+**Problem:** `pgrep -f "vite --port 5174"` was unreliable because:
+- `npx` wrapper spawns `npm exec vite --port 5174` which doesn't match the pattern
+- Multiple vite processes (5173, 5174, 5175) could cause cross-matching
+- `cd` commands in `nohup` failed because `nohup` cannot execute shell builtins
+
+**Fix:** Each service writes its PID to `logs/<service>.pid` via a bash launcher script. Stop/status scripts read PID files directly. Fallback to `pgrep` only for cleanup of stale processes.
+
+### Verified
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | Full start (all 5 services) | ✅ Martin, Backend, Admin, User, Superadmin all up |
+| 2 | `status-geowatch.sh` | ✅ All green, HTTP 200/401, correct PIDs |
+| 3 | Selective stop `admin-web` | ✅ Only admin-web killed, others stay up |
+| 4 | Status after selective stop | ✅ Admin-web red, others green |
+| 5 | Selective restart `admin-web` | ✅ Admin-web comes back, new PID |
+| 6 | Full stop | ✅ All 5 services terminated cleanly |
+| 7 | Status after full stop | ✅ All red/stopped |
+| 8 | `logs-geowatch.sh` | ✅ All 5 service logs displayed |
+| 9 | `logs-geowatch.sh backend` | ✅ Live tail of backend log |
+
+### Git Commit
+
+```
+feat(scripts): overhaul start/stop/status with PID files, selective control, superadmin-web support
+```
+
+*End of Script Overhaul*
