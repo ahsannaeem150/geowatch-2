@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ClipboardList, AlertTriangle, RefreshCw, Radio } from 'lucide-react';
 import { listAuditLogs } from '../services/api.js';
+import { useEventSource } from '../hooks/useEventSource.js';
 import { exportToCsv } from '../utils/csv-export.js';
 import AuditFilters from '../components/Audit/AuditFilters.jsx';
 import AuditTable from '../components/Audit/AuditTable.jsx';
@@ -13,6 +14,7 @@ export default function AuditPage() {
   const [filters, setFilters] = useState({ action: '', userId: '', targetType: '', dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [liveFlash, setLiveFlash] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -40,6 +42,15 @@ export default function AuditPage() {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  // Real-time SSE: refresh audit log when any platform event occurs
+  const { connected } = useEventSource({
+    onEvent: () => {
+      fetchLogs();
+      setLiveFlash(true);
+      setTimeout(() => setLiveFlash(false), 1200);
+    },
+  });
 
   // Reset to page 1 when filters change
   useEffect(() => {

@@ -14,6 +14,7 @@ import {
   Download,
 } from 'lucide-react';
 import { listUsers, getIncidents, getAuditSummary, getSystemHealth, listAuditLogs } from '../services/api.js';
+import { useEventSource } from '../hooks/useEventSource.js';
 import { formatDistanceToNow } from 'date-fns';
 import { getAuditActionColor } from '../utils/audit-colors.js';
 
@@ -107,6 +108,7 @@ export default function DashboardPage() {
   });
   const [recentLogs, setRecentLogs] = useState([]);
   const [systemDetails, setSystemDetails] = useState(null);
+  const [liveIndicator, setLiveIndicator] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -141,6 +143,18 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
+  // Real-time SSE: refresh dashboard when incidents change
+  const { connected } = useEventSource({
+    onEvent: (data) => {
+      const refreshTypes = ['incident_created', 'incident_updated', 'incident_deleted', 'incident_resolved', 'timeline_added', 'source_added'];
+      if (refreshTypes.includes(data.type)) {
+        fetchData();
+        setLiveIndicator(true);
+        setTimeout(() => setLiveIndicator(false), 1500);
+      }
+    },
+  });
+
   const systemStatusLabel = metrics.systemStatus === 'healthy' ? 'Healthy' : metrics.systemStatus === 'degraded' ? 'Degraded' : 'Unhealthy';
   const systemStatusColor = metrics.systemStatus === 'healthy' ? 'var(--success)' : metrics.systemStatus === 'degraded' ? 'var(--warning)' : 'var(--danger)';
 
@@ -152,6 +166,39 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Dashboard</h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>Platform overview and system status</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {connected && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: liveIndicator ? 'var(--success)' : 'var(--text-muted)',
+                transition: 'color 0.3s ease',
+                padding: '4px 10px',
+                borderRadius: 6,
+                background: liveIndicator ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                border: liveIndicator ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid transparent',
+              }}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: 'var(--success)',
+                  boxShadow: liveIndicator ? '0 0 8px var(--success)' : 'none',
+                  transition: 'box-shadow 0.3s ease',
+                  animation: 'pulse-dot 2s ease-in-out infinite',
+                }}
+              />
+              Live
+            </span>
+          )}
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             onClick={() => navigate('/superadmin/users')}
@@ -197,6 +244,7 @@ export default function DashboardPage() {
             <Download size={15} />
             Export
           </button>
+        </div>
         </div>
       </div>
 

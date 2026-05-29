@@ -16,6 +16,7 @@ import incidentRoutes from './src/routes/incident.routes.js';
 import timelineRoutes from './src/routes/timeline.routes.js';
 import sourceRoutes from './src/routes/source.routes.js';
 import { addClient, removeClient } from './src/utils/sse-broadcast.js';
+import { authenticate } from './src/middleware/auth.middleware.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -45,7 +46,7 @@ app.use(responseWrapper);
 app.use(generalLimiter);
 
 // ─── SSE Stream Endpoint (must be before incident routes to avoid /:id collision) ───
-app.get('/api/v1/incidents/stream', (req, res) => {
+app.get('/api/v1/incidents/stream', authenticate, (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');

@@ -3306,3 +3306,65 @@ feat(scripts): overhaul start/stop/status with PID files, selective control, sup
 ```
 
 *End of Script Overhaul*
+
+---
+
+## Superadmin Console — User Guide + Real-Time SSE
+
+**Date:** 2026-05-29
+**Scope:** Comprehensive user guide + live real-time updates via Server-Sent Events
+
+### New Files
+
+| File | Purpose |
+|:-----|:--------|
+| `SUPERADMIN_GUIDE.md` | Complete user guide covering: login, dashboard, users, audit log, domains & categories, system health, data export, keyboard shortcuts, troubleshooting, port reference |
+| `src/superadmin-web/src/hooks/useEventSource.js` | React hook for SSE client. Connects to `/api/v1/incidents/stream`, auto-reconnects with exponential backoff (max 10 attempts, up to 30s delay), parses JSON events, supports `onEvent`/`onConnect`/`onDisconnect` callbacks. Passes JWT token as query param since EventSource doesn't support custom headers |
+
+### Modified Files
+
+| File | Change |
+|:-----|:-------|
+| `src/superadmin-web/src/pages/DashboardPage.jsx` | Integrated `useEventSource` hook. Auto-refetches KPIs (users, incidents, audit, health) on `incident_created`/`updated`/`deleted`/`resolved`/`timeline_added`/`source_added`. Added **Live** pulsing indicator in header (green dot + "Live" badge, flashes on update) |
+| `src/superadmin-web/src/pages/AuditPage.jsx` | Integrated `useEventSource` hook. Auto-refetches audit log on any SSE event. Added **Live** radio indicator in header. Flash animation on new data arrival |
+| `src/superadmin-web/src/index.css` | Added `pulse-dot` keyframe animation for live indicators |
+| `src/backend/src/middleware/auth.middleware.js` | Extended `authenticate` to accept JWT token from `req.query.token` as fallback (required because EventSource cannot send custom headers) |
+| `src/backend/server.js` | Added `authenticate` middleware to SSE `/api/v1/incidents/stream` endpoint. Now requires valid token — unauthenticated requests return 401 |
+
+### How Real-Time Works
+
+```
+┌─────────────────┐     SSE stream      ┌─────────────────┐
+│  Admin creates  │ ──────────────────► │ Superadmin dash │
+│  new incident   │  incident_created   │  → auto-refresh │
+└─────────────────┘                     └─────────────────┘
+```
+
+1. Superadmin page mounts → `useEventSource` connects to `/api/v1/incidents/stream?token=<jwt>`
+2. Backend `authenticate` middleware validates token from query param
+3. Connection stays open (HTTP keep-alive)
+4. When any incident/timeline/source mutation occurs, controller calls `broadcastEvent()`
+5. All connected clients receive the event JSON
+6. Frontend `onEvent` callback triggers data refetch
+7. UI updates automatically — no page refresh needed
+
+### Verified End-to-End
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `npm run build` (superadmin-web) | ✅ 350KB JS, 4.7KB CSS, 869ms |
+| 2 | SSE connect with valid token | ✅ `: connected` heartbeat |
+| 3 | SSE connect without token | ✅ 401 UNAUTHORIZED |
+| 4 | Create incident → SSE event | ✅ `incident_created` received with full data |
+| 5 | Dashboard auto-refresh trigger | ✅ `fetchData()` called on matching event types |
+| 6 | Audit log auto-refresh trigger | ✅ `fetchLogs()` called on any event |
+| 7 | Live indicator visible | ✅ Pulsing green dot + "Live" badge |
+| 8 | Live flash on update | ✅ Badge highlights green for 1.5s on new data |
+
+### Git Commit
+
+```
+feat(superadmin): user guide + real-time SSE dashboard/audit auto-refresh with live indicators
+```
+
+*End of User Guide + Real-Time Feature*

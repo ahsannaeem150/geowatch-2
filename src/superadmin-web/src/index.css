@@ -169,6 +169,11 @@ body {
   50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
 }
 
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.3s ease forwards;
 }

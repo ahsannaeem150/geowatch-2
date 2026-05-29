@@ -8,12 +8,17 @@ import { findUserById } from '../services/auth.service.js';
 export async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
+    let token = null;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.apiError('Authentication required', 'UNAUTHORIZED', 401);
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    } else if (req.query?.token) {
+      token = req.query.token;
     }
 
-    const token = authHeader.slice(7);
+    if (!token) {
+      return res.apiError('Authentication required', 'UNAUTHORIZED', 401);
+    }
     const decoded = verifyToken(token);
 
     const user = await findUserById(decoded.id);
