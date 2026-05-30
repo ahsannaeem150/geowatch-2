@@ -2,10 +2,11 @@ import React from 'react';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { VERIFICATION_CONFIG } from '@shared/constants.js';
+import SaveButton from '../SaveButton/SaveButton.jsx';
 
 import { format } from 'date-fns';
 
-export default function IncidentListItem({ incident, isSelected, onClick }) {
+export default function IncidentListItem({ incident, isSelected, onClick, isSaved, onSaveChange }) {
   const dateStr = incident.start_date
     ? format(new Date(incident.start_date), 'MMM d, yyyy')
     : 'Unknown date';
@@ -34,6 +35,9 @@ export default function IncidentListItem({ incident, isSelected, onClick }) {
         {incident.verification_status && (
           <VerificationBadge status={incident.verification_status} />
         )}
+        <div style={{ marginLeft: 'auto' }}>
+          <SaveButton incidentId={incident.id} initialSaved={isSaved} onChange={onSaveChange} />
+        </div>
       </div>
 
       <h4

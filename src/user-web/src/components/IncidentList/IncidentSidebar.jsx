@@ -13,6 +13,11 @@ export default function IncidentSidebar({
   filters,
   onFilterChange,
   detailRefreshKey,
+  tab = 'events',
+  onTabChange,
+  savedIds,
+  onSaveChange,
+  savedCount = 0,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const { domains, getCategoriesByDomain } = useCategories();
@@ -38,11 +43,17 @@ export default function IncidentSidebar({
     >
       {selectedIncident ? (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <IncidentDetailView incidentId={selectedIncident.id} onBack={onBack} refreshKey={detailRefreshKey} />
+          <IncidentDetailView
+            incidentId={selectedIncident.id}
+            onBack={onBack}
+            refreshKey={detailRefreshKey}
+            isSaved={savedIds?.has(selectedIncident.id)}
+            onSaveChange={onSaveChange}
+          />
         </div>
       ) : (
         <>
-          {/* Search & filters header */}
+          {/* Tab bar + Search & filters header */}
           <div
             style={{
               padding: '16px',
@@ -52,6 +63,78 @@ export default function IncidentSidebar({
               gap: '10px',
             }}
           >
+            {/* Tabs */}
+            {onTabChange && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '4px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '3px',
+                }}
+              >
+                <button
+                  onClick={() => onTabChange('events')}
+                  style={{
+                    flex: 1,
+                    padding: '5px 0',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    background: tab === 'events' ? 'var(--bg-surface)' : 'transparent',
+                    color: tab === 'events' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: tab === 'events' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  Events
+                </button>
+                <button
+                  onClick={() => onTabChange('saved')}
+                  style={{
+                    flex: 1,
+                    padding: '5px 0',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    background: tab === 'saved' ? 'var(--bg-surface)' : 'transparent',
+                    color: tab === 'saved' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: tab === 'saved' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  Saved
+                  {savedCount > 0 && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: 'var(--accent-light)',
+                        background: 'rgba(159, 18, 57, 0.12)',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                      }}
+                    >
+                      {savedCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h3
                 style={{
@@ -63,7 +146,7 @@ export default function IncidentSidebar({
                   margin: 0,
                 }}
               >
-                Events
+                {tab === 'saved' ? 'Saved' : 'Events'}
               </h3>
               <span
                 style={{
@@ -213,9 +296,11 @@ export default function IncidentSidebar({
               </div>
             ) : filteredIncidents.length === 0 ? (
               <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }}>🗺️</div>
-                <div>No incidents found.</div>
-                <div style={{ fontSize: '12px', marginTop: '4px' }}>Try adjusting your filters.</div>
+                <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }}>{tab === 'saved' ? '⭐' : '🗺️'}</div>
+                <div>{tab === 'saved' ? 'No saved incidents yet.' : 'No incidents found.'}</div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                  {tab === 'saved' ? 'Save incidents from the Events tab to see them here.' : 'Try adjusting your filters.'}
+                </div>
               </div>
             ) : (
               filteredIncidents.map((incident) => (
@@ -224,6 +309,8 @@ export default function IncidentSidebar({
                   incident={incident}
                   isSelected={false}
                   onClick={() => onSelectEvent?.(incident)}
+                  isSaved={savedIds?.has(incident.id)}
+                  onSaveChange={(saved) => onSaveChange?.(incident.id, saved)}
                 />
               ))
             )}

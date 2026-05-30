@@ -129,6 +129,54 @@ CREATE TRIGGER update_zones_updated_at BEFORE UPDATE ON zones
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
+-- PUBLIC USERS (OAuth / Google Sign-In)
+-- ============================================
+CREATE TABLE public_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255),
+    avatar_url TEXT,
+    oauth_provider VARCHAR(20) NOT NULL DEFAULT 'google',
+    oauth_id VARCHAR(255) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_public_users_oauth ON public_users(oauth_provider, oauth_id);
+
+-- ============================================
+-- USER SAVED INCIDENTS (Bookmarks)
+-- ============================================
+CREATE TABLE user_saved_incidents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public_users(id) ON DELETE CASCADE,
+    incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+    notes TEXT,
+    saved_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, incident_id)
+);
+
+CREATE INDEX idx_user_saved_incidents_user_id ON user_saved_incidents(user_id);
+CREATE INDEX idx_user_saved_incidents_incident_id ON user_saved_incidents(incident_id);
+
+-- ============================================
+-- DELETED INCIDENTS LOG (Soft-delete tracking)
+-- ============================================
+CREATE TABLE deleted_incidents_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    incident_id UUID NOT NULL,
+    title VARCHAR(500) NOT NULL,
+    deleted_by UUID,
+    deleted_by_email VARCHAR(255),
+    deleted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    data_snapshot JSONB NOT NULL
+);
+
+CREATE INDEX idx_deleted_incidents_log_incident_id ON deleted_incidents_log(incident_id);
+CREATE INDEX idx_deleted_incidents_log_deleted_at ON deleted_incidents_log(deleted_at DESC);
+
+-- ============================================
 -- PERMISSIONS (run if tables created by superuser)
 -- ============================================
 -- GRANT USAGE ON SCHEMA public TO geowatch_user;

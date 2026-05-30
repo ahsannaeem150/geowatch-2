@@ -74,4 +74,10 @@ export const api = {
     body: JSON.stringify({ idToken }),
   }),
   publicMe: () => request('/auth/public/me'),
+
+  // Saved incidents
+  listSavedIncidents: () => request('/incidents/saved'),
+  saveIncident: (id) => request(`/incidents/${id}/save`, { method: 'POST' }),
+  unsaveIncident: (id) => request(`/incidents/${id}/save`, { method: 'DELETE' }),
+  checkSaved: (id) => request(`/incidents/${id}/saved`),
 };

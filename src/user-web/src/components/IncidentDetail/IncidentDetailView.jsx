@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Copy, Check } from 'lucide-react';
 import { api } from '../../services/api.js';
+import SaveButton from '../SaveButton/SaveButton.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function IncidentDetailView({ incidentId, onBack, refreshKey }) {
+export default function IncidentDetailView({ incidentId, onBack, refreshKey, isSaved, onSaveChange }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -97,27 +98,35 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey }) {
           ← Back to results
         </button>
 
-        <button
-          onClick={handleCopyLink}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: copied ? 'var(--success)' : 'var(--text-muted)',
-            background: copied ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-elevated)',
-            border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.25)' : 'var(--border-subtle)'}`,
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
-            padding: '6px 12px',
-            transition: 'all 0.2s ease',
-          }}
-          title="Copy shareable link"
-        >
-          {copied ? <Check size={14} /> : <Link size={14} />}
-          {copied ? 'Copied!' : 'Copy link'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <SaveButton
+            incidentId={incidentId}
+            initialSaved={isSaved}
+            onChange={(saved) => onSaveChange?.(incidentId, saved)}
+            size={16}
+          />
+          <button
+            onClick={handleCopyLink}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: copied ? 'var(--success)' : 'var(--text-muted)',
+              background: copied ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-elevated)',
+              border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.25)' : 'var(--border-subtle)'}`,
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              padding: '6px 12px',
+              transition: 'all 0.2s ease',
+            }}
+            title="Copy shareable link"
+          >
+            {copied ? <Check size={14} /> : <Link size={14} />}
+            {copied ? 'Copied!' : 'Copy link'}
+          </button>
+        </div>
       </div>
 
       {/* Header card */}

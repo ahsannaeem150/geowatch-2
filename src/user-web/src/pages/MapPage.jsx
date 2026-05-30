@@ -10,6 +10,7 @@ import LiveActivityFeed from '../components/LiveActivity/LiveActivityFeed.jsx';
 import TickerBar from '../components/Ticker/TickerBar.jsx';
 import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
+import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 
 const LS_KEY = 'geowatch_last_seen';
 const MAX_ACTIVITIES = 50;
@@ -59,6 +60,12 @@ export default function MapPage() {
   const [totalEventCount, setTotalEventCount] = useState(0);
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
+
+  // ─── Saved Incidents ───
+  const { isAuthenticated } = usePublicAuth();
+  const [savedIncidents, setSavedIncidents] = useState([]);
+  const [savedIds, setSavedIds] = useState(new Set());
+  const [sidebarTab, setSidebarTab] = useState('events'); // 'events' | 'saved'
 
   // ─── Live Activity ───
   const [activities, setActivities] = useState([]);
@@ -184,6 +191,25 @@ export default function MapPage() {
       })
       .catch(() => setDomains([]));
   }, []);
+
+  // Fetch saved incidents when user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSavedIncidents([]);
+      setSavedIds(new Set());
+      return;
+    }
+    api.listSavedIncidents()
+      .then((res) => {
+        const incidents = res.data.incidents || [];
+        setSavedIncidents(incidents);
+        setSavedIds(new Set(incidents.map((i) => i.id)));
+      })
+      .catch(() => {
+        setSavedIncidents([]);
+        setSavedIds(new Set());
+      });
+  }, [isAuthenticated]);
 
   // Filtered incidents for map
   const filteredIncidents = useMemo(() => {
@@ -491,6 +517,41 @@ export default function MapPage() {
     return result;
   }, [incidents, filters.verifiedOnly, activeDomainFilters]);
 
+  // Filter saved incidents with same rules
+  const visibleSavedIncidents = useMemo(() => {
+    let result = savedIncidents;
+    if (filters.verifiedOnly) {
+      result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
+    }
+    if (activeDomainFilters.size > 0) {
+      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
+    }
+    return result;
+  }, [savedIncidents, filters.verifiedOnly, activeDomainFilters]);
+
+  const handleSaveChange = useCallback((incidentId, isSaved) => {
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (isSaved) {
+        next.add(incidentId);
+      } else {
+        next.delete(incidentId);
+      }
+      return next;
+    });
+    if (isSaved) {
+      // Add to savedIncidents if not already there
+      setSavedIncidents((prev) => {
+        if (prev.some((i) => i.id === incidentId)) return prev;
+        const incident = incidents.find((i) => i.id === incidentId);
+        if (incident) return [incident, ...prev];
+        return prev;
+      });
+    } else {
+      setSavedIncidents((prev) => prev.filter((i) => i.id !== incidentId));
+    }
+  }, [incidents]);
+
   // Determine if selected incident is a "ghost" (outside current date range)
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
     ? selectedIncident
@@ -687,7 +748,7 @@ export default function MapPage() {
         {/* Right — Incident sidebar */}
         <div style={{ width: '630px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
           <IncidentSidebar
-            incidents={visibleIncidents}
+            incidents={sidebarTab === 'saved' ? visibleSavedIncidents : visibleIncidents}
             selectedIncident={selectedIncident}
             onSelectEvent={handleSelectIncident}
             onBack={handleBack}
@@ -695,6 +756,11 @@ export default function MapPage() {
             filters={filters}
             onFilterChange={setFilters}
             detailRefreshKey={detailRefreshKey}
+            tab={sidebarTab}
+            onTabChange={setSidebarTab}
+            savedIds={savedIds}
+            onSaveChange={handleSaveChange}
+            savedCount={savedIncidents.length}
           />
         </div>
       </div>
