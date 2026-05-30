@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from './src/middleware/error-handler.js
 
 import healthRoutes from './src/routes/health.routes.js';
 import authRoutes from './src/routes/auth.routes.js';
+import publicAuthRoutes from './src/routes/public-auth.routes.js';
 import userRoutes from './src/routes/user.routes.js';
 import auditRoutes from './src/routes/audit.routes.js';
 import systemRoutes from './src/routes/system.routes.js';
@@ -65,6 +66,7 @@ app.use(generalLimiter);
 // ─── API Routes ───
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/auth/public', publicAuthRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/system', systemRoutes);

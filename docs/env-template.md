@@ -34,6 +34,10 @@ RATE_LIMIT_MAX_REQUESTS=100
 
 TWITTER_OEMBED_URL=https://publish.twitter.com/oembed
 
+# Google OAuth (public user sign-in)
+# Get your Client ID from https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
+
 ---
 
 ## Production (.env.production)
@@ -61,6 +65,9 @@ RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=200
 
 TWITTER_OEMBED_URL=https://publish.twitter.com/oembed
+
+# Google OAuth (public user sign-in)
+GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
 
 ---
 

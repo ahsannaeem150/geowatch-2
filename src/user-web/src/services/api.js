@@ -1,11 +1,20 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
+function getToken() {
+  return localStorage.getItem('geowatch_public_token');
+}
+
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  const token = getToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const res = await fetch(url, {
     ...options,
@@ -58,4 +67,11 @@ export const api = {
     return request(`/incidents/search${query ? '?' + query : ''}`);
   },
   getIncident: (id) => request(`/incidents/${id}`),
+
+  // Public user auth
+  publicLogin: (idToken) => request('/auth/public/google', {
+    method: 'POST',
+    body: JSON.stringify({ idToken }),
+  }),
+  publicMe: () => request('/auth/public/me'),
 };
