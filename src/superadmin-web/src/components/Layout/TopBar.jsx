@@ -18,7 +18,7 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const roleLabel = user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : 'Viewer';
+  const roleLabel = user?.role === 'super_admin' ? 'Super Admin' : 'Admin';
   const roleColor = user?.role === 'super_admin' ? 'var(--navy-400)' : 'var(--text-muted)';
 
   return (

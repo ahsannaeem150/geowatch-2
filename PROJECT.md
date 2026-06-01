@@ -42,7 +42,6 @@ Map-based global conflict and major events visualization platform.
 ## Auth Roles
 - super_admin: Full access, manage admins, delete events
 - admin: Create/edit events, timeline updates, cannot manage users
-- viewer: Future read-only role
 
 ## Map Rules
 - Self-hosted .mbtiles via Martin on localhost:8080

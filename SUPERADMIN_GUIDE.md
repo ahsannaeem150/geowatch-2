@@ -50,7 +50,7 @@ Manage every account on the platform.
 
 ### User Table
 - **Search** — type a name or email (200ms debounce)
-- **Filter by role** — Viewer / Admin / Super Admin
+- **Filter by role** — Admin / Super Admin
 - **Filter by status** — Active / Inactive
 - **Sort** — click any column header
 - **Pagination** — 25 users per page
@@ -65,7 +65,7 @@ Click the **+ New User** button. Fill in:
 - Email
 - Full Name
 - Password
-- Role (Viewer / Admin / Super Admin)
+- Role (Admin / Super Admin)
 
 ### User Detail Drawer
 Click any user's row to open a side panel showing:

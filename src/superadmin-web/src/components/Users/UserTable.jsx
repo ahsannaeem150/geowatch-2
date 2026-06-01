@@ -5,11 +5,10 @@ import { formatDistanceToNow } from 'date-fns';
 const ROLE_STYLES = {
   super_admin: { bg: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', label: 'Super Admin' },
   admin: { bg: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6', label: 'Admin' },
-  viewer: { bg: 'rgba(100, 116, 139, 0.12)', color: '#94a3b8', label: 'Viewer' },
 };
 
 function RoleBadge({ role }) {
-  const style = ROLE_STYLES[role] || ROLE_STYLES.viewer;
+  const style = ROLE_STYLES[role] || ROLE_STYLES.admin;
   return (
     <span
       style={{

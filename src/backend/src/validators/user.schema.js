@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const listUsersQuerySchema = z.object({
   search: z.string().optional(),
-  role: z.enum(['super_admin', 'admin', 'viewer']).optional(),
+  role: z.enum(['super_admin', 'admin']).optional(),
   isActive: z.enum(['true', 'false']).optional().transform((val) => {
     if (val === undefined) return undefined;
     return val === 'true';
@@ -14,7 +14,7 @@ export const listUsersQuerySchema = z.object({
 });
 
 export const updateUserBodySchema = z.object({
-  role: z.enum(['super_admin', 'admin', 'viewer']).optional(),
+  role: z.enum(['super_admin', 'admin']).optional(),
   isActive: z.boolean().optional(),
   fullName: z.string().min(2, 'Full name must be at least 2 characters').max(255, 'Full name too long').optional(),
 }).refine((data) => Object.keys(data).length > 0, {

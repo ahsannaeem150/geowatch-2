@@ -132,7 +132,7 @@ geowatch/
 ### Module 4 — Backend Authentication
 - JWT with bcryptjs, login/register/me/admins routes
 - Auth middleware (Bearer JWT), role middleware (`requireRole`)
-- Roles: `super_admin`, `admin`, `viewer`
+- Roles: `super_admin`, `admin`
 - DB permission fix (`grant-permissions.sql`)
 
 ### Module 5 — Backend Events API
@@ -141,7 +141,7 @@ geowatch/
 - Timeline and sources endpoints with X/Twitter oEmbed auto-fetch
 
 ### Permission Fix
-- `admin` can delete events and create `viewer` users
+- `admin` can delete events; only `super_admin` can manage users
 - `super_admin` has full access
 
 ### Module 6 — Shared Design System

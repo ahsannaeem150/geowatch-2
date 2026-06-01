@@ -6,7 +6,6 @@ import { formatDistanceToNow } from 'date-fns';
 const ROLE_STYLES = {
   super_admin: { bg: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', label: 'Super Admin' },
   admin: { bg: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6', label: 'Admin' },
-  viewer: { bg: 'rgba(100, 116, 139, 0.12)', color: '#94a3b8', label: 'Viewer' },
 };
 
 export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }) {
@@ -97,7 +96,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
 
   const user = data?.user;
   const stats = data?.stats;
-  const roleStyle = ROLE_STYLES[user?.role] || ROLE_STYLES.viewer;
+  const roleStyle = ROLE_STYLES[user?.role] || ROLE_STYLES.admin;
 
   return (
     <div
@@ -224,7 +223,6 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
                           outline: 'none',
                         }}
                       >
-                        <option value="viewer">Viewer</option>
                         <option value="admin">Admin</option>
                         <option value="super_admin">Super Admin</option>
                       </select>

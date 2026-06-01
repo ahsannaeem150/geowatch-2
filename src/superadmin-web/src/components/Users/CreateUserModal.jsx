@@ -3,7 +3,7 @@ import { X, AlertCircle, Check } from 'lucide-react';
 import { registerUser } from '../../services/api.js';
 
 export default function CreateUserModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({ email: '', fullName: '', password: '', role: 'viewer' });
+  const [form, setForm] = useState({ email: '', fullName: '', password: '', role: 'admin' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function CreateUserModal({ onClose, onCreated }) {
     try {
       const data = await registerUser(form);
       setSuccess(`User ${data.user.email} created successfully`);
-      setForm({ email: '', fullName: '', password: '', role: 'viewer' });
+      setForm({ email: '', fullName: '', password: '', role: 'admin' });
       onCreated?.();
       setTimeout(() => onClose(), 1200);
     } catch (err) {
@@ -119,7 +119,6 @@ export default function CreateUserModal({ onClose, onCreated }) {
                 cursor: 'pointer',
               }}
             >
-              <option value="viewer">Viewer</option>
               <option value="admin">Admin</option>
               <option value="super_admin">Super Admin</option>
             </select>

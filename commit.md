@@ -3368,3 +3368,72 @@ feat(superadmin): user guide + real-time SSE dashboard/audit auto-refresh with l
 ```
 
 *End of User Guide + Real-Time Feature*
+
+
+---
+
+## Phase 1 — Auth Cleanup: Remove Viewer Role, Unify Staff Roles
+
+**Date:** 2026-05-05
+**Scope:** Remove the `viewer` role from staff user creation and management. Staff universe is now `super_admin` + `admin` only. Public users remain Google-authenticated and separately managed.
+
+### Problem
+The `viewer` role created confusion between staff users (backend/admin panel) and public users (frontend/Google auth). A staff "viewer" could not log into the public website, and public Google users could not log into the admin panel. The two identity systems needed a clear boundary.
+
+### Solution
+Removed `viewer` from all creation and validation flows. Existing viewer accounts in the database remain functional (backward compatibility), but no new viewer accounts can be created.
+
+### Frontend Changes (superadmin-web)
+
+| File | Change |
+|:-----|:-------|
+| `CreateUserModal.jsx` | Default role changed `viewer` → `admin`. Removed `viewer` option from role dropdown. |
+| `UserTable.jsx` | Removed `viewer` from `ROLE_STYLES`. Fallback badge defaults to `admin` style. |
+| `UserDetailDrawer.jsx` | Removed `viewer` from `ROLE_STYLES`. Removed `viewer` option from edit role dropdown. Fallback badge defaults to `admin`. |
+| `UsersPage.jsx` | Removed `viewer` option from role filter dropdown. |
+| `TopBar.jsx` | Simplified `roleLabel` to only handle `super_admin` and `admin`. |
+
+### Backend Changes
+
+| File | Change |
+|:-----|:-------|
+| `validators/auth.schema.js` | `registerSchema` and `updateAdminSchema` enums reduced to `['super_admin', 'admin']`. Error message updated. |
+| `validators/user.schema.js` | `listUsersQuerySchema` and `updateUserBodySchema` enums reduced to `['super_admin', 'admin']`. |
+| `controllers/auth.controller.js` | Removed the "Admins can only create viewer accounts" restriction block. Updated JSDoc. |
+| `routes/auth.routes.js` | `POST /auth/register` now requires `super_admin` only (was `['admin', 'super_admin']`). |
+
+### Shared & Documentation Changes
+
+| File | Change |
+|:-----|:-------|
+| `shared/constants.js` | Removed `viewer: 'viewer'` from `USER_ROLES`. |
+| `PROJECT.md` | Auth Roles section updated — `viewer` line removed. |
+| `docs/api-spec.md` | `POST /auth/register` access note changed to "Super admin only". |
+| `docs/handoff.md` | Roles list updated. Permission fix description updated. |
+| `SUPERADMIN_GUIDE.md` | Role filter and create-user docs updated to remove Viewer references. |
+| `docs/dev-credentials.md` | Removed "Test Viewer Account" section. |
+
+### Database Note
+The `users` table `CHECK (role IN ('super_admin', 'admin', 'viewer'))` constraint is left unchanged because:
+- `geowatch_user` lacks `ALTER` privileges on the `users` table
+- Existing viewer accounts need to remain functional
+- Zod schemas now act as the gatekeeper — any attempt to create a `viewer` returns 400 before reaching the DB
+
+### Verified
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | Backend syntax check (all 4 modified files) | ✅ Pass |
+| 2 | Backend server module load | ✅ Pass (port in use from running service) |
+| 3 | Superadmin-web production build | ✅ 366KB JS, 6.4KB CSS, 1.08s |
+| 4 | `POST /auth/register` with role `viewer` | ❌ Returns 400 VALIDATION_ERROR (expected) |
+| 5 | `POST /auth/register` with role `admin` | ✅ Creates user (super_admin token) |
+| 6 | `POST /auth/register` with admin token | ❌ Returns 403 FORBIDDEN (expected) |
+
+### Git Commit
+
+```
+feat(superadmin): phase 1 — remove viewer role, unify staff roles to superadmin/admin only
+```
+
+*End of Phase 1*

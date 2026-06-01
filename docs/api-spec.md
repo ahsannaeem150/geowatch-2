@@ -21,7 +21,7 @@ Error response:
 ## AUTH ENDPOINTS
 
 POST /auth/register
-Access: Admin / Super admin (admin can only create viewer accounts)
+Access: Super admin only
 Body: { email, password, fullName, role }
 Response: { data: { user: { id, email, fullName, role } } }
 

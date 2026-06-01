@@ -19,11 +19,11 @@ const router = Router();
 // Public routes
 router.post('/login', authLimiter, validateRequest(loginSchema, 'body'), asyncHandler(login));
 
-// Admin can create users, but only super_admin can create other admins
+// Only super_admin can create staff users
 router.post(
   '/register',
   authenticate,
-  requireRole(['admin', 'super_admin']),
+  requireRole('super_admin'),
   validateRequest(registerSchema, 'body'),
   asyncHandler(register)
 );

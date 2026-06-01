@@ -26,7 +26,6 @@ export const SOURCE_TYPES = {
 export const USER_ROLES = {
   super_admin: 'super_admin',
   admin: 'admin',
-  viewer: 'viewer',
 };
 
 export const API_BASE_URL =
