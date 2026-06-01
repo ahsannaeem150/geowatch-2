@@ -6,6 +6,7 @@ import Layout from './components/Layout/Layout.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import PublicUsersPage from './pages/PublicUsersPage.jsx';
+import MapPage from './pages/MapPage.jsx';
 import AuditPage from './pages/AuditPage.jsx';
 import DomainsPage from './pages/DomainsPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
@@ -118,6 +119,7 @@ function AppRoutes() {
           <Route path="/superadmin" element={<DashboardPage />} />
           <Route path="/superadmin/users" element={<UsersPage />} />
           <Route path="/superadmin/public-users" element={<PublicUsersPage />} />
+          <Route path="/superadmin/map" element={<MapPage />} />
           <Route path="/superadmin/audit" element={<AuditPage />} />
           <Route path="/superadmin/domains" element={<DomainsPage />} />
           <Route path="/superadmin/system" element={<SystemPage />} />

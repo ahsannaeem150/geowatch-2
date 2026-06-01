@@ -120,6 +120,14 @@ export function getIncidents(params = {}) {
   return request(`/incidents?${qs}`);
 }
 
+export function getIncident(id) {
+  return request(`/incidents/${id}`);
+}
+
+export function getDomains() {
+  return request('/categories/domains');
+}
+
 // ─── Recycle Bin ───
 
 export function listDeletedIncidents() {
@@ -199,6 +207,26 @@ export function deleteCategory(id) {
 
 export function reorderCategories(body) {
   return request('/categories/reorder', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+// ─── Incident Mutations ───
+
+export function updateIncident(id, body) {
+  return request(`/incidents/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteIncident(id) {
+  return request(`/incidents/${id}`, { method: 'DELETE' });
+}
+
+export function resolveIncident(id, body = {}) {
+  return request(`/incidents/${id}/resolve`, {
     method: 'POST',
     body: JSON.stringify(body),
   });
