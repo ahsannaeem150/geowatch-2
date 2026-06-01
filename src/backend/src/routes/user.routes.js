@@ -10,6 +10,7 @@ import {
   updateUserController,
   deleteUserController,
   resetPasswordController,
+  getUserActivityController,
 } from '../controllers/user.controller.js';
 
 const router = Router();
@@ -49,6 +50,13 @@ router.post(
   authenticate,
   requireRole('super_admin'),
   asyncHandler(resetPasswordController)
+);
+
+router.get(
+  '/:id/activity',
+  authenticate,
+  requireRole('super_admin'),
+  asyncHandler(getUserActivityController)
 );
 
 export default router;

@@ -78,6 +78,10 @@ export function resetUserPassword(id) {
   return request(`/users/${id}/reset-password`, { method: 'POST' });
 }
 
+export function getUserActivity(id) {
+  return request(`/users/${id}/activity`);
+}
+
 // ─── Public Users ───
 
 export function listPublicUsers(params = {}) {
@@ -94,6 +98,10 @@ export function updatePublicUser(id, body) {
     method: 'PATCH',
     body: JSON.stringify(body),
   });
+}
+
+export function getPublicUserActivity(id) {
+  return request(`/public-users/${id}/activity`);
 }
 
 // ─── Audit ───

@@ -3560,3 +3560,56 @@ feat(superadmin): separate system activity and public user activity logs with re
 ```
 
 *End of Phase 4*
+
+---
+
+## Phase 5: Profile Pages — Activity Timelines & Stats (Part 1)
+
+### Summary
+Added activity timelines and stats to both staff and public user profile drawers. Staff profiles now show a full chronological activity timeline with stat cards (incidents created, resolved, sources added, timeline updates, last active). Public user profiles show login history, saves, unsaves, views, and a dedicated "Saved Incidents" tab. A new reusable `ActivityTimeline` component renders audit logs as a vertical timeline with color-coded icons.
+
+### Backend Changes
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/controllers/user.controller.js` | Added `getUserActivityController` — fetches system realm audit logs for a staff user + stats + last active timestamp |
+| `src/backend/src/routes/user.routes.js` | Added `GET /:id/activity` route (super_admin only) |
+| `src/backend/src/controllers/public-user.controller.js` | Added `getPublicUserActivityController` — fetches user realm audit logs for a public user + action counts + last active timestamp |
+| `src/backend/src/routes/public-user.routes.js` | Added `GET /:id/activity` route (super_admin only) |
+
+### Frontend Changes
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/services/api.js` | Added `getUserActivity(id)` and `getPublicUserActivity(id)` API wrappers |
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | **New** — reusable vertical timeline component. Maps audit actions to Lucide icons and colors. Shows human-readable descriptions with target titles, relative timestamps, and connecting lines. Handles loading and empty states |
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | Restructured with **Overview** and **Activity** tabs. Overview keeps existing profile, stats, and action buttons. Activity tab shows 5 stat cards + full `ActivityTimeline` fetched from `GET /users/:id/activity` |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Restructured with **Overview**, **Activity**, and **Saved Incidents** tabs. Overview keeps profile, basic stats, and ban/unban action. Activity tab shows 5 stat cards (logins, saves, unsaves, views, last active) + `ActivityTimeline`. Saved Incidents tab contains the existing bookmarked incident list |
+
+### Key Design Decisions
+
+- **Tabbed drawer UI:** Both drawers now use a tab bar below the profile header. The profile block (avatar, name, email, badges) remains visible across all tabs for context.
+- **Eager data fetching:** Activity data is fetched in parallel with user data on drawer open. Tab switching is instant with no additional network requests.
+- **Reusable timeline:** `ActivityTimeline` accepts any array of audit log objects and is used by both staff and public user drawers. It uses the existing `audit-colors.js` color map for consistency.
+- **Stats from backend:** Activity stats are computed server-side (SQL counts + `getUserStats` reuse) rather than client-side aggregation, ensuring accuracy even with pagination.
+- **Last active:** Derived from the most recent audit log timestamp for the appropriate realm, or shown as "—" if no activity exists.
+
+### Verified Behavior
+
+| Test | Result |
+|:--|:--|
+| `GET /users/:id/activity` | ✅ Returns system realm logs + stats + pagination |
+| `GET /public-users/:id/activity` | ✅ Returns user realm logs + action counts + pagination |
+| User activity stats | ✅ incidentsCreated, incidentsResolved, sourcesAdded, timelineUpdates, lastActive |
+| Public user activity stats | ✅ logins, saves, unsaves, views, lastActive |
+| ActivityTimeline renders | ✅ Color-coded icons, descriptions, timestamps, connecting lines |
+| Empty activity state | ✅ Shows "No activity recorded yet" when no logs exist |
+| Frontend build | ✅ Clean production build |
+
+### Git Commit
+
+```
+feat(superadmin): activity timelines and stats in staff and public user profile drawers
+```
+
+*End of Phase 5*

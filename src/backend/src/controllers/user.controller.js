@@ -8,6 +8,8 @@ import {
   generateTempPassword,
   resetUserPassword,
 } from '../services/user.service.js';
+import { listAuditLogs } from '../services/audit.service.js';
+import { query } from '../config/database.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
@@ -85,6 +87,36 @@ export async function deleteUserController(req, res) {
   });
 
   res.apiSuccess({ deleted: true });
+}
+
+export async function getUserActivityController(req, res) {
+  const userId = req.params.id;
+
+  const user = await getUserById(userId);
+  if (!user) {
+    return res.apiError('User not found', 'NOT_FOUND', 404);
+  }
+
+  const [logsResult, stats, lastActiveResult] = await Promise.all([
+    listAuditLogs({ userId, realm: 'system', page: 1, limit: 50 }),
+    getUserStats(userId),
+    query(
+      'SELECT created_at FROM audit_logs WHERE user_id = $1 AND realm = $2 ORDER BY created_at DESC LIMIT 1',
+      [userId, 'system']
+    ),
+  ]);
+
+  res.apiSuccess({
+    logs: logsResult.logs,
+    stats: {
+      incidentsCreated: stats.incidentsCreated,
+      incidentsResolved: stats.incidentsResolved,
+      sourcesAdded: stats.sourcesAdded,
+      timelineUpdates: stats.timelineUpdates,
+      lastActive: lastActiveResult.rows[0]?.created_at || null,
+    },
+    pagination: logsResult.pagination,
+  });
 }
 
 export async function resetPasswordController(req, res) {

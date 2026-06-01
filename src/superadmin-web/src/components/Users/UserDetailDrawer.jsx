@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Loader2, AlertCircle, Check, KeyRound, UserX, UserCheck, Trash2, Edit3, Save, XCircle } from 'lucide-react';
-import { getUser, updateUser, resetUserPassword, deleteUser, listAuditLogs } from '../../services/api.js';
+import { getUser, updateUser, resetUserPassword, deleteUser, getUserActivity } from '../../services/api.js';
+import ActivityTimeline from '../Audit/ActivityTimeline.jsx';
 import { formatDistanceToNow } from 'date-fns';
 
 const ROLE_STYLES = {
@@ -8,11 +9,18 @@ const ROLE_STYLES = {
   admin: { bg: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6', label: 'Admin' },
 };
 
+const TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'activity', label: 'Activity' },
+];
+
 export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }) {
   const [data, setData] = useState(null);
-  const [auditLogs, setAuditLogs] = useState([]);
+  const [activityData, setActivityData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -22,23 +30,25 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setActivityLoading(true);
     setError('');
     try {
-      const [userData, logsData] = await Promise.all([
+      const [userData, actData] = await Promise.all([
         getUser(userId),
-        listAuditLogs({ userId, limit: 20 }),
+        getUserActivity(userId),
       ]);
       setData(userData);
+      setActivityData(actData);
       setEditForm({
         fullName: userData.user.full_name,
         role: userData.user.role,
         isActive: userData.user.is_active,
       });
-      setAuditLogs(logsData.logs || []);
     } catch (err) {
       setError(err.message || 'Failed to load user');
     } finally {
       setLoading(false);
+      setActivityLoading(false);
     }
   }, [userId]);
 
@@ -97,6 +107,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
   const user = data?.user;
   const stats = data?.stats;
   const roleStyle = ROLE_STYLES[user?.role] || ROLE_STYLES.admin;
+  const actStats = activityData?.stats;
 
   return (
     <div
@@ -140,6 +151,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
             padding: '16px 20px',
             borderBottom: '1px solid var(--border-subtle)',
             background: 'var(--bg-surface)',
+            flexShrink: 0,
           }}
         >
           <h2 style={{ fontSize: 15, fontWeight: 600 }}>User Details</h2>
@@ -167,7 +179,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
           ) : user && (
             <>
               {/* Profile */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
                 <div
                   style={{
                     width: 56,
@@ -259,90 +271,119 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
                 </div>
               </div>
 
-              {/* Error banner */}
-              {error && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: 8, color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
-                  <AlertCircle size={16} /> {error}
-                </div>
-              )}
+              {/* Tabs */}
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginBottom: 20 }}>
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    style={{
+                      padding: '10px 16px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      border: 'none',
+                      background: 'transparent',
+                      color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
+                      borderBottom: activeTab === tab.key ? '2px solid var(--navy-400)' : '2px solid transparent',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-sans)',
+                      transition: 'color var(--transition-fast)',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-              {/* Temp password */}
-              {tempPassword && (
-                <div style={{ padding: '12px 14px', background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.2)', borderRadius: 8, marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, color: 'var(--navy-400)', fontWeight: 600, marginBottom: 4 }}>Temporary Password Generated</div>
-                  <div style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{tempPassword}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Share this securely with the user. It will not be shown again.</div>
-                </div>
-              )}
+              {activeTab === 'overview' && (
+                <>
+                  {/* Error banner */}
+                  {error && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: 8, color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
+                      <AlertCircle size={16} /> {error}
+                    </div>
+                  )}
 
-              {/* Stats */}
-              {stats && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
-                  <StatBox label="Incidents" value={stats.incidentsCreated} />
-                  <StatBox label="Resolved" value={stats.incidentsResolved} />
-                  <StatBox label="Sources" value={stats.sourcesAdded} />
-                  <StatBox label="Timeline" value={stats.timelineUpdates} />
-                  <StatBox label="Audit" value={stats.auditEntries} />
-                  <StatBox label="Member Since" value={new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })} />
-                </div>
-              )}
+                  {/* Temp password */}
+                  {tempPassword && (
+                    <div style={{ padding: '12px 14px', background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.2)', borderRadius: 8, marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: 'var(--navy-400)', fontWeight: 600, marginBottom: 4 }}>Temporary Password Generated</div>
+                      <div style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{tempPassword}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Share this securely with the user. It will not be shown again.</div>
+                    </div>
+                  )}
 
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-                {isEditing ? (
-                  <>
-                    <ActionBtn icon={Save} label="Save" primary onClick={handleSave} disabled={isSaving} />
-                    <ActionBtn icon={XCircle} label="Cancel" onClick={() => { setIsEditing(false); setEditForm({ fullName: user.full_name, role: user.role, isActive: user.is_active }); }} />
-                  </>
-                ) : (
-                  <>
-                    <ActionBtn icon={Edit3} label="Edit" onClick={() => setIsEditing(true)} />
-                    <ActionBtn icon={KeyRound} label="Reset Password" onClick={handleResetPassword} disabled={isResetting} />
-                    {user.is_active ? (
-                      <ActionBtn icon={UserX} label="Deactivate" danger onClick={async () => { await updateUser(userId, { isActive: false }); fetchData(); onUpdate?.(); }} />
+                  {/* Stats */}
+                  {stats && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
+                      <StatBox label="Incidents" value={stats.incidentsCreated} />
+                      <StatBox label="Resolved" value={stats.incidentsResolved} />
+                      <StatBox label="Sources" value={stats.sourcesAdded} />
+                      <StatBox label="Timeline" value={stats.timelineUpdates} />
+                      <StatBox label="Audit" value={stats.auditEntries} />
+                      <StatBox label="Member Since" value={new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })} />
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+                    {isEditing ? (
+                      <>
+                        <ActionBtn icon={Save} label="Save" primary onClick={handleSave} disabled={isSaving} />
+                        <ActionBtn icon={XCircle} label="Cancel" onClick={() => { setIsEditing(false); setEditForm({ fullName: user.full_name, role: user.role, isActive: user.is_active }); }} />
+                      </>
                     ) : (
-                      <ActionBtn icon={UserCheck} label="Activate" onClick={async () => { await updateUser(userId, { isActive: true }); fetchData(); onUpdate?.(); }} />
+                      <>
+                        <ActionBtn icon={Edit3} label="Edit" onClick={() => setIsEditing(true)} />
+                        <ActionBtn icon={KeyRound} label="Reset Password" onClick={handleResetPassword} disabled={isResetting} />
+                        {user.is_active ? (
+                          <ActionBtn icon={UserX} label="Deactivate" danger onClick={async () => { await updateUser(userId, { isActive: false }); fetchData(); onUpdate?.(); }} />
+                        ) : (
+                          <ActionBtn icon={UserCheck} label="Activate" onClick={async () => { await updateUser(userId, { isActive: true }); fetchData(); onUpdate?.(); }} />
+                        )}
+                        <ActionBtn icon={Trash2} label="Delete" danger onClick={() => setShowDeleteConfirm(true)} />
+                      </>
                     )}
-                    <ActionBtn icon={Trash2} label="Delete" danger onClick={() => setShowDeleteConfirm(true)} />
-                  </>
-                )}
-              </div>
-
-              {/* Delete confirm */}
-              {showDeleteConfirm && (
-                <div style={{ padding: '14px', background: 'rgba(244, 63, 94, 0.06)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: 8, marginBottom: 20 }}>
-                  <div style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600, marginBottom: 6 }}>Permanently delete this user?</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>This action cannot be undone. If the user has created content, deletion will be blocked.</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={handleDelete} style={{ padding: '8px 14px', borderRadius: 6, border: 'none', background: 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
-                    <button onClick={() => setShowDeleteConfirm(false)} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
                   </div>
-                </div>
+
+                  {/* Delete confirm */}
+                  {showDeleteConfirm && (
+                    <div style={{ padding: '14px', background: 'rgba(244, 63, 94, 0.06)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: 8, marginBottom: 20 }}>
+                      <div style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600, marginBottom: 6 }}>Permanently delete this user?</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>This action cannot be undone. If the user has created content, deletion will be blocked.</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={handleDelete} style={{ padding: '8px 14px', borderRadius: 6, border: 'none', background: 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                        <button onClick={() => setShowDeleteConfirm(false)} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Recent Audit */}
-              <div>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Recent Activity</h3>
-                {auditLogs.length === 0 ? (
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '16px 0' }}>No recent activity</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {auditLogs.map((log) => (
-                      <div key={log.id} style={{ padding: '10px 12px', background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: 'var(--navy-400)' }}>{log.action.replace(/_/g, ' ')}</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</span>
-                        </div>
-                        {log.target_type && (
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                            {log.target_type} {log.target_id?.slice(0, 12)}...
-                          </div>
-                        )}
-                      </div>
-                    ))}
+              {activeTab === 'activity' && (
+                <>
+                  {/* Activity Stats */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
+                    <StatBox label="Incidents Created" value={actStats?.incidentsCreated ?? 0} />
+                    <StatBox label="Resolved" value={actStats?.incidentsResolved ?? 0} />
+                    <StatBox label="Sources Added" value={actStats?.sourcesAdded ?? 0} />
+                    <StatBox label="Timeline Updates" value={actStats?.timelineUpdates ?? 0} />
+                    <StatBox
+                      label="Last Active"
+                      value={actStats?.lastActive ? formatDistanceToNow(new Date(actStats.lastActive), { addSuffix: true }) : '—'}
+                    />
                   </div>
-                )}
-              </div>
+
+                  <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                    Activity Timeline
+                  </h3>
+                  <ActivityTimeline
+                    logs={activityData?.logs}
+                    loading={activityLoading}
+                    emptyMessage="No activity recorded yet"
+                  />
+                </>
+              )}
             </>
           )}
         </div>

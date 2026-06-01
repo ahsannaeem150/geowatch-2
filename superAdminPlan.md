@@ -165,7 +165,7 @@ feat(superadmin): separate system activity and public user activity logs with re
 
 ## Phase 5: Profile Pages — Activity Timelines & Stats (Part 1)
 
-**Status: ⏳ NOT STARTED**
+**Status: ✅ COMPLETE**
 
 **Scope:**
 
@@ -246,7 +246,7 @@ feat(superadmin): deep-link activity timeline items to map with contextual navig
 | 2 | Public users table, ban/unban, saved count | ✅ Complete | Medium | Medium |
 | 3 | Map mount in superadmin, adminMode overlays | ✅ Complete | Medium | Medium |
 | 4 | realm/actor_type columns, separate activity pages | ⏳ Not started | Medium | Medium |
-| 5 | Profile drawers with activity timelines | ⏳ Not started | Low | Medium |
+| 5 | Profile drawers with activity timelines | ✅ Complete | Low | Medium |
 | 6 | Deep-linking from activity to map | ⏳ Not started | Medium | Large |
 
 ---

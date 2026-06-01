@@ -8,6 +8,7 @@ import {
   listPublicUsersController,
   getPublicUserController,
   updatePublicUserController,
+  getPublicUserActivityController,
 } from '../controllers/public-user.controller.js';
 
 const router = Router();
@@ -31,6 +32,7 @@ const updateBodySchema = z.object({
 
 router.get('/', validateRequest(listQuerySchema, 'query'), asyncHandler(listPublicUsersController));
 router.get('/:id', asyncHandler(getPublicUserController));
+router.get('/:id/activity', asyncHandler(getPublicUserActivityController));
 router.patch('/:id', validateRequest(updateBodySchema, 'body'), asyncHandler(updatePublicUserController));
 
 export default router;

@@ -5,6 +5,8 @@ import {
   countPublicUserSavedIncidents,
 } from '../services/public-auth.service.js';
 import { listSavedIncidents } from '../services/saved-incident.service.js';
+import { listAuditLogs } from '../services/audit.service.js';
+import { query } from '../config/database.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
@@ -54,6 +56,48 @@ export async function getPublicUserController(req, res) {
       savedCount,
     },
     savedIncidents,
+  });
+}
+
+/**
+ * GET /api/v1/public-users/:id/activity
+ * Super admin only — get activity timeline for a public user.
+ */
+export async function getPublicUserActivityController(req, res) {
+  const { id } = req.params;
+
+  const user = await findPublicUserById(id);
+  if (!user) {
+    return res.apiError('Public user not found', 'NOT_FOUND', 404);
+  }
+
+  const [logsResult, actionCounts, lastActiveResult] = await Promise.all([
+    listAuditLogs({ userId: id, realm: 'user', page: 1, limit: 50 }),
+    query(
+      `SELECT action, COUNT(*) as c FROM audit_logs WHERE user_id = $1 AND realm = 'user' GROUP BY action`,
+      [id]
+    ),
+    query(
+      'SELECT created_at FROM audit_logs WHERE user_id = $1 AND realm = $2 ORDER BY created_at DESC LIMIT 1',
+      [id, 'user']
+    ),
+  ]);
+
+  const counts = {};
+  for (const row of actionCounts.rows) {
+    counts[row.action] = parseInt(row.c, 10);
+  }
+
+  res.apiSuccess({
+    logs: logsResult.logs,
+    stats: {
+      logins: counts['public_user_login'] || 0,
+      saves: counts['public_user_incident_saved'] || 0,
+      unsaves: counts['public_user_incident_unsaved'] || 0,
+      views: counts['public_user_incident_viewed'] || 0,
+      lastActive: lastActiveResult.rows[0]?.created_at || null,
+    },
+    pagination: logsResult.pagination,
   });
 }
 
