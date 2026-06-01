@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
+  Globe,
   ClipboardList,
   Tags,
   Activity,
@@ -15,7 +16,8 @@ import {
 
 const NAV_ITEMS = [
   { path: '/superadmin', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/superadmin/users', label: 'Users', icon: Users },
+  { path: '/superadmin/users', label: 'Staff Users', icon: Users },
+  { path: '/superadmin/public-users', label: 'Public Users', icon: Globe },
   { path: '/superadmin/audit', label: 'Audit Log', icon: ClipboardList },
   { path: '/superadmin/recycle-bin', label: 'Recycle Bin', icon: Trash2 },
   { path: '/superadmin/domains', label: 'Domains', icon: Tags },

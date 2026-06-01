@@ -4,6 +4,8 @@ import {
   findPublicUserById,
   generatePublicToken,
 } from '../services/public-auth.service.js';
+import { auditLog } from '../utils/audit-log.js';
+import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
 /**
  * POST /api/v1/auth/public/google
@@ -40,6 +42,13 @@ export async function googleAuthController(req, res) {
   }
 
   const token = generatePublicToken(user);
+
+  // Audit: public user login
+  await auditLog(req, AUDIT_ACTIONS.PUBLIC_USER_LOGIN, 'public_user', user.id, {
+    email: user.email,
+    fullName: user.full_name,
+    oauthProvider: user.oauth_provider,
+  });
 
   res.apiSuccess({
     token,

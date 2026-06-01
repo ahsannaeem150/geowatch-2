@@ -78,6 +78,24 @@ export function resetUserPassword(id) {
   return request(`/users/${id}/reset-password`, { method: 'POST' });
 }
 
+// ─── Public Users ───
+
+export function listPublicUsers(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/public-users?${qs}`);
+}
+
+export function getPublicUser(id) {
+  return request(`/public-users/${id}`);
+}
+
+export function updatePublicUser(id, body) {
+  return request(`/public-users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
 // ─── Audit ───
 
 export function listAuditLogs(params = {}) {

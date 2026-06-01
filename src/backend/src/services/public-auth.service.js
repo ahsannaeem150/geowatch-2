@@ -73,6 +73,77 @@ export async function findPublicUserById(id) {
 }
 
 /**
+ * List public users with search, filter, and pagination.
+ */
+export async function listPublicUsers({ search, isActive, page, limit }) {
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+
+  if (search) {
+    conditions.push(`(email ILIKE $${idx++} OR full_name ILIKE $${idx++})`);
+    const pattern = `%${search}%`;
+    params.push(pattern, pattern);
+  }
+
+  if (isActive !== undefined && isActive !== '') {
+    conditions.push(`is_active = $${idx++}`);
+    params.push(isActive === 'true' || isActive === true);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const countResult = await query(
+    `SELECT COUNT(*) as total FROM public_users ${where}`,
+    params
+  );
+  const total = parseInt(countResult.rows[0].total, 10);
+
+  const offset = (page - 1) * limit;
+
+  const result = await query(
+    `SELECT id, email, full_name, avatar_url, oauth_provider, is_active, created_at
+     FROM public_users
+     ${where}
+     ORDER BY created_at DESC
+     LIMIT $${idx++} OFFSET $${idx++}`,
+    [...params, limit, offset]
+  );
+
+  return {
+    users: result.rows,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+/**
+ * Update a public user (e.g., ban/unban).
+ */
+export async function updatePublicUser(id, { isActive }) {
+  const result = await query(
+    'UPDATE public_users SET is_active = $1 WHERE id = $2 RETURNING id, email, full_name, avatar_url, oauth_provider, is_active, created_at',
+    [isActive, id]
+  );
+  return result.rows[0] || null;
+}
+
+/**
+ * Count saved incidents for a public user.
+ */
+export async function countPublicUserSavedIncidents(userId) {
+  const result = await query(
+    'SELECT COUNT(*) as c FROM user_saved_incidents WHERE user_id = $1',
+    [userId]
+  );
+  return parseInt(result.rows[0].c, 10);
+}
+
+/**
  * Generate a JWT for a public user.
  */
 export function generatePublicToken(user) {

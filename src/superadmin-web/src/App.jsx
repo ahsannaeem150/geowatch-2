@@ -5,6 +5,7 @@ import LoginPage from './components/Login/LoginPage.jsx';
 import Layout from './components/Layout/Layout.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
+import PublicUsersPage from './pages/PublicUsersPage.jsx';
 import AuditPage from './pages/AuditPage.jsx';
 import DomainsPage from './pages/DomainsPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
@@ -116,6 +117,7 @@ function AppRoutes() {
         <Route element={<Layout />}>
           <Route path="/superadmin" element={<DashboardPage />} />
           <Route path="/superadmin/users" element={<UsersPage />} />
+          <Route path="/superadmin/public-users" element={<PublicUsersPage />} />
           <Route path="/superadmin/audit" element={<AuditPage />} />
           <Route path="/superadmin/domains" element={<DomainsPage />} />
           <Route path="/superadmin/system" element={<SystemPage />} />

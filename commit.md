@@ -3437,3 +3437,63 @@ feat(superadmin): phase 1 — remove viewer role, unify staff roles to superadmi
 ```
 
 *End of Phase 1*
+
+
+---
+
+## Phase 2 — Public User Management in Superadmin Panel
+
+**Date:** 2026-06-01
+**Scope:** Added complete public user visibility and management to the superadmin panel. Superadmin can now list, search, view profiles, see saved incidents, and soft-ban/unban Google-authenticated public users.
+
+### Backend Changes
+
+| File | Change |
+|:-----|:-------|
+| `utils/audit-actions.js` | Added `PUBLIC_USER_LOGIN`, `PUBLIC_USER_BANNED`, `PUBLIC_USER_UNBANNED` actions with labels and colors. |
+| `services/public-auth.service.js` | Added `listPublicUsers()` with ILIKE search, `isActive` filter, and pagination. Added `updatePublicUser()` for ban/unban. Added `countPublicUserSavedIncidents()`. |
+| `controllers/public-auth.controller.js` | `googleAuthController` now audits `PUBLIC_USER_LOGIN` on every successful Google sign-in. |
+| `controllers/public-user.controller.js` | **New** — `listPublicUsersController`, `getPublicUserController` (with saved count + full saved incidents list), `updatePublicUserController` (ban/unban with audit logging). |
+| `routes/public-user.routes.js` | **New** — `GET /public-users`, `GET /public-users/:id`, `PATCH /public-users/:id`. All guarded by `authenticate + requireRole('super_admin')`. Zod validation on query and body. |
+| `server.js` | Mounted `/api/v1/public-users` routes. |
+
+### Frontend Changes (superadmin-web)
+
+| File | Change |
+|:-----|:-------|
+| `services/api.js` | Added `listPublicUsers`, `getPublicUser`, `updatePublicUser` endpoints. |
+| `components/Layout/Sidebar.jsx` | Renamed "Users" → "Staff Users". Added "Public Users" nav item with `Globe` icon. |
+| `App.jsx` | Added `/superadmin/public-users` route pointing to `PublicUsersPage`. |
+| `pages/PublicUsersPage.jsx` | **New** — Main page with search, status filter (All/Active/Banned), debounced fetching, error banner, pagination. |
+| `components/PublicUsers/PublicUserTable.jsx` | **New** — Dense table with avatar, name, email, OAuth provider badge, status dot (green=Active/red=Banned), created date. Row actions: View details, Ban/Unban toggle. Server-side pagination. |
+| `components/PublicUsers/PublicUserDrawer.jsx` | **New** — Slide-in drawer (480px) showing: avatar + profile header with provider badge and status, stats grid (saved count, member since), Ban/Unban action button, and a scrollable list of saved incidents with domain color badges, severity dots, saved date, and private notes. |
+
+### Key Design Decisions
+
+- **No DB migration needed:** `public_users` already had `is_active BOOLEAN DEFAULT true` from the original schema.
+- **Soft-ban only:** Banning sets `is_active = false`. The auth middleware already checks this for public users and returns 403 "Account is deactivated." No hard deletion of public users.
+- **Saved incidents in profile:** `GET /public-users/:id` returns the full `listSavedIncidents()` result (enriched with domain/category joins) so the drawer shows complete bookmark data without extra API calls.
+- **Audit trail:** Every ban/unban is immutably logged. Every public user Google login is now audited too.
+
+### Verified End-to-End
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | Backend syntax check (all modified files) | ✅ Pass |
+| 2 | Backend server module load | ✅ Pass |
+| 3 | Superadmin-web production build | ✅ 384KB JS, 6.4KB CSS, 1.16s |
+| 4 | `GET /public-users` (super_admin token) | ✅ Returns paginated list |
+| 5 | `GET /public-users?search=...&isActive=true` | ✅ Filters correctly |
+| 6 | `GET /public-users` (admin token) | ❌ 403 FORBIDDEN (expected) |
+| 7 | `GET /public-users/:id` | ✅ Returns user + stats + saved incidents |
+| 8 | `PATCH /public-users/:id` ban | ✅ Sets is_active=false, audits `public_user_banned` |
+| 9 | `PATCH /public-users/:id` unban | ✅ Sets is_active=true, audits `public_user_unbanned` |
+| 10 | Audit log shows ban/unban entries | ✅ Full details with email, previous/new status |
+
+### Git Commit
+
+```
+feat(superadmin): phase 2 — public user management with search, ban/unban, saved incidents, and audit logging
+```
+
+*End of Phase 2*
