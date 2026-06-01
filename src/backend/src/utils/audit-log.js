@@ -47,9 +47,11 @@ function extractClientIp(req) {
  * @param {string} [targetId] — The entity ID
  * @param {object} [details] — Additional context (JSONB-serialized)
  * @param {object} [userOverride] — Optional user object to use instead of req.user
+ * @param {string} [realm='system'] — 'system' or 'user'
+ * @param {string} [actorType='staff'] — 'staff' or 'public_user'
  * @returns {Promise<void>}
  */
-export async function auditLog(req, action, targetType = null, targetId = null, details = {}, userOverride = null) {
+export async function auditLog(req, action, targetType = null, targetId = null, details = {}, userOverride = null, realm = 'system', actorType = 'staff') {
   try {
     const user = userOverride || req.user || null;
     const userId = user?.id || null;
@@ -65,8 +67,8 @@ export async function auditLog(req, action, targetType = null, targetId = null, 
 
     await query(
       `INSERT INTO audit_logs
-       (user_id, user_email, action, target_type, target_id, details, ip_address, user_agent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       (user_id, user_email, action, target_type, target_id, details, ip_address, user_agent, realm, actor_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         userId,
         userEmail,
@@ -76,6 +78,8 @@ export async function auditLog(req, action, targetType = null, targetId = null, 
         JSON.stringify(safeDetails),
         ipAddress,
         userAgent,
+        realm,
+        actorType,
       ]
     );
   } catch (err) {

@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  Eye,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -20,7 +21,8 @@ const NAV_ITEMS = [
   { path: '/superadmin/users', label: 'Staff Users', icon: Users },
   { path: '/superadmin/public-users', label: 'Public Users', icon: Globe },
   { path: '/superadmin/map', label: 'Map', icon: Map },
-  { path: '/superadmin/audit', label: 'Audit Log', icon: ClipboardList },
+  { path: '/superadmin/audit', label: 'System Activity', icon: ClipboardList },
+  { path: '/superadmin/public-activity', label: 'Public Activity', icon: Eye },
   { path: '/superadmin/recycle-bin', label: 'Recycle Bin', icon: Trash2 },
   { path: '/superadmin/domains', label: 'Domains', icon: Tags },
   { path: '/superadmin/system', label: 'System', icon: Activity },

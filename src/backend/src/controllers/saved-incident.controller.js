@@ -5,6 +5,9 @@ import {
   listSavedIncidents,
   updateSavedNotes,
 } from '../services/saved-incident.service.js';
+import { auditLog } from '../utils/audit-log.js';
+import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import { getEventById } from '../services/incident.service.js';
 
 /**
  * POST /api/v1/incidents/:id/save
@@ -14,6 +17,13 @@ export async function saveIncidentController(req, res) {
   const incidentId = req.params.id;
 
   const saved = await saveIncident(userId, incidentId);
+
+  // Audit: public user saved an incident
+  const incident = await getEventById(incidentId);
+  await auditLog(req, AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_SAVED, 'incident', incidentId, {
+    title: incident?.incident?.title || incidentId,
+  }, req.user, 'user', 'public_user');
+
   res.apiSuccess({ saved: true, savedAt: saved.saved_at }, 'Incident saved');
 }
 
@@ -25,6 +35,12 @@ export async function unsaveIncidentController(req, res) {
   const incidentId = req.params.id;
 
   await unsaveIncident(userId, incidentId);
+
+  // Audit: public user unsaved an incident
+  await auditLog(req, AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_UNSAVED, 'incident', incidentId, {
+    incidentId,
+  }, req.user, 'user', 'public_user');
+
   res.apiSuccess({ saved: false }, 'Incident removed from saved');
 }
 

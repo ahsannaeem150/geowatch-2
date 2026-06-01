@@ -27,6 +27,11 @@ export const AUDIT_ACTIONS = {
   PUBLIC_USER_BANNED: 'public_user_banned',
   PUBLIC_USER_UNBANNED: 'public_user_unbanned',
 
+  // Public user behavior (user realm)
+  PUBLIC_USER_INCIDENT_SAVED: 'public_user_incident_saved',
+  PUBLIC_USER_INCIDENT_UNSAVED: 'public_user_incident_unsaved',
+  PUBLIC_USER_INCIDENT_VIEWED: 'public_user_incident_viewed',
+
   // Incident lifecycle
   INCIDENT_CREATED: 'incident_created',
   INCIDENT_UPDATED: 'incident_updated',
@@ -72,6 +77,10 @@ export const AUDIT_ACTION_LABELS = {
   [AUDIT_ACTIONS.PUBLIC_USER_BANNED]: 'Public User Banned',
   [AUDIT_ACTIONS.PUBLIC_USER_UNBANNED]: 'Public User Unbanned',
 
+  [AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_SAVED]: 'Incident Saved',
+  [AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_UNSAVED]: 'Incident Unsaved',
+  [AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_VIEWED]: 'Incident Viewed',
+
   [AUDIT_ACTIONS.INCIDENT_CREATED]: 'Incident Created',
   [AUDIT_ACTIONS.INCIDENT_UPDATED]: 'Incident Updated',
   [AUDIT_ACTIONS.INCIDENT_RESOLVED]: 'Incident Resolved',
@@ -110,6 +119,10 @@ export const AUDIT_ACTION_COLORS = {
   [AUDIT_ACTIONS.PUBLIC_USER_LOGIN]: '#6366f1',
   [AUDIT_ACTIONS.PUBLIC_USER_BANNED]: '#ef4444',
   [AUDIT_ACTIONS.PUBLIC_USER_UNBANNED]: '#22c55e',
+
+  [AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_SAVED]: '#22c55e',
+  [AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_UNSAVED]: '#f59e0b',
+  [AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_VIEWED]: '#8b5cf6',
 
   [AUDIT_ACTIONS.INCIDENT_CREATED]: '#22c55e',
   [AUDIT_ACTIONS.INCIDENT_UPDATED]: '#f59e0b',

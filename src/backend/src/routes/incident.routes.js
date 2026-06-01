@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../utils/async-handler.js';
 import { validateRequest } from '../middleware/validate-request.js';
-import { authenticate } from '../middleware/auth.middleware.js';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
 import { adminWriteLimiter } from '../middleware/rate-limiter.js';
 import {
@@ -46,7 +46,7 @@ router.get(
   asyncHandler(getDeletedIncidentController)
 );
 
-router.get('/:id', asyncHandler(getIncident));
+router.get('/:id', optionalAuthenticate, asyncHandler(getIncident));
 
 // Admin routes
 router.post(

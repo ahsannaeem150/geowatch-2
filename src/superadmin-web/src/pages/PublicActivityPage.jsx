@@ -1,17 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, AlertTriangle, RefreshCw, Radio } from 'lucide-react';
+import { Globe, AlertTriangle, RefreshCw } from 'lucide-react';
 import { listAuditLogs } from '../services/api.js';
 import { useEventSource } from '../hooks/useEventSource.js';
 import { exportToCsv } from '../utils/csv-export.js';
 import AuditFilters from '../components/Audit/AuditFilters.jsx';
 import AuditTable from '../components/Audit/AuditTable.jsx';
 
-export default function AuditPage() {
+const PUBLIC_ACTION_OPTIONS = [
+  'public_user_login',
+  'public_user_incident_saved',
+  'public_user_incident_unsaved',
+  'public_user_incident_viewed',
+];
+
+const PUBLIC_TARGET_OPTIONS = ['public_user', 'incident'];
+
+export default function PublicActivityPage() {
   const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
-  const [filters, setFilters] = useState({ action: '', userId: '', targetType: '', dateFrom: '', dateTo: '' });
+  const [filters, setFilters] = useState({ action: '', userId: '', targetType: '', dateFrom: '', dateTo: '', realm: 'user' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [liveFlash, setLiveFlash] = useState(false);
@@ -23,6 +32,7 @@ export default function AuditPage() {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
+        realm: 'user',
         ...(filters.action && { action: filters.action }),
         ...(filters.userId && { userId: filters.userId }),
         ...(filters.targetType && { targetType: filters.targetType }),
@@ -33,7 +43,7 @@ export default function AuditPage() {
       setLogs(data.logs || []);
       setPagination(data.pagination);
     } catch (err) {
-      setError(err.message || 'Failed to load audit logs');
+      setError(err.message || 'Failed to load activity logs');
     } finally {
       setLoading(false);
     }
@@ -43,7 +53,7 @@ export default function AuditPage() {
     fetchLogs();
   }, [fetchLogs]);
 
-  // Real-time SSE: refresh audit log when any platform event occurs
+  // Real-time SSE: refresh activity log when any platform event occurs
   const { connected } = useEventSource({
     onEvent: () => {
       fetchLogs();
@@ -71,7 +81,7 @@ export default function AuditPage() {
       user_agent: log.user_agent || '',
     }));
     const timestamp = new Date().toISOString().slice(0, 10);
-    exportToCsv(rows, `geowatch-audit-${timestamp}.csv`);
+    exportToCsv(rows, `geowatch-public-activity-${timestamp}.csv`);
   };
 
   const handleUserClick = (userId) => {
@@ -79,11 +89,7 @@ export default function AuditPage() {
   };
 
   const handleTargetClick = (targetType, targetId) => {
-    if (targetType === 'user') {
-      navigate(`/superadmin/users`);
-    } else if (targetType === 'incident') {
-      // Could navigate to incident detail in admin-web
-      // For now, just filter audit by this target
+    if (targetType === 'incident') {
       setFilters((f) => ({ ...f, targetType, targetId }));
     } else {
       setFilters((f) => ({ ...f, targetType, targetId }));
@@ -95,8 +101,8 @@ export default function AuditPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Audit Log</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>Immutable record of all platform actions</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Public Activity</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>Record of public user behavior on the platform</p>
         </div>
         <button
           onClick={fetchLogs}
@@ -157,6 +163,10 @@ export default function AuditPage() {
         onChange={setFilters}
         onExport={handleExport}
         canExport={logs.length > 0}
+        actionOptions={PUBLIC_ACTION_OPTIONS}
+        targetOptions={PUBLIC_TARGET_OPTIONS}
+        userFilterMode="public"
+        userFilterLabel="Public user"
       />
 
       {/* Summary bar */}
@@ -172,7 +182,7 @@ export default function AuditPage() {
         }}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <ClipboardList size={14} />
+          <Globe size={14} />
           {pagination.total} total entries
         </span>
         {logs.length > 0 && (

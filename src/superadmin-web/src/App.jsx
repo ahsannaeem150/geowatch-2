@@ -7,7 +7,8 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import PublicUsersPage from './pages/PublicUsersPage.jsx';
 import MapPage from './pages/MapPage.jsx';
-import AuditPage from './pages/AuditPage.jsx';
+import SystemActivityPage from './pages/SystemActivityPage.jsx';
+import PublicActivityPage from './pages/PublicActivityPage.jsx';
 import DomainsPage from './pages/DomainsPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
@@ -120,7 +121,8 @@ function AppRoutes() {
           <Route path="/superadmin/users" element={<UsersPage />} />
           <Route path="/superadmin/public-users" element={<PublicUsersPage />} />
           <Route path="/superadmin/map" element={<MapPage />} />
-          <Route path="/superadmin/audit" element={<AuditPage />} />
+          <Route path="/superadmin/audit" element={<SystemActivityPage />} />
+          <Route path="/superadmin/public-activity" element={<PublicActivityPage />} />
           <Route path="/superadmin/domains" element={<DomainsPage />} />
           <Route path="/superadmin/system" element={<SystemPage />} />
           <Route path="/superadmin/export" element={<ExportPage />} />

@@ -8,6 +8,8 @@ export async function listAuditController(req, res) {
     targetId: req.query.targetId,
     dateFrom: req.query.dateFrom,
     dateTo: req.query.dateTo,
+    realm: req.query.realm,
+    actorType: req.query.actorType,
     page: req.query.page,
     limit: req.query.limit,
   };
@@ -17,6 +19,10 @@ export async function listAuditController(req, res) {
 }
 
 export async function getAuditSummaryController(req, res) {
-  const summary = await getAuditSummary();
+  const filters = {
+    realm: req.query.realm,
+    actorType: req.query.actorType,
+  };
+  const summary = await getAuditSummary(filters);
   res.apiSuccess(summary);
 }

@@ -12,10 +12,19 @@ export const AUDIT_ACTION_COLORS = {
   user_activated: '#22c55e',
   user_password_reset: '#f59e0b',
 
+  public_user_login: '#6366f1',
+  public_user_banned: '#ef4444',
+  public_user_unbanned: '#22c55e',
+  public_user_incident_saved: '#22c55e',
+  public_user_incident_unsaved: '#f59e0b',
+  public_user_incident_viewed: '#8b5cf6',
+
   incident_created: '#22c55e',
   incident_updated: '#f59e0b',
   incident_resolved: '#6366f1',
   incident_deleted: '#ef4444',
+  incident_restored: '#22c55e',
+  incident_purged: '#7f1d1d',
 
   source_added: '#22c55e',
   source_updated: '#f59e0b',
@@ -42,10 +51,19 @@ export const AUDIT_ACTION_LABELS = {
   user_activated: 'Activated',
   user_password_reset: 'Password Reset',
 
+  public_user_login: 'Login',
+  public_user_banned: 'Banned',
+  public_user_unbanned: 'Unbanned',
+  public_user_incident_saved: 'Saved',
+  public_user_incident_unsaved: 'Unsaved',
+  public_user_incident_viewed: 'Viewed',
+
   incident_created: 'Created',
   incident_updated: 'Updated',
   incident_resolved: 'Resolved',
   incident_deleted: 'Deleted',
+  incident_restored: 'Restored',
+  incident_purged: 'Purged',
 
   source_added: 'Added',
   source_updated: 'Updated',

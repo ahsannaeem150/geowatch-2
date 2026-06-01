@@ -35,6 +35,16 @@ function buildAuditWhereClause(filters) {
     params.push(filters.dateTo);
   }
 
+  if (filters.realm) {
+    conditions.push(`al.realm = $${idx++}`);
+    params.push(filters.realm);
+  }
+
+  if (filters.actorType) {
+    conditions.push(`al.actor_type = $${idx++}`);
+    params.push(filters.actorType);
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   return { where, params, nextIndex: idx };
 }
@@ -53,10 +63,11 @@ export async function listAuditLogs(filters) {
   const result = await query(
     `SELECT 
        al.id, al.user_id, al.user_email, al.action, al.target_type, al.target_id,
-       al.details, al.ip_address, al.user_agent, al.created_at,
-       u.full_name as user_full_name
+       al.details, al.ip_address, al.user_agent, al.created_at, al.realm, al.actor_type,
+       COALESCE(u.full_name, pu.full_name) as user_full_name
      FROM audit_logs al
      LEFT JOIN users u ON al.user_id = u.id
+     LEFT JOIN public_users pu ON al.user_id = pu.id
      ${where}
      ORDER BY al.created_at DESC
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -74,30 +85,45 @@ export async function listAuditLogs(filters) {
   };
 }
 
-export async function getAuditSummary() {
+export async function getAuditSummary(filters = {}) {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
+  const conditions = ['created_at >= $1 AND created_at <= $2'];
+  const params = [todayStart.toISOString(), todayEnd.toISOString()];
+
+  if (filters.realm) {
+    conditions.push(`realm = $${params.length + 1}`);
+    params.push(filters.realm);
+  }
+
+  if (filters.actorType) {
+    conditions.push(`actor_type = $${params.length + 1}`);
+    params.push(filters.actorType);
+  }
+
+  const where = conditions.join(' AND ');
+
   const totalResult = await query(
-    'SELECT COUNT(*) as c FROM audit_logs WHERE created_at >= $1 AND created_at <= $2',
-    [todayStart.toISOString(), todayEnd.toISOString()]
+    `SELECT COUNT(*) as c FROM audit_logs WHERE ${where}`,
+    params
   );
 
   const actionsResult = await query(
     `SELECT action, COUNT(*) as c
      FROM audit_logs
-     WHERE created_at >= $1 AND created_at <= $2
+     WHERE ${where}
      GROUP BY action
      ORDER BY c DESC`,
-    [todayStart.toISOString(), todayEnd.toISOString()]
+    params
   );
 
   const usersResult = await query(
-    'SELECT COUNT(DISTINCT user_id) as c FROM audit_logs WHERE created_at >= $1 AND created_at <= $2',
-    [todayStart.toISOString(), todayEnd.toISOString()]
+    `SELECT COUNT(DISTINCT user_id) as c FROM audit_logs WHERE ${where}`,
+    params
   );
 
   return {

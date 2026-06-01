@@ -43,12 +43,12 @@ export async function googleAuthController(req, res) {
 
   const token = generatePublicToken(user);
 
-  // Audit: public user login
+  // Audit: public user login (user realm)
   await auditLog(req, AUDIT_ACTIONS.PUBLIC_USER_LOGIN, 'public_user', user.id, {
     email: user.email,
     fullName: user.full_name,
     oauthProvider: user.oauth_provider,
-  });
+  }, null, 'user', 'public_user');
 
   res.apiSuccess({
     token,

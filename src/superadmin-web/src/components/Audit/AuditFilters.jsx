@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, Download, Filter } from 'lucide-react';
-import { listUsers } from '../../services/api.js';
+import { listUsers, listPublicUsers } from '../../services/api.js';
 import { getAuditActionColor } from '../../utils/audit-colors.js';
 
-const ACTION_OPTIONS = [
+const DEFAULT_ACTION_OPTIONS = [
   'user_login',
   'user_created',
   'user_updated',
@@ -15,27 +15,47 @@ const ACTION_OPTIONS = [
   'incident_updated',
   'incident_resolved',
   'incident_deleted',
+  'incident_restored',
+  'incident_purged',
   'source_added',
   'source_updated',
   'source_deleted',
   'timeline_added',
   'timeline_updated',
   'timeline_deleted',
+  'public_user_banned',
+  'public_user_unbanned',
 ];
 
-const TARGET_OPTIONS = ['user', 'incident', 'source', 'timeline'];
+const DEFAULT_TARGET_OPTIONS = ['user', 'incident', 'source', 'timeline', 'public_user'];
 
-export default function AuditFilters({ filters, onChange, onExport, canExport }) {
+export default function AuditFilters({
+  filters,
+  onChange,
+  onExport,
+  canExport,
+  actionOptions = DEFAULT_ACTION_OPTIONS,
+  targetOptions = DEFAULT_TARGET_OPTIONS,
+  userFilterMode = 'staff',
+  userFilterLabel = 'All users',
+}) {
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
     setUsersLoading(true);
-    listUsers({ limit: 100, sortBy: 'full_name', sortOrder: 'asc' })
-      .then((data) => setUsers(data.users || []))
+    const fetcher = userFilterMode === 'public' ? listPublicUsers : listUsers;
+    const params = userFilterMode === 'public'
+      ? { limit: 100, sortBy: 'full_name', sortOrder: 'asc' }
+      : { limit: 100, sortBy: 'full_name', sortOrder: 'asc' };
+    fetcher(params)
+      .then((data) => {
+        const list = userFilterMode === 'public' ? (data.users || []) : (data.users || []);
+        setUsers(list);
+      })
       .catch(() => setUsers([]))
       .finally(() => setUsersLoading(false));
-  }, []);
+  }, [userFilterMode]);
 
   const hasActiveFilters = filters.action || filters.userId || filters.targetType || filters.dateFrom || filters.dateTo;
 
@@ -74,7 +94,7 @@ export default function AuditFilters({ filters, onChange, onExport, canExport })
             }}
           >
             <option value="">All actions</option>
-            {ACTION_OPTIONS.map((action) => (
+            {actionOptions.map((action) => (
               <option key={action} value={action}>
                 {action.replace(/_/g, ' ')}
               </option>
@@ -104,7 +124,7 @@ export default function AuditFilters({ filters, onChange, onExport, canExport })
               opacity: usersLoading ? 0.6 : 1,
             }}
           >
-            <option value="">All users</option>
+            <option value="">{userFilterLabel}</option>
             {users.map((user) => (
               <option key={user.id} value={user.id}>
                 {user.full_name} ({user.email})
@@ -134,7 +154,7 @@ export default function AuditFilters({ filters, onChange, onExport, canExport })
             }}
           >
             <option value="">All targets</option>
-            {TARGET_OPTIONS.map((t) => (
+            {targetOptions.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>

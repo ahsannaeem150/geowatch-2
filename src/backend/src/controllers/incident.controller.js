@@ -66,6 +66,14 @@ export async function getIncident(req, res) {
   if (!result) {
     return res.apiError('Incident not found', 'NOT_FOUND', 404);
   }
+
+  // Audit: public user viewed an incident (fire-and-forget, don't block response)
+  if (req.user?.role === 'public_user') {
+    auditLog(req, AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_VIEWED, 'incident', req.params.id, {
+      title: result.incident?.title || req.params.id,
+    }, req.user, 'user', 'public_user');
+  }
+
   res.apiSuccess(result);
 }
 

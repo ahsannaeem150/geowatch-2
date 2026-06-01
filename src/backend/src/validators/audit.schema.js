@@ -7,6 +7,8 @@ export const listAuditQuerySchema = z.object({
   targetId: z.string().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
+  realm: z.enum(['system', 'user']).optional(),
+  actorType: z.enum(['staff', 'public_user']).optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(500).optional().default(50),
 });

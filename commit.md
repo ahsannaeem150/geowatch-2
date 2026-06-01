@@ -3497,3 +3497,66 @@ feat(superadmin): phase 2 — public user management with search, ban/unban, sav
 ```
 
 *End of Phase 2*
+
+---
+
+## Phase 4: Separate Activity Logs — System vs. Public User Activity
+
+### Summary
+Split the audit logging system into two realms: **system** (staff actions) and **user** (public user behavior). Added `realm` and `actor_type` columns to `audit_logs`, backfilled existing rows as `system`/`staff`, and created a separate "Public Activity" page in the superadmin console alongside the renamed "System Activity" page.
+
+### Database Changes
+
+| Change | Detail |
+|:--|:--|
+| `docs/migrations/002_audit_realm.sql` | **New migration** — adds `realm` (`system` \| `user`) and `actor_type` (`staff` \| `public_user`) columns, backfills 131 existing rows as `system`/`staff`, adds CHECK constraints and indexes |
+| Dropped FK constraint | `audit_logs_user_id_fkey` removed — `user_id` now holds both staff and public user IDs |
+
+### Backend Changes
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/utils/audit-actions.js` | Added `PUBLIC_USER_INCIDENT_SAVED`, `PUBLIC_USER_INCIDENT_UNSAVED`, `PUBLIC_USER_INCIDENT_VIEWED` constants + labels + colors |
+| `src/backend/src/utils/audit-log.js` | Added `realm` and `actorType` parameters (default `system`/`staff`) to the INSERT statement |
+| `src/backend/src/services/audit.service.js` | Added `realm`/`actorType` filters to `listAuditLogs`; COALESCE-joined `public_users` for `user_full_name`; added filter support to `getAuditSummary` |
+| `src/backend/src/controllers/audit.controller.js` | Passes `realm`/`actorType` from query params to service |
+| `src/backend/src/validators/audit.schema.js` | Added `realm` (`system`\|`user`) and `actorType` (`staff`\|`public_user`) Zod validation |
+| `src/backend/src/middleware/auth.middleware.js` | Added `optionalAuthenticate` middleware — sets `req.user` if valid token present, never fails (for tracking on public routes) |
+| `src/backend/src/routes/incident.routes.js` | Added `optionalAuthenticate` to `GET /:id` so public user view tracking works without breaking unauthenticated access |
+| `src/backend/src/controllers/public-auth.controller.js` | `PUBLIC_USER_LOGIN` now passes `realm='user'`, `actorType='public_user'` |
+| `src/backend/src/controllers/saved-incident.controller.js` | Added audit logging for `save` (`PUBLIC_USER_INCIDENT_SAVED`) and `unsave` (`PUBLIC_USER_INCIDENT_UNSAVED`) with `realm='user'` |
+| `src/backend/src/controllers/incident.controller.js` | Added fire-and-forget view tracking (`PUBLIC_USER_INCIDENT_VIEWED`) when `req.user.role === 'public_user'` |
+
+### Frontend Changes
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/utils/audit-colors.js` | Added colors/labels for all public user actions + missing actions (`incident_restored`, `incident_purged`, `public_user_*`) |
+| `src/superadmin-web/src/pages/AuditPage.jsx` → `SystemActivityPage.jsx` | Renamed; title "System Activity"; hardcodes `realm='system'` filter |
+| `src/superadmin-web/src/pages/PublicActivityPage.jsx` | **New** — public user behavior log; hardcodes `realm='user'`; public-user-specific action/target filters; public user dropdown |
+| `src/superadmin-web/src/components/Audit/AuditFilters.jsx` | Added `actionOptions`, `targetOptions`, `userFilterMode` ('staff'\|'public'), `userFilterLabel` props |
+| `src/superadmin-web/src/components/Audit/AuditTable.jsx` | Added "Public" badge next to public user names in the User column |
+| `src/superadmin-web/src/components/Layout/Sidebar.jsx` | Renamed "Audit Log" → "System Activity"; added "Public Activity" nav item with `Eye` icon |
+| `src/superadmin-web/src/App.jsx` | Added `/superadmin/public-activity` route; updated `/superadmin/audit` to `SystemActivityPage` |
+
+### Verified Behavior
+
+| Test | Result |
+|:--|:--|
+| `GET /audit?realm=system` | ✅ Returns 137 staff action logs |
+| `GET /audit?realm=user` | ✅ Returns public user activity logs |
+| `GET /audit/summary?realm=system` | ✅ Returns today's system stats |
+| `GET /audit/summary?realm=user` | ✅ Returns today's public stats |
+| Public user saves incident | ✅ Creates `public_user_incident_saved` in user realm |
+| Public user unsaves incident | ✅ Creates `public_user_incident_unsaved` in user realm |
+| Public user views incident | ✅ Creates `public_user_incident_viewed` in user realm |
+| Unauthenticated GET /incidents/:id | ✅ Still works (optional auth doesn't block) |
+| Frontend build | ✅ Clean production build |
+
+### Git Commit
+
+```
+feat(superadmin): separate system activity and public user activity logs with realm tracking
+```
+
+*End of Phase 4*

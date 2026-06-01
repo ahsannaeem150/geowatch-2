@@ -158,8 +158,24 @@ export default function AuditTable({
                         }}
                         title="Filter by this user"
                       >
-                        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                           {log.user_full_name || log.user_email || 'Unknown'}
+                          {log.actor_type === 'public_user' && (
+                            <span
+                              style={{
+                                fontSize: 9,
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                padding: '1px 5px',
+                                borderRadius: 3,
+                                background: 'rgba(139, 92, 246, 0.12)',
+                                color: '#8b5cf6',
+                              }}
+                            >
+                              Public
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--navy-400)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
                           <span style={{ fontFamily: 'var(--font-mono)' }}>{log.user_email}</span>
