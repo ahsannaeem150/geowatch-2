@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
 
@@ -8,9 +8,11 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function Header() {
   const location = useLocation();
-  const { user, login, logout, isAuthenticated } = usePublicAuth();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const { user, login, logout, isAuthenticated, loading: authLoading } = usePublicAuth();
   const [scrolled, setScrolled] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleFailed, setGoogleFailed] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const googleButtonRef = useRef(null);
 
   useEffect(() => {
@@ -23,31 +25,69 @@ export default function Header() {
 
   const handleCredentialResponse = useCallback(
     async (response) => {
+      setLoginError('');
       try {
         await login(response.credential);
       } catch (err) {
         console.error('Google login failed:', err);
+        setLoginError(err.message || 'Sign-in failed. Please try again.');
       }
     },
     [login]
   );
 
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !googleButtonRef.current || isAuthenticated) return;
+  useLayoutEffect(() => {
+    if (!GOOGLE_CLIENT_ID || isAuthenticated) return;
 
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse,
-      });
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'outline',
-        size: 'medium',
-        text: 'signin_with',
-        shape: 'pill',
-        width: '160',
-      });
-    }
+    let interval;
+    let timeout;
+
+    const tryRender = () => {
+      if (!googleButtonRef.current) return false;
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse,
+        });
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: 'outline',
+          size: 'medium',
+          text: 'signin_with',
+          shape: 'pill',
+          width: '160',
+        });
+        setGoogleReady(true);
+        setGoogleFailed(false);
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately in case script is already loaded
+    if (tryRender()) return;
+
+    // Poll every 200ms until Google script loads
+    interval = setInterval(() => {
+      if (tryRender()) {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      }
+    }, 200);
+
+    // Give up after 8 seconds and show fallback
+    timeout = setTimeout(() => {
+      clearInterval(interval);
+      setGoogleFailed(true);
+    }, 8000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+      // Force-remove any Google-rendered DOM to prevent stale buttons
+      if (googleButtonRef.current) {
+        googleButtonRef.current.innerHTML = '';
+      }
+    };
   }, [isAuthenticated, handleCredentialResponse]);
 
   const navLinks = [
@@ -123,126 +163,128 @@ export default function Header() {
         })}
       </nav>
 
-      {/* Right: Theme toggle + Auth + Search */}
+      {/* Right: Theme toggle + Auth */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <ThemeToggle />
 
-        {isAuthenticated && user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt={user.full_name || user.email}
+        {/* Key forces complete DOM remount on auth change — prevents Google's button from persisting */}
+        <div key={isAuthenticated ? 'authed' : 'guest'} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {authLoading ? (
+            <div
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: 'var(--bg-hover)',
+                animation: 'pulse 1.5s ease-in-out infinite',
+              }}
+            />
+          ) : isAuthenticated && user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {user.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user.full_name || user.email}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#f2f2f2',
+                  }}
+                >
+                  {(user.full_name || user.email).charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span
                 style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '1px solid var(--border-subtle)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                  maxWidth: '120px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
-              />
-            ) : (
-              <div
+              >
+                {user.full_name || user.email}
+              </span>
+              <button
+                onClick={logout}
+                title="Sign out"
                 style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  background: 'var(--accent)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#f2f2f2',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--bg-hover)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'var(--text-muted)';
                 }}
               >
-                {(user.full_name || user.email).charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span
-              style={{
-                fontSize: '13px',
-                fontWeight: 500,
-                color: 'var(--text-secondary)',
-                maxWidth: '120px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {user.full_name || user.email}
-            </span>
-            <button
-              onClick={logout}
-              title="Sign out"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '28px',
-                height: '28px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--bg-hover)';
-                e.currentTarget.style.color = 'var(--text-primary)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'var(--text-muted)';
-              }}
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        ) : (
-          <div ref={googleButtonRef} style={{ height: '32px', display: 'flex', alignItems: 'center' }} />
-        )}
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : GOOGLE_CLIENT_ID ? (
+            <div ref={googleButtonRef} style={{ height: '32px', display: 'flex', alignItems: 'center' }} />
+          ) : (
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sign-in not configured</div>
+          )}
 
-        <button
-          onClick={() => setSearchOpen(!searchOpen)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 14px',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--text-muted)',
-            fontSize: '13px',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-sans)',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-hover)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-          }}
-        >
-          <Search size={14} />
-          <span>Search</span>
-          <span
-            style={{
-              fontSize: '11px',
-              padding: '2px 6px',
-              background: 'var(--bg-hover)',
-              borderRadius: '4px',
-              color: 'var(--text-muted)',
-              marginLeft: '4px',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            ⌘K
-          </span>
-        </button>
+          {loginError && (
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--danger)',
+                maxWidth: '180px',
+                lineHeight: 1.4,
+              }}
+            >
+              {loginError}
+            </div>
+          )}
+
+          {!isAuthenticated && !authLoading && googleFailed && (
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                maxWidth: '160px',
+                lineHeight: 1.4,
+              }}
+              title="Google Sign-In could not load. Check your ad blocker or network connection."
+            >
+              Sign-in unavailable
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

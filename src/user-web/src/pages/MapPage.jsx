@@ -192,24 +192,27 @@ export default function MapPage() {
       .catch(() => setDomains([]));
   }, []);
 
-  // Fetch saved incidents when user is authenticated
-  useEffect(() => {
+  // Fetch saved incidents
+  const refreshSaves = useCallback(async () => {
     if (!isAuthenticated) {
       setSavedIncidents([]);
       setSavedIds(new Set());
       return;
     }
-    api.listSavedIncidents()
-      .then((res) => {
-        const incidents = res.data.incidents || [];
-        setSavedIncidents(incidents);
-        setSavedIds(new Set(incidents.map((i) => i.id)));
-      })
-      .catch(() => {
-        setSavedIncidents([]);
-        setSavedIds(new Set());
-      });
+    try {
+      const res = await api.listSavedIncidents();
+      const list = res.data.incidents || [];
+      setSavedIncidents(list);
+      setSavedIds(new Set(list.map((i) => i.id)));
+    } catch (err) {
+      console.error('Failed to refresh saved incidents:', err);
+      // Keep existing state on error — don't clear user's saves
+    }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    refreshSaves();
+  }, [refreshSaves]);
 
   // Filtered incidents for map
   const filteredIncidents = useMemo(() => {
@@ -529,18 +532,15 @@ export default function MapPage() {
     return result;
   }, [savedIncidents, filters.verifiedOnly, activeDomainFilters]);
 
-  const handleSaveChange = useCallback((incidentId, isSaved) => {
+  const handleSaveChange = useCallback(async (incidentId, isSaved) => {
+    // Optimistic update for instant UI feedback
     setSavedIds((prev) => {
       const next = new Set(prev);
-      if (isSaved) {
-        next.add(incidentId);
-      } else {
-        next.delete(incidentId);
-      }
+      if (isSaved) next.add(incidentId);
+      else next.delete(incidentId);
       return next;
     });
     if (isSaved) {
-      // Add to savedIncidents if not already there
       setSavedIncidents((prev) => {
         if (prev.some((i) => i.id === incidentId)) return prev;
         const incident = incidents.find((i) => i.id === incidentId);
@@ -550,7 +550,9 @@ export default function MapPage() {
     } else {
       setSavedIncidents((prev) => prev.filter((i) => i.id !== incidentId));
     }
-  }, [incidents]);
+    // Refetch to ensure consistency (notes, saved_at, ghost incidents)
+    await refreshSaves();
+  }, [incidents, refreshSaves]);
 
   // Determine if selected incident is a "ghost" (outside current date range)
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
@@ -748,7 +750,7 @@ export default function MapPage() {
         {/* Right — Incident sidebar */}
         <div style={{ width: '630px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
           <IncidentSidebar
-            incidents={sidebarTab === 'saved' ? visibleSavedIncidents : visibleIncidents}
+            incidents={isAuthenticated && sidebarTab === 'saved' ? visibleSavedIncidents : visibleIncidents}
             selectedIncident={selectedIncident}
             onSelectEvent={handleSelectIncident}
             onBack={handleBack}
@@ -756,8 +758,8 @@ export default function MapPage() {
             filters={filters}
             onFilterChange={setFilters}
             detailRefreshKey={detailRefreshKey}
-            tab={sidebarTab}
-            onTabChange={setSidebarTab}
+            tab={isAuthenticated ? sidebarTab : 'events'}
+            onTabChange={isAuthenticated ? setSidebarTab : undefined}
             savedIds={savedIds}
             onSaveChange={handleSaveChange}
             savedCount={savedIncidents.length}
