@@ -1,5 +1,5 @@
-import React from 'react';
-import { Loader2, Eye, UserX, UserCheck } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Loader2, UserX, UserCheck, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 function StatusBadge({ isActive }) {
@@ -29,7 +29,7 @@ export default function PublicUserTable({
 }) {
   return (
     <div>
-      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -115,9 +115,24 @@ export default function PublicUserTable({
                           {user.full_name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                       )}
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                      <span
+                        onClick={() => onView(user)}
+                        style={{
+                          fontWeight: 500,
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.textDecoration = 'underline';
+                          e.currentTarget.style.color = 'var(--navy-400)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.textDecoration = 'none';
+                          e.currentTarget.style.color = 'var(--text-primary)';
+                        }}
+                      >
                         {user.full_name || '—'}
-                      </div>
+                      </span>
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
@@ -143,14 +158,10 @@ export default function PublicUserTable({
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <ActionButton icon={Eye} onClick={() => onView(user)} title="View details" />
-                      {user.is_active ? (
-                        <ActionButton icon={UserX} onClick={() => onToggleActive(user)} title="Ban" color="var(--danger)" />
-                      ) : (
-                        <ActionButton icon={UserCheck} onClick={() => onToggleActive(user)} title="Unban" color="var(--success)" />
-                      )}
-                    </div>
+                    <RowActionsMenu
+                      user={user}
+                      onToggleActive={onToggleActive}
+                    />
                   </td>
                 </tr>
               ))
@@ -202,6 +213,109 @@ export default function PublicUserTable({
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+    </div>
+  );
+}
+
+function RowActionsMenu({ user, onToggleActive }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div style={{ position: 'relative' }} ref={menuRef}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        title="More actions"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          border: 'none',
+          background: open ? 'var(--bg-hover)' : 'transparent',
+          color: 'var(--text-muted)',
+          cursor: 'pointer',
+          transition: 'all var(--transition-fast)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+        onMouseLeave={(e) => {
+          if (!open) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-muted)';
+          }
+        }}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 4px)',
+            zIndex: 50,
+            minWidth: 140,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 8,
+            boxShadow: 'var(--shadow-md)',
+            padding: '4px',
+            fontSize: 13,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleActive(user);
+              setOpen(false);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: 6,
+              border: 'none',
+              background: 'transparent',
+              color: user.is_active ? 'var(--danger)' : 'var(--success)',
+              fontSize: 13,
+              fontFamily: 'var(--font-sans)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'background var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--bg-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            {user.is_active ? <UserX size={14} /> : <UserCheck size={14} />}
+            <span>{user.is_active ? 'Ban' : 'Unban'}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

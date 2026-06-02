@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, Eye, KeyRound, UserX, UserCheck, Trash2, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, KeyRound, UserX, UserCheck, Trash2, Loader2, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const ROLE_STYLES = {
@@ -85,7 +85,7 @@ export default function UserTable({
   return (
     <div>
       {/* Table */}
-      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -168,7 +168,24 @@ export default function UserTable({
                       />
                     </td>
                     <td style={{ padding: '10px 14px' }}>
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{user.full_name}</div>
+                      <span
+                        onClick={() => onView(user)}
+                        style={{
+                          fontWeight: 500,
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.textDecoration = 'underline';
+                          e.currentTarget.style.color = 'var(--navy-400)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.textDecoration = 'none';
+                          e.currentTarget.style.color = 'var(--text-primary)';
+                        }}
+                      >
+                        {user.full_name}
+                      </span>
                     </td>
                     <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                       {user.email}
@@ -188,16 +205,12 @@ export default function UserTable({
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <ActionButton icon={Eye} onClick={() => onView(user)} title="View details" />
-                        <ActionButton icon={KeyRound} onClick={() => onResetPassword(user)} title="Reset password" />
-                        {user.is_active ? (
-                          <ActionButton icon={UserX} onClick={() => onToggleActive(user)} title="Deactivate" color="var(--warning)" />
-                        ) : (
-                          <ActionButton icon={UserCheck} onClick={() => onToggleActive(user)} title="Activate" color="var(--success)" />
-                        )}
-                        <ActionButton icon={Trash2} onClick={() => onDelete(user)} title="Delete" color="var(--danger)" />
-                      </div>
+                      <RowActionsMenu
+                        user={user}
+                        onResetPassword={onResetPassword}
+                        onToggleActive={onToggleActive}
+                        onDelete={onDelete}
+                      />
                     </td>
                   </tr>
                 );
@@ -255,34 +268,136 @@ export default function UserTable({
   );
 }
 
-function ActionButton({ icon: Icon, onClick, title, color = 'var(--text-muted)' }) {
+function RowActionsMenu({ user, onResetPassword, onToggleActive, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div style={{ position: 'relative' }} ref={menuRef}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        title="More actions"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          border: 'none',
+          background: open ? 'var(--bg-hover)' : 'transparent',
+          color: 'var(--text-muted)',
+          cursor: 'pointer',
+          transition: 'all var(--transition-fast)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+        onMouseLeave={(e) => {
+          if (!open) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-muted)';
+          }
+        }}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 4px)',
+            zIndex: 50,
+            minWidth: 160,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 8,
+            boxShadow: 'var(--shadow-md)',
+            padding: '4px',
+            fontSize: 13,
+          }}
+        >
+          <MenuItem
+            icon={KeyRound}
+            label="Reset password"
+            onClick={() => {
+              onResetPassword(user);
+              setOpen(false);
+            }}
+          />
+          <MenuItem
+            icon={user.is_active ? UserX : UserCheck}
+            label={user.is_active ? 'Deactivate' : 'Activate'}
+            color={user.is_active ? 'var(--warning)' : 'var(--success)'}
+            onClick={() => {
+              onToggleActive(user);
+              setOpen(false);
+            }}
+          />
+          <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+          <MenuItem
+            icon={Trash2}
+            label="Delete"
+            color="var(--danger)"
+            onClick={() => {
+              onDelete(user);
+              setOpen(false);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({ icon: Icon, label, onClick, color = 'var(--text-primary)' }) {
   return (
     <button
-      onClick={onClick}
-      title={title}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        width: 28,
-        height: 28,
+        gap: 10,
+        width: '100%',
+        padding: '8px 12px',
         borderRadius: 6,
         border: 'none',
         background: 'transparent',
         color,
+        fontSize: 13,
+        fontFamily: 'var(--font-sans)',
         cursor: 'pointer',
-        transition: 'all var(--transition-fast)',
+        textAlign: 'left',
+        transition: 'background var(--transition-fast)',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = 'var(--bg-hover)';
-        e.currentTarget.style.color = color === 'var(--text-muted)' ? 'var(--text-primary)' : color;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.color = color;
       }}
     >
       <Icon size={14} />
+      <span>{label}</span>
     </button>
   );
 }
