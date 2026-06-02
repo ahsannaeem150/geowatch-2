@@ -295,7 +295,7 @@ function ActivityItem({ activity, onClick, isUnread }) {
         padding: '12px 16px',
         borderBottom: '1px solid var(--border-subtle)',
         borderLeft: isUnread ? `3px solid ${config.color}` : '3px solid transparent',
-        background: isUnread ? 'rgba(159, 18, 57, 0.04)' : 'transparent',
+        background: isUnread ? 'var(--hover-subtle)' : 'transparent',
         cursor: 'pointer',
         transition: 'all 0.15s ease',
       }}
@@ -303,7 +303,7 @@ function ActivityItem({ activity, onClick, isUnread }) {
         e.currentTarget.style.background = 'var(--bg-hover)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = isUnread ? 'rgba(159, 18, 57, 0.04)' : 'transparent';
+        e.currentTarget.style.background = isUnread ? 'var(--hover-subtle)' : 'transparent';
       }}
     >
       {/* Meta row */}

@@ -594,7 +594,7 @@ export default function MapPage() {
                   letterSpacing: '0.5px',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--accent-light)',
-                  background: 'rgba(159, 18, 57, 0.1)',
+                  background: 'var(--alert-error-bg)',
                   color: 'var(--accent-light)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',

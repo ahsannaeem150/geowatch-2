@@ -346,7 +346,7 @@ function ActivityItem({ activity, onView, onEdit, isUnread }) {
         padding: '12px 16px',
         borderBottom: '1px solid var(--border-subtle)',
         borderLeft: isUnread ? `3px solid ${config.color}` : '3px solid transparent',
-        background: isUnread ? 'rgba(159, 18, 57, 0.04)' : 'transparent',
+        background: isUnread ? 'var(--hover-subtle)' : 'transparent',
         cursor: 'pointer',
         transition: 'all 0.15s ease',
       }}
@@ -354,7 +354,7 @@ function ActivityItem({ activity, onView, onEdit, isUnread }) {
         e.currentTarget.style.background = 'var(--bg-hover)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = isUnread ? 'rgba(159, 18, 57, 0.04)' : 'transparent';
+        e.currentTarget.style.background = isUnread ? 'var(--hover-subtle)' : 'transparent';
       }}
     >
       {/* Meta row */}
@@ -434,18 +434,18 @@ function ActivityItem({ activity, onView, onEdit, isUnread }) {
                 fontSize: '11px',
                 fontWeight: 600,
                 color: 'var(--accent-light)',
-                background: 'rgba(159, 18, 57, 0.08)',
-                border: '1px solid rgba(159, 18, 57, 0.2)',
+                background: 'var(--accent-subtle-bg)',
+                border: '1px solid var(--accent-subtle-border)',
                 borderRadius: 'var(--radius-sm)',
                 padding: '3px 10px',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(159, 18, 57, 0.15)';
+                e.currentTarget.style.background = 'var(--accent-hover-bg)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(159, 18, 57, 0.08)';
+                e.currentTarget.style.background = 'var(--accent-subtle-bg)';
               }}
             >
               Edit

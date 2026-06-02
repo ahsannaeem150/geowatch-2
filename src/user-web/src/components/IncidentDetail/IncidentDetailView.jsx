@@ -114,8 +114,8 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
               fontSize: '12px',
               fontWeight: 600,
               color: copied ? 'var(--success)' : 'var(--text-muted)',
-              background: copied ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-elevated)',
-              border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.25)' : 'var(--border-subtle)'}`,
+              background: copied ? 'var(--alert-success-bg)' : 'var(--bg-elevated)',
+              border: `1px solid ${copied ? 'var(--alert-success-border)' : 'var(--border-subtle)'}`,
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               padding: '6px 12px',
@@ -171,8 +171,8 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
       {justUpdated && (
         <div
           style={{
-            background: 'rgba(34, 197, 94, 0.08)',
-            border: '1px solid rgba(34, 197, 94, 0.25)',
+            background: 'var(--alert-success-bg)',
+            border: '1px solid var(--alert-success-border)',
             borderRadius: 'var(--radius-md)',
             padding: '8px 14px',
             display: 'flex',
@@ -190,7 +190,7 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
               animation: 'pulse 1.5s ease-in-out infinite',
             }}
           />
-          <span style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--success)' }}>
             Updated just now
           </span>
         </div>
@@ -250,7 +250,7 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
                 fontSize: '11px',
                 fontWeight: 700,
                 color: 'var(--accent-light)',
-                background: 'rgba(159, 18, 57, 0.12)',
+                background: 'var(--accent-subtle-bg)',
                 padding: '2px 8px',
                 borderRadius: '10px',
               }}

@@ -224,7 +224,7 @@ export default function IconPicker({ value, onChange }) {
                       padding: 8,
                       borderRadius: 6,
                       border: isActive ? '1px solid var(--navy-500)' : '1px solid transparent',
-                      background: isActive ? 'rgba(37, 99, 235, 0.15)' : 'transparent',
+                      background: isActive ? 'var(--alert-info-bg)' : 'transparent',
                       cursor: 'pointer',
                       color: isActive ? 'var(--navy-400)' : 'var(--text-secondary)',
                     }}

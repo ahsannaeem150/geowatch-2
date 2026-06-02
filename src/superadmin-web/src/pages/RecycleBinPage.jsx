@@ -114,8 +114,8 @@ export default function RecycleBinPage() {
                   fontWeight: 600,
                   padding: '2px 8px',
                   borderRadius: 12,
-                  background: liveFlash ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
-                  color: '#22c55e',
+                  background: liveFlash ? 'var(--alert-success-border)' : 'var(--alert-success-bg)',
+                  color: 'var(--success)',
                   transition: 'background 0.3s',
                 }}
               >
@@ -170,8 +170,8 @@ export default function RecycleBinPage() {
             alignItems: 'center',
             gap: 8,
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.08)',
-            border: '1px solid rgba(244, 63, 94, 0.2)',
+            background: 'var(--alert-error-bg)',
+            border: '1px solid var(--alert-error-border)',
             borderRadius: 8,
             color: 'var(--danger)',
             fontSize: 13,
@@ -338,12 +338,12 @@ export default function RecycleBinPage() {
                             textTransform: 'uppercase',
                             background:
                               incident.severity === 'critical'
-                                ? 'rgba(244, 63, 94, 0.12)'
+                                ? 'var(--alert-error-bg)'
                                 : incident.severity === 'high'
-                                ? 'rgba(249, 115, 22, 0.12)'
+                                ? 'var(--alert-warning-bg)'
                                 : incident.severity === 'medium'
-                                ? 'rgba(234, 179, 8, 0.12)'
-                                : 'rgba(34, 197, 94, 0.12)',
+                                ? 'var(--alert-warning-bg)'
+                                : 'var(--alert-success-bg)',
                             color:
                               incident.severity === 'critical'
                                 ? '#f43f5e'
@@ -373,7 +373,7 @@ export default function RecycleBinPage() {
                             borderRadius: 12,
                             fontSize: 12,
                             fontWeight: 600,
-                            background: daysLeft <= 3 ? 'rgba(244, 63, 94, 0.12)' : 'rgba(99, 102, 241, 0.12)',
+                            background: daysLeft <= 3 ? 'var(--alert-error-bg)' : 'rgba(99, 102, 241, 0.12)',
                             color: daysLeft <= 3 ? '#f43f5e' : '#818cf8',
                           }}
                         >
@@ -393,17 +393,17 @@ export default function RecycleBinPage() {
                               gap: 4,
                               padding: '6px 12px',
                               borderRadius: 6,
-                              border: '1px solid rgba(34, 197, 94, 0.3)',
-                              background: 'rgba(34, 197, 94, 0.08)',
-                              color: '#22c55e',
+                              border: '1px solid var(--alert-success-border)',
+                              background: 'var(--alert-success-bg)',
+                              color: 'var(--success)',
                               fontSize: 12,
                               fontWeight: 600,
                               cursor: isActionLoading ? 'not-allowed' : 'pointer',
                               opacity: isActionLoading ? 0.5 : 1,
                               fontFamily: 'var(--font-sans)',
                             }}
-                            onMouseEnter={(e) => { if (!isActionLoading) { e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)'; } }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34, 197, 94, 0.08)'; }}
+                            onMouseEnter={(e) => { if (!isActionLoading) { e.currentTarget.style.background = 'var(--hover-strong)'; } }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--alert-success-bg)'; }}
                           >
                             <RotateCcw size={13} />
                             {isActionLoading === 'restore' ? 'Restoring...' : 'Restore'}
@@ -418,8 +418,8 @@ export default function RecycleBinPage() {
                               gap: 4,
                               padding: '6px 12px',
                               borderRadius: 6,
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
-                              background: 'rgba(244, 63, 94, 0.08)',
+                              border: '1px solid var(--alert-error-border)',
+                              background: 'var(--alert-error-bg)',
                               color: '#f43f5e',
                               fontSize: 12,
                               fontWeight: 600,
@@ -427,8 +427,8 @@ export default function RecycleBinPage() {
                               opacity: isActionLoading ? 0.5 : 1,
                               fontFamily: 'var(--font-sans)',
                             }}
-                            onMouseEnter={(e) => { if (!isActionLoading) { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.15)'; } }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.08)'; }}
+                            onMouseEnter={(e) => { if (!isActionLoading) { e.currentTarget.style.background = 'var(--hover-strong)'; } }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--alert-error-bg)'; }}
                           >
                             <Trash2 size={13} />
                             {isActionLoading === 'purge' ? 'Purging...' : 'Purge'}

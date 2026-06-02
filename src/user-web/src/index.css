@@ -24,6 +24,14 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Light Theme Scrollbar Adjustments ─── */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

@@ -60,7 +60,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0, 0, 0, 0.6)',
+        background: 'var(--backdrop)',
         backdropFilter: 'blur(4px)',
         animation: 'fadeIn 0.2s ease forwards',
       }}
@@ -112,12 +112,12 @@ export default function DomainModal({ domain, onClose, onSaved }) {
 
         <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>
               <AlertCircle size={16} /> {error}
             </div>
           )}
           {success && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: 8, color: 'var(--success)', fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: 8, color: 'var(--success)', fontSize: 13 }}>
               <Check size={16} /> {success}
             </div>
           )}
@@ -211,7 +211,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
               fontFamily: 'var(--font-sans)',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               opacity: isLoading ? 0.7 : 1,
-              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+              boxShadow: '0 4px 14px var(--alert-info-border)',
             }}
           >
             {isLoading ? 'Saving…' : isEdit ? 'Update Domain' : 'Create Domain'}
@@ -252,7 +252,7 @@ function Field({ label, value, onChange, required }) {
         }}
         onFocus={(e) => {
           e.target.style.borderColor = 'var(--navy-500)';
-          e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
+          e.target.style.boxShadow = '0 0 0 3px var(--alert-info-bg)';
         }}
         onBlur={(e) => {
           e.target.style.borderColor = 'var(--border-default)';
@@ -286,7 +286,7 @@ function FieldArea({ label, value, onChange }) {
         }}
         onFocus={(e) => {
           e.target.style.borderColor = 'var(--navy-500)';
-          e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
+          e.target.style.boxShadow = '0 0 0 3px var(--alert-info-bg)';
         }}
         onBlur={(e) => {
           e.target.style.borderColor = 'var(--border-default)';

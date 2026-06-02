@@ -18,7 +18,7 @@ export default function Footer() {
         style={{
           position: 'absolute',
           inset: 0,
-          backgroundImage: 'linear-gradient(rgba(159, 18, 57, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(159, 18, 57, 0.02) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(var(--hover-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--hover-subtle) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
           pointerEvents: 'none',
         }}
@@ -79,8 +79,8 @@ export default function Footer() {
               alignItems: 'center',
               gap: '6px',
               padding: '4px 10px',
-              background: 'rgba(34, 197, 94, 0.08)',
-              border: '1px solid rgba(34, 197, 94, 0.2)',
+              background: 'var(--alert-success-bg)',
+              border: '1px solid var(--alert-success-border)',
               borderRadius: 'var(--radius-pill)',
               fontSize: '11px',
               fontWeight: 600,

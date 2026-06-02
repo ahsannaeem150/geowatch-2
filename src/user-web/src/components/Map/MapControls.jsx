@@ -26,7 +26,7 @@ export default function MapControls({ dateRange, onDateRangeChange, onResetToTod
 
   const inputStyle = {
     background: 'var(--bg-input)',
-    border: isLive ? '1px solid var(--border-subtle)' : '1px solid rgba(245, 158, 11, 0.4)',
+    border: isLive ? '1px solid var(--border-subtle)' : '1px solid var(--alert-warning-border)',
     borderRadius: 'var(--radius-sm)',
     padding: '5px 8px',
     color: 'var(--text-primary)',
@@ -59,8 +59,8 @@ export default function MapControls({ dateRange, onDateRangeChange, onResetToTod
           gap: '8px',
           padding: '5px 14px',
           borderRadius: 'var(--radius-sm)',
-          background: isLive ? 'rgba(90, 1, 28, 0.15)' : 'rgba(245, 158, 11, 0.10)',
-          border: `1px solid ${isLive ? 'rgba(159, 18, 57, 0.40)' : 'rgba(245, 158, 11, 0.35)'}`,
+          background: isLive ? 'var(--alert-error-bg)' : 'var(--alert-warning-bg)',
+          border: `1px solid ${isLive ? 'var(--alert-error-border)' : 'var(--alert-warning-border)'}`,
         }}
       >
         <span
@@ -135,7 +135,7 @@ export default function MapControls({ dateRange, onDateRangeChange, onResetToTod
           letterSpacing: '0.5px',
           borderRadius: 'var(--radius-sm)',
           border: `1px solid ${verifiedOnly ? '#22c55e' : 'var(--border-subtle)'}`,
-          background: verifiedOnly ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-input)',
+          background: verifiedOnly ? 'var(--alert-success-bg)' : 'var(--bg-input)',
           color: verifiedOnly ? '#22c55e' : 'var(--text-muted)',
           cursor: 'pointer',
           transition: 'all 0.2s ease',

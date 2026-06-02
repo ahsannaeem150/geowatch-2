@@ -148,8 +148,8 @@ export default function UsersPage() {
                   fontWeight: 600,
                   padding: '2px 8px',
                   borderRadius: 12,
-                  background: 'rgba(34, 197, 94, 0.1)',
-                  color: '#22c55e',
+                  background: 'var(--badge-green-bg)',
+                  color: 'var(--badge-green-text)',
                 }}
               >
                 <span
@@ -157,7 +157,7 @@ export default function UsersPage() {
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#22c55e',
+                    background: 'var(--success)',
                     animation: 'pulse 2s infinite',
                   }}
                 />
@@ -182,10 +182,10 @@ export default function UsersPage() {
             fontWeight: 600,
             cursor: 'pointer',
             fontFamily: 'var(--font-sans)',
-            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+            boxShadow: '0 4px 14px var(--alert-info-border)',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.4)')}
-          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.3)')}
+          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = '0 4px 14px var(--alert-info-border)')}
         >
           <Plus size={16} />
           Create user
@@ -200,8 +200,8 @@ export default function UsersPage() {
             alignItems: 'center',
             gap: 8,
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.08)',
-            border: '1px solid rgba(244, 63, 94, 0.2)',
+            background: 'var(--alert-error-bg)',
+            border: '1px solid var(--alert-error-border)',
             borderRadius: 8,
             color: 'var(--danger)',
             fontSize: 13,
@@ -362,7 +362,7 @@ export default function UsersPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(0, 0, 0, 0.4)',
+            background: 'var(--backdrop)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border-default)' }}>

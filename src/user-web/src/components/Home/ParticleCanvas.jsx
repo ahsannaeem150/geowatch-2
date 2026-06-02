@@ -72,7 +72,7 @@ export default function ParticleCanvas() {
       draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(159, 18, 57, 0.25)';
+        ctx.fillStyle = 'var(--accent-subtle-border)';
         ctx.fill();
       }
     }

@@ -204,12 +204,12 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
 
       {/* Action messages */}
       {actionError && (
-        <div style={{ padding: '10px 14px', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: '8px', color: 'var(--danger)', fontSize: '12px', fontWeight: 500 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: '8px', color: 'var(--danger)', fontSize: '12px', fontWeight: 500 }}>
           {actionError}
         </div>
       )}
       {actionSuccess && (
-        <div style={{ padding: '10px 14px', background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: '8px', color: '#22c55e', fontSize: '12px', fontWeight: 500 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: '8px', color: 'var(--success)', fontSize: '12px', fontWeight: 500 }}>
           {actionSuccess}
         </div>
       )}
@@ -254,7 +254,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                     fontWeight: 700,
                     borderRadius: '6px',
                     border: '1px solid var(--warning)',
-                    background: 'rgba(245, 158, 11, 0.1)',
+                    background: 'var(--alert-warning-bg)',
                     color: 'var(--warning)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -271,7 +271,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                   fontWeight: 700,
                   borderRadius: '6px',
                   border: '1px solid var(--danger)',
-                  background: 'rgba(244, 63, 94, 0.08)',
+                  background: 'var(--alert-error-bg)',
                   color: 'var(--danger)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -333,7 +333,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 fontSize: '10px',
                 fontWeight: 700,
                 color: inc.status === 'active' ? '#22c55e' : 'var(--text-muted)',
-                background: inc.status === 'active' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                background: inc.status === 'active' ? 'var(--alert-success-bg)' : 'rgba(107, 114, 128, 0.1)',
                 padding: '3px 10px',
                 borderRadius: '4px',
                 textTransform: 'uppercase',
@@ -454,7 +454,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 fontWeight: 700,
                 borderRadius: '6px',
                 border: '1px solid var(--warning)',
-                background: 'rgba(245, 158, 11, 0.12)',
+                background: 'var(--alert-warning-bg)',
                 color: 'var(--warning)',
                 cursor: actionLoading ? 'not-allowed' : 'pointer',
                 opacity: actionLoading ? 0.6 : 1,
@@ -500,7 +500,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 fontWeight: 700,
                 borderRadius: '6px',
                 border: '1px solid var(--danger)',
-                background: 'rgba(244, 63, 94, 0.1)',
+                background: 'var(--alert-error-bg)',
                 color: 'var(--danger)',
                 cursor: actionLoading ? 'not-allowed' : 'pointer',
                 opacity: actionLoading ? 0.6 : 1,
@@ -661,7 +661,7 @@ function Modal({ children, onClose }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0, 0, 0, 0.5)',
+        background: 'var(--backdrop)',
         backdropFilter: 'blur(4px)',
       }}
       onClick={(e) => {

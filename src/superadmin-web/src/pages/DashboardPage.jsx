@@ -181,8 +181,8 @@ export default function DashboardPage() {
                 transition: 'color 0.3s ease',
                 padding: '4px 10px',
                 borderRadius: 6,
-                background: liveIndicator ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                border: liveIndicator ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid transparent',
+                background: liveIndicator ? 'var(--alert-success-bg)' : 'transparent',
+                border: liveIndicator ? '1px solid var(--alert-success-border)' : '1px solid transparent',
               }}
             >
               <span
@@ -252,8 +252,8 @@ export default function DashboardPage() {
         <div
           style={{
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.08)',
-            border: '1px solid rgba(244, 63, 94, 0.2)',
+            background: 'var(--alert-error-bg)',
+            border: '1px solid var(--alert-error-border)',
             borderRadius: 8,
             color: 'var(--danger)',
             fontSize: 13,

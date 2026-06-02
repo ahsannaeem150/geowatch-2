@@ -85,8 +85,8 @@ export default function PublicUsersPage() {
                   fontWeight: 600,
                   padding: '2px 8px',
                   borderRadius: 12,
-                  background: 'rgba(34, 197, 94, 0.1)',
-                  color: '#22c55e',
+                  background: 'var(--badge-green-bg)',
+                  color: 'var(--badge-green-text)',
                 }}
               >
                 <span
@@ -94,7 +94,7 @@ export default function PublicUsersPage() {
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#22c55e',
+                    background: 'var(--success)',
                     animation: 'pulse 2s infinite',
                   }}
                 />
@@ -114,8 +114,8 @@ export default function PublicUsersPage() {
             alignItems: 'center',
             gap: 8,
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.08)',
-            border: '1px solid rgba(244, 63, 94, 0.2)',
+            background: 'var(--alert-error-bg)',
+            border: '1px solid var(--alert-error-border)',
             borderRadius: 8,
             color: 'var(--danger)',
             fontSize: 13,
@@ -226,7 +226,7 @@ export default function PublicUsersPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(0, 0, 0, 0.4)',
+            background: 'var(--backdrop)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border-default)' }}>

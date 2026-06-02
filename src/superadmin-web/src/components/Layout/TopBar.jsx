@@ -189,7 +189,7 @@ export default function TopBar() {
                   fontFamily: 'var(--font-sans)',
                   transition: 'background var(--transition-fast)',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(244, 63, 94, 0.08)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--alert-error-bg)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 <LogOut size={16} />

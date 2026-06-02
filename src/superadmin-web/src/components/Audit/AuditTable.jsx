@@ -169,8 +169,8 @@ export default function AuditTable({
                                 letterSpacing: '0.04em',
                                 padding: '1px 5px',
                                 borderRadius: 3,
-                                background: 'rgba(139, 92, 246, 0.12)',
-                                color: '#8b5cf6',
+                                background: 'var(--badge-purple-bg)',
+                                color: 'var(--badge-purple-text)',
                               }}
                             >
                               Public

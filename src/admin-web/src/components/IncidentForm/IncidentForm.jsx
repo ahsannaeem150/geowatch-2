@@ -231,8 +231,8 @@ export default function IncidentForm({
           style={{
             marginTop: '8px',
             padding: '8px 12px',
-            background: locationContext ? 'rgba(159, 18, 57, 0.08)' : 'var(--bg-deep)',
-            border: `1px solid ${locationContext ? 'rgba(159, 18, 57, 0.25)' : 'var(--border-subtle)'}`,
+            background: locationContext ? 'var(--accent-subtle-bg)' : 'var(--bg-deep)',
+            border: `1px solid ${locationContext ? 'var(--accent-subtle-border)' : 'var(--border-subtle)'}`,
             borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',

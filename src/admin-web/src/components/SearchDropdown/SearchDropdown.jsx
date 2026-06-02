@@ -73,7 +73,7 @@ export default function SearchDropdown({
         <mark
           key={i}
           style={{
-            background: 'rgba(159, 18, 57, 0.25)',
+            background: 'var(--accent-subtle-border)',
             color: 'var(--accent-light)',
             padding: '0 2px',
             borderRadius: '2px',
@@ -105,7 +105,7 @@ export default function SearchDropdown({
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-md)',
         zIndex: 200,
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
+        boxShadow: '0 12px 40px var(--backdrop)',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -114,7 +114,7 @@ export default function SearchDropdown({
       <div
         style={{
           padding: '8px 12px',
-          borderBottom: '1px solid rgba(42, 46, 59, 0.5)',
+          borderBottom: '1px solid var(--border-default)',
           fontSize: '11px',
           color: 'var(--text-muted)',
           fontWeight: 600,
@@ -173,7 +173,7 @@ export default function SearchDropdown({
               onMouseEnter={() => onHighlightChange?.(index)}
               style={{
                 padding: '10px 14px',
-                borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
+                borderBottom: '1px solid var(--border-subtle)',
                 cursor: 'pointer',
                 background: isHighlighted ? 'var(--bg-hover)' : 'transparent',
                 transition: 'background 0.12s ease',
@@ -269,7 +269,7 @@ export default function SearchDropdown({
         <div
           onClick={() => onViewAll?.()}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(159, 18, 57, 0.08)';
+            e.currentTarget.style.background = 'var(--accent-subtle-bg)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent';
@@ -278,7 +278,7 @@ export default function SearchDropdown({
             padding: '10px 12px',
             textAlign: 'center',
             cursor: 'pointer',
-            borderTop: '1px solid rgba(42, 46, 59, 0.5)',
+            borderTop: '1px solid var(--border-default)',
             fontSize: '12px',
             fontWeight: 600,
             color: 'var(--accent-light)',

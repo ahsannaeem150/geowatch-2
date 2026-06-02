@@ -56,6 +56,38 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
   --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.15);
 
+  /* Badge & Pill Colors (Dark Mode) */
+  --badge-blue-bg: rgba(37, 99, 235, 0.15);
+  --badge-blue-text: #60a5fa;
+  --badge-amber-bg: rgba(245, 158, 11, 0.15);
+  --badge-amber-text: #fbbf24;
+  --badge-green-bg: rgba(16, 185, 129, 0.15);
+  --badge-green-text: #34d399;
+  --badge-red-bg: rgba(244, 63, 94, 0.15);
+  --badge-red-text: #fb7185;
+  --badge-purple-bg: rgba(139, 92, 246, 0.15);
+  --badge-purple-text: #a78bfa;
+  --badge-gray-bg: rgba(100, 116, 139, 0.15);
+  --badge-gray-text: #94a3b8;
+
+  /* Alert & Banner Colors (Dark Mode) */
+  --alert-error-bg: rgba(244, 63, 94, 0.08);
+  --alert-error-border: rgba(244, 63, 94, 0.2);
+  --alert-success-bg: rgba(16, 185, 129, 0.08);
+  --alert-success-border: rgba(16, 185, 129, 0.2);
+  --alert-warning-bg: rgba(245, 158, 11, 0.08);
+  --alert-warning-border: rgba(245, 158, 11, 0.2);
+  --alert-info-bg: rgba(37, 99, 235, 0.08);
+  --alert-info-border: rgba(37, 99, 235, 0.2);
+
+  /* Hover & Interactive States */
+  --hover-subtle: rgba(255, 255, 255, 0.03);
+  --hover-default: rgba(255, 255, 255, 0.05);
+  --hover-strong: rgba(255, 255, 255, 0.08);
+
+  /* Backdrop */
+  --backdrop: rgba(0, 0, 0, 0.5);
+
   /* Typography */
   --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
@@ -72,34 +104,77 @@
 
 /* ─── Light Theme Overrides for Superadmin ─── */
 [data-theme="light"] {
-  --bg-deep: #f2f2f5;
+  /* Backgrounds — off-white with clear layering */
+  --bg-deep: #f8f9fa;
   --bg-base: #ffffff;
   --bg-surface: #ffffff;
-  --bg-elevated: #f5f5f7;
-  --bg-hover: #eaeaec;
-  --bg-active: #f0f0f2;
-  --bg-glass: rgba(255, 255, 255, 0.85);
+  --bg-elevated: #f1f5f9;
+  --bg-hover: #e2e8f0;
+  --bg-active: #f0f4f8;
+  --bg-glass: rgba(255, 255, 255, 0.92);
 
-  --text-primary: #1a1a1e;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --text-disabled: #b0b0b8;
+  /* Text — dark slate for comfortable reading */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
 
-  --border-subtle: #e5e5e8;
-  --border-default: #d1d1d6;
-  --border-strong: #b8b8c0;
+  /* Borders — visible on white, following GitHub Primer / Vercel Geist */
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-strong: #94a3b8;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.1);
+  /* Shadows — lighter but perceptible on white */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.08);
 
-  /* Keep navy as primary accent even in light mode */
+  /* Status colors — slightly deeper for light backgrounds */
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #e11d48;
+  --info: #2563eb;
+
+  /* Primary accent — navy stays but glows softer */
   --primary: var(--navy-600);
   --primary-hover: var(--navy-700);
   --primary-dark: var(--navy-800);
   --primary-light: var(--navy-500);
   --primary-glow: var(--navy-400);
+
+  /* Badge & Pill Colors (Light Mode)
+     Solid opaque tints with dark text — NEVER transparent on white */
+  --badge-blue-bg: #dbeafe;
+  --badge-blue-text: #1e40af;
+  --badge-amber-bg: #fef3c7;
+  --badge-amber-text: #92400e;
+  --badge-green-bg: #d1fae5;
+  --badge-green-text: #065f46;
+  --badge-red-bg: #ffe4e6;
+  --badge-red-text: #9f1239;
+  --badge-purple-bg: #ede9fe;
+  --badge-purple-text: #5b21b6;
+  --badge-gray-bg: #f1f5f9;
+  --badge-gray-text: #475569;
+
+  /* Alert & Banner Colors (Light Mode) */
+  --alert-error-bg: #fef2f2;
+  --alert-error-border: #fecaca;
+  --alert-success-bg: #f0fdf4;
+  --alert-success-border: #bbf7d0;
+  --alert-warning-bg: #fffbeb;
+  --alert-warning-border: #fde68a;
+  --alert-info-bg: #eff6ff;
+  --alert-info-border: #bfdbfe;
+
+  /* Hover & Interactive States */
+  --hover-subtle: rgba(15, 23, 42, 0.02);
+  --hover-default: rgba(15, 23, 42, 0.04);
+  --hover-strong: rgba(15, 23, 42, 0.08);
+
+  /* Backdrop */
+  --backdrop: rgba(0, 0, 0, 0.4);
 }
 
 /* ============================================

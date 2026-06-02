@@ -102,7 +102,7 @@ export default function DomainsPage() {
             fontWeight: 600,
             fontFamily: 'var(--font-sans)',
             cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+            boxShadow: '0 4px 14px var(--alert-info-border)',
           }}
         >
           <Plus size={16} /> New Domain
@@ -110,7 +110,7 @@ export default function DomainsPage() {
       </div>
 
       {error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: 8, color: 'var(--danger)', fontSize: 14, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, color: 'var(--danger)', fontSize: 14, marginBottom: 20 }}>
           <AlertTriangle size={16} /> {error}
         </div>
       )}
@@ -262,7 +262,7 @@ function DomainCard({
                 style={{
                   fontSize: 11,
                   color: 'var(--navy-400)',
-                  background: 'rgba(37, 99, 235, 0.12)',
+                  background: 'var(--badge-blue-bg)',
                   padding: '2px 8px',
                   borderRadius: 4,
                   fontWeight: 600,
@@ -508,7 +508,7 @@ function DeleteConfirmModal({ type, name, onConfirm, onCancel }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0, 0, 0, 0.6)',
+        background: 'var(--backdrop)',
         backdropFilter: 'blur(4px)',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}

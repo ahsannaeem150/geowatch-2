@@ -74,7 +74,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
     >
       {/* Backdrop */}
       <div
-        style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.5)' }}
+        style={{ position: 'absolute', inset: 0, background: 'var(--backdrop)' }}
         onClick={onClose}
       />
 
@@ -125,7 +125,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
               Loading public user...
             </div>
           ) : error && !user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'rgba(244, 63, 94, 0.08)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'var(--alert-error-bg)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>
               <AlertCircle size={16} /> {error}
             </div>
           ) : user && (
@@ -161,7 +161,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
                   <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{user.full_name || '—'}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{user.email}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, background: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6', textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, background: 'var(--badge-blue-bg)', color: 'var(--badge-blue-text)', textTransform: 'uppercase' }}>
                       {user.oauth_provider}
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: user.is_active ? 'var(--success)' : 'var(--danger)' }}>
@@ -201,7 +201,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
                 <>
                   {/* Error banner */}
                   {error && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.2)', borderRadius: 8, color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
                       <AlertCircle size={16} /> {error}
                     </div>
                   )}
@@ -367,8 +367,8 @@ function ActionBtn({ icon: Icon, label, onClick, danger, disabled }) {
         gap: 6,
         padding: '8px 14px',
         borderRadius: 8,
-        border: danger ? '1px solid rgba(244, 63, 94, 0.3)' : '1px solid var(--border-default)',
-        background: danger ? 'rgba(244, 63, 94, 0.08)' : 'transparent',
+        border: danger ? '1px solid var(--alert-error-border)' : '1px solid var(--border-default)',
+        background: danger ? 'var(--alert-error-bg)' : 'transparent',
         color: danger ? 'var(--danger)' : 'var(--text-secondary)',
         fontSize: 12,
         fontWeight: 600,
@@ -380,13 +380,13 @@ function ActionBtn({ icon: Icon, label, onClick, danger, disabled }) {
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
-          e.currentTarget.style.background = danger ? 'rgba(244, 63, 94, 0.15)' : 'var(--bg-hover)';
+          e.currentTarget.style.background = danger ? 'var(--hover-strong)' : 'var(--bg-hover)';
           e.currentTarget.style.color = danger ? 'var(--danger)' : 'var(--text-primary)';
         }
       }}
       onMouseLeave={(e) => {
         if (!disabled) {
-          e.currentTarget.style.background = danger ? 'rgba(244, 63, 94, 0.08)' : 'transparent';
+          e.currentTarget.style.background = danger ? 'var(--alert-error-bg)' : 'transparent';
           e.currentTarget.style.color = danger ? 'var(--danger)' : 'var(--text-secondary)';
         }
       }}

@@ -68,8 +68,8 @@ function BulkBtn({ icon: Icon, label, onClick, danger }) {
         gap: 6,
         padding: '7px 12px',
         borderRadius: 6,
-        border: danger ? '1px solid rgba(244, 63, 94, 0.3)' : '1px solid var(--border-default)',
-        background: danger ? 'rgba(244, 63, 94, 0.08)' : 'transparent',
+        border: danger ? '1px solid var(--alert-error-border)' : '1px solid var(--border-default)',
+        background: danger ? 'var(--alert-error-bg)' : 'transparent',
         color: danger ? 'var(--danger)' : 'var(--text-secondary)',
         fontSize: 12,
         fontWeight: 600,
@@ -79,11 +79,11 @@ function BulkBtn({ icon: Icon, label, onClick, danger }) {
         transition: 'all var(--transition-fast)',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = danger ? 'rgba(244, 63, 94, 0.15)' : 'var(--bg-hover)';
+        e.currentTarget.style.background = danger ? 'var(--hover-strong)' : 'var(--bg-hover)';
         e.currentTarget.style.color = danger ? 'var(--danger)' : 'var(--text-primary)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = danger ? 'rgba(244, 63, 94, 0.08)' : 'transparent';
+        e.currentTarget.style.background = danger ? 'var(--alert-error-bg)' : 'transparent';
         e.currentTarget.style.color = danger ? 'var(--danger)' : 'var(--text-secondary)';
       }}
     >

@@ -284,7 +284,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-sm)',
             zIndex: 20,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            boxShadow: '0 8px 32px var(--backdrop)',
           }}
         >
           {/* Header with result count */}
@@ -292,7 +292,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
             <div
               style={{
                 padding: '8px 12px',
-                borderBottom: '1px solid rgba(42, 46, 59, 0.5)',
+                borderBottom: '1px solid var(--border-default)',
                 fontSize: '11px',
                 color: 'var(--text-muted)',
                 fontWeight: 600,
@@ -330,7 +330,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
                     style={{
                       padding: '10px 12px',
                       cursor: 'pointer',
-                      borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
+                      borderBottom: '1px solid var(--border-subtle)',
                       background: isHighlighted ? 'var(--bg-hover)' : 'transparent',
                       transition: 'background 0.12s ease',
                       display: 'flex',
@@ -378,7 +378,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
                   style={{
                     padding: '10px 12px',
                     cursor: 'pointer',
-                    borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
+                    borderBottom: '1px solid var(--border-subtle)',
                     background: isHighlighted ? 'var(--bg-hover)' : 'transparent',
                     transition: 'background 0.12s ease',
                   }}

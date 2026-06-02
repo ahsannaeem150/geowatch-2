@@ -3,8 +3,8 @@ import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, KeyRound, UserX, UserChe
 import { formatDistanceToNow } from 'date-fns';
 
 const ROLE_STYLES = {
-  super_admin: { bg: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', label: 'Super Admin' },
-  admin: { bg: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6', label: 'Admin' },
+  super_admin: { bg: 'var(--badge-amber-bg)', color: 'var(--badge-amber-text)', label: 'Super Admin' },
+  admin: { bg: 'var(--badge-blue-bg)', color: 'var(--badge-blue-text)', label: 'Admin' },
 };
 
 function RoleBadge({ role }) {
@@ -148,7 +148,7 @@ export default function UserTable({
                   <tr
                     key={user.id}
                     style={{
-                      background: isSelected ? 'rgba(37, 99, 235, 0.06)' : 'transparent',
+                      background: isSelected ? 'var(--hover-subtle)' : 'transparent',
                       borderBottom: '1px solid var(--border-subtle)',
                       transition: 'background var(--transition-fast)',
                     }}

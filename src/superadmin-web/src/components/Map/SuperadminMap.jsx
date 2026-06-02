@@ -290,7 +290,7 @@ export default function SuperadminMap({
             letterSpacing: '0.5px',
             borderRadius: '6px',
             border: `1px solid ${showDebug ? '#f59e0b' : 'var(--border-subtle)'}`,
-            background: showDebug ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-surface)',
+            background: showDebug ? 'var(--hover-strong)' : 'var(--bg-surface)',
             color: showDebug ? '#f59e0b' : 'var(--text-muted)',
             cursor: 'pointer',
             backdropFilter: 'blur(8px)',
@@ -321,7 +321,7 @@ export default function SuperadminMap({
             color: '#fff',
             textDecoration: 'none',
             cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+            boxShadow: '0 4px 14px var(--alert-info-border)',
             transition: 'all 0.2s ease',
           }}
         >

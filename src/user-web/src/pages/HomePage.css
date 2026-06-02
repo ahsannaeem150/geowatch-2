@@ -35,8 +35,8 @@
   z-index: 1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(159, 18, 57, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(159, 18, 57, 0.03) 1px, transparent 1px);
+    linear-gradient(var(--hover-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hover-subtle) 1px, transparent 1px);
   background-size: 60px 60px;
   mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
@@ -57,8 +57,8 @@
   align-items: center;
   gap: 8px;
   padding: 6px 16px;
-  background: rgba(159, 18, 57, 0.08);
-  border: 1px solid rgba(159, 18, 57, 0.2);
+  background: var(--accent-subtle-bg);
+  border: 1px solid var(--accent-subtle-border);
   border-radius: var(--radius-pill);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -114,7 +114,7 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   position: relative;
-  filter: drop-shadow(0 0 40px rgba(159, 18, 57, 0.3));
+  filter: drop-shadow(0 0 40px var(--accent-subtle-border));
 }
 
 .home-subheadline {
@@ -155,7 +155,7 @@
 .home-cta--primary {
   background: var(--accent);
   color: #f2f2f2;
-  box-shadow: 0 4px 24px rgba(90, 1, 28, 0.4);
+  box-shadow: 0 4px 24px var(--shadow-glow-accent);
 }
 
 .home-cta--primary:hover {

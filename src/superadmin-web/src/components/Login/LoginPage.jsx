@@ -96,8 +96,8 @@ export default function LoginPage() {
                 alignItems: 'center',
                 gap: 8,
                 padding: '12px 14px',
-                background: 'rgba(244, 63, 94, 0.08)',
-                border: '1px solid rgba(244, 63, 94, 0.2)',
+                background: 'var(--alert-error-bg)',
+                border: '1px solid var(--alert-error-border)',
                 borderRadius: 8,
                 color: 'var(--danger)',
                 fontSize: 13,
@@ -139,7 +139,7 @@ export default function LoginPage() {
               }}
               onFocus={(e) => {
                 e.target.style.borderColor = 'var(--navy-500)';
-                e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
+                e.target.style.boxShadow = '0 0 0 3px var(--alert-info-bg)';
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = 'var(--border-default)';
@@ -181,7 +181,7 @@ export default function LoginPage() {
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = 'var(--navy-500)';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
+                  e.target.style.boxShadow = '0 0 0 3px var(--alert-info-bg)';
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = 'var(--border-default)';
@@ -225,13 +225,13 @@ export default function LoginPage() {
               cursor: isLoading ? 'not-allowed' : 'pointer',
               opacity: isLoading ? 0.7 : 1,
               transition: 'opacity var(--transition-fast), box-shadow var(--transition-fast)',
-              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+              boxShadow: '0 4px 14px var(--alert-info-border)',
             }}
             onMouseEnter={(e) => {
               if (!isLoading) e.target.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.4)';
             }}
             onMouseLeave={(e) => {
-              e.target.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.3)';
+              e.target.style.boxShadow = '0 4px 14px var(--alert-info-border)';
             }}
           >
             {isLoading ? 'Signing in...' : 'Sign in to Console'}

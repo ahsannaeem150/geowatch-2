@@ -129,7 +129,7 @@ export default function TopBar({
 
   const inputStyle = {
     background: 'var(--bg-input)',
-    border: isLive ? '1px solid var(--border-subtle)' : '1px solid rgba(245, 158, 11, 0.4)',
+    border: isLive ? '1px solid var(--border-subtle)' : '1px solid var(--alert-warning-border)',
     borderRadius: 'var(--radius-sm)',
     padding: '5px 8px',
     color: 'var(--text-primary)',
@@ -317,8 +317,8 @@ export default function TopBar({
           gap: '8px',
           padding: '6px 18px',
           borderRadius: 'var(--radius-sm)',
-          background: isLive ? 'rgba(90, 1, 28, 0.15)' : 'rgba(245, 158, 11, 0.10)',
-          border: `1px solid ${isLive ? 'rgba(159, 18, 57, 0.40)' : 'rgba(245, 158, 11, 0.35)'}`,
+          background: isLive ? 'rgba(90, 1, 28, 0.15)' : 'var(--alert-warning-bg)',
+          border: `1px solid ${isLive ? 'rgba(159, 18, 57, 0.40)' : 'var(--alert-warning-border)'}`,
         }}
       >
         <div

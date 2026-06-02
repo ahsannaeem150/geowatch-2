@@ -53,7 +53,7 @@ export default function SaveButton({ incidentId, initialSaved = false, size = 16
         height: '28px',
         borderRadius: 'var(--radius-sm)',
         border: 'none',
-        background: saved ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+        background: saved ? 'var(--alert-warning-bg)' : 'transparent',
         color: saved ? 'var(--warning)' : 'var(--text-muted)',
         cursor: loading ? 'wait' : 'pointer',
         transition: 'all 0.15s ease',

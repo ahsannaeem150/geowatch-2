@@ -3745,3 +3745,153 @@ feat(superadmin): real-time user lists via SSE — auto-refresh on create/update
 ```
 
 *End of Phase 7*
+
+
+---
+
+## Task: Complete Light Theme Overhaul (All 3 Sites)
+
+**Date:** 2026-05-05
+
+### Problem
+The light theme was created by inverting only the background (`#ffffff`) and primary text (`#1a1a1e`) colors while leaving all other colors unchanged from the dark theme. This caused:
+- Role badges (ADMIN, SUPER ADMIN) with transparent `rgba()` backgrounds to become nearly invisible on white
+- Table row hover states (`#eaeaec`) to be imperceptible
+- Borders (`#e5e5e8`) to disappear against white backgrounds
+- Input fields blending into the page background
+- Status indicators and alert banners with poor contrast
+- Sidebar active items looking washed out
+
+### Research-Driven Solution
+Studied how GitHub Primer, Vercel Geist, Linear, and shadcn/ui handle light themes. The key insight: **you cannot use the same visual strategy as dark mode**. In dark mode, `rgba(color, 0.12)` tints look great on near-black. On white, they vanish. Top platforms use:
+- **Solid opaque tints** for badge backgrounds (`#dbeafe` instead of `rgba(37,99,235,0.12)`)
+- **Darkened text** on badges (`#1e40af` instead of `#3b82f6`)
+- **Stronger borders** (`#d1d5db` instead of `#e5e5e8`)
+- **Distinct input backgrounds** (`#f8f9fa` instead of `#ffffff`)
+- **Meaningful hover states** (`#e2e8f0` instead of `#eaeaec`)
+
+### Files Modified
+
+#### CSS Token Files (Foundation)
+| File | Changes |
+|:--|:--|
+| `src/shared/design-tokens.css` | Completely rewrote `[data-theme="light"]` section. Added 30+ new semantic tokens: `--badge-*-bg/text` (6 color pairs), `--alert-*-bg/border` (4 pairs), `--accent-subtle-bg/border`, `--hover-subtle/default/strong`, `--backdrop`. Light values use solid opaque tints (GitHub Primer style). Dark values remain as transparent overlays. |
+| `src/superadmin-web/src/index.css` | Rewrote `[data-theme="light"]` with navy-accented palette. Added same badge/alert/hover/backdrop tokens. Backgrounds: `#f8f9fa` → `#ffffff` → `#f1f5f9`. Borders: `#e2e8f0` / `#cbd5e1` / `#94a3b8`. Text: `#0f172a` / `#475569` / `#64748b`. |
+| `src/admin-web/src/index.css` | Added `[data-theme="light"]` scrollbar overrides (was completely missing). |
+| `src/user-web/src/index.css` | Added `[data-theme="light"]` scrollbar overrides (was completely missing). |
+
+#### Superadmin-Web JSX Components
+| File | Changes |
+|:--|:--|
+| `src/components/Users/UserTable.jsx` | Role badges now use `var(--badge-blue-bg)` / `var(--badge-blue-text)` and `var(--badge-amber-bg)` / `var(--badge-amber-text)` |
+| `src/components/Users/UserDetailDrawer.jsx` | Same role badge CSS var migration |
+| `src/components/PublicUsers/PublicUserDrawer.jsx` | Public user role tag uses badge CSS vars; error/delete banners use alert vars |
+| `src/components/PublicUsers/PublicUserTable.jsx` | Pagination active button uses CSS vars |
+| `src/components/Audit/AuditTable.jsx` | SYSTEM actor badge uses `var(--badge-purple-bg)` / `var(--badge-purple-text)` |
+| `src/components/Layout/Sidebar.jsx` | Active nav item uses `var(--badge-blue-bg)` and `var(--badge-blue-text)` for border |
+| `src/components/Layout/TopBar.jsx` | Logout hover uses `var(--alert-error-bg)` |
+| `src/components/Map/IncidentDetailPanel.jsx` | Verified/unverified badges, action error/success banners, delete confirmation all use alert vars |
+| `src/components/Map/MapControls.jsx` | Mode indicator chips use alert vars |
+| `src/components/Domains/DomainModal.jsx` | Error/success banners use alert vars |
+| `src/components/Domains/CategoryModal.jsx` | Error/success banners use alert vars |
+| `src/components/Users/CreateUserModal.jsx` | Error/success banners use alert vars |
+| `src/components/Users/BulkActionBar.jsx` | Danger button backgrounds use alert vars |
+| `src/components/LocationSearch/LocationSearch.jsx` | Dropdown dividers use border CSS vars |
+| `src/pages/UsersPage.jsx` | Online indicator uses badge vars; error banner uses alert vars; button shadow uses navy vars |
+| `src/pages/PublicUsersPage.jsx` | Online indicator uses badge vars; error banner uses alert vars |
+| `src/pages/DomainsPage.jsx` | Error banner, severity count badge use CSS vars |
+| `src/pages/DashboardPage.jsx` | Live indicator, error banner use alert vars |
+| `src/pages/RecycleBinPage.jsx` | Severity badges, restore/delete buttons, auto-purge indicator, days-left pills all use CSS vars |
+| `src/pages/MapPage.jsx` | Ghost incident button uses alert vars |
+| `src/pages/PublicActivityPage.jsx` | Error banner uses alert vars |
+| `src/pages/SystemActivityPage.jsx` | Error banner uses alert vars |
+| `src/pages/NotFoundPage.jsx` | Button text uses CSS var |
+| `src/App.jsx` | Auth error banner uses alert vars |
+
+#### Admin-Web JSX Components
+| File | Changes |
+|:--|:--|
+| `src/components/SearchModal/SearchModal.jsx` | Search highlight, backdrop, shadow use CSS vars |
+| `src/components/SearchDropdown/SearchDropdown.jsx` | Hover states, dividers, shadows use CSS vars |
+| `src/components/LocationSearch/LocationSearch.jsx` | Dividers, shadows use CSS vars |
+| `src/components/IncidentDetail/IncidentDetailPanel.jsx` | Timeline badge, resolve banner, backdrop, copy-link color use CSS vars |
+| `src/components/IncidentForm/IncidentForm.jsx` | Location context badge uses accent vars |
+| `src/components/Layout/DashboardLayout.jsx` | Ghost incident button uses accent vars |
+| `src/components/Layout/TopBar.jsx` | Mode indicator chips use alert vars |
+| `src/components/Map/AdminMap.jsx` | Popup colors use CSS vars |
+| `src/components/LiveActivity/AdminLiveFeed.jsx` | Unread rows, edit button use accent vars |
+| `src/components/IncidentList/IncidentTable.jsx` | Backdrop uses CSS var |
+
+#### User-Web JSX Components + CSS
+| File | Changes |
+|:--|:--|
+| `src/components/IncidentDetail/IncidentDetailView.jsx` | Copy-link, live indicator, timeline badge use CSS vars |
+| `src/components/IncidentList/IncidentListItem.jsx` | Verification badge uses CSS vars |
+| `src/components/IncidentList/IncidentSidebar.jsx` | Saved/events count badges, filter chips use accent vars |
+| `src/components/LiveActivity/LiveActivityFeed.jsx` | Unread rows use hover vars |
+| `src/components/Map/UserMap.jsx` | Popup badges use CSS vars |
+| `src/components/Map/MapControls.jsx` | Mode indicator, verified toggle use alert vars |
+| `src/components/LocationSearch/LocationSearch.jsx` | Dividers, shadows use CSS vars |
+| `src/components/SaveButton/SaveButton.jsx` | Saved state uses alert vars |
+| `src/components/Layout/Footer.jsx` | Operational status badge uses alert vars |
+| `src/pages/MapPage.jsx` | Ghost incident button uses accent vars |
+| `src/pages/HomePage.css` | Grid lines, live badge, CTA shadows use CSS vars |
+
+### Token Reference (New Semantic Variables)
+
+| Token | Dark Mode Value | Light Mode Value | Usage |
+|:--|:--|:--|:--|
+| `--badge-blue-bg` | `rgba(37,99,235,0.15)` | `#dbeafe` | Admin, info badges |
+| `--badge-blue-text` | `#60a5fa` | `#1e40af` | Admin badge text |
+| `--badge-amber-bg` | `rgba(245,158,11,0.15)` | `#fef3c7` | Super Admin, warning badges |
+| `--badge-amber-text` | `#fbbf24` | `#92400e` | Super Admin badge text |
+| `--badge-green-bg` | `rgba(16,185,129,0.15)` | `#d1fae5` | Active, online, success badges |
+| `--badge-green-text` | `#34d399` | `#065f46` | Active badge text |
+| `--badge-red-bg` | `rgba(244,63,94,0.15)` | `#ffe4e6` | Danger, banned badges |
+| `--badge-red-text` | `#fb7185` | `#9f1239` | Danger badge text |
+| `--badge-purple-bg` | `rgba(139,92,246,0.15)` | `#ede9fe` | System, purple badges |
+| `--badge-purple-text` | `#a78bfa` | `#5b21b6` | System badge text |
+| `--alert-error-bg` | `rgba(220,38,38,0.08)` | `#fef2f2` | Error banners |
+| `--alert-error-border` | `rgba(220,38,38,0.2)` | `#fecaca` | Error banner borders |
+| `--alert-success-bg` | `rgba(34,197,94,0.08)` | `#f0fdf4` | Success banners |
+| `--alert-success-border` | `rgba(34,197,94,0.2)` | `#bbf7d0` | Success banner borders |
+| `--alert-warning-bg` | `rgba(245,158,11,0.08)` | `#fffbeb` | Warning banners |
+| `--alert-warning-border` | `rgba(245,158,11,0.2)` | `#fde68a` | Warning banner borders |
+| `--accent-subtle-bg` | `rgba(159,18,57,0.08)` | `#fce7f3` | Accent/brand tint bg |
+| `--accent-subtle-border` | `rgba(159,18,57,0.25)` | `#fbcfe8` | Accent/brand tint border |
+| `--hover-subtle` | `rgba(255,255,255,0.03)` | `rgba(15,23,42,0.02)` | Very subtle hover |
+| `--hover-default` | `rgba(255,255,255,0.05)` | `rgba(15,23,42,0.04)` | Standard hover |
+| `--hover-strong` | `rgba(255,255,255,0.08)` | `rgba(15,23,42,0.08)` | Strong hover |
+| `--backdrop` | `rgba(0,0,0,0.6)` | `rgba(0,0,0,0.45)` | Modal overlays |
+
+### Verified Behavior
+
+| Test | Result |
+|:--|:--|
+| Superadmin build | ✅ Clean production build |
+| Admin-web build | ✅ Clean production build |
+| User-web build | ✅ Clean production build |
+| Badge contrast (light) | ✅ Solid opaque backgrounds with dark text |
+| Badge contrast (dark) | ✅ Transparent tints with bright text |
+| Border visibility (light) | `#cbd5e1` default — clearly visible on white |
+| Border visibility (dark) | `rgba(148,163,184,0.12)` — subtle on dark |
+| Input differentiation (light) | `#f8f9fa` bg vs `#ffffff` page — visible boundary |
+| Hover states (light) | `#e2e8f0` — clearly perceptible |
+| Hover states (dark) | `#131322` — clearly perceptible |
+
+### What Was NOT Changed (Intentionally Out of Scope)
+
+- Domain colors (`domain_color`) — user-defined, backend-driven
+- Location type colors — functional mapping (country=purple, city=amber, etc.)
+- Severity colors — standard across both themes
+- `DesignTrial.jsx` — self-contained design showcase with its own palette
+- Map tile styles — already have separate light/dark JSON styles
+- Decorative button shadows on primary navy buttons — cosmetic, background stays dark
+
+### Git Commit
+
+```
+feat(theming): complete light theme overhaul for all 3 sites — solid opaque badge tints, stronger borders, distinct inputs, semantic CSS vars
+```
+
+*End of Light Theme Overhaul*

@@ -162,7 +162,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
         <mark
           key={i}
           style={{
-            background: 'rgba(159, 18, 57, 0.2)',
+            background: 'var(--accent-subtle-border)',
             color: 'var(--accent-light)',
             padding: '0 2px',
             borderRadius: '2px',
@@ -198,7 +198,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.7)',
+        background: 'var(--backdrop)',
         backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
@@ -219,7 +219,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
+          boxShadow: '0 24px 64px var(--backdrop)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -427,7 +427,7 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                       key={incident.id}
                       onClick={() => handleSelect(incident)}
                       style={{
-                        borderBottom: '1px solid rgba(42, 46, 59, 0.4)',
+                        borderBottom: '1px solid var(--border-subtle)',
                         cursor: 'pointer',
                         transition: 'background 0.12s ease',
                       }}

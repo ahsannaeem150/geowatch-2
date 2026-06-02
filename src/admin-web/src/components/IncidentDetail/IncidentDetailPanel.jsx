@@ -447,7 +447,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
                 fontSize: '11px',
                 fontWeight: 700,
                 color: 'var(--accent-light)',
-                background: 'rgba(159, 18, 57, 0.12)',
+                background: 'var(--accent-subtle-bg)',
                 padding: '2px 8px',
                 borderRadius: '10px',
               }}
@@ -687,8 +687,8 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
             {resolveDate && (
               <div
                 style={{
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  background: 'var(--alert-warning-bg)',
+                  border: '1px solid var(--alert-warning-border)',
                   borderRadius: 'var(--radius-sm)',
                   padding: '10px 12px',
                   fontSize: '12px',
