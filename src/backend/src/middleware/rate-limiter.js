@@ -1,12 +1,12 @@
 import rateLimit from 'express-rate-limit';
 
 /**
- * General API rate limiter: 100 requests per 15 minutes per IP.
+ * General API rate limiter: 300 requests per 1 minute per IP.
  * Applied to all public read endpoints.
  */
 export const generalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '300', 10),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
