@@ -3,13 +3,18 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { api } from '../../services/api.js';
 
-const MAP_STYLE_URL = '/map-style-dark.json';
+function getMapStyleUrl() {
+  return document.documentElement.getAttribute('data-theme') === 'light'
+    ? '/map-style-light.json'
+    : '/map-style-dark.json';
+}
 
 export default function HeroMap() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markersRef = useRef([]);
   const [incidents, setIncidents] = useState([]);
+  const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'dark');
 
   // Fetch active incidents
   useEffect(() => {
@@ -31,7 +36,7 @@ export default function HeroMap() {
 
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
-      style: MAP_STYLE_URL,
+      style: getMapStyleUrl(),
       center: [55, 25],
       zoom: 2.8,
       bearing: 0,
@@ -116,6 +121,21 @@ export default function HeroMap() {
       map.current = null;
     };
   }, [incidents]);
+
+  // Watch for theme changes and update map style
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const newTheme = document.documentElement.getAttribute('data-theme');
+      if (newTheme !== theme) {
+        setTheme(newTheme);
+        if (map.current) {
+          map.current.setStyle(getMapStyleUrl());
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, [theme]);
 
   return (
     <div

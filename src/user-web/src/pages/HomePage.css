@@ -21,6 +21,25 @@
   pointer-events: none;
 }
 
+.home-hero__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(5,5,5,0.3) 0%, rgba(5,5,5,0.7) 70%, rgba(5,5,5,0.95) 100%),
+    linear-gradient(to bottom, rgba(5,5,5,0.8) 0%, rgba(5,5,5,0.2) 30%, rgba(5,5,5,0.2) 70%, rgba(5,5,5,0.9) 100%),
+    linear-gradient(to right, rgba(5,5,5,0.6) 0%, rgba(5,5,5,0) 30%, rgba(5,5,5,0) 70%, rgba(5,5,5,0.6) 100%);
+}
+
+.home-hero__scanline {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+}
+
 .home-hero__vignette {
   position: absolute;
   inset: 0;
@@ -117,6 +136,13 @@
   filter: drop-shadow(0 0 40px var(--accent-subtle-border));
 }
 
+[data-theme="light"] .home-headline__accent {
+  background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 50%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .home-subheadline {
   font-size: clamp(16px, 2vw, 20px);
   color: var(--text-secondary);
@@ -160,7 +186,7 @@
 
 .home-cta--primary:hover {
   background: var(--accent-light);
-  box-shadow: 0 6px 32px rgba(159, 18, 57, 0.5);
+  box-shadow: 0 6px 32px var(--accent-glow-strong);
   transform: translateY(-2px);
 }
 
@@ -236,6 +262,18 @@
   text-transform: uppercase;
   letter-spacing: 2px;
   color: var(--text-muted);
+}
+
+/* Light theme hero overrides */
+[data-theme="light"] .home-hero__overlay {
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(248,249,250,0.3) 0%, rgba(248,249,250,0.7) 70%, rgba(248,249,250,0.95) 100%),
+    linear-gradient(to bottom, rgba(248,249,250,0.8) 0%, rgba(248,249,250,0.2) 30%, rgba(248,249,250,0.2) 70%, rgba(248,249,250,0.9) 100%),
+    linear-gradient(to right, rgba(248,249,250,0.6) 0%, rgba(248,249,250,0) 30%, rgba(248,249,250,0) 70%, rgba(248,249,250,0.6) 100%);
+}
+
+[data-theme="light"] .home-hero__scanline {
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
 }
 
 /* ─── Stats ─── */

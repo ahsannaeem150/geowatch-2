@@ -97,7 +97,7 @@ export default function Sidebar() {
                 padding: '10px 14px',
                 borderRadius: 8,
                 textDecoration: 'none',
-                color: isActive ? 'var(--navy-200)' : 'var(--text-secondary)',
+                color: isActive ? 'var(--badge-blue-text)' : 'var(--text-secondary)',
                 background: isActive ? 'var(--badge-blue-bg)' : 'transparent',
                 border: isActive ? '1px solid var(--badge-blue-text)' : '1px solid transparent',
                 fontSize: 14,
