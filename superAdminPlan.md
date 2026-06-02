@@ -201,7 +201,7 @@ feat(superadmin): activity timelines and stats in staff and public user profile 
 
 ## Phase 6: Deep Linking — From Profile to Map (Part 2)
 
-**Status: ⏳ NOT STARTED**
+**Status: ✅ COMPLETE**
 
 **Scope:**
 
@@ -247,7 +247,7 @@ feat(superadmin): deep-link activity timeline items to map with contextual navig
 | 3 | Map mount in superadmin, adminMode overlays | ✅ Complete | Medium | Medium |
 | 4 | realm/actor_type columns, separate activity pages | ⏳ Not started | Medium | Medium |
 | 5 | Profile drawers with activity timelines | ✅ Complete | Low | Medium |
-| 6 | Deep-linking from activity to map | ⏳ Not started | Medium | Large |
+| 6 | Deep-linking from activity to map | ✅ Complete | Medium | Large |
 
 ---
 

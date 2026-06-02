@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getIncidents, getIncident, getDomains, listAllCategories } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
@@ -10,16 +10,34 @@ import MapLegend from '@shared/components/MapLegend.jsx';
 
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const incidentIdFromUrl = searchParams.get('incident');
+
+  // ─── Deep-link params ───
+  const dateParam = searchParams.get('date');
+  const fromParam = searchParams.get('from');
+  const toParam = searchParams.get('to');
+  const latParam = searchParams.get('lat');
+  const lngParam = searchParams.get('lng');
+  const zoomParam = searchParams.get('zoom');
+  const refParam = searchParams.get('ref');
+  const actorParam = searchParams.get('actor');
+  const returnToParam = searchParams.get('returnTo');
 
   // ─── Date & filters ───
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const [dateRange, setDateRange] = useState({ from: today, to: today });
+  const initialFrom = dateParam || fromParam || today;
+  const initialTo = dateParam || toParam || today;
+  const [dateRange, setDateRange] = useState({ from: initialFrom, to: initialTo });
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState(null);
-  const [flyToCoords, setFlyToCoords] = useState(null);
+  const [flyToCoords, setFlyToCoords] = useState(
+    latParam && lngParam
+      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: zoomParam ? parseFloat(zoomParam) : 10 }
+      : null
+  );
   const [refreshKey, setRefreshKey] = useState(0);
   const [filters, setFilters] = useState({
     categoryId: searchParams.get('categoryId') || '',
@@ -27,6 +45,9 @@ export default function MapPage() {
     verifiedOnly: false,
     status: searchParams.get('status') || 'active',
   });
+
+  // Show contextual banner when coming from activity timeline with an incident
+  const showContextBanner = refParam === 'activity' && incidentIdFromUrl;
 
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
@@ -319,6 +340,24 @@ export default function MapPage() {
     });
   }, []);
 
+  const handleDismissContext = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('ref');
+      next.delete('actor');
+      next.delete('returnTo');
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const handleBackToProfile = useCallback(() => {
+    if (returnToParam) {
+      navigate(returnToParam);
+    } else {
+      handleDismissContext();
+    }
+  }, [returnToParam, navigate, handleDismissContext]);
+
   const handleSwitchToIncidentDate = (incident) => {
     const incidentDate = incident.start_date
       ? (() => {
@@ -336,6 +375,75 @@ export default function MapPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--topbar-height))' }}>
+      {/* Contextual banner */}
+      {showContextBanner && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 20px',
+            background: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-subtle)',
+            flexShrink: 0,
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: 'var(--navy-400)',
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
+              Showing incident from{' '}
+              <span style={{ fontWeight: 700 }}>
+                {actorParam ? `${actorParam}'s activity` : 'activity timeline'}
+              </span>
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <button
+              onClick={handleBackToProfile}
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                border: '1px solid var(--navy-500)',
+                background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+                color: '#fff',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              ← Back to profile
+            </button>
+            <button
+              onClick={handleDismissContext}
+              style={{
+                padding: '5px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                border: '1px solid var(--border-subtle)',
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Center — Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>

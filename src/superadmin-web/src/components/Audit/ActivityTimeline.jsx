@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
   LogIn,
@@ -80,7 +81,17 @@ function getActivityDescription(log) {
   return label;
 }
 
-export default function ActivityTimeline({ logs, loading, emptyMessage = 'No activity yet' }) {
+function buildIncidentLink(log, actorName, returnPath) {
+  if (!log.target_id || log.target_type !== 'incident') return null;
+  const params = new URLSearchParams();
+  params.set('incident', log.target_id);
+  params.set('ref', 'activity');
+  if (actorName) params.set('actor', actorName);
+  if (returnPath) params.set('returnTo', returnPath);
+  return `/superadmin/map?${params.toString()}`;
+}
+
+export default function ActivityTimeline({ logs, loading, emptyMessage = 'No activity yet', actorName, returnPath }) {
   if (loading) {
     return (
       <div
@@ -162,37 +173,83 @@ export default function ActivityTimeline({ logs, loading, emptyMessage = 'No act
             </div>
 
             {/* Content */}
-            <div style={{ flex: 1, paddingBottom: isLast ? 0 : 18, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.4,
-                  wordBreak: 'break-word',
-                }}
-              >
-                {getActivityDescription(log)}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
-              </div>
-              {log.target_id && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--text-secondary)',
-                    marginTop: 2,
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  {log.target_type} · {log.target_id.slice(0, 8)}…
-                </div>
-              )}
-            </div>
+            <TimelineItemContent
+              log={log}
+              isLast={isLast}
+              actorName={actorName}
+              returnPath={returnPath}
+            />
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function TimelineItemContent({ log, isLast, actorName, returnPath }) {
+  const incidentLink = buildIncidentLink(log, actorName, returnPath);
+
+  const inner = (
+    <>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          lineHeight: 1.4,
+          wordBreak: 'break-word',
+        }}
+      >
+        {getActivityDescription(log)}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+        {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+      </div>
+      {log.target_id && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--text-secondary)',
+            marginTop: 2,
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
+          {log.target_type} · {log.target_id.slice(0, 8)}…
+        </div>
+      )}
+    </>
+  );
+
+  if (incidentLink) {
+    return (
+      <RouterLink
+        to={incidentLink}
+        style={{
+          flex: 1,
+          paddingBottom: isLast ? 0 : 18,
+          minWidth: 0,
+          textDecoration: 'none',
+          borderRadius: 6,
+          padding: '6px 8px',
+          margin: '-6px -8px',
+          transition: 'background 0.15s ease',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+        }}
+      >
+        {inner}
+      </RouterLink>
+    );
+  }
+
+  return (
+    <div style={{ flex: 1, paddingBottom: isLast ? 0 : 18, minWidth: 0 }}>
+      {inner}
     </div>
   );
 }

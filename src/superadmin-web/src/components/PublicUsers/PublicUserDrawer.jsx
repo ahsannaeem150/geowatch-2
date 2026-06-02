@@ -251,6 +251,8 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
                     logs={activityData?.logs}
                     loading={activityLoading}
                     emptyMessage="No activity recorded yet"
+                    actorName={user?.full_name}
+                    returnPath="/superadmin/public-users"
                   />
                 </>
               )}

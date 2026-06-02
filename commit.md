@@ -3613,3 +3613,64 @@ feat(superadmin): activity timelines and stats in staff and public user profile 
 ```
 
 *End of Phase 5*
+
+---
+
+## Phase 6: Deep Linking — From Profile to Map (Part 2)
+
+### Summary
+Connected activity timelines to the superadmin map via deep-linking. Any activity item referencing an incident is now clickable and opens the map at the incident's location. The map accepts `?incident`, `?date`, `?from`, `?to`, `?lat`, `?lng`, and `?zoom` query parameters. A contextual banner appears when arriving from an activity link, showing the actor's name and providing "Back to profile" and "Dismiss" actions. The existing ghost marker + date-switch banner pattern seamlessly handles out-of-range incidents.
+
+### Frontend Changes
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | Added deep-link param parsing: `date`/`from`/`to` initialize the date range; `lat`/`lng`/`zoom` initialize the map viewport; `ref`/`actor`/`returnTo` trigger the contextual banner. Added `handleDismissContext` and `handleBackToProfile` callbacks. Added contextual banner JSX above the map |
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Added `Link as RouterLink` import from react-router-dom. Added `actorName` and `returnPath` props. Created `buildIncidentLink()` helper and `TimelineItemContent` sub-component. Incident-related activity items (`target_type === 'incident'`) are now wrapped in a clickable `<RouterLink>` with hover highlighting |
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | Passes `actorName={user?.full_name}` and `returnPath="/superadmin/users"` to `ActivityTimeline` |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Passes `actorName={user?.full_name}` and `returnPath="/superadmin/public-users"` to `ActivityTimeline` |
+
+### Deep-Link URL Format
+
+| Param | Purpose |
+|:--|:--|
+| `?incident=<uuid>` | Select and fly to incident (ghost fetch if out of range) |
+| `?date=YYYY-MM-DD` | Set both from and to date |
+| `?from=YYYY-MM-DD&to=YYYY-MM-DD` | Set a date range |
+| `?lat=<n>&lng=<n>&zoom=<n>` | Set initial viewport |
+| `?ref=activity` | Trigger contextual banner |
+| `?actor=<name>` | Display actor name in contextual banner |
+| `?returnTo=<path>` | Target path for "Back to profile" button |
+
+### User Flow
+
+```
+1. Superadmin opens a staff user's profile → Activity tab
+2. Sees "Created Shelling near Gaza" in the timeline
+3. Clicks the item → navigates to /superadmin/map?incident=<uuid>&ref=activity&actor=Alice&returnTo=/superadmin/users
+4. Map loads with contextual banner: "Showing incident from Alice's activity"
+5. If incident is outside current date range → ghost marker appears with "Switch to this date" button
+6. User clicks "Switch to this date" → date range updates, incident appears in list
+7. User clicks "Back to profile" → returns to /superadmin/users
+```
+
+### Verified Behavior
+
+| Test | Result |
+|:--|:--|
+| Build passes | ✅ Clean production build |
+| Activity item link generation | ✅ Correct `/superadmin/map?incident=...&ref=activity&actor=...&returnTo=...` |
+| Map reads `date` param | ✅ Initializes dateRange from URL |
+| Map reads `lat`/`lng`/`zoom` params | ✅ Initializes flyToCoords from URL |
+| Contextual banner shows on `ref=activity` + `incident` | ✅ Banner with actor name, Back, and Dismiss buttons |
+| Banner dismiss clears context params | ✅ Removes `ref`, `actor`, `returnTo` from URL |
+| Back button navigates to `returnTo` | ✅ Uses `useNavigate` to return to profile page |
+| Ghost marker still works for out-of-range incidents | ✅ Unchanged ghost fetch + banner logic |
+
+### Git Commit
+
+```
+feat(superadmin): deep-link activity timeline items to map with contextual navigation and date sync
+```
+
+*End of Phase 6*
