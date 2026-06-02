@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Loader2, AlertTriangle } from 'lucide-react';
 import { listPublicUsers, updatePublicUser } from '../services/api.js';
+import { useEventSource } from '../hooks/useEventSource.js';
 import PublicUserTable from '../components/PublicUsers/PublicUserTable.jsx';
 import PublicUserDrawer from '../components/PublicUsers/PublicUserDrawer.jsx';
 
@@ -37,6 +38,15 @@ export default function PublicUsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
+  // Real-time SSE: refresh public user list when users are created/updated
+  const { connected } = useEventSource({
+    onEvent: (data) => {
+      if (['public_user_created', 'public_user_updated'].includes(data.type)) {
+        fetchUsers();
+      }
+    },
+  });
+
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -63,8 +73,36 @@ export default function PublicUsersPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Public Users</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>Manage Google-authenticated public users and their access</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Public Users</h1>
+            {connected && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  color: '#22c55e',
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: '#22c55e',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+                Live
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Manage Google-authenticated public users and their access</p>
         </div>
       </div>
 

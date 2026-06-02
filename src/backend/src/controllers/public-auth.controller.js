@@ -6,6 +6,7 @@ import {
 } from '../services/public-auth.service.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import { broadcastEvent } from '../utils/sse-broadcast.js';
 
 /**
  * POST /api/v1/auth/public/google
@@ -49,6 +50,17 @@ export async function googleAuthController(req, res) {
     fullName: user.full_name,
     oauthProvider: user.oauth_provider,
   }, null, 'user', 'public_user');
+
+  broadcastEvent({
+    type: 'public_user_created',
+    user: {
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      avatar_url: user.avatar_url,
+      is_active: user.is_active,
+    },
+  });
 
   res.apiSuccess({
     token,

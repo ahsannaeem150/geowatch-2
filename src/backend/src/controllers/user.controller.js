@@ -12,6 +12,7 @@ import { listAuditLogs } from '../services/audit.service.js';
 import { query } from '../config/database.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import { broadcastEvent } from '../utils/sse-broadcast.js';
 
 export async function listUsersController(req, res) {
   const filters = {
@@ -60,6 +61,8 @@ export async function updateUserController(req, res) {
     changedFields: { role, isActive, fullName },
   });
 
+  broadcastEvent({ type: 'user_updated', user: updated });
+
   res.apiSuccess({ user: updated });
 }
 
@@ -85,6 +88,8 @@ export async function deleteUserController(req, res) {
     note: 'User permanently deleted',
     deletedAt: new Date().toISOString(),
   });
+
+  broadcastEvent({ type: 'user_deleted', userId: req.params.id });
 
   res.apiSuccess({ deleted: true });
 }

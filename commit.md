@@ -3674,3 +3674,74 @@ feat(superadmin): deep-link activity timeline items to map with contextual navig
 ```
 
 *End of Phase 6*
+
+
+---
+
+## Phase 7: Real-Time User Management
+
+### Summary
+Extended the existing SSE (Server-Sent Events) infrastructure to broadcast staff user and public user lifecycle events. The UsersPage and PublicUsersPage now automatically refresh when users are created, updated, or deleted — eliminating the need to manually refresh to see changes made by other admins or new public user signups.
+
+### Backend Changes
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/controllers/auth.controller.js` | Imported `broadcastEvent`. After successful `register()`, emits `user_created` with `{ id, email, full_name, role, is_active }` |
+| `src/backend/src/controllers/user.controller.js` | Imported `broadcastEvent`. In `updateUserController()`, emits `user_updated` with the updated user object. In `deleteUserController()`, emits `user_deleted` with `{ userId }` |
+| `src/backend/src/controllers/public-auth.controller.js` | Imported `broadcastEvent`. After successful Google OAuth signup, emits `public_user_created` with `{ id, email, full_name, avatar_url, is_active }` |
+| `src/backend/src/controllers/public-user.controller.js` | Imported `broadcastEvent`. In `updatePublicUserController()`, emits `public_user_updated` with the updated user object |
+
+### Frontend Changes
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/UsersPage.jsx` | Imported `useEventSource`. Added SSE listener that calls `fetchUsers()` on `user_created`, `user_updated`, and `user_deleted` events. Added green "Live" indicator pill in the page header (matching RecycleBinPage pattern) |
+| `src/superadmin-web/src/pages/PublicUsersPage.jsx` | Imported `useEventSource`. Added SSE listener that calls `fetchUsers()` on `public_user_created` and `public_user_updated` events. Added green "Live" indicator pill in the page header |
+
+### SSE Event Types Added
+
+| Event Type | Trigger | Page Affected |
+|:--|:--|:--|
+| `user_created` | `POST /auth/register` | UsersPage |
+| `user_updated` | `PATCH /users/:id` | UsersPage |
+| `user_deleted` | `DELETE /users/:id` | UsersPage |
+| `public_user_created` | `POST /auth/public/google` (new signup) | PublicUsersPage |
+| `public_user_updated` | `PATCH /public-users/:id` (ban/unban) | PublicUsersPage |
+
+### What Was Already Real-Time (Unchanged)
+
+| Page | Events Already Handled |
+|:--|:--|
+| Dashboard | `incident_created`, `incident_updated`, `incident_deleted`, `incident_resolved`, `timeline_added`, `source_added` |
+| Map | `incident_created`, `incident_updated`, `incident_deleted`, `incident_resolved` |
+| System Activity | All events (full refresh on any SSE message) |
+| Public Activity | All events (full refresh on any SSE message) |
+| Recycle Bin | `incident_deleted`, `incident_created` |
+
+### Verified Behavior
+
+| Test | Result |
+|:--|:--|
+| `user_created` SSE broadcast | ✅ Received by connected clients |
+| `user_updated` SSE broadcast | ✅ Received by connected clients |
+| `user_deleted` SSE broadcast | ✅ Received by connected clients |
+| `public_user_updated` SSE broadcast | ✅ Received by connected clients |
+| UsersPage refreshes on user events | ✅ `fetchUsers()` called automatically |
+| PublicUsersPage refreshes on public user events | ✅ `fetchUsers()` called automatically |
+| Frontend build | ✅ Clean production build |
+| Backend syntax check | ✅ All 4 modified controllers pass `node --check` |
+
+### Out of Scope
+
+- Detail drawer real-time refresh (UserDetailDrawer, PublicUserDrawer) — user reopens drawer to see fresh data
+- Activity timeline real-time refresh — historical data, not time-critical
+- Admin-web or user-web real-time updates — only superadmin affected
+
+### Git Commit
+
+```
+feat(superadmin): real-time user lists via SSE — auto-refresh on create/update/delete for staff and public users
+```
+
+*End of Phase 7*

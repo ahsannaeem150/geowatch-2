@@ -9,6 +9,7 @@ import {
 } from '../services/auth.service.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import { broadcastEvent } from '../utils/sse-broadcast.js';
 
 /**
  * POST /auth/login
@@ -68,6 +69,17 @@ export async function register(req, res) {
     fullName: user.full_name,
     role: user.role,
     createdBy: req.user.email,
+  });
+
+  broadcastEvent({
+    type: 'user_created',
+    user: {
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      is_active: user.is_active,
+    },
   });
 
   res.apiSuccess({ user }, 'User created successfully');

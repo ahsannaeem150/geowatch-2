@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Loader2, AlertTriangle } from 'lucide-react';
 import { listUsers, updateUser, deleteUser } from '../services/api.js';
+import { useEventSource } from '../hooks/useEventSource.js';
 import UserTable from '../components/Users/UserTable.jsx';
 import CreateUserModal from '../components/Users/CreateUserModal.jsx';
 import UserDetailDrawer from '../components/Users/UserDetailDrawer.jsx';
@@ -45,6 +46,15 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Real-time SSE: refresh user list when users are created/updated/deleted
+  const { connected } = useEventSource({
+    onEvent: (data) => {
+      if (['user_created', 'user_updated', 'user_deleted'].includes(data.type)) {
+        fetchUsers();
+      }
+    },
+  });
 
   // Debounced search
   useEffect(() => {
@@ -126,8 +136,36 @@ export default function UsersPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Users</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>Manage platform users, roles, and access</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Users</h1>
+            {connected && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  color: '#22c55e',
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: '#22c55e',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+                Live
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Manage platform users, roles, and access</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}

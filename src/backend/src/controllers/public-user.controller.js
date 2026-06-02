@@ -9,6 +9,7 @@ import { listAuditLogs } from '../services/audit.service.js';
 import { query } from '../config/database.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import { broadcastEvent } from '../utils/sse-broadcast.js';
 
 /**
  * GET /api/v1/public-users
@@ -130,6 +131,8 @@ export async function updatePublicUserController(req, res) {
     previousStatus: existing.is_active,
     newStatus: updated.is_active,
   });
+
+  broadcastEvent({ type: 'public_user_updated', user: updated });
 
   res.apiSuccess({ user: updated });
 }
