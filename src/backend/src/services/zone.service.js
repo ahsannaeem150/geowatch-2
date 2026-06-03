@@ -10,7 +10,10 @@ const ZONE_COLUMNS = `
 
 export async function listZones() {
   const result = await query(
-    `SELECT ${ZONE_COLUMNS}, ST_AsGeoJSON(geom)::json AS geometry
+    `SELECT ${ZONE_COLUMNS}, ST_AsGeoJSON(geom)::json AS geometry,
+      (SELECT COUNT(*) FROM incidents i
+       WHERE i.status != 'hidden'
+       AND ST_Contains(zones.geom, i.geom)) AS incident_count
      FROM zones
      WHERE is_active = true
      ORDER BY created_at DESC`,
@@ -103,6 +106,25 @@ export async function updateZone(id, data) {
   );
 
   return result.rows[0] || null;
+}
+
+export async function getIncidentsInZone(zoneId) {
+  const result = await query(
+    `SELECT
+        i.id, i.title, i.latitude, i.longitude, i.severity, i.status, i.start_date,
+        c.name AS category_name, d.name AS domain_name, d.color AS domain_color
+     FROM incidents i
+     LEFT JOIN categories c ON i.category_id = c.id
+     LEFT JOIN domains d ON c.domain_id = d.id
+     WHERE i.status != 'hidden'
+       AND ST_Contains(
+         (SELECT geom FROM zones WHERE id = $1),
+         i.geom
+       )
+     ORDER BY i.start_date DESC`,
+    [zoneId]
+  );
+  return result.rows;
 }
 
 export async function deleteZone(id) {

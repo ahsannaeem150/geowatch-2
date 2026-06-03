@@ -30,6 +30,7 @@ export default function AdminMap({
   onMapDblClick,
   onViewportChange,
   flyToCoords,
+  fitBounds,
   markerCoords,
   ghostIncident,
   newIncidentIds = new Set(),
@@ -355,6 +356,17 @@ export default function AdminMap({
       });
     }
   }, [flyToCoords]);
+
+  // Fit to bounds (for zone selection)
+  useEffect(() => {
+    if (fitBounds && map.current) {
+      isProgrammaticMove.current = true;
+      map.current.fitBounds(fitBounds.bounds, {
+        padding: fitBounds.padding ?? 40,
+        duration: fitBounds.duration ?? 800,
+      });
+    }
+  }, [fitBounds]);
 
   // Switch map style when theme changes
   useEffect(() => {

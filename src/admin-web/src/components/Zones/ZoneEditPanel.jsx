@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@shared/components/Button.jsx';
 import { useCategories } from '@shared/hooks/useCategories.js';
 
+const ZONE_COLORS = [
+  '#9f1239', '#dc2626', '#f59e0b', '#22c55e',
+  '#3b82f6', '#a855f7', '#14b8a6', '#6b7280',
+];
+
 function calculatePolygonArea(coords) {
   if (coords.length < 3) return 0;
   let area = 0;
@@ -33,6 +38,7 @@ export default function ZoneEditPanel({
   const [name, setName] = useState(zone?.name || '');
   const [description, setDescription] = useState(zone?.description || '');
   const [category, setCategory] = useState(zone?.category || '');
+  const [fillColor, setFillColor] = useState(zone?.fill_color || '#9f1239');
   const [submitting, setSubmitting] = useState(false);
   const { categories, loading: catsLoading } = useCategories();
 
@@ -41,6 +47,7 @@ export default function ZoneEditPanel({
     setName(zone?.name || '');
     setDescription(zone?.description || '');
     setCategory(zone?.category || '');
+    setFillColor(zone?.fill_color || '#9f1239');
   }, [zone?.id]);
 
   // Area from the zone's original geometry (we don't have live editing vertices here)
@@ -57,6 +64,8 @@ export default function ZoneEditPanel({
         name: name.trim(),
         description: description.trim() || undefined,
         category: category || undefined,
+        fillColor,
+        strokeColor: fillColor,
       });
     } finally {
       setSubmitting(false);
@@ -156,6 +165,30 @@ export default function ZoneEditPanel({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Color */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={labelStyle}>Zone Color</label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {ZONE_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setFillColor(c)}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: c,
+                  border: c === fillColor ? '3px solid var(--text-primary)' : '2px solid transparent',
+                  cursor: 'pointer',
+                  boxShadow: c === fillColor ? `0 0 8px ${c}` : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+                title={c}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Stats */}

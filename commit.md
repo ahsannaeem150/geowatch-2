@@ -4343,3 +4343,67 @@ feat: add zone editing with draggable vertices, midpoint insertion, and vertex d
 ```
 
 *End of Phase 4*
+
+---
+
+## Phase 5: Zone-Incident Integration & Management Panel
+
+### Summary
+Added a comprehensive zone management experience: dedicated zones list panel, spatial queries to find incidents inside zones, zone detail view with incident list, and color customization with preset swatches.
+
+### Backend Changes
+
+| File | Change |
+|---|---|
+| `src/backend/src/services/zone.service.js` | Added `getIncidentsInZone(zoneId)` using PostGIS `ST_Contains`. Added `incident_count` subquery to `listZones()`. |
+| `src/backend/src/controllers/zone.controller.js` | Added `getZoneIncidentsController` — validates zone exists then returns incidents inside it. |
+| `src/backend/src/routes/zone.routes.js` | Added `GET /:id/incidents` public route. |
+
+### Frontend API
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/services/api.js` | Added `getZoneIncidents(id)` method. |
+
+### New Components
+
+| File | Purpose |
+|---|---|
+| `src/admin-web/src/components/Zones/ZoneManagementPanel.jsx` | Full zone list with search/filter by name, color swatch per row, incident count, approximate area. "+ New Zone" button triggers polygon drawing mode. Clicking a zone opens detail panel and flies map to zone bounds. |
+| `src/admin-web/src/components/Zones/ZoneDetailPanel.jsx` | Zone detail with name, description, category, color bar, metadata cards (incidents, area, category), 8 preset color swatches (immediate PATCH on click), Edit/Delete/Back buttons, scrollable list of incidents inside the zone with severity dots. Clicking an incident opens incident detail panel. |
+
+### Modified Components
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Added "Zones" button (variant="secondary") next to "+ Add Incident". |
+| `src/admin-web/src/components/Zones/ZoneEditPanel.jsx` | Added 8 preset color swatches. Color selection is included in the PATCH save payload (`fillColor` + `strokeColor`). |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `fitBounds` prop. New `useEffect` calls `map.current.fitBounds()` when `fitBounds` changes, with configurable padding (default 40px) and duration (default 800ms). |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Major integration: added `selectedZone` and `fitBounds` state. `panelMode` now supports `'zones'` and `'zone-detail'`. `handleZoneClick` now looks up the full zone, sets `selectedZone`, switches to `'zone-detail'`, and computes `fitBounds` from polygon coordinates. Added `handleOpenZones`, `handleZoneDetailBack`, `handleZoneDetailEdit`, `handleZoneDetailDelete`, `handleZoneDetailColorChange`, `handleZoneIncidentSelect`, `handleNewZoneFromPanel`. `renderPanel()` renders `ZoneManagementPanel` and `ZoneDetailPanel` for their respective modes. Sync effect keeps `selectedZone` updated when zones list refreshes. `handleClosePanel` now also clears zone selection. |
+
+### Zone Colors Preset
+
+```
+#9f1239 (crimson, default)  #dc2626 (red)   #f59e0b (amber)  #22c55e (green)
+#3b82f6 (blue)              #a855f7 (purple) #14b8a6 (teal)   #6b7280 (gray)
+```
+
+### API Endpoints Verified
+
+| Endpoint | Result |
+|---|---|
+| `GET /api/v1/zones` | ✅ Returns zones with `incident_count` |
+| `GET /api/v1/zones/:id/incidents` | ✅ Returns incidents inside zone via ST_Contains |
+
+### Build Status
+- `admin-web` ✅
+- `user-web` ✅
+- `superadmin-web` ✅
+
+### Git Commit
+
+```
+feat: add zone management panel, incident-in-zone spatial queries, and color customization
+```
+
+*End of Phase 5*

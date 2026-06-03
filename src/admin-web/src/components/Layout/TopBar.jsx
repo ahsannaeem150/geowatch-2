@@ -84,6 +84,7 @@ function StyleToggle() {
 
 export default function TopBar({
   onAddEvent,
+  onOpenZones,
   dateRange,
   onDateRangeChange,
   onResetToToday,
@@ -453,6 +454,9 @@ export default function TopBar({
             Resolve
           </Button>
         )}
+        <Button variant="secondary" size="sm" onClick={onOpenZones}>
+          Zones
+        </Button>
         <Button variant="primary" size="sm" onClick={onAddEvent}>
           + Add Incident
         </Button>

@@ -101,6 +101,7 @@ export const api = {
   // Zones
   getZones: () => request('/zones'),
   getZone: (id) => request(`/zones/${id}`),
+  getZoneIncidents: (id) => request(`/zones/${id}/incidents`),
   createZone: (body) => request('/zones', { method: 'POST', body: JSON.stringify(body) }),
   updateZone: (id, body) => request(`/zones/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteZone: (id) => request(`/zones/${id}`, { method: 'DELETE' }),

@@ -4,6 +4,7 @@ import {
   createZone,
   updateZone,
   deleteZone,
+  getIncidentsInZone,
 } from '../services/zone.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
@@ -49,6 +50,15 @@ export async function updateZoneController(req, res) {
   });
 
   res.apiSuccess({ zone }, 'Zone updated successfully');
+}
+
+export async function getZoneIncidentsController(req, res) {
+  const zone = await getZoneById(req.params.id);
+  if (!zone) {
+    return res.apiError('Zone not found', 'NOT_FOUND', 404);
+  }
+  const incidents = await getIncidentsInZone(req.params.id);
+  res.apiSuccess({ incidents });
 }
 
 export async function deleteZoneController(req, res) {

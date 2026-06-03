@@ -10,6 +10,8 @@ import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
 import ZoneCreatePanel from '../Zones/ZoneCreatePanel.jsx';
 import ZoneEditPanel from '../Zones/ZoneEditPanel.jsx';
+import ZoneManagementPanel from '../Zones/ZoneManagementPanel.jsx';
+import ZoneDetailPanel from '../Zones/ZoneDetailPanel.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
@@ -60,7 +62,7 @@ export default function DashboardLayout() {
 
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [incidents, setEvents] = useState([]);
-  const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form'
+  const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form' | 'zones' | 'zone-detail'
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
@@ -72,6 +74,8 @@ export default function DashboardLayout() {
   // ─── Zones ───
   const [zones, setZones] = useState([]);
   const [selectedZoneId, setSelectedZoneId] = useState(null);
+  const [selectedZone, setSelectedZone] = useState(null);
+  const [fitBounds, setFitBounds] = useState(null);
 
   // ─── Zone Drawing ───
   const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
@@ -510,15 +514,31 @@ export default function DashboardLayout() {
   }, [setSearchParams]);
 
   const handleZoneClick = useCallback((zoneId) => {
+    const zone = zones.find((z) => z.id === zoneId);
+    if (!zone) return;
     setSelectedZoneId(zoneId);
+    setSelectedZone(zone);
     // Clear incident selection when a zone is selected
     setSelectedIncident(null);
-    setPanelMode('empty');
+    setPanelMode('zone-detail');
     // Clear editing state when selecting a different zone
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
-  }, []);
+    setFitBounds(null);
+    // Compute bounds from polygon and fly map there
+    if (zone.geometry?.coordinates?.[0]) {
+      const coords = zone.geometry.coordinates[0];
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+      coords.forEach(([lng, lat]) => {
+        minLng = Math.min(minLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLng = Math.max(maxLng, lng);
+        maxLat = Math.max(maxLat, lat);
+      });
+      setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+    }
+  }, [zones]);
 
   // ─── Drawing handlers ───
   const handleSetMode = useCallback((mode) => {
@@ -699,6 +719,9 @@ export default function DashboardLayout() {
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
+    setSelectedZoneId(null);
+    setSelectedZone(null);
+    setFitBounds(null);
     // Clear incident from URL while preserving other params
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -827,6 +850,85 @@ export default function DashboardLayout() {
     setActiveDomainFilter((prev) => (prev === domainId ? null : domainId));
   }, []);
 
+  // ─── Zone panel handlers ───
+  const handleOpenZones = useCallback(() => {
+    setPanelMode('zones');
+    setSelectedIncident(null);
+    setMarkerCoords(null);
+    setIsEditing(false);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    setFitBounds(null);
+  }, []);
+
+  const handleZoneDetailBack = useCallback(() => {
+    setPanelMode('zones');
+    setSelectedZoneId(null);
+    setSelectedZone(null);
+    setFitBounds(null);
+  }, []);
+
+  const handleZoneDetailEdit = useCallback(() => {
+    handleEditZone();
+  }, [handleEditZone]);
+
+  const handleZoneDetailDelete = useCallback(async () => {
+    if (!selectedZone) return;
+    try {
+      await api.deleteZone(selectedZone.id);
+      setSelectedZone(null);
+      setSelectedZoneId(null);
+      setPanelMode('zones');
+      setRefreshKey((k) => k + 1);
+      setToast({ message: 'Zone deleted successfully', type: 'info' });
+    } catch (err) {
+      alert(err.message || 'Failed to delete zone');
+    }
+  }, [selectedZone]);
+
+  const handleZoneDetailColorChange = useCallback((color) => {
+    setSelectedZone((prev) => (prev ? { ...prev, fill_color: color, stroke_color: color } : null));
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  const handleZoneIncidentSelect = useCallback((incident) => {
+    setSelectedIncident(incident);
+    setSelectedZoneId(null);
+    setSelectedZone(null);
+    setPanelMode('detail');
+    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
+    setMarkerCoords(null);
+    setFitBounds(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('incident', incident.id);
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const handleNewZoneFromPanel = useCallback(() => {
+    setPanelMode('empty');
+    setMapMode('polygon');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+    setSelectedZoneId(null);
+    setSelectedZone(null);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+  }, []);
+
+  // Keep selectedZone in sync when zones list refreshes
+  useEffect(() => {
+    if (!selectedZone) return;
+    const updated = zones.find((z) => z.id === selectedZone.id);
+    if (updated && updated.updated_at !== selectedZone.updated_at) {
+      setSelectedZone(updated);
+    }
+  }, [zones]);
+
   // Determine what to show in the right panel
   const renderPanel = () => {
     if (editingZoneId) {
@@ -850,6 +952,49 @@ export default function DashboardLayout() {
           vertexCount={drawVertices.length}
           onSubmit={handleZoneCreateSubmit}
           onCancel={handleDrawCancel}
+        />
+      );
+    }
+
+    if (panelMode === 'zone-detail' && selectedZone) {
+      return (
+        <ZoneDetailPanel
+          zone={selectedZone}
+          onBack={handleZoneDetailBack}
+          onEdit={handleZoneDetailEdit}
+          onDelete={handleZoneDetailDelete}
+          onSelectIncident={handleZoneIncidentSelect}
+          onColorChange={handleZoneDetailColorChange}
+        />
+      );
+    }
+
+    if (panelMode === 'zones') {
+      return (
+        <ZoneManagementPanel
+          zones={zones}
+          onSelectZone={(zone) => {
+            setSelectedZoneId(zone.id);
+            setSelectedZone(zone);
+            setSelectedIncident(null);
+            setPanelMode('zone-detail');
+            setEditingZoneId(null);
+            setEditingZoneVertices([]);
+            setOriginalZoneVertices([]);
+            setFitBounds(null);
+            if (zone.geometry?.coordinates?.[0]) {
+              const coords = zone.geometry.coordinates[0];
+              let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+              coords.forEach(([lng, lat]) => {
+                minLng = Math.min(minLng, lng);
+                minLat = Math.min(minLat, lat);
+                maxLng = Math.max(maxLng, lng);
+                maxLat = Math.max(maxLat, lat);
+              });
+              setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+            }
+          }}
+          onNewZone={handleNewZoneFromPanel}
         />
       );
     }
@@ -890,6 +1035,7 @@ export default function DashboardLayout() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
       <TopBar
         onAddEvent={handleAddIncident}
+        onOpenZones={handleOpenZones}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
         onResetToToday={handleResetToToday}
@@ -979,6 +1125,7 @@ export default function DashboardLayout() {
             markerCoords={markerCoords}
             ghostIncident={ghostIncident}
             newIncidentIds={newIncidentIds}
+            fitBounds={fitBounds}
             mapMode={mapMode}
             drawVertices={drawVertices}
             isPolygonClosed={isPolygonClosed}
