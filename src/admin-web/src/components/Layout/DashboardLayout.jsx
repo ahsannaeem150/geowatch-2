@@ -7,6 +7,8 @@ import IncidentDetailPanel from '../IncidentDetail/IncidentDetailPanel.jsx';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
 import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
+import DrawingToolbar from '../Map/DrawingToolbar.jsx';
+import ZoneCreatePanel from '../Zones/ZoneCreatePanel.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
@@ -69,6 +71,12 @@ export default function DashboardLayout() {
   // ─── Zones ───
   const [zones, setZones] = useState([]);
   const [selectedZoneId, setSelectedZoneId] = useState(null);
+
+  // ─── Zone Drawing ───
+  const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
+  const [drawVertices, setDrawVertices] = useState([]);
+  const [isPolygonClosed, setIsPolygonClosed] = useState(false);
+  const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
 
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -495,6 +503,40 @@ export default function DashboardLayout() {
     setPanelMode('empty');
   }, []);
 
+  // ─── Drawing handlers ───
+  const handleSetMode = useCallback((mode) => {
+    setMapMode(mode);
+    if (mode === 'polygon') {
+      setDrawVertices([]);
+      setIsPolygonClosed(false);
+      setShowZoneCreatePanel(false);
+    }
+  }, []);
+
+  const handleDrawVertexAdd = useCallback(({ lat, lng }) => {
+    if (isPolygonClosed) return;
+    setDrawVertices((prev) => [...prev, [lng, lat]]);
+  }, [isPolygonClosed]);
+
+  const handleDrawClose = useCallback(() => {
+    setIsPolygonClosed(true);
+  }, []);
+
+  const handleDrawCancel = useCallback(() => {
+    setMapMode('pan');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+  }, []);
+
+  const handleZoneCreateSubmit = useCallback(() => {
+    setMapMode('pan');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+    setRefreshKey((k) => k + 1);
+  }, []);
+
   const handleSearchSelect = useCallback((incident) => {
     setSelectedIncident(incident);
     setIsEditing(false);
@@ -665,6 +707,17 @@ export default function DashboardLayout() {
 
   // Determine what to show in the right panel
   const renderPanel = () => {
+    if (showZoneCreatePanel) {
+      return (
+        <ZoneCreatePanel
+          geometry={{ type: 'Polygon', coordinates: [drawVertices] }}
+          vertexCount={drawVertices.length}
+          onSubmit={handleZoneCreateSubmit}
+          onCancel={handleDrawCancel}
+        />
+      );
+    }
+
     if (panelMode === 'detail' && selectedIncident) {
       return (
         <IncidentDetailPanel
@@ -695,7 +748,7 @@ export default function DashboardLayout() {
     return null;
   };
 
-  const isPanelOpen = panelMode !== 'empty';
+  const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
@@ -790,6 +843,20 @@ export default function DashboardLayout() {
             markerCoords={markerCoords}
             ghostIncident={ghostIncident}
             newIncidentIds={newIncidentIds}
+            mapMode={mapMode}
+            drawVertices={drawVertices}
+            isPolygonClosed={isPolygonClosed}
+            onDrawVertexAdd={handleDrawVertexAdd}
+            onDrawClose={handleDrawClose}
+            onDrawCancel={handleDrawCancel}
+          />
+
+          <DrawingToolbar
+            mode={mapMode}
+            hasClosedPolygon={isPolygonClosed}
+            onSetMode={handleSetMode}
+            onSave={() => setShowZoneCreatePanel(true)}
+            onCancel={handleDrawCancel}
           />
 
           <MapLegend

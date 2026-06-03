@@ -4206,3 +4206,76 @@ feat: display zones as translucent polygons on admin map, layered below markers
 ```
 
 *End of Phase 2*
+
+---
+
+## 📅 2026-06-04 — Phase 3: Polygon Drawing Toolbar & Zone Creation Panel
+
+### Summary
+Added a complete polygon drawing workflow to the admin map. Admins can now draw polygon zones by clicking vertices on the map, with a rubber band preview, live area calculation, and a form panel to name and save the zone. Double-clicking or clicking the first vertex closes the polygon. Escape cancels the drawing.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/Map/DrawingToolbar.jsx` | Floating toolbar (bottom-left of map) with Pan / Polygon / Save / Cancel buttons. Save is disabled until polygon is closed. Active mode highlighted in accent color. |
+| `src/admin-web/src/components/Zones/ZoneCreatePanel.jsx` | Form panel for naming and saving a newly drawn zone. Fields: Name (required), Description (textarea), Category (dropdown from incident categories). Shows vertex count and approximate area. Auto-closes the GeoJSON polygon ring before submission. |
+
+### Updated Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | **Major additions:** |
+| | • New props: `mapMode`, `drawVertices`, `isPolygonClosed`, `onDrawVertexAdd`, `onDrawClose`, `onDrawCancel` |
+| | • Added `'draw-preview'` GeoJSON source + 4 layers: `draw-preview-fill` (blue, opacity 0.06), `draw-preview-line` (blue, dashed [4,3], opacity 0.7), `draw-preview-vertices` (white dot, blue stroke, radius 5), `draw-preview-rubber` (dashed line to cursor, opacity 0.5) |
+| | • `useEffect` rebuilds draw-preview features when `drawVertices` / `isPolygonClosed` change |
+| | • `useEffect` adds map click handler during polygon mode: clicks add vertices; clicking first vertex (within 15px) closes polygon |
+| | • `useEffect` adds mousemove handler for rubber band line from last vertex to cursor |
+| | • `useEffect` listens for Escape key to cancel drawing |
+| | • `useEffect` changes cursor to `crosshair` during polygon mode |
+| | • `useEffect` clears preview when leaving polygon mode |
+| | • Guarded `dblclick` handler: during polygon mode with ≥2 vertices, closes polygon instead of creating incident |
+| | • Guarded zone hover/click handlers: skip during polygon mode to prevent conflicts |
+| | • Floating area pill shows vertex count, approximate area, and closing hint |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added drawing state: `mapMode`, `drawVertices`, `isPolygonClosed`, `showZoneCreatePanel`. Added handlers: `handleSetMode`, `handleDrawVertexAdd`, `handleDrawClose`, `handleDrawCancel`, `handleZoneCreateSubmit`. Passes all drawing props to `AdminMap`. Renders `DrawingToolbar` inside map container. Renders `ZoneCreatePanel` in right panel when `showZoneCreatePanel` is true. Right panel opens for zone creation. |
+
+### Drawing Flow
+
+| Step | Action |
+|:--|:--|
+| 1 | Admin clicks "Polygon" button → cursor changes to crosshair |
+| 2 | Click on map → drops vertex #1, white dot appears |
+| 3 | Each subsequent click → adds vertex, line segments drawn between vertices |
+| 4 | Rubber band line follows cursor from last placed vertex |
+| 5 | Double-click OR click first vertex → polygon closes, Save button activates |
+| 6 | Click Save → right panel shows ZoneCreatePanel with pre-filled geometry |
+| 7 | Enter name, optional description/category, click Create Zone → POST to API |
+| 8 | On success: drawing state clears, zones refresh, map returns to Pan mode |
+| 9 | Press Escape OR click Cancel → abort drawing, clear all state |
+
+### Key Technical Decisions
+
+- **No mapbox-gl-draw dependency:** All drawing is implemented with custom GeoJSON sources and MapLibre event handlers to avoid Mapbox token dependencies.
+- **Ref-based state access in event handlers:** `mapModeRef`, `drawVerticesRef`, and `isPolygonClosedRef` keep event handlers current without re-attaching listeners on every state change.
+- **First-vertex click detection:** Uses `map.project()` to convert the first vertex to screen pixels, then measures distance to click point (15px tolerance) for intuitive polygon closing.
+- **Auto-close GeoJSON ring:** `ZoneCreatePanel` ensures the polygon ring is closed (first == last coordinate) before submitting, satisfying Zod's `min(4)` validation.
+- **Area calculation:** Simple shoelace formula with rough degree-to-km conversion (~111.32 km/°) — accurate enough for admin scale awareness.
+- **Zone hover/click disabled during drawing:** Prevents accidental zone selection while placing vertices.
+
+### Verified
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `admin-web` build | ✅ Clean, zero errors |
+| 2 | `user-web` build | ✅ Clean |
+| 3 | `superadmin-web` build | ✅ Clean |
+| 4 | Create zone via API (closed ring) | ✅ POST successful, zone returned |
+| 5 | List zones | ✅ Both test zones visible |
+
+### Git Commit
+
+```
+feat: add polygon drawing toolbar with click-to-place vertices, rubber band preview, and zone creation panel
+```
+
+*End of Phase 3*

@@ -33,6 +33,12 @@ export default function AdminMap({
   markerCoords,
   ghostIncident,
   newIncidentIds = new Set(),
+  mapMode = 'pan',
+  drawVertices = [],
+  isPolygonClosed = false,
+  onDrawVertexAdd,
+  onDrawClose,
+  onDrawCancel,
 }) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -45,7 +51,14 @@ export default function AdminMap({
   const isProgrammaticMove = useRef(false);
   const isClamping = useRef(false);
   const onViewportChangeRef = useRef(onViewportChange);
+  const rubberBandCoords = useRef(null);
+  const mapModeRef = useRef(mapMode);
+  const drawVerticesRef = useRef(drawVertices);
+  const isPolygonClosedRef = useRef(isPolygonClosed);
   onViewportChangeRef.current = onViewportChange;
+  mapModeRef.current = mapMode;
+  drawVerticesRef.current = drawVertices;
+  isPolygonClosedRef.current = isPolygonClosed;
 
   // Initialize map once
   useEffect(() => {
@@ -65,6 +78,10 @@ export default function AdminMap({
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.current.on('dblclick', (e) => {
+      if (mapMode === 'polygon' && drawVertices.length >= 2) {
+        onDrawClose?.();
+        return;
+      }
       const { lng, lat } = e.lngLat;
       onMapDblClick?.({ lat, lng });
     });
@@ -141,6 +158,60 @@ export default function AdminMap({
             ['boolean', ['feature-state', 'selected'], false], 0.9,
             0.6,
           ],
+        },
+      });
+
+      // ─── Drawing preview layers ───
+      map.current.addSource('draw-preview', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.current.addLayer({
+        id: 'draw-preview-fill',
+        type: 'fill',
+        source: 'draw-preview',
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.06,
+        },
+      });
+
+      map.current.addLayer({
+        id: 'draw-preview-line',
+        type: 'line',
+        source: 'draw-preview',
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 2,
+          'line-dasharray': [4, 3],
+          'line-opacity': 0.7,
+        },
+      });
+
+      map.current.addLayer({
+        id: 'draw-preview-vertices',
+        type: 'circle',
+        source: 'draw-preview',
+        filter: ['==', ['get', 'isVertex'], true],
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#fff',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#3b82f6',
+        },
+      });
+
+      map.current.addLayer({
+        id: 'draw-preview-rubber',
+        type: 'line',
+        source: 'draw-preview',
+        filter: ['==', ['get', 'isRubberBand'], true],
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 2,
+          'line-dasharray': [2, 2],
+          'line-opacity': 0.5,
         },
       });
 
@@ -423,6 +494,15 @@ export default function AdminMap({
     let hoveredZoneId = null;
 
     const onMouseMove = (e) => {
+      // Skip zone hover when in polygon drawing mode
+      if (mapModeRef.current === 'polygon') {
+        if (hoveredZoneId !== null) {
+          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          hoveredZoneId = null;
+        }
+        return;
+      }
+
       const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
       if (features.length > 0) {
         const feature = features[0];
@@ -444,6 +524,8 @@ export default function AdminMap({
     };
 
     const onClick = (e) => {
+      // Skip zone clicks when in polygon drawing mode
+      if (mapModeRef.current === 'polygon') return;
       const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
       if (features.length > 0) {
         const zoneId = features[0].id;
@@ -474,9 +556,261 @@ export default function AdminMap({
     });
   }, [selectedZoneId, zones]);
 
+  // ─── Drawing preview data update ───
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('draw-preview');
+    if (!source) return;
+
+    const features = [];
+
+    if (mapMode === 'polygon' && drawVertices.length > 0) {
+      // Vertex dots
+      drawVertices.forEach((coord, idx) => {
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: coord },
+          properties: { isVertex: true, index: idx },
+        });
+      });
+
+      // Polygon line connecting vertices
+      if (drawVertices.length >= 2) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: isPolygonClosed
+              ? [...drawVertices, drawVertices[0]]
+              : drawVertices,
+          },
+          properties: { isLine: true },
+        });
+      }
+
+      // Polygon fill if >= 3 vertices
+      if (drawVertices.length >= 3) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[...drawVertices, drawVertices[0]]],
+          },
+          properties: { isFill: true },
+        });
+      }
+
+      // Rubber band line from last vertex to cursor
+      if (!isPolygonClosed && rubberBandCoords.current) {
+        const last = drawVertices[drawVertices.length - 1];
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [last, rubberBandCoords.current],
+          },
+          properties: { isRubberBand: true },
+        });
+      }
+    }
+
+    source.setData({ type: 'FeatureCollection', features });
+  }, [mapMode, drawVertices, isPolygonClosed]);
+
+  // ─── Drawing click handler ───
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    const onClick = (e) => {
+      if (mapModeRef.current !== 'polygon') return;
+      if (isPolygonClosedRef.current) return;
+
+      const { lng, lat } = e.lngLat;
+
+      // Check if user clicked on the first vertex to close the polygon
+      if (drawVerticesRef.current.length >= 3) {
+        const first = drawVerticesRef.current[0];
+        // Use a small pixel tolerance for vertex click detection
+        const firstPixel = mapInstance.project(first);
+        const clickPixel = e.point;
+        const dist = Math.sqrt(
+          Math.pow(firstPixel.x - clickPixel.x, 2) +
+          Math.pow(firstPixel.y - clickPixel.y, 2)
+        );
+        if (dist < 15) {
+          onDrawClose?.();
+          return;
+        }
+      }
+
+      onDrawVertexAdd?.({ lat, lng });
+    };
+
+    mapInstance.on('click', onClick);
+    return () => {
+      mapInstance.off('click', onClick);
+    };
+  }, [onDrawVertexAdd, onDrawClose]);
+
+  // ─── Rubber band mousemove ───
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    const onMouseMove = (e) => {
+      if (mapModeRef.current !== 'polygon') return;
+      if (isPolygonClosedRef.current) return;
+      if (drawVerticesRef.current.length === 0) return;
+
+      rubberBandCoords.current = [e.lngLat.lng, e.lngLat.lat];
+      // Trigger re-render of draw-preview source
+      const source = mapInstance.getSource('draw-preview');
+      if (!source) return;
+
+      const features = [];
+
+      // Rebuild all features with updated rubber band
+      drawVerticesRef.current.forEach((coord, idx) => {
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: coord },
+          properties: { isVertex: true, index: idx },
+        });
+      });
+
+      if (drawVerticesRef.current.length >= 2) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: drawVerticesRef.current,
+          },
+          properties: { isLine: true },
+        });
+      }
+
+      if (drawVerticesRef.current.length >= 3) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[...drawVerticesRef.current, drawVerticesRef.current[0]]],
+          },
+          properties: { isFill: true },
+        });
+      }
+
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            drawVerticesRef.current[drawVerticesRef.current.length - 1],
+            [e.lngLat.lng, e.lngLat.lat],
+          ],
+        },
+        properties: { isRubberBand: true },
+      });
+
+      source.setData({ type: 'FeatureCollection', features });
+    };
+
+    mapInstance.on('mousemove', onMouseMove);
+    return () => {
+      mapInstance.off('mousemove', onMouseMove);
+    };
+  }, []);
+
+  // ─── Escape key to cancel drawing ───
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && mapModeRef.current === 'polygon') {
+        onDrawCancel?.();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onDrawCancel]);
+
+  // ─── Cursor change for drawing mode ───
+  useEffect(() => {
+    if (!map.current) return;
+    map.current.getCanvas().style.cursor = mapMode === 'polygon' ? 'crosshair' : '';
+  }, [mapMode]);
+
+  // ─── Clear drawing preview when leaving polygon mode ───
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('draw-preview');
+    if (!source) return;
+    if (mapMode !== 'polygon') {
+      rubberBandCoords.current = null;
+      source.setData({ type: 'FeatureCollection', features: [] });
+    }
+  }, [mapMode]);
+
+  // ─── Area calculator helper ───
+  const calculateDrawArea = () => {
+    if (drawVertices.length < 3) return 0;
+    const coords = isPolygonClosed
+      ? drawVertices
+      : drawVertices;
+    let area = 0;
+    for (let i = 0; i < coords.length; i++) {
+      const j = (i + 1) % coords.length;
+      area += coords[i][0] * coords[j][1];
+      area -= coords[j][0] * coords[i][1];
+    }
+    return Math.abs(area) / 2 * 111.32 * 111.32;
+  };
+
+  const drawAreaKm2 = mapMode === 'polygon' ? calculateDrawArea() : 0;
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+
+      {/* Drawing area indicator */}
+      {mapMode === 'polygon' && drawVertices.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 20,
+            background: 'var(--bg-surface)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '8px 16px',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            boxShadow: 'var(--shadow-lg)',
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+            {drawVertices.length} vertex{drawVertices.length !== 1 ? 'es' : ''}
+          </span>
+          {drawVertices.length >= 3 && (
+            <span style={{ marginLeft: '12px' }}>
+              Area: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                {drawAreaKm2 < 1
+                  ? `~${(drawAreaKm2 * 100).toFixed(1)} ha`
+                  : drawAreaKm2 < 1000
+                    ? `~${drawAreaKm2.toFixed(1)} km²`
+                    : `~${(drawAreaKm2 / 1000).toFixed(1)}k km²`}
+              </span>
+            </span>
+          )}
+          <span style={{ marginLeft: '12px', color: 'var(--text-muted)', fontSize: '11px' }}>
+            {isPolygonClosed ? 'Polygon closed — click Save' : 'Double-click or click first vertex to close'}
+          </span>
+        </div>
+      )}
+
       <style>{`
         @keyframes marker-pulse {
           0% { transform: scale(0.8); opacity: 1; }
