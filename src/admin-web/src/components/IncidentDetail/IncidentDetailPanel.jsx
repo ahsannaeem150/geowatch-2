@@ -374,7 +374,6 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
 
       {/* Meta */}
       <div
-        className="panel-card"
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -389,7 +388,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
 
       {/* Description */}
       {incident.description && (
-        <div className="panel-card">
+        <div>
           {sectionTitle('Description')}
           <p
             style={{

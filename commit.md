@@ -4091,3 +4091,56 @@ feat: implement Tactical, SaaS, and Glass interface styles in admin-web with gla
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-06-04 — Phase 1: Zone API Backend Foundation
+
+### Summary
+Created the complete backend API for polygon zones: database table, Zod validation schemas, PostGIS-enabled service layer, HTTP controllers with SSE broadcast + audit logging, and Express routes with role-based access control. All 5 endpoints tested and verified with curl.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/backend/src/validators/zone.schema.js` | Zod schemas: `createZoneSchema` (name, GeoJSON Polygon geometry, optional colors/opacity/category) and `updateZoneSchema` (all optional, at least one required) |
+| `src/backend/src/services/zone.service.js` | SQL CRUD with PostGIS: `listZones`, `getZoneById`, `createZone`, `updateZone`, `deleteZone` (soft delete). Uses `ST_SetSRID(ST_GeomFromGeoJSON(...), 4326)` for inserts and `ST_AsGeoJSON(geom)::json` for selects |
+| `src/backend/src/controllers/zone.controller.js` | HTTP handlers: `getZones`, `getZone`, `createZoneController`, `updateZoneController`, `deleteZoneController`. Broadcasts SSE events and writes audit logs on mutations |
+| `src/backend/src/routes/zone.routes.js` | Express router: GET / (public), GET /:id (public), POST / (admin+), PATCH /:id (admin+), DELETE /:id (admin+) |
+
+### Updated Files
+
+| File | Change |
+|:--|:--|
+| `src/backend/server.js` | Imported `zoneRoutes` and mounted at `/api/v1/zones` |
+| `src/backend/src/utils/audit-actions.js` | Added `ZONE_CREATED`, `ZONE_UPDATED`, `ZONE_DELETED` actions + labels + colors |
+| `docs/database-schema.sql` | Updated zone table defaults: `fill_color='#9f1239'`, `stroke_color='#9f1239'`, `opacity=0.08` |
+
+### Database
+
+- Zones table already existed in DB but with old defaults (`#FF0000`, `#000000`, `0.35`); service layer provides correct defaults at insert time
+- Trigger `update_zones_updated_at` already functional
+- Index `idx_zones_geom` (GIST on geom) already exists
+
+### Verified Endpoints
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `GET /api/v1/zones` (public, empty) | ✅ Returns `{ zones: [] }` |
+| 2 | `POST /api/v1/zones` (admin, valid GeoJSON) | ✅ Creates zone with defaults `#9f1239`, opacity `0.08` |
+| 3 | `GET /api/v1/zones/:id` | ✅ Returns zone with `geometry: { type: 'Polygon', coordinates: [...] }` |
+| 4 | `GET /api/v1/zones` (with data) | ✅ Lists active zones |
+| 5 | `PATCH /api/v1/zones/:id` | ✅ Updates name, description, opacity; geometry updates via PostGIS |
+| 6 | `DELETE /api/v1/zones/:id` | ✅ Soft delete (is_active=false); list returns empty |
+| 7 | `GET /api/v1/zones/:id` (deleted) | ✅ Returns 404 NOT_FOUND |
+| 8 | `POST /api/v1/zones` (no name) | ✅ Returns 400 VALIDATION_ERROR |
+| 9 | `POST /api/v1/zones` (no token) | ✅ Returns 401 UNAUTHORIZED |
+| 10 | `PATCH /api/v1/zones/:id` geometry update | ✅ Geometry updated via `ST_GeomFromGeoJSON` |
+
+### Git Commit
+
+```
+feat: add zones table, service, controller, routes, and CRUD API endpoints
+```
+
+*End of Phase 1*

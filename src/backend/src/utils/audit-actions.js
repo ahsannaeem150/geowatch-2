@@ -50,6 +50,11 @@ export const AUDIT_ACTIONS = {
   TIMELINE_UPDATED: 'timeline_updated',
   TIMELINE_DELETED: 'timeline_deleted',
 
+  // Zone operations
+  ZONE_CREATED: 'zone_created',
+  ZONE_UPDATED: 'zone_updated',
+  ZONE_DELETED: 'zone_deleted',
+
   // Data export
   EXPORT_INCIDENTS: 'export_incidents',
   EXPORT_SOURCES: 'export_sources',
@@ -96,6 +101,10 @@ export const AUDIT_ACTION_LABELS = {
   [AUDIT_ACTIONS.TIMELINE_UPDATED]: 'Timeline Entry Updated',
   [AUDIT_ACTIONS.TIMELINE_DELETED]: 'Timeline Entry Deleted',
 
+  [AUDIT_ACTIONS.ZONE_CREATED]: 'Zone Created',
+  [AUDIT_ACTIONS.ZONE_UPDATED]: 'Zone Updated',
+  [AUDIT_ACTIONS.ZONE_DELETED]: 'Zone Deleted',
+
   [AUDIT_ACTIONS.EXPORT_INCIDENTS]: 'Exported Incidents',
   [AUDIT_ACTIONS.EXPORT_SOURCES]: 'Exported Sources',
   [AUDIT_ACTIONS.EXPORT_USERS]: 'Exported Users',
@@ -138,6 +147,10 @@ export const AUDIT_ACTION_COLORS = {
   [AUDIT_ACTIONS.TIMELINE_ADDED]: '#22c55e',
   [AUDIT_ACTIONS.TIMELINE_UPDATED]: '#f59e0b',
   [AUDIT_ACTIONS.TIMELINE_DELETED]: '#ef4444',
+
+  [AUDIT_ACTIONS.ZONE_CREATED]: '#22c55e',
+  [AUDIT_ACTIONS.ZONE_UPDATED]: '#f59e0b',
+  [AUDIT_ACTIONS.ZONE_DELETED]: '#ef4444',
 
   [AUDIT_ACTIONS.EXPORT_INCIDENTS]: '#6366f1',
   [AUDIT_ACTIONS.EXPORT_SOURCES]: '#6366f1',

@@ -927,6 +927,7 @@ export default function DashboardLayout() {
         {/* Right Panel — 630px slide-in */}
         {isPanelOpen && (
           <div
+            className="dashboard-right-panel"
             style={{
               width: '630px',
               overflowY: 'auto',
