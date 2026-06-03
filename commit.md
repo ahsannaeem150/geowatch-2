@@ -4046,3 +4046,48 @@ feat: implement Tactical, SaaS, and Glass interface styles in user-web with styl
 ```
 
 *End of session*
+
+---
+
+## 📅 2026-06-03 — Admin-Web: Three Interface Styles (Tactical, SaaS, Glass)
+
+### Summary
+Implemented the three switchable interface styles in admin-web, the final website. Added crimson-accented `[data-style]` CSS overrides, a style toggle in the TopBar next to the live/historical mode indicator, and audited all dashboard components for CSS variable consistency. Dashboard layout already used `var(--bg-gradient)`. Map component left unchanged as it's independent of interface style.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/index.css` | Added `[data-style="saas"]` (Inter font, medium radius, crimson radial gradient) and `[data-style="glass"]` (Inter font, large radius, crimson mesh gradient, glass surfaces, no shadows) blocks. Added light mode variants. Wrapped grain overlay in `[data-style="tactical"]`. Added `.glass-card` utility class. Added glass overrides for header, live-feed panels, inputs, and modal/panel cards. |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Added `StyleToggle` component with Palette icon dropdown (Tac / SaaS / Glass). Imported `useStyle` hook and `Palette` from lucide-react. Placed toggle between ThemeToggle and user badge. Fixed hardcoded `borderRadius: '8px'` → `var(--radius-sm)` (logo) and `borderRadius: '6px'` → `var(--radius-sm)` (Admin badge). |
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx` | Added `className="panel-card"` to header card, meta grid, and description container for glass styling. Fixed hardcoded `borderRadius: '10px'` → `var(--radius-pill)` (timeline count badge) and `borderRadius: '6px'` → `var(--radius-sm)` (copy link button). Fixed delete modal `borderRadius: '8px'` → `var(--radius-lg)`. |
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | No structural changes — already used CSS variables for radius and background. Form inputs automatically pick up glass styling via `[data-style="glass"] input/textarea/select` CSS selectors. |
+| `src/admin-web/src/components/IncidentList/IncidentTable.jsx` | No structural changes — already used CSS variables for radius and background. Table container and modal styling handled by CSS overrides. |
+| `src/admin-web/src/components/Login/LoginPage.jsx` | Changed page background from `var(--bg-deep)` to `var(--bg-gradient)`. Added `className="panel-card"` to login card for glass styling. |
+| `src/admin-web/src/components/LiveActivity/AdminLiveFeed.jsx` | Added `className="live-feed-panel"` to both collapsed and expanded containers for glass header override. Fixed hardcoded `borderRadius: '10px'` → `var(--radius-pill)` (unread count badge). |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Already used `var(--bg-gradient)` — no changes needed. Map container uses `var(--bg-deep)` which is correct. Toast and ghost banner already have `backdropFilter` for glass compatibility. |
+
+### Key Design Decisions
+
+- **Crimson accent** for admin-web. Glass mesh gradient uses crimson blobs (`rgba(90,1,28,0.3)`, `rgba(159,18,57,0.2)`) with a subtle blue accent.
+- **Grain overlay** only appears in Tactical style via `[data-style="tactical"] body::after`.
+- **Glass panels** applied via `.panel-card` and `.live-feed-panel` classes with `backdrop-filter: blur(16px) saturate(1.2)` and `var(--bg-glass)` background.
+- **Glass inputs** styled globally via `[data-style="glass"] input, textarea, select` CSS selectors — no component-level changes needed.
+- **Map independence**: `AdminMap.jsx` intentionally left unchanged. Map rendering is independent of interface style.
+- **Backward compatibility**: Tactical is the default. Existing users see zero change.
+
+### Build Verification
+
+| App | Status |
+|:--|:--|
+| admin-web | ✅ Build succeeded (2.20s) |
+| superadmin-web | ✅ Build succeeded (2.85s) — no regressions |
+| user-web | ✅ Build succeeded (2.65s) — no regressions |
+
+### Git Commit
+
+```
+feat: implement Tactical, SaaS, and Glass interface styles in admin-web with glass dashboard panels, backdrop-filter cards, and top-bar style toggle
+```
+
+*End of session*

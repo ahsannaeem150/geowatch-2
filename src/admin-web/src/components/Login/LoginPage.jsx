@@ -38,11 +38,12 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--bg-deep)',
+        background: 'var(--bg-gradient)',
         padding: '24px',
       }}
     >
       <div
+        className="panel-card"
         style={{
           width: '100%',
           maxWidth: '400px',

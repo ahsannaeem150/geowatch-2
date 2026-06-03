@@ -34,6 +34,7 @@ export default function AdminLiveFeed({
   if (isCollapsed) {
     return (
       <div
+        className="live-feed-panel"
         style={{
           width: '44px',
           height: '100%',
@@ -107,6 +108,7 @@ export default function AdminLiveFeed({
 
   return (
     <div
+      className="live-feed-panel"
       style={{
         width: '300px',
         height: '100%',
@@ -161,7 +163,7 @@ export default function AdminLiveFeed({
                 color: 'var(--danger-light)',
                 background: 'rgba(220, 38, 38, 0.12)',
                 padding: '2px 8px',
-                borderRadius: '10px',
+                borderRadius: 'var(--radius-pill)',
               }}
             >
               {unreadCount} new

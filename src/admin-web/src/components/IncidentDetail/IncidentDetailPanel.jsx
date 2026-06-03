@@ -309,6 +309,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Header */}
       <div
+        className="panel-card"
         style={{
           padding: '20px',
           background: 'var(--bg-surface)',
@@ -373,6 +374,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
 
       {/* Meta */}
       <div
+        className="panel-card"
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -387,7 +389,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
 
       {/* Description */}
       {incident.description && (
-        <div>
+        <div className="panel-card">
           {sectionTitle('Description')}
           <p
             style={{
@@ -449,7 +451,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
                 color: 'var(--accent-light)',
                 background: 'var(--accent-subtle-bg)',
                 padding: '2px 8px',
-                borderRadius: '10px',
+                borderRadius: 'var(--radius-pill)',
               }}
             >
               {timeline.length}
@@ -752,7 +754,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
             color: copied ? '#22c55e' : 'var(--text-muted)',
             background: 'transparent',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: 'var(--radius-sm)',
             padding: '6px 10px',
             cursor: 'pointer',
             fontFamily: 'var(--font-sans)',
@@ -782,7 +784,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
           <div style={{
-            background: 'rgba(28, 28, 36, 0.5)', borderRadius: '8px', padding: '24px', width: '420px', maxWidth: '90%',
+            background: 'rgba(28, 28, 36, 0.5)', borderRadius: 'var(--radius-lg)', padding: '24px', width: '420px', maxWidth: '90%',
             boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',

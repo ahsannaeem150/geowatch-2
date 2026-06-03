@@ -6,6 +6,81 @@ import SearchDropdown from '../SearchDropdown/SearchDropdown.jsx';
 import DatePicker from '../DatePicker/DatePicker.jsx';
 import { api } from '../../services/api.js';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
+import { useStyle } from '@shared/useStyle.js';
+import { Palette } from 'lucide-react';
+
+function StyleToggle() {
+  const { style, setStyle } = useStyle();
+  const [open, setOpen] = useState(false);
+  const options = [
+    { key: 'tactical', label: 'Tac' },
+    { key: 'saas', label: 'SaaS' },
+    { key: 'glass', label: 'Glass' },
+  ];
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        title="Interface style"
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'var(--text-muted)',
+          cursor: 'pointer',
+          padding: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 'var(--radius-sm)',
+          transition: 'color 0.15s ease',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+      >
+        <Palette size={16} />
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            right: 0,
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-md)',
+            padding: '4px',
+            zIndex: 200,
+            boxShadow: 'var(--shadow-lg)',
+            minWidth: '90px',
+          }}
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => { setStyle(opt.key); setOpen(false); }}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '6px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                background: opt.key === style ? 'var(--accent-subtle-bg)' : 'transparent',
+                color: opt.key === style ? 'var(--accent-light)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TopBar({
   onAddEvent,
@@ -161,7 +236,7 @@ export default function TopBar({
             style={{
               width: '32px',
               height: '32px',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-sm)',
               background: 'var(--accent)',
               display: 'flex',
               alignItems: 'center',
@@ -193,7 +268,7 @@ export default function TopBar({
             letterSpacing: '1.2px',
             color: 'var(--text-muted)',
             padding: '3px 10px',
-            borderRadius: '6px',
+            borderRadius: 'var(--radius-sm)',
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-subtle)',
           }}
@@ -345,6 +420,7 @@ export default function TopBar({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         <ThemeToggle />
+        <StyleToggle />
         <div
           style={{
             display: 'flex',
