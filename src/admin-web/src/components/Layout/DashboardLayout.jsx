@@ -9,6 +9,7 @@ import SearchModal from '../SearchModal/SearchModal.jsx';
 import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
 import ZoneCreatePanel from '../Zones/ZoneCreatePanel.jsx';
+import ZoneEditPanel from '../Zones/ZoneEditPanel.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
@@ -77,6 +78,15 @@ export default function DashboardLayout() {
   const [drawVertices, setDrawVertices] = useState([]);
   const [isPolygonClosed, setIsPolygonClosed] = useState(false);
   const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
+
+  // ─── Zone Editing ───
+  const [editingZoneId, setEditingZoneId] = useState(null);
+  const [editingZoneVertices, setEditingZoneVertices] = useState([]);
+  const [originalZoneVertices, setOriginalZoneVertices] = useState([]);
+  const editingZoneIdRef = useRef(editingZoneId);
+  const editingZoneVerticesRef = useRef(editingZoneVertices);
+  editingZoneIdRef.current = editingZoneId;
+  editingZoneVerticesRef.current = editingZoneVertices;
 
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -486,8 +496,11 @@ export default function DashboardLayout() {
     setPanelMode('detail');
     setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
     setMarkerCoords(null);
-    // Clear zone selection when an incident is selected
+    // Clear zone selection and editing when an incident is selected
     setSelectedZoneId(null);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
     // Update URL to make incident shareable
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -501,6 +514,10 @@ export default function DashboardLayout() {
     // Clear incident selection when a zone is selected
     setSelectedIncident(null);
     setPanelMode('empty');
+    // Clear editing state when selecting a different zone
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
   }, []);
 
   // ─── Drawing handlers ───
@@ -510,6 +527,10 @@ export default function DashboardLayout() {
       setDrawVertices([]);
       setIsPolygonClosed(false);
       setShowZoneCreatePanel(false);
+      // Clear editing state when entering drawing mode
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
     }
   }, []);
 
@@ -535,6 +556,104 @@ export default function DashboardLayout() {
     setIsPolygonClosed(false);
     setShowZoneCreatePanel(false);
     setRefreshKey((k) => k + 1);
+  }, []);
+
+  const handleEditZone = useCallback(() => {
+    const zone = zones.find((z) => z.id === selectedZoneId);
+    if (!zone || !zone.geometry?.coordinates?.[0]) return;
+
+    // Clear drawing state
+    setMapMode('pan');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+
+    const coords = [...zone.geometry.coordinates[0]];
+    // Remove closing duplicate vertex if present
+    if (coords.length > 1) {
+      const first = coords[0];
+      const last = coords[coords.length - 1];
+      if (first[0] === last[0] && first[1] === last[1]) {
+        coords.pop();
+      }
+    }
+
+    setEditingZoneId(zone.id);
+    setEditingZoneVertices(coords);
+    setOriginalZoneVertices(JSON.parse(JSON.stringify(coords)));
+  }, [selectedZoneId, zones]);
+
+  const handleVertexDrag = useCallback((index, { lng, lat }) => {
+    setEditingZoneVertices((prev) => {
+      const next = [...prev];
+      next[index] = [lng, lat];
+      return next;
+    });
+  }, []);
+
+  const handleMidpointClick = useCallback((edgeIndex) => {
+    setEditingZoneVertices((prev) => {
+      const a = prev[edgeIndex];
+      const b = prev[(edgeIndex + 1) % prev.length];
+      const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const next = [...prev];
+      next.splice(edgeIndex + 1, 0, midpoint);
+      return next;
+    });
+  }, []);
+
+  const handleVertexDoubleClick = useCallback((index) => {
+    setEditingZoneVertices((prev) => {
+      if (prev.length <= 3) {
+        console.warn('Cannot delete vertex: polygon must have at least 3 vertices');
+        return prev;
+      }
+      const next = [...prev];
+      next.splice(index, 1);
+      return next;
+    });
+  }, []);
+
+  const handleZoneEditSave = useCallback(async (data) => {
+    const id = editingZoneIdRef.current;
+    if (!id) return;
+    const vertices = editingZoneVerticesRef.current;
+    const closedRing = [...vertices, vertices[0]];
+    try {
+      await api.updateZone(id, {
+        ...data,
+        geometry: { type: 'Polygon', coordinates: [closedRing] },
+      });
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
+      setRefreshKey((k) => k + 1);
+      setToast({ message: 'Zone updated successfully', type: 'success' });
+    } catch (err) {
+      alert(err.message || 'Failed to update zone');
+    }
+  }, []);
+
+  const handleZoneEditCancel = useCallback(() => {
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+  }, []);
+
+  const handleZoneDelete = useCallback(async () => {
+    const id = editingZoneIdRef.current;
+    if (!id) return;
+    try {
+      await api.deleteZone(id);
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
+      setSelectedZoneId(null);
+      setRefreshKey((k) => k + 1);
+      setToast({ message: 'Zone deleted successfully', type: 'info' });
+    } catch (err) {
+      alert(err.message || 'Failed to delete zone');
+    }
   }, []);
 
   const handleSearchSelect = useCallback((incident) => {
@@ -577,6 +696,9 @@ export default function DashboardLayout() {
     setSelectedIncident(null);
     setMarkerCoords(null);
     setIsEditing(false);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
     // Clear incident from URL while preserving other params
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -707,6 +829,20 @@ export default function DashboardLayout() {
 
   // Determine what to show in the right panel
   const renderPanel = () => {
+    if (editingZoneId) {
+      const zone = zones.find((z) => z.id === editingZoneId);
+      if (!zone) return null;
+      return (
+        <ZoneEditPanel
+          zone={zone}
+          vertexCount={editingZoneVertices.length}
+          onSave={handleZoneEditSave}
+          onCancel={handleZoneEditCancel}
+          onDelete={handleZoneDelete}
+        />
+      );
+    }
+
     if (showZoneCreatePanel) {
       return (
         <ZoneCreatePanel
@@ -748,7 +884,7 @@ export default function DashboardLayout() {
     return null;
   };
 
-  const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel;
+  const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel || !!editingZoneId;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
@@ -849,15 +985,24 @@ export default function DashboardLayout() {
             onDrawVertexAdd={handleDrawVertexAdd}
             onDrawClose={handleDrawClose}
             onDrawCancel={handleDrawCancel}
+            editingZoneId={editingZoneId}
+            editingZoneVertices={editingZoneVertices}
+            onVertexDrag={handleVertexDrag}
+            onMidpointClick={handleMidpointClick}
+            onVertexDoubleClick={handleVertexDoubleClick}
           />
 
-          <DrawingToolbar
-            mode={mapMode}
-            hasClosedPolygon={isPolygonClosed}
-            onSetMode={handleSetMode}
-            onSave={() => setShowZoneCreatePanel(true)}
-            onCancel={handleDrawCancel}
-          />
+          {!editingZoneId && (
+            <DrawingToolbar
+              mode={mapMode}
+              hasClosedPolygon={isPolygonClosed}
+              selectedZoneId={selectedZoneId}
+              onSetMode={handleSetMode}
+              onSave={() => setShowZoneCreatePanel(true)}
+              onCancel={handleDrawCancel}
+              onEditZone={handleEditZone}
+            />
+          )}
 
           <MapLegend
             domains={domains}

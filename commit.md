@@ -4279,3 +4279,67 @@ feat: add polygon drawing toolbar with click-to-place vertices, rubber band prev
 ```
 
 *End of Phase 3*
+
+
+---
+
+## Phase 4: Zone Editing — Vertex Manipulation
+
+**Date:** 2026-06-04
+**Goal:** Allow admins to select an existing zone and edit its shape by dragging vertices, adding new vertices via midpoint handles, and deleting vertices.
+
+### Files Created
+
+| File | Purpose |
+|---|---|
+| `src/admin-web/src/components/Zones/ZoneEditPanel.jsx` | Form panel for editing zone metadata (name, description, category) + save/cancel/delete actions |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added editing mode props (`editingZoneId`, `editingZoneVertices`, `onVertexDrag`, `onMidpointClick`, `onVertexDoubleClick`). Added `edit-zone`, `edit-vertices`, `edit-midpoints` GeoJSON sources + layers (fill, outline, vertex handles, midpoint handles). Implemented vertex drag (mousedown → dragPan.disable → mousemove updates → mouseup → dragPan.enable), midpoint click-to-insert, vertex double-click-to-delete. Edited zone filtered from `zones` source while editing. Fixed existing dblclick closure bug by using refs for all callback props. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added edit state (`editingZoneId`, `editingZoneVertices`, `originalZoneVertices`). Added `handleEditZone` (deep-copies zone geometry, strips closing duplicate vertex), `handleVertexDrag`, `handleMidpointClick`, `handleVertexDoubleClick` (enforces min 3 vertices), `handleZoneEditSave` (closes ring + PATCH), `handleZoneEditCancel`, `handleZoneDelete` (confirm dialog + DELETE). `renderPanel` shows `ZoneEditPanel` when editing. `isPanelOpen` includes `!!editingZoneId`. DrawingToolbar hidden during editing. Edit state cleared on zone click, incident select, panel close, mode switch. |
+| `src/admin-web/src/components/Map/DrawingToolbar.jsx` | Added `selectedZoneId` and `onEditZone` props. Conditional "Edit Zone" button (amber styling) appears when `mode === 'pan' && selectedZoneId`. |
+
+### Interaction Design
+
+1. **Select a zone** → click on map polygon → zone highlighted amber
+2. **Edit Zone button** appears in toolbar → click → enters edit mode
+3. **Visuals in edit mode:**
+   - Zone renders with dashed amber outline (`#f59e0b`, dash `[4,3]`, opacity 0.9)
+   - Fill opacity 0.12
+   - White vertex handles (radius 6px, amber stroke 2px) at each polygon vertex
+   - Amber midpoint handles (radius 4px, 60% opacity) at center of each edge
+4. **Drag vertex** → mousedown on white handle → cursor `grabbing`, map pan disabled → drag reshapes polygon in real-time → mouseup releases
+5. **Insert vertex** → click orange midpoint handle → new vertex inserted at that edge center
+6. **Delete vertex** → double-click white handle → vertex removed (minimum 3 enforced)
+7. **Save Changes** → PATCH zone with new geometry + metadata → toast success → exit edit mode
+8. **Cancel** → revert to original shape, exit edit mode
+9. **Delete Zone** → confirm dialog → DELETE → toast info → exit edit mode, refresh zones
+
+### Edge Cases Handled
+
+- **Double-click on midpoint during editing:** Guarded in dblclick handler — returns early to prevent deleting a freshly-inserted vertex
+- **Double-click on empty area during editing:** Returns early — no incident creation
+- **Minimum 3 vertices:** `handleVertexDoubleClick` ignores delete if `length <= 3`
+- **Closing vertex duplication:** Stripped from `editingZoneVertices` on edit start, re-added on save
+- **Drawing toolbar hidden during editing:** Prevents mode conflicts
+- **Zone hover/click disabled during editing:** Prevents accidental zone selection
+- **Ref-based callbacks in event handlers:** All map event handlers use refs to access latest callbacks without re-attaching listeners
+
+### Verified
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `admin-web` build | ✅ Clean, zero errors |
+| 2 | `user-web` build | ✅ Clean |
+| 3 | `superadmin-web` build | ✅ Clean |
+
+### Git Commit
+
+```
+feat: add zone editing with draggable vertices, midpoint insertion, and vertex deletion
+```
+
+*End of Phase 4*

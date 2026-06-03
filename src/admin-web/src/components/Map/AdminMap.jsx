@@ -39,6 +39,11 @@ export default function AdminMap({
   onDrawVertexAdd,
   onDrawClose,
   onDrawCancel,
+  editingZoneId = null,
+  editingZoneVertices = [],
+  onVertexDrag,
+  onMidpointClick,
+  onVertexDoubleClick,
 }) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -55,10 +60,24 @@ export default function AdminMap({
   const mapModeRef = useRef(mapMode);
   const drawVerticesRef = useRef(drawVertices);
   const isPolygonClosedRef = useRef(isPolygonClosed);
+  const editingZoneIdRef = useRef(editingZoneId);
+  const isDraggingVertex = useRef(false);
+  const draggedVertexIndex = useRef(null);
+  const onDrawCloseRef = useRef(onDrawClose);
+  const onMapDblClickRef = useRef(onMapDblClick);
+  const onVertexDragRef = useRef(onVertexDrag);
+  const onMidpointClickRef = useRef(onMidpointClick);
+  const onVertexDoubleClickRef = useRef(onVertexDoubleClick);
   onViewportChangeRef.current = onViewportChange;
   mapModeRef.current = mapMode;
   drawVerticesRef.current = drawVertices;
   isPolygonClosedRef.current = isPolygonClosed;
+  editingZoneIdRef.current = editingZoneId;
+  onDrawCloseRef.current = onDrawClose;
+  onMapDblClickRef.current = onMapDblClick;
+  onVertexDragRef.current = onVertexDrag;
+  onMidpointClickRef.current = onMidpointClick;
+  onVertexDoubleClickRef.current = onVertexDoubleClick;
 
   // Initialize map once
   useEffect(() => {
@@ -78,12 +97,27 @@ export default function AdminMap({
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.current.on('dblclick', (e) => {
-      if (mapMode === 'polygon' && drawVertices.length >= 2) {
-        onDrawClose?.();
+      // Editing mode: delete vertex on double-click (ignore empty area and midpoints)
+      if (editingZoneIdRef.current) {
+        const midpointFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['edit-midpoints'] });
+        if (midpointFeatures.length > 0) return;
+
+        const features = map.current.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
+        if (features.length > 0) {
+          const idx = features[0].properties.index;
+          onVertexDoubleClickRef.current?.(idx);
+        }
         return;
       }
+
+      // Drawing mode: close polygon
+      if (mapModeRef.current === 'polygon' && drawVerticesRef.current.length >= 2) {
+        onDrawCloseRef.current?.();
+        return;
+      }
+
       const { lng, lat } = e.lngLat;
-      onMapDblClick?.({ lat, lng });
+      onMapDblClickRef.current?.({ lat, lng });
     });
 
     // Report viewport bounds on user-initiated map moves
@@ -212,6 +246,66 @@ export default function AdminMap({
           'line-width': 2,
           'line-dasharray': [2, 2],
           'line-opacity': 0.5,
+        },
+      });
+
+      // ─── Zone edit layers ───
+      map.current.addSource('edit-zone', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.current.addLayer({
+        id: 'edit-zone-fill',
+        type: 'fill',
+        source: 'edit-zone',
+        paint: {
+          'fill-color': '#f59e0b',
+          'fill-opacity': 0.12,
+        },
+      });
+
+      map.current.addLayer({
+        id: 'edit-zone-outline',
+        type: 'line',
+        source: 'edit-zone',
+        paint: {
+          'line-color': '#f59e0b',
+          'line-width': 2,
+          'line-dasharray': [4, 3],
+          'line-opacity': 0.9,
+        },
+      });
+
+      map.current.addSource('edit-vertices', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.current.addLayer({
+        id: 'edit-vertices',
+        type: 'circle',
+        source: 'edit-vertices',
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#fff',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#f59e0b',
+        },
+      });
+
+      map.current.addSource('edit-midpoints', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.current.addLayer({
+        id: 'edit-midpoints',
+        type: 'circle',
+        source: 'edit-midpoints',
+        paint: {
+          'circle-radius': 4,
+          'circle-color': 'rgba(245, 158, 11, 0.6)',
         },
       });
 
@@ -471,21 +565,23 @@ export default function AdminMap({
     const source = map.current.getSource('zones');
     if (!source) return;
 
-    const features = zones.map((zone) => ({
-      type: 'Feature',
-      id: zone.id,
-      geometry: zone.geometry,
-      properties: {
-        name: zone.name,
-        fillColor: zone.fill_color || '#9f1239',
-        strokeColor: zone.stroke_color || '#9f1239',
-        strokeWidth: zone.stroke_width ?? 2,
-        opacity: parseFloat(zone.opacity ?? 0.08),
-      },
-    }));
+    const features = zones
+      .filter((zone) => zone.id !== editingZoneId)
+      .map((zone) => ({
+        type: 'Feature',
+        id: zone.id,
+        geometry: zone.geometry,
+        properties: {
+          name: zone.name,
+          fillColor: zone.fill_color || '#9f1239',
+          strokeColor: zone.stroke_color || '#9f1239',
+          strokeWidth: zone.stroke_width ?? 2,
+          opacity: parseFloat(zone.opacity ?? 0.08),
+        },
+      }));
 
     source.setData({ type: 'FeatureCollection', features });
-  }, [zones]);
+  }, [zones, editingZoneId]);
 
   // ─── Zone hover interaction ───
   useEffect(() => {
@@ -494,8 +590,8 @@ export default function AdminMap({
     let hoveredZoneId = null;
 
     const onMouseMove = (e) => {
-      // Skip zone hover when in polygon drawing mode
-      if (mapModeRef.current === 'polygon') {
+      // Skip zone hover when in polygon drawing mode or editing mode
+      if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) {
         if (hoveredZoneId !== null) {
           mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
           hoveredZoneId = null;
@@ -524,8 +620,8 @@ export default function AdminMap({
     };
 
     const onClick = (e) => {
-      // Skip zone clicks when in polygon drawing mode
-      if (mapModeRef.current === 'polygon') return;
+      // Skip zone clicks when in polygon drawing mode or editing mode
+      if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) return;
       const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
       if (features.length > 0) {
         const zoneId = features[0].id;
@@ -549,12 +645,66 @@ export default function AdminMap({
     if (!source) return;
 
     zones.forEach((zone) => {
+      if (zone.id === editingZoneId) return;
       map.current.setFeatureState(
         { source: 'zones', id: zone.id },
         { selected: zone.id === selectedZoneId }
       );
     });
-  }, [selectedZoneId, zones]);
+  }, [selectedZoneId, zones, editingZoneId]);
+
+  // ─── Update edit zone sources when editing ───
+  useEffect(() => {
+    if (!map.current) return;
+
+    const zoneSource = map.current.getSource('edit-zone');
+    const vertexSource = map.current.getSource('edit-vertices');
+    const midpointSource = map.current.getSource('edit-midpoints');
+
+    if (!zoneSource || !vertexSource || !midpointSource) return;
+
+    if (editingZoneId && editingZoneVertices.length >= 3) {
+      const closedRing = [...editingZoneVertices, editingZoneVertices[0]];
+
+      zoneSource.setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [closedRing] },
+          properties: {},
+        }],
+      });
+
+      vertexSource.setData({
+        type: 'FeatureCollection',
+        features: editingZoneVertices.map((coord, idx) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: coord },
+          properties: { index: idx },
+        })),
+      });
+
+      const midpoints = [];
+      for (let i = 0; i < editingZoneVertices.length; i++) {
+        const a = editingZoneVertices[i];
+        const b = editingZoneVertices[(i + 1) % editingZoneVertices.length];
+        midpoints.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] },
+          properties: { edgeIndex: i },
+        });
+      }
+
+      midpointSource.setData({
+        type: 'FeatureCollection',
+        features: midpoints,
+      });
+    } else {
+      zoneSource.setData({ type: 'FeatureCollection', features: [] });
+      vertexSource.setData({ type: 'FeatureCollection', features: [] });
+      midpointSource.setData({ type: 'FeatureCollection', features: [] });
+    }
+  }, [editingZoneId, editingZoneVertices]);
 
   // ─── Drawing preview data update ───
   useEffect(() => {
@@ -749,6 +899,90 @@ export default function AdminMap({
       source.setData({ type: 'FeatureCollection', features: [] });
     }
   }, [mapMode]);
+
+  // ─── Vertex drag, midpoint click, and vertex double-click interactions ───
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    const onMouseDown = (e) => {
+      if (!editingZoneIdRef.current) return;
+
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
+      if (features.length > 0) {
+        const idx = features[0].properties.index;
+        isDraggingVertex.current = true;
+        draggedVertexIndex.current = idx;
+        mapInstance.dragPan.disable();
+        mapInstance.getCanvas().style.cursor = 'grabbing';
+      }
+    };
+
+    const onMouseMove = (e) => {
+      if (!isDraggingVertex.current) return;
+      const idx = draggedVertexIndex.current;
+      if (idx !== null) {
+        onVertexDragRef.current?.(idx, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+      }
+    };
+
+    const onMouseUp = () => {
+      if (isDraggingVertex.current) {
+        isDraggingVertex.current = false;
+        draggedVertexIndex.current = null;
+        mapInstance.dragPan.enable();
+        mapInstance.getCanvas().style.cursor = '';
+      }
+    };
+
+    const onClick = (e) => {
+      if (!editingZoneIdRef.current) return;
+      if (isDraggingVertex.current) return;
+
+      const midpointFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-midpoints'] });
+      if (midpointFeatures.length > 0) {
+        const edgeIndex = midpointFeatures[0].properties.edgeIndex;
+        onMidpointClickRef.current?.(edgeIndex);
+        return;
+      }
+    };
+
+    const onMouseMoveCursor = (e) => {
+      if (!editingZoneIdRef.current) return;
+      if (isDraggingVertex.current) {
+        mapInstance.getCanvas().style.cursor = 'grabbing';
+        return;
+      }
+
+      const vertexFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
+      if (vertexFeatures.length > 0) {
+        mapInstance.getCanvas().style.cursor = 'grab';
+        return;
+      }
+
+      const midpointFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-midpoints'] });
+      if (midpointFeatures.length > 0) {
+        mapInstance.getCanvas().style.cursor = 'crosshair';
+        return;
+      }
+
+      mapInstance.getCanvas().style.cursor = '';
+    };
+
+    mapInstance.on('mousedown', onMouseDown);
+    mapInstance.on('mousemove', onMouseMove);
+    mapInstance.on('mouseup', onMouseUp);
+    mapInstance.on('click', onClick);
+    mapInstance.on('mousemove', onMouseMoveCursor);
+
+    return () => {
+      mapInstance.off('mousedown', onMouseDown);
+      mapInstance.off('mousemove', onMouseMove);
+      mapInstance.off('mouseup', onMouseUp);
+      mapInstance.off('click', onClick);
+      mapInstance.off('mousemove', onMouseMoveCursor);
+    };
+  }, []);
 
   // ─── Area calculator helper ───
   const calculateDrawArea = () => {

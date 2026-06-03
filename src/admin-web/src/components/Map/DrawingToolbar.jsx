@@ -3,9 +3,11 @@ import React from 'react';
 export default function DrawingToolbar({
   mode = 'pan',
   hasClosedPolygon = false,
+  selectedZoneId = null,
   onSetMode,
   onSave,
   onCancel,
+  onEditZone,
 }) {
   const isPolygon = mode === 'polygon';
 
@@ -70,6 +72,19 @@ export default function DrawingToolbar({
         <span>👆</span>
         <span>Pan</span>
       </button>
+
+      {/* Edit Zone — visible when a zone is selected and not drawing */}
+      {mode === 'pan' && selectedZoneId && (
+        <button
+          type="button"
+          style={{ ...btnBase, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', borderColor: '#f59e0b' }}
+          onClick={() => onEditZone?.()}
+          title="Edit selected zone"
+        >
+          <span>✎</span>
+          <span>Edit Zone</span>
+        </button>
+      )}
 
       {/* Polygon mode */}
       <button
