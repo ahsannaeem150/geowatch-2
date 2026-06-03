@@ -66,6 +66,10 @@ export default function DashboardLayout() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState(null);
 
+  // ─── Zones ───
+  const [zones, setZones] = useState([]);
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
+
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchModalQuery, setSearchModalQuery] = useState('');
@@ -229,6 +233,15 @@ export default function DashboardLayout() {
         });
     }
   }, [incidentIdFromUrl, incidents.length]);
+
+  // Fetch zones on mount and when refreshKey changes
+  useEffect(() => {
+    api.getZones()
+      .then((res) => {
+        setZones(res.data.zones || []);
+      })
+      .catch(() => setZones([]));
+  }, [refreshKey]);
 
   // Fetch domains for legend
   useEffect(() => {
@@ -465,6 +478,8 @@ export default function DashboardLayout() {
     setPanelMode('detail');
     setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
     setMarkerCoords(null);
+    // Clear zone selection when an incident is selected
+    setSelectedZoneId(null);
     // Update URL to make incident shareable
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -472,6 +487,13 @@ export default function DashboardLayout() {
       return next;
     });
   }, [setSearchParams]);
+
+  const handleZoneClick = useCallback((zoneId) => {
+    setSelectedZoneId(zoneId);
+    // Clear incident selection when a zone is selected
+    setSelectedIncident(null);
+    setPanelMode('empty');
+  }, []);
 
   const handleSearchSelect = useCallback((incident) => {
     setSelectedIncident(incident);
@@ -757,8 +779,11 @@ export default function DashboardLayout() {
         >
           <AdminMap
             incidents={filteredIncidents}
+            zones={zones}
             selectedEventId={selectedIncident?.id}
+            selectedZoneId={selectedZoneId}
             onEventClick={handleEventClick}
+            onZoneClick={handleZoneClick}
             onMapDblClick={handleMapDblClick}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}

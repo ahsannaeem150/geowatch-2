@@ -97,4 +97,11 @@ export const api = {
     request(`/incidents/${incidentId}/sources`, { method: 'POST', body: JSON.stringify(body) }),
   updateSourceVerification: (incidentId, sourceId, body) =>
     request(`/incidents/${incidentId}/sources/${sourceId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  // Zones
+  getZones: () => request('/zones'),
+  getZone: (id) => request(`/zones/${id}`),
+  createZone: (body) => request('/zones', { method: 'POST', body: JSON.stringify(body) }),
+  updateZone: (id, body) => request(`/zones/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteZone: (id) => request(`/zones/${id}`, { method: 'DELETE' }),
 };

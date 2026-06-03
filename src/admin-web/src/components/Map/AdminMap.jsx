@@ -22,8 +22,11 @@ function getMaxZoomForCenter(lng, lat) {
 
 export default function AdminMap({
   incidents = [],
+  zones = [],
   selectedEventId,
+  selectedZoneId,
   onEventClick,
+  onZoneClick,
   onMapDblClick,
   onViewportChange,
   flyToCoords,
@@ -102,6 +105,45 @@ export default function AdminMap({
     // Report initial bounds once the map is loaded
     map.current.on('load', () => {
       if (!map.current) return;
+
+      // ─── Zone layers (added BEFORE markers so markers render on top) ───
+      map.current.addSource('zones', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+        promoteId: 'id',
+      });
+
+      map.current.addLayer({
+        id: 'zone-fills',
+        type: 'fill',
+        source: 'zones',
+        paint: {
+          'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false], 0.12,
+            ['boolean', ['feature-state', 'selected'], false], 0.10,
+            ['get', 'opacity'],
+          ],
+        },
+      });
+
+      map.current.addLayer({
+        id: 'zone-outlines',
+        type: 'line',
+        source: 'zones',
+        paint: {
+          'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
+          'line-width': ['get', 'strokeWidth'],
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false], 0.8,
+            ['boolean', ['feature-state', 'selected'], false], 0.9,
+            0.6,
+          ],
+        },
+      });
+
       const bounds = map.current.getBounds();
       const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
       onViewportChangeRef.current?.(viewport);
@@ -351,6 +393,86 @@ export default function AdminMap({
         .addTo(map.current);
     }
   }, [ghostIncident, onEventClick]);
+
+  // ─── Update zone source data when zones prop changes ───
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('zones');
+    if (!source) return;
+
+    const features = zones.map((zone) => ({
+      type: 'Feature',
+      id: zone.id,
+      geometry: zone.geometry,
+      properties: {
+        name: zone.name,
+        fillColor: zone.fill_color || '#9f1239',
+        strokeColor: zone.stroke_color || '#9f1239',
+        strokeWidth: zone.stroke_width ?? 2,
+        opacity: parseFloat(zone.opacity ?? 0.08),
+      },
+    }));
+
+    source.setData({ type: 'FeatureCollection', features });
+  }, [zones]);
+
+  // ─── Zone hover interaction ───
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+    let hoveredZoneId = null;
+
+    const onMouseMove = (e) => {
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      if (features.length > 0) {
+        const feature = features[0];
+        if (hoveredZoneId !== feature.id) {
+          if (hoveredZoneId !== null) {
+            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          }
+          hoveredZoneId = feature.id;
+          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
+          mapInstance.getCanvas().style.cursor = 'pointer';
+        }
+      } else {
+        if (hoveredZoneId !== null) {
+          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          hoveredZoneId = null;
+        }
+        mapInstance.getCanvas().style.cursor = '';
+      }
+    };
+
+    const onClick = (e) => {
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      if (features.length > 0) {
+        const zoneId = features[0].id;
+        onZoneClick?.(zoneId);
+      }
+    };
+
+    mapInstance.on('mousemove', onMouseMove);
+    mapInstance.on('click', onClick);
+
+    return () => {
+      mapInstance.off('mousemove', onMouseMove);
+      mapInstance.off('click', onClick);
+    };
+  }, [onZoneClick]);
+
+  // ─── Zone selection state ───
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('zones');
+    if (!source) return;
+
+    zones.forEach((zone) => {
+      map.current.setFeatureState(
+        { source: 'zones', id: zone.id },
+        { selected: zone.id === selectedZoneId }
+      );
+    });
+  }, [selectedZoneId, zones]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

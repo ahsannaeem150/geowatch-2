@@ -4144,3 +4144,65 @@ feat: add zones table, service, controller, routes, and CRUD API endpoints
 ```
 
 *End of Phase 1*
+
+---
+
+## 📅 2026-06-04 — Phase 2: Display Zones as Translucent Polygons on Admin Map
+
+### Summary
+Fetched zones from the backend and rendered them as translucent polygon overlays on the admin map. Zones are layered below incident markers (DOM-based markers naturally render on top of MapLibre canvas layers). Added hover and click interactions with feature-state-driven styling.
+
+### Created Files
+
+None (all modifications to existing files).
+
+### Updated Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/services/api.js` | Added zone API methods: `getZones`, `getZone`, `createZone`, `updateZone`, `deleteZone` |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | **Major changes:** |
+| | • New props: `zones`, `selectedZoneId`, `onZoneClick` |
+| | • Added GeoJSON source `'zones'` with `promoteId: 'id'` (critical for UUID feature-state support) |
+| | • Added `'zone-fills'` layer (fill type) with dynamic opacity via `feature-state`: hover=0.12, selected=0.10, default=zone opacity |
+| | • Added `'zone-outlines'` layer (line type) with dynamic opacity: hover=0.8, selected=0.9, default=0.6 |
+| | • Selected zones use amber (`#f59e0b`) fill/outline color |
+| | • `useEffect` updates source data when `zones` prop changes |
+| | • `useEffect` handles hover: `queryRenderedFeatures` on `zone-fills`, sets `feature-state` hover, changes cursor to pointer |
+| | • `useEffect` handles click: `queryRenderedFeatures` on `zone-fills`, calls `onZoneClick(zoneId)` |
+| | • `useEffect` handles selection: sets `feature-state` selected for all zones when `selectedZoneId` changes |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `zones` and `selectedZoneId` state; fetches zones via `api.getZones()` on mount and when `refreshKey` changes; added `handleZoneClick` callback; passes zone props to `AdminMap`; clears zone selection when incident selected and vice versa |
+
+### Visual Design (from polygonPlan.md)
+
+| State | Fill Color | Outline Color | Fill Opacity | Outline Opacity |
+|:--|:--|:--|:--|:--|
+| Normal | `#9f1239` | `#9f1239` | 0.08 | 0.6 |
+| Hover | `#9f1239` | `#9f1239` | 0.12 | 0.8 |
+| Selected | `#f59e0b` | `#f59e0b` | 0.10 | 0.9 |
+
+### Technical Decisions
+
+- **`promoteId: 'id'`** is required because MapLibre `feature-state` needs a promotable ID field; UUID strings don't work as native feature IDs without this.
+- Zone layers are added inside the map `'load'` event handler, which runs before incident markers are created reactively, ensuring correct z-order.
+- DOM-based `maplibregl.Marker` instances (incident markers) naturally render on top of all MapLibre canvas style layers, so no explicit `addLayer(layer, beforeId)` is needed.
+- Backend returns `opacity` as a string from PostgreSQL `DECIMAL`; `parseFloat()` converts it for the MapLibre paint expression.
+- Property names mapped from snake_case (`fill_color`, `stroke_color`, `stroke_width`) to camelCase (`fillColor`, `strokeColor`, `strokeWidth`) for GeoJSON properties.
+
+### Verified
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `admin-web` build | ✅ Clean, zero errors |
+| 2 | `user-web` build | ✅ Clean |
+| 3 | `superadmin-web` build | ✅ Clean |
+| 4 | Created test zone via curl (Pakistan region polygon) | ✅ POST /api/v1/zones successful |
+| 5 | Zone appears in GET /api/v1/zones | ✅ Returned with correct GeoJSON geometry |
+
+### Git Commit
+
+```
+feat: display zones as translucent polygons on admin map, layered below markers
+```
+
+*End of Phase 2*
