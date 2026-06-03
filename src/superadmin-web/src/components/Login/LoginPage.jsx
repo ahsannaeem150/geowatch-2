@@ -48,13 +48,13 @@ export default function LoginPage() {
             style={{
               width: 56,
               height: 56,
-              borderRadius: 14,
+              borderRadius: 'var(--radius-lg)',
               background: 'linear-gradient(135deg, var(--navy-600), var(--navy-800))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 20px',
-              boxShadow: '0 8px 24px rgba(37, 99, 235, 0.25)',
+              boxShadow: 'var(--shadow-glow)',
             }}
           >
             <Shield size={28} style={{ color: '#fff' }} />
@@ -82,7 +82,7 @@ export default function LoginPage() {
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-subtle)',
-            borderRadius: 14,
+            borderRadius: 'var(--radius-lg)',
             padding: '28px',
             display: 'flex',
             flexDirection: 'column',
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 padding: '12px 14px',
                 background: 'var(--alert-error-bg)',
                 border: '1px solid var(--alert-error-border)',
-                borderRadius: 8,
+                borderRadius: 'var(--radius-sm)',
                 color: 'var(--danger)',
                 fontSize: 13,
               }}
@@ -129,7 +129,7 @@ export default function LoginPage() {
               style={{
                 background: 'var(--bg-base)',
                 border: '1px solid var(--border-default)',
-                borderRadius: 8,
+                borderRadius: 'var(--radius-sm)',
                 padding: '11px 14px',
                 color: 'var(--text-primary)',
                 fontSize: 14,
@@ -171,7 +171,7 @@ export default function LoginPage() {
                   width: '100%',
                   background: 'var(--bg-base)',
                   border: '1px solid var(--border-default)',
-                  borderRadius: 8,
+                  borderRadius: 'var(--radius-sm)',
                   padding: '11px 42px 11px 14px',
                   color: 'var(--text-primary)',
                   fontSize: 14,
@@ -215,7 +215,7 @@ export default function LoginPage() {
             style={{
               marginTop: 4,
               padding: '12px',
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
               border: 'none',
               background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
               color: '#fff',

@@ -18,7 +18,7 @@ export default function BulkActionBar({ count, onDeactivate, onActivate, onDelet
         padding: '12px 20px',
         background: 'var(--bg-elevated)',
         border: '1px solid var(--border-default)',
-        borderRadius: 10,
+        borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-lg)',
         animation: 'slideUp 0.2s ease forwards',
       }}

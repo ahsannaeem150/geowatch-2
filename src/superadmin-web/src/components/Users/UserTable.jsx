@@ -16,7 +16,7 @@ function RoleBadge({ role }) {
         fontSize: 11,
         fontWeight: 600,
         padding: '3px 10px',
-        borderRadius: 4,
+        borderRadius: 'var(--radius-sm)',
         background: style.bg,
         color: style.color,
         textTransform: 'uppercase',
@@ -85,7 +85,7 @@ export default function UserTable({
   return (
     <div>
       {/* Table */}
-      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10 }}>
+      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -297,7 +297,7 @@ function RowActionsMenu({ user, onResetPassword, onToggleActive, onDelete }) {
           justifyContent: 'center',
           width: 28,
           height: 28,
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           border: 'none',
           background: open ? 'var(--bg-hover)' : 'transparent',
           color: 'var(--text-muted)',
@@ -327,7 +327,7 @@ function RowActionsMenu({ user, onResetPassword, onToggleActive, onDelete }) {
             minWidth: 160,
             background: 'var(--bg-surface)',
             border: '1px solid var(--border-subtle)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             boxShadow: 'var(--shadow-md)',
             padding: '4px',
             fontSize: 13,

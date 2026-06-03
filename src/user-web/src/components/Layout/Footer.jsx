@@ -42,7 +42,7 @@ export default function Footer() {
             style={{
               width: '24px',
               height: '24px',
-              borderRadius: '6px',
+              borderRadius: 'var(--radius-sm)',
               background: 'var(--accent)',
               display: 'flex',
               alignItems: 'center',

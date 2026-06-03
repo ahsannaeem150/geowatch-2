@@ -29,7 +29,7 @@ export default function PublicUserTable({
 }) {
   return (
     <div>
-      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10 }}>
+      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -276,7 +276,7 @@ function RowActionsMenu({ user, onToggleActive }) {
             minWidth: 140,
             background: 'var(--bg-surface)',
             border: '1px solid var(--border-subtle)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             boxShadow: 'var(--shadow-md)',
             padding: '4px',
             fontSize: 13,

@@ -252,7 +252,7 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
                 color: 'var(--accent-light)',
                 background: 'var(--accent-subtle-bg)',
                 padding: '2px 8px',
-                borderRadius: '10px',
+                borderRadius: 'var(--radius-md)',
               }}
             >
               {timeline.length}

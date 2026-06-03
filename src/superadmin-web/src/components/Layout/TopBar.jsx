@@ -1,17 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, LogOut, User } from 'lucide-react';
+import { Search, Bell, ChevronDown, LogOut, User, Palette } from 'lucide-react';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useStyle } from '@shared/useStyle.js';
+
+const STYLES = [
+  { key: 'tactical', label: 'Tac', short: 'T' },
+  { key: 'saas', label: 'SaaS', short: 'S' },
+  { key: 'glass', label: 'Glass', short: 'G' },
+];
 
 export default function TopBar() {
   const { user, logout } = useAuth();
+  const { style, setStyle } = useStyle();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [styleMenuOpen, setStyleMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const styleMenuRef = useRef(null);
 
   useEffect(() => {
     function handleClick(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false);
+      }
+      if (styleMenuRef.current && !styleMenuRef.current.contains(e.target)) {
+        setStyleMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -46,7 +59,7 @@ export default function TopBar() {
           gap: 10,
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-sm)',
           padding: '8px 14px',
           width: 320,
           transition: 'border-color var(--transition-fast)',
@@ -71,7 +84,111 @@ export default function TopBar() {
       </div>
 
       {/* Right section */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Style toggle */}
+        <div ref={styleMenuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setStyleMenuOpen(!styleMenuOpen)}
+            title="Interface style"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-subtle)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              textTransform: 'capitalize',
+              transition: 'all var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-strong)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
+          >
+            <Palette size={14} />
+            <span>{STYLES.find((s) => s.key === style)?.label || style}</span>
+          </button>
+
+          {styleMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                width: 140,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                padding: '4px',
+                zIndex: 200,
+                animation: 'fadeIn 0.15s ease forwards',
+              }}
+            >
+              {STYLES.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => {
+                    setStyle(s.key);
+                    setStyleMenuOpen(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: style === s.key ? 'var(--bg-active)' : 'transparent',
+                    border: 'none',
+                    color: style === s.key ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    textTransform: 'capitalize',
+                    transition: 'background var(--transition-fast)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (style !== s.key) e.currentTarget.style.background = 'var(--bg-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (style !== s.key) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background: style === s.key ? 'var(--primary)' : 'var(--bg-hover)',
+                      color: style === s.key ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    {s.short}
+                  </span>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Theme toggle + Notification bell */}
         <ThemeToggle />
         <button
@@ -118,7 +235,7 @@ export default function TopBar() {
               color: 'var(--text-primary)',
               cursor: 'pointer',
               padding: '6px 10px',
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -154,7 +271,7 @@ export default function TopBar() {
                 width: 200,
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border-default)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 boxShadow: 'var(--shadow-lg)',
                 padding: '6px',
                 zIndex: 200,

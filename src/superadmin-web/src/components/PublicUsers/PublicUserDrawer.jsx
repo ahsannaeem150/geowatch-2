@@ -125,7 +125,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
               Loading public user...
             </div>
           ) : error && !user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'var(--alert-error-bg)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'var(--alert-error-bg)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13 }}>
               <AlertCircle size={16} /> {error}
             </div>
           ) : user && (
@@ -201,7 +201,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
                 <>
                   {/* Error banner */}
                   {error && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
                       <AlertCircle size={16} /> {error}
                     </div>
                   )}
@@ -272,7 +272,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
                           style={{
                             padding: '12px 14px',
                             background: 'var(--bg-surface)',
-                            borderRadius: 8,
+                            borderRadius: 'var(--radius-sm)',
                             border: '1px solid var(--border-subtle)',
                             cursor: 'pointer',
                             transition: 'all var(--transition-fast)',
@@ -348,7 +348,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
 
 function StatBox({ label, value, icon: Icon }) {
   return (
-    <div style={{ padding: '14px', background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+    <div style={{ padding: '14px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
       {Icon && <Icon size={16} style={{ color: 'var(--navy-400)', marginBottom: 6 }} />}
       <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{value}</div>
       <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{label}</div>
@@ -366,7 +366,7 @@ function ActionBtn({ icon: Icon, label, onClick, danger, disabled }) {
         alignItems: 'center',
         gap: 6,
         padding: '8px 14px',
-        borderRadius: 8,
+        borderRadius: 'var(--radius-sm)',
         border: danger ? '1px solid var(--alert-error-border)' : '1px solid var(--border-default)',
         background: danger ? 'var(--alert-error-bg)' : 'transparent',
         color: danger ? 'var(--danger)' : 'var(--text-secondary)',

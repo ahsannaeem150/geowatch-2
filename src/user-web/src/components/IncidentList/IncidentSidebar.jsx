@@ -125,7 +125,7 @@ export default function IncidentSidebar({
                         color: 'var(--accent-light)',
                         background: 'var(--accent-subtle-bg)',
                         padding: '1px 6px',
-                        borderRadius: '10px',
+                        borderRadius: 'var(--radius-md)',
                       }}
                     >
                       {savedCount}
@@ -155,7 +155,7 @@ export default function IncidentSidebar({
                   color: 'var(--accent-light)',
                   background: 'var(--accent-subtle-bg)',
                   padding: '2px 8px',
-                  borderRadius: '10px',
+                  borderRadius: 'var(--radius-md)',
                 }}
               >
                 {incidents.length}

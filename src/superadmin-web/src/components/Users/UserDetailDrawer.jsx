@@ -173,7 +173,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
               Loading user...
             </div>
           ) : error && !user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'var(--alert-error-bg)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'var(--alert-error-bg)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13 }}>
               <AlertCircle size={16} /> {error}
             </div>
           ) : user && (
@@ -205,7 +205,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
                       style={{
                         background: 'var(--bg-base)',
                         border: '1px solid var(--border-default)',
-                        borderRadius: 6,
+                        borderRadius: 'var(--radius-sm)',
                         padding: '8px 12px',
                         color: 'var(--text-primary)',
                         fontSize: 16,
@@ -299,14 +299,14 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
                 <>
                   {/* Error banner */}
                   {error && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>
                       <AlertCircle size={16} /> {error}
                     </div>
                   )}
 
                   {/* Temp password */}
                   {tempPassword && (
-                    <div style={{ padding: '12px 14px', background: 'rgba(37, 99, 235, 0.08)', border: '1px solid var(--alert-info-border)', borderRadius: 8, marginBottom: 16 }}>
+                    <div style={{ padding: '12px 14px', background: 'rgba(37, 99, 235, 0.08)', border: '1px solid var(--alert-info-border)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
                       <div style={{ fontSize: 12, color: 'var(--navy-400)', fontWeight: 600, marginBottom: 4 }}>Temporary Password Generated</div>
                       <div style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{tempPassword}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Share this securely with the user. It will not be shown again.</div>
@@ -348,7 +348,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
 
                   {/* Delete confirm */}
                   {showDeleteConfirm && (
-                    <div style={{ padding: '14px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, marginBottom: 20 }}>
+                    <div style={{ padding: '14px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', marginBottom: 20 }}>
                       <div style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600, marginBottom: 6 }}>Permanently delete this user?</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>This action cannot be undone. If the user has created content, deletion will be blocked.</div>
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -403,7 +403,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
 
 function StatBox({ label, value }) {
   return (
-    <div style={{ padding: '12px', background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+    <div style={{ padding: '12px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
       <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{value}</div>
       <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{label}</div>
     </div>
@@ -420,7 +420,7 @@ function ActionBtn({ icon: Icon, label, onClick, primary, danger, disabled }) {
         alignItems: 'center',
         gap: 6,
         padding: '8px 14px',
-        borderRadius: 8,
+        borderRadius: 'var(--radius-sm)',
         border: primary ? 'none' : danger ? '1px solid var(--alert-error-border)' : '1px solid var(--border-default)',
         background: primary ? 'linear-gradient(135deg, var(--navy-600), var(--navy-700))' : danger ? 'var(--alert-error-bg)' : 'transparent',
         color: primary ? '#fff' : danger ? 'var(--danger)' : 'var(--text-secondary)',

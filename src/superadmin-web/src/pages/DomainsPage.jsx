@@ -94,7 +94,7 @@ export default function DomainsPage() {
             alignItems: 'center',
             gap: 8,
             padding: '10px 18px',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             border: 'none',
             background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
             color: '#fff',
@@ -110,7 +110,7 @@ export default function DomainsPage() {
       </div>
 
       {error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, color: 'var(--danger)', fontSize: 14, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 14, marginBottom: 20 }}>
           <AlertTriangle size={16} /> {error}
         </div>
       )}
@@ -130,7 +130,7 @@ export default function DomainsPage() {
             onClick={() => setDomainModal({ mode: 'create' })}
             style={{
               padding: '10px 18px',
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-default)',
               background: 'var(--bg-base)',
               color: 'var(--text-primary)',
@@ -226,7 +226,7 @@ function DomainCard({
           style={{
             width: 40,
             height: 40,
-            borderRadius: 10,
+            borderRadius: 'var(--radius-md)',
             background: domain.color || '#3b82f6',
             display: 'flex',
             alignItems: 'center',
@@ -517,7 +517,7 @@ function DeleteConfirmModal({ type, name, onConfirm, onCancel }) {
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-default)',
-          borderRadius: 14,
+          borderRadius: 'var(--radius-lg)',
           width: '100%',
           maxWidth: 400,
           padding: '24px',
@@ -539,7 +539,7 @@ function DeleteConfirmModal({ type, name, onConfirm, onCancel }) {
             disabled={loading}
             style={{
               padding: '10px 16px',
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-default)',
               background: 'transparent',
               color: 'var(--text-primary)',
@@ -555,7 +555,7 @@ function DeleteConfirmModal({ type, name, onConfirm, onCancel }) {
             disabled={loading}
             style={{
               padding: '10px 16px',
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
               border: 'none',
               background: 'var(--danger)',
               color: '#fff',

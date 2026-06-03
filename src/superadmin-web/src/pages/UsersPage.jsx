@@ -147,7 +147,7 @@ export default function UsersPage() {
                   fontSize: 11,
                   fontWeight: 600,
                   padding: '2px 8px',
-                  borderRadius: 12,
+                  borderRadius: 'var(--radius-md)',
                   background: 'var(--badge-green-bg)',
                   color: 'var(--badge-green-text)',
                 }}
@@ -174,7 +174,7 @@ export default function UsersPage() {
             alignItems: 'center',
             gap: 8,
             padding: '10px 18px',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             border: 'none',
             background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
             color: '#fff',
@@ -202,7 +202,7 @@ export default function UsersPage() {
             padding: '12px 16px',
             background: 'var(--alert-error-bg)',
             border: '1px solid var(--alert-error-border)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             color: 'var(--danger)',
             fontSize: 13,
             marginBottom: 16,
@@ -236,7 +236,7 @@ export default function UsersPage() {
             gap: 10,
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-subtle)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             padding: '8px 14px',
             flex: 1,
             minWidth: 240,
@@ -267,7 +267,7 @@ export default function UsersPage() {
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-subtle)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             padding: '9px 14px',
             color: 'var(--text-primary)',
             fontSize: 13,
@@ -288,7 +288,7 @@ export default function UsersPage() {
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-subtle)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             padding: '9px 14px',
             color: 'var(--text-primary)',
             fontSize: 13,
@@ -365,7 +365,7 @@ export default function UsersPage() {
             background: 'var(--backdrop)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border-default)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-default)' }}>
             <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
             <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>Processing...</span>
           </div>

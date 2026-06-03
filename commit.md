@@ -3895,3 +3895,154 @@ feat(theming): complete light theme overhaul for all 3 sites — solid opaque ba
 ```
 
 *End of Light Theme Overhaul*
+
+---
+
+## 📅 2026-05-09 — Design Trial: Three-Way Interface Style Toggle
+
+### Summary
+Built a comprehensive design trial page in admin-web demonstrating three distinct interface styles: Tactical (military C2), SaaS (clean modern dashboard), and Glass (awwwards-style glassmorphism with mesh gradient). Each style is fully tokenized and switchable via a segmented control. The trial informed the production implementation plan.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/DesignTrial.jsx` | Complete rewrite with token context architecture. Three token sets: TOKENS_TACTICAL, TOKENS_SAAS_DARK, TOKENS_GLASS. All components consume from context. Conditional backdrop-filter for glass cards. Mesh gradient background. Glowing hover borders. |
+
+### Three Styles Defined
+
+| Style | Key Traits |
+|:--|:--|
+| **Tactical** | Space Grotesk, uppercase labels, film grain, radial crimson gradient, heavy shadows, sharp radius |
+| **SaaS** | Inter font, sentence case, no grain, soft shadows, subtle borders, more spacing |
+| **Glass** | Inter font, glassmorphism cards (backdrop-filter blur), mesh gradient background, glow-based hover, large radius (20px+), no drop shadows |
+
+### Git Commit
+
+```
+feat: build three-way interface style trial with tactical, saas, and glassmorphism tokens
+```
+
+*End of session*
+
+---
+
+## 📅 2026-05-09 — Interface Implementation Plan Document
+
+### Summary
+Created `interfacePlan.md` — a comprehensive 618-line document serving as the single source of truth for rolling out the three interface styles across all three frontends. Includes architecture, token references, per-site roadmap, component migration guide, testing checklist, commit rules, and three resume prompts for post-compaction context recovery.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `interfacePlan.md` | **New** — Complete implementation plan document |
+
+### Git Commit
+
+```
+docs: create interfacePlan.md with full architecture, tokens, roadmap, and resume prompts for three-site rollout
+```
+
+*End of session*
+
+---
+
+## 📅 2026-06-03 — Superadmin-Web: Three Interface Styles (Tactical, SaaS, Glass)
+
+### Summary
+Implemented the three switchable interface styles in superadmin-web: Tactical (default, military C2), SaaS (clean modern dashboard), and Glass (awwwards-style glassmorphism with navy blue mesh gradient). Extended shared ThemeContext with 2D state (color mode × interface style), added a style toggle dropdown in the TopBar, and audited all card/panel components to use CSS variable-driven radius, shadow, and background.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/shared/theme-context.jsx` | Extended with `style` state (`tactical`/`saas`/`glass`), `setStyle`, `STYLE_KEY` localStorage persistence, and `data-style` attribute on `<html>`. Backward-compatible — defaults to `tactical`. |
+| `src/shared/useStyle.js` | **New** — Convenience hook exporting `{ style, setStyle }` from ThemeContext. |
+| `src/shared/design-tokens.css` | Added Google Font import for `Inter` family alongside existing `Space Grotesk`. |
+| `src/superadmin-web/src/index.css` | Added `[data-style="saas"]`, `[data-style="glass"]` (dark + light), and `[data-style="tactical"]` grain overlay blocks. Added `.glass-card` utility. Added `--radius-*` and `--bg-gradient` tokens. Updated `.console-card` to use `var(--radius-md)` and added glass hover glow. Added glass backdrop-filter overrides for `aside` (sidebar) and `header` (topbar). |
+| `src/superadmin-web/src/components/Layout/TopBar.jsx` | Added style toggle dropdown with Palette icon. Three options: Tactical (T), SaaS (S), Glass (G). Styled with active-state highlighting. |
+| `src/superadmin-web/src/components/Layout/Layout.jsx` | Changed main container background from `var(--bg-base)` to `var(--bg-gradient)`. |
+| `src/superadmin-web/src/components/Layout/Sidebar.jsx` | Nav item radius changed from hardcoded `8` to `var(--radius-sm)`. |
+| `src/superadmin-web/src/pages/DashboardPage.jsx` | KPICard and activity panel already used `console-card` class — no changes needed. |
+| `src/superadmin-web/src/components/Login/LoginPage.jsx` | Login card radius → `var(--radius-lg)`, shadow → `var(--shadow-glow)`. |
+| `src/superadmin-web/src/components/Users/CreateUserModal.jsx` | Modal radius → `var(--radius-lg)`. Input and alert radii → `var(--radius-sm)`. |
+| `src/superadmin-web/src/components/Users/UserTable.jsx` | Table container radius → `var(--radius-md)`. Action button radii → `var(--radius-sm)`. |
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | All alert/info box radii → `var(--radius-sm)`. |
+| `src/superadmin-web/src/components/Users/BulkActionBar.jsx` | Bar radius → `var(--radius-md)`. |
+| `src/superadmin-web/src/components/Audit/AuditTable.jsx` | Table container radius → `var(--radius-md)`. |
+| `src/superadmin-web/src/components/Audit/AuditFilters.jsx` | Filter container and input radii → `var(--radius-sm)`. |
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Timeline item radius → `var(--radius-sm)`. |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserTable.jsx` | Table container radius → `var(--radius-md)`. |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Alert/info box radii → `var(--radius-sm)`. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Description, source, metadata, modal, and alert radii → `var(--radius-sm)`. |
+| `src/superadmin-web/src/pages/PublicUsersPage.jsx` | Card radius → `var(--radius-md)`. |
+| `src/superadmin-web/src/pages/UsersPage.jsx` | Card radius → `var(--radius-md)`. |
+| `src/superadmin-web/src/pages/RecycleBinPage.jsx` | Card radii → `var(--radius-md)`. |
+
+### Key Design Decisions
+
+- **Navy blue accent preserved** for superadmin-web. Glass mesh gradient uses blue/purple blobs (`rgba(37,99,235,0.25)`, `rgba(59,130,246,0.18)`, `rgba(139,92,246,0.08)`) instead of crimson.
+- **Grain overlay** only appears in Tactical style via `[data-style="tactical"] body::after`.
+- **Glass cards** use `backdrop-filter: blur(16px) saturate(1.2)` with `rgba(255,255,255,0.04)` surface background and navy glow on hover.
+- **Backward compatibility**: Tactical is the default. Existing users see zero change.
+
+### Build Verification
+
+| App | Status |
+|:--|:--|
+| superadmin-web | ✅ Build succeeded (2.78s) |
+| admin-web | ✅ Build succeeded (2.36s) — no regressions from shared changes |
+| user-web | ✅ Build succeeded (2.69s) — no regressions from shared changes |
+
+### Git Commit
+
+```
+feat: implement Tactical, SaaS, and Glass interface styles in superadmin-web with extended ThemeContext, style toggle, and per-style CSS overrides
+```
+
+*End of session*
+
+---
+
+## 📅 2026-06-03 — User-Web: Three Interface Styles (Tactical, SaaS, Glass)
+
+### Summary
+Implemented the three switchable interface styles in user-web. Added crimson-accented `[data-style]` CSS overrides, a style toggle in the Header, and adapted the hero section for all three styles. Audited and fixed hardcoded borderRadius values across components.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/index.css` | Added `[data-style="saas"]`, `[data-style="glass"]` (dark + light), and `[data-style="tactical"]` grain overlay blocks. Added `.glass-card` utility. Added glass overrides for header, stat cards, category cards, event cards. Added glass hero overlay (lighter) and scanline hide. Added SaaS scanline lightening. |
+| `src/user-web/src/components/Layout/Header.jsx` | Added style toggle dropdown with Palette icon (Tac / SaaS / Glass). Imported `useStyle` hook. |
+| `src/user-web/src/App.jsx` | Changed root container background from `var(--bg-deep)` to `var(--bg-gradient)`. |
+| `src/user-web/src/components/Layout/Footer.jsx` | Hardcoded `borderRadius: '6px'` → `var(--radius-sm)`. |
+| `src/user-web/src/components/LiveActivity/LiveActivityFeed.jsx` | Hardcoded `borderRadius: '10px'` → `var(--radius-md)`. |
+| `src/user-web/src/components/IncidentList/IncidentSidebar.jsx` | Hardcoded `borderRadius: '10px'` → `var(--radius-md)` (2 instances). |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` | Hardcoded `borderRadius: '10px'` → `var(--radius-md)`. |
+
+### Key Design Decisions
+
+- **Crimson accent** for user-web. Glass mesh gradient uses crimson blobs (`rgba(90,1,28,0.3)`, `rgba(159,18,57,0.2)`) with a subtle blue accent.
+- **Hero section adaptations** handled entirely in CSS:
+  - Tactical: heavy overlay gradients + visible scanline + grain
+  - SaaS: same overlay but lighter scanline, no grain
+  - Glass: much lighter overlay, no scanline, no grain, mesh gradient background
+- **Card glass effects** applied via `[data-style="glass"]` selectors on `.home-stat-card`, `.home-category-card`, `.home-event-card` with backdrop blur and crimson glow hover.
+
+### Build Verification
+
+| App | Status |
+|:--|:--|
+| user-web | ✅ Build succeeded (2.55s) |
+| superadmin-web | ✅ Build succeeded (2.87s) — no regressions |
+| admin-web | ✅ Build succeeded (2.40s) — no regressions |
+
+### Git Commit
+
+```
+feat: implement Tactical, SaaS, and Glass interface styles in user-web with style toggle, hero adaptations, and glass card overrides
+```
+
+*End of session*

@@ -8,7 +8,7 @@ export default function Layout() {
   const isMapPage = location.pathname === '/superadmin/map';
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-gradient)' }}>
       <Sidebar />
       <div
         style={{

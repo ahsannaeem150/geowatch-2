@@ -204,12 +204,12 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
 
       {/* Action messages */}
       {actionError && (
-        <div style={{ padding: '10px 14px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: '8px', color: 'var(--danger)', fontSize: '12px', fontWeight: 500 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: '12px', fontWeight: 500 }}>
           {actionError}
         </div>
       )}
       {actionSuccess && (
-        <div style={{ padding: '10px 14px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: '8px', color: 'var(--success)', fontSize: '12px', fontWeight: 500 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: 'var(--radius-sm)', color: 'var(--success)', fontSize: '12px', fontWeight: 500 }}>
           {actionSuccess}
         </div>
       )}
@@ -235,7 +235,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                   padding: '6px 14px',
                   fontSize: '12px',
                   fontWeight: 700,
-                  borderRadius: '6px',
+                  borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--navy-500)',
                   background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
                   color: '#fff',
@@ -252,7 +252,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                     padding: '6px 14px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    borderRadius: '6px',
+                    borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--warning)',
                     background: 'var(--alert-warning-bg)',
                     color: 'var(--warning)',
@@ -269,7 +269,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                   padding: '6px 14px',
                   fontSize: '12px',
                   fontWeight: 700,
-                  borderRadius: '6px',
+                  borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--danger)',
                   background: 'var(--alert-error-bg)',
                   color: 'var(--danger)',
@@ -291,7 +291,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 color: catColor,
                 background: `${catColor}18`,
                 padding: '3px 10px',
-                borderRadius: '4px',
+                  borderRadius: 'var(--radius-sm)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
               }}
@@ -305,7 +305,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 color: (SEVERITY_SCALE.find((s) => s.value === inc.severity) || SEVERITY_SCALE[2]).color,
                 background: `${(SEVERITY_SCALE.find((s) => s.value === inc.severity) || SEVERITY_SCALE[2]).color}18`,
                 padding: '3px 10px',
-                borderRadius: '4px',
+                  borderRadius: 'var(--radius-sm)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
               }}
@@ -320,7 +320,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                   color: vCfg.color,
                   background: `${vCfg.color}18`,
                   padding: '3px 10px',
-                  borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                 }}
@@ -335,7 +335,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 color: inc.status === 'active' ? '#22c55e' : 'var(--text-muted)',
                 background: inc.status === 'active' ? 'var(--alert-success-bg)' : 'rgba(107, 114, 128, 0.1)',
                 padding: '3px 10px',
-                borderRadius: '4px',
+                  borderRadius: 'var(--radius-sm)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
               }}
@@ -360,7 +360,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
 
           {/* Description */}
           {inc.description && (
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, padding: '12px', background: 'var(--bg-elevated)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
               {inc.description}
             </div>
           )}
@@ -400,7 +400,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
 
           {/* Admin Metadata */}
           {adminMode && (
-            <div style={{ marginTop: '8px', padding: '12px', background: 'var(--bg-elevated)', borderRadius: '8px', border: '1px dashed var(--border-subtle)' }}>
+            <div style={{ marginTop: '8px', padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-subtle)' }}>
               <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                 Debug Metadata
               </h3>
@@ -436,7 +436,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 padding: '8px 16px',
                 fontSize: '13px',
                 fontWeight: 600,
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border-subtle)',
                 background: 'transparent',
                 color: 'var(--text-secondary)',
@@ -452,7 +452,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 padding: '8px 16px',
                 fontSize: '13px',
                 fontWeight: 700,
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--warning)',
                 background: 'var(--alert-warning-bg)',
                 color: 'var(--warning)',
@@ -482,7 +482,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 padding: '8px 16px',
                 fontSize: '13px',
                 fontWeight: 600,
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border-subtle)',
                 background: 'transparent',
                 color: 'var(--text-secondary)',
@@ -498,7 +498,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 padding: '8px 16px',
                 fontSize: '13px',
                 fontWeight: 700,
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--danger)',
                 background: 'var(--alert-error-bg)',
                 color: 'var(--danger)',
@@ -690,7 +690,7 @@ function SourceItem({ source }) {
   const svCfg = source.verification_status ? SOURCE_VERIFICATION_CONFIG[source.verification_status] : null;
 
   return (
-    <div style={{ padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+    <div style={{ padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
           {source.source_type?.replace(/_/g, ' ')}

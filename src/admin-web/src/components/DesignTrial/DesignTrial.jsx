@@ -77,6 +77,7 @@ const TOKENS_TACTICAL = {
   cardHoverLift: true,
   dotRadius: '50%',
   accentLineColor: '#5a011c',
+  glassBlur: null,
 };
 
 /* ─── SaaS Tokens (Dark) ─── */
@@ -142,58 +143,59 @@ const TOKENS_SAAS_DARK = {
   cardHoverLift: true,
   dotRadius: '50%',
   accentLineColor: '#5a011c',
+  glassBlur: null,
 };
 
-/* ─── Editorial Tokens ─── */
-const TOKENS_EDITORIAL = {
-  bg: '#000000',
-  bgSurface: '#0a0a0a',
-  bgElevated: '#111111',
-  bgHover: '#1a1a1a',
-  border: '#333333',
-  borderHover: '#555555',
+/* ─── Glass Tokens ─── */
+const TOKENS_GLASS = {
+  bg: '#050505',
+  bgSurface: 'rgba(255,255,255,0.04)',
+  bgElevated: 'rgba(255,255,255,0.07)',
+  bgHover: 'rgba(255,255,255,0.10)',
+  border: 'rgba(255,255,255,0.08)',
+  borderHover: 'rgba(255,255,255,0.25)',
   text: '#ffffff',
-  textSecondary: '#888888',
-  textMuted: '#555555',
+  textSecondary: '#b4b4b4',
+  textMuted: '#6b7280',
 
-  accent: '#9f1239',
-  accentLight: '#be123c',
-  accentGlow: 'rgba(159,18,57,0.15)',
-  accentGlowStrong: 'rgba(190,18,60,0.25)',
+  accent: '#5a011c',
+  accentLight: '#9f1239',
+  accentGlow: 'rgba(90,1,28,0.35)',
+  accentGlowStrong: 'rgba(159,18,57,0.55)',
 
-  danger: '#9f1239',
-  dangerLight: '#be123c',
-  warning: '#d97706',
-  success: '#16a34a',
-  info: '#2563eb',
-  purple: '#9333ea',
-  teal: '#0d9488',
-  gray: '#555555',
+  danger: '#5a011c',
+  dangerLight: '#9f1239',
+  warning: '#f59e0b',
+  success: '#22c55e',
+  info: '#3b82f6',
+  purple: '#a855f7',
+  teal: '#14b8a6',
+  gray: '#6b7280',
 
   fontSans: "'Inter', system-ui, sans-serif",
   fontMono: "'JetBrains Mono', monospace",
 
-  radiusSm: '0px',
-  radiusMd: '0px',
-  radiusLg: '0px',
-  radiusXl: '0px',
-  radiusPill: '0px',
+  radiusSm: '12px',
+  radiusMd: '16px',
+  radiusLg: '20px',
+  radiusXl: '24px',
+  radiusPill: '999px',
 
   labelTransform: 'none',
-  labelLetterSpacing: '0.3px',
-  labelFontSize: '12px',
-  labelFontWeight: 500,
+  labelLetterSpacing: '0.5px',
+  labelFontSize: '11px',
+  labelFontWeight: 600,
 
   grain: false,
   grainOpacity: 0,
 
-  pageBackground: '#000000',
+  pageBackground: 'radial-gradient(ellipse at 15% 25%, rgba(90,1,28,0.3) 0%, transparent 55%), radial-gradient(ellipse at 85% 75%, rgba(159,18,57,0.2) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(37,99,235,0.08) 0%, transparent 60%), #050505',
 
   shadowCard: 'none',
-  shadowCardHover: 'none',
-  shadowElevated: 'none',
-  shadowModal: 'none',
-  shadowGlow: 'none',
+  shadowCardHover: '0 0 40px rgba(159,18,57,0.2), inset 0 0 30px rgba(255,255,255,0.02)',
+  shadowElevated: '0 8px 32px rgba(0,0,0,0.3)',
+  shadowModal: '0 24px 64px rgba(0,0,0,0.5)',
+  shadowGlow: '0 0 30px',
 
   bodyLineHeight: 1.6,
   cardPadding: '28px',
@@ -204,9 +206,10 @@ const TOKENS_EDITORIAL = {
   headerGap: '14px',
   headerMarginBottom: '64px',
 
-  cardHoverLift: false,
-  dotRadius: '0px',
-  accentLineColor: '#ffffff',
+  cardHoverLift: true,
+  dotRadius: '50%',
+  accentLineColor: '#5a011c',
+  glassBlur: 'blur(16px) saturate(1.2)',
 };
 
 /* ─── Components ─── */
@@ -291,6 +294,7 @@ function Inp({ placeholder, icon, style = {}, w = '200px' }) {
           width: w,
           boxShadow: f ? `0 0 0 3px ${d.accentGlow}` : 'none',
           transition: 'all 0.2s ease',
+          ...(d.glassBlur ? { backdropFilter: d.glassBlur, WebkitBackdropFilter: d.glassBlur } : {}),
           ...style,
         }}
       />
@@ -316,6 +320,7 @@ function Card({ children, style = {}, pad, accentLeft = false }) {
         transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
         boxShadow: h ? d.shadowCardHover : d.shadowCard,
         transform: (d.cardHoverLift && h) ? 'translateY(-2px)' : 'none',
+        ...(d.glassBlur ? { backdropFilter: d.glassBlur, WebkitBackdropFilter: d.glassBlur } : {}),
         ...style,
       }}
     >
@@ -590,6 +595,7 @@ function ModalPreview() {
             width: '400px',
             maxWidth: '90vw',
             boxShadow: d.shadowModal,
+            ...(d.glassBlur ? { backdropFilter: d.glassBlur, WebkitBackdropFilter: d.glassBlur } : {}),
           }}
         >
           <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600 }}>Confirm Action</h3>
@@ -612,7 +618,7 @@ function StyleToggle({ value, onChange }) {
   const options = [
     { key: 'tactical', label: 'Tactical' },
     { key: 'saas', label: 'SaaS' },
-    { key: 'editorial', label: 'Editorial' },
+    { key: 'glass', label: 'Glass' },
   ];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -663,7 +669,7 @@ export default function DesignTrial() {
   const TOKEN_MAP = {
     tactical: TOKENS_TACTICAL,
     saas: TOKENS_SAAS_DARK,
-    editorial: TOKENS_EDITORIAL,
+    glass: TOKENS_GLASS,
   };
   const d = TOKEN_MAP[uiStyle];
 
@@ -739,7 +745,7 @@ export default function DesignTrial() {
             <StyleToggle value={uiStyle} onChange={setUiStyle} />
           </div>
           <p style={{ color: d.textSecondary, fontSize: '16px', margin: 0, maxWidth: '540px', lineHeight: 1.6 }}>
-            Toggle between Tactical, SaaS, and Editorial interface styles. All three run in dark mode for direct comparison.
+            Toggle between Tactical, SaaS, and Glass interface styles. All three run in dark mode for direct comparison.
           </p>
         </div>
 
@@ -986,6 +992,7 @@ export default function DesignTrial() {
               justifyContent: 'space-between',
               maxWidth: '960px',
               boxShadow: d.shadowElevated,
+              ...(d.glassBlur ? { backdropFilter: d.glassBlur, WebkitBackdropFilter: d.glassBlur } : {}),
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
@@ -1125,7 +1132,7 @@ export default function DesignTrial() {
           <div style={{ maxWidth: '680px', fontSize: '15px', color: d.textSecondary, lineHeight: 1.8 }}>
             <p style={{ margin: '0 0 12px' }}>
               <strong style={{ color: d.text }}>Three interface styles.</strong> Toggle between
-              Tactical (military C2), SaaS (clean modern dashboard), and Editorial (Swiss minimal / flat).
+              Tactical (military C2), SaaS (clean modern dashboard), and Glass (awwwards-style glassmorphism).
               All run in dark mode for direct comparison.
             </p>
             <p style={{ margin: '0 0 12px' }}>
@@ -1137,13 +1144,13 @@ export default function DesignTrial() {
               no grain, soft ambient shadows, subtle borders, more spacing.
             </p>
             <p style={{ margin: '0 0 12px' }}>
-              <strong style={{ color: d.text }}>Editorial style.</strong> Inter font, sentence case,
-              zero border radius, no shadows, flat pure black background, explicit visible borders,
-              lighter label weight, square status indicators.
+              <strong style={{ color: d.text }}>Glass style.</strong> Inter font, glassmorphism cards
+              with backdrop-filter blur, mesh gradient background, glowing crimson borders on hover,
+              large border radius (20px+), no heavy drop shadows — depth comes from blur and glow.
             </p>
             <p style={{ margin: 0 }}>
               <strong style={{ color: d.text }}>Token architecture.</strong> All style decisions
-              pulled from token objects — radius, typography, spacing, shadows, transforms.
+              pulled from token objects — radius, typography, spacing, shadows, transforms, glass blur.
               Ready for light mode expansion.
             </p>
           </div>
@@ -1152,7 +1159,7 @@ export default function DesignTrial() {
         {/* Footer */}
         <div style={{ marginTop: '64px', paddingTop: '24px', borderTop: `1px solid ${d.border}` }}>
           <p style={{ fontSize: '13px', color: d.textMuted }}>
-            Trial v5 — Three-Way Style Test. Toggle above to compare Tactical, SaaS, and Editorial aesthetics.
+            Trial v5 — Three-Way Style Test. Toggle above to compare Tactical, SaaS, and Glass aesthetics.
           </p>
         </div>
       </div>

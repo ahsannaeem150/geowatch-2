@@ -229,7 +229,7 @@ function TimelineItemContent({ log, isLast, actorName, returnPath }) {
           paddingBottom: isLast ? 0 : 18,
           minWidth: 0,
           textDecoration: 'none',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           padding: '6px 8px',
           margin: '-6px -8px',
           transition: 'background 0.15s ease',

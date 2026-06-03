@@ -68,7 +68,7 @@ function AppContent() {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: 'var(--bg-deep)',
+        background: 'var(--bg-gradient)',
         color: 'var(--text-primary)',
         fontFamily: 'var(--font-sans)',
         overflow: isMapPage ? 'hidden' : 'auto',

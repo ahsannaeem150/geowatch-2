@@ -315,7 +315,7 @@ export default function SuperadminMap({
             padding: '8px 14px',
             fontSize: '12px',
             fontWeight: 700,
-            borderRadius: '8px',
+            borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--navy-500)',
             background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
             color: '#fff',

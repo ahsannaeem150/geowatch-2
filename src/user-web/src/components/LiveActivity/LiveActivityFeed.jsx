@@ -158,7 +158,7 @@ export default function LiveActivityFeed({
                 color: 'var(--danger-light)',
                 background: 'rgba(220, 38, 38, 0.12)',
                 padding: '2px 8px',
-                borderRadius: '10px',
+                borderRadius: 'var(--radius-md)',
               }}
             >
               {unreadCount} new

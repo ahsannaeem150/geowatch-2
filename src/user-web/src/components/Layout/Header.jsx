@@ -1,15 +1,25 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, Palette } from 'lucide-react';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
+import { useStyle } from '@shared/useStyle.js';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+const STYLES = [
+  { key: 'tactical', label: 'Tac', short: 'T' },
+  { key: 'saas', label: 'SaaS', short: 'S' },
+  { key: 'glass', label: 'Glass', short: 'G' },
+];
+
 export default function Header() {
   const location = useLocation();
   const { user, login, logout, isAuthenticated, loading: authLoading } = usePublicAuth();
+  const { style, setStyle } = useStyle();
   const [scrolled, setScrolled] = useState(false);
+  const [styleMenuOpen, setStyleMenuOpen] = useState(false);
+  const styleMenuRef = useRef(null);
   const [googleReady, setGoogleReady] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -21,6 +31,16 @@ export default function Header() {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (styleMenuRef.current && !styleMenuRef.current.contains(e.target)) {
+        setStyleMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   const handleCredentialResponse = useCallback(
@@ -120,7 +140,7 @@ export default function Header() {
           style={{
             width: '28px',
             height: '28px',
-            borderRadius: '8px',
+            borderRadius: 'var(--radius-sm)',
             background: 'var(--accent)',
             display: 'flex',
             alignItems: 'center',
@@ -163,8 +183,112 @@ export default function Header() {
         })}
       </nav>
 
-      {/* Right: Theme toggle + Auth */}
+      {/* Right: Style toggle + Theme toggle + Auth */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Style toggle */}
+        <div ref={styleMenuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setStyleMenuOpen(!styleMenuOpen)}
+            title="Interface style"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-subtle)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              textTransform: 'capitalize',
+              transition: 'all var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-hover)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
+          >
+            <Palette size={14} />
+            <span>{STYLES.find((s) => s.key === style)?.label || style}</span>
+          </button>
+
+          {styleMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                width: 140,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                padding: '4px',
+                zIndex: 200,
+                animation: 'fade-in 0.15s ease forwards',
+              }}
+            >
+              {STYLES.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => {
+                    setStyle(s.key);
+                    setStyleMenuOpen(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: style === s.key ? 'var(--bg-hover)' : 'transparent',
+                    border: 'none',
+                    color: style === s.key ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    textTransform: 'capitalize',
+                    transition: 'background var(--transition-fast)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (style !== s.key) e.currentTarget.style.background = 'var(--bg-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (style !== s.key) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background: style === s.key ? 'var(--accent)' : 'var(--bg-hover)',
+                      color: style === s.key ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    {s.short}
+                  </span>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <ThemeToggle />
 
         {/* Key forces complete DOM remount on auth change — prevents Google's button from persisting */}

@@ -70,7 +70,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-default)',
-          borderRadius: 14,
+          borderRadius: 'var(--radius-lg)',
           width: '100%',
           maxWidth: 480,
           maxHeight: '90vh',
@@ -112,12 +112,12 @@ export default function DomainModal({ domain, onClose, onSaved }) {
 
         <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13 }}>
               <AlertCircle size={16} /> {error}
             </div>
           )}
           {success && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: 8, color: 'var(--success)', fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: 'var(--radius-sm)', color: 'var(--success)', fontSize: 13 }}>
               <Check size={16} /> {success}
             </div>
           )}
@@ -141,7 +141,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
                     padding: 2,
                     background: 'var(--bg-base)',
                     border: '1px solid var(--border-default)',
-                    borderRadius: 8,
+                    borderRadius: 'var(--radius-sm)',
                     cursor: 'pointer',
                   }}
                 />
@@ -155,7 +155,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
                     flex: 1,
                     background: 'var(--bg-base)',
                     border: '1px solid var(--border-default)',
-                    borderRadius: 8,
+                    borderRadius: 'var(--radius-sm)',
                     padding: '11px 14px',
                     color: 'var(--text-primary)',
                     fontSize: 14,
@@ -178,7 +178,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
                   width: '100%',
                   background: 'var(--bg-base)',
                   border: '1px solid var(--border-default)',
-                  borderRadius: 8,
+                  borderRadius: 'var(--radius-sm)',
                   padding: '11px 14px',
                   color: 'var(--text-primary)',
                   fontSize: 14,
@@ -202,7 +202,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
             style={{
               marginTop: 4,
               padding: '12px',
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
               border: 'none',
               background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
               color: '#fff',
@@ -243,7 +243,7 @@ function Field({ label, value, onChange, required }) {
         style={{
           background: 'var(--bg-base)',
           border: '1px solid var(--border-default)',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-sm)',
           padding: '11px 14px',
           color: 'var(--text-primary)',
           fontSize: 14,
@@ -276,7 +276,7 @@ function FieldArea({ label, value, onChange }) {
         style={{
           background: 'var(--bg-base)',
           border: '1px solid var(--border-default)',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-sm)',
           padding: '11px 14px',
           color: 'var(--text-primary)',
           fontSize: 14,

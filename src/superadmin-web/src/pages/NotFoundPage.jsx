@@ -41,7 +41,7 @@ export default function NotFoundPage() {
           alignItems: 'center',
           gap: 8,
           padding: '10px 18px',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-sm)',
           background: 'var(--navy-600)',
           color: '#fff',
           textDecoration: 'none',

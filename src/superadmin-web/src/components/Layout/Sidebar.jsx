@@ -95,7 +95,7 @@ export default function Sidebar() {
                 alignItems: 'center',
                 gap: 12,
                 padding: '10px 14px',
-                borderRadius: 8,
+                borderRadius: 'var(--radius-sm)',
                 textDecoration: 'none',
                 color: isActive ? 'var(--badge-blue-text)' : 'var(--text-secondary)',
                 background: isActive ? 'var(--badge-blue-bg)' : 'transparent',
