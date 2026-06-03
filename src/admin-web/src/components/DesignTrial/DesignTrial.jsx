@@ -1,9 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 
-const fontStyle = `@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');`;
+const fontImports = `
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+`;
 
-/* ─── Crimson Seal v4 — Final ─── */
-const d = {
+/* ─── Token Context ─── */
+const TokensContext = createContext(null);
+
+function useTokens() {
+  const ctx = useContext(TokensContext);
+  if (!ctx) throw new Error('useTokens must be used within a TokensContext.Provider');
+  return ctx;
+}
+
+/* ─── Tactical Tokens ─── */
+const TOKENS_TACTICAL = {
   bg: '#050505',
   bgSurface: '#0a0a0c',
   bgElevated: '#121215',
@@ -30,10 +42,177 @@ const d = {
 
   fontSans: "'Space Grotesk', system-ui, sans-serif",
   fontMono: "'JetBrains Mono', monospace",
+
+  radiusSm: '4px',
+  radiusMd: '8px',
+  radiusLg: '14px',
+  radiusXl: '16px',
+  radiusPill: '999px',
+
+  labelTransform: 'uppercase',
+  labelLetterSpacing: '2px',
+  labelFontSize: '11px',
+  labelFontWeight: 700,
+
+  grain: true,
+  grainOpacity: 0.022,
+
+  pageBackground: 'radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, #050505 55%)',
+
+  shadowCard: '0 2px 8px rgba(0,0,0,0.3)',
+  shadowCardHover: '0 8px 32px rgba(0,0,0,0.5)',
+  shadowElevated: '0 4px 24px rgba(0,0,0,0.4)',
+  shadowModal: '0 24px 64px rgba(0,0,0,0.6)',
+  shadowGlow: '0 0 24px',
+
+  bodyLineHeight: 1.5,
+  cardPadding: '24px',
+  sectionGap: '52px',
+  sectionTitleGap: '18px',
+  containerPadding: '48px',
+
+  headerGap: '12px',
+  headerMarginBottom: '56px',
+
+  cardHoverLift: true,
+  dotRadius: '50%',
+  accentLineColor: '#5a011c',
 };
 
-/* ─── Helpers ─── */
+/* ─── SaaS Tokens (Dark) ─── */
+const TOKENS_SAAS_DARK = {
+  bg: '#0c0c0c',
+  bgSurface: '#141414',
+  bgElevated: '#1c1c1c',
+  bgHover: '#242424',
+  border: 'rgba(255,255,255,0.06)',
+  borderHover: 'rgba(255,255,255,0.12)',
+  text: '#ffffff',
+  textSecondary: '#a1a1aa',
+  textMuted: '#71717a',
+
+  accent: '#5a011c',
+  accentLight: '#9f1239',
+  accentGlow: 'rgba(90,1,28,0.35)',
+  accentGlowStrong: 'rgba(159,18,57,0.55)',
+
+  danger: '#5a011c',
+  dangerLight: '#9f1239',
+  warning: '#f59e0b',
+  success: '#22c55e',
+  info: '#3b82f6',
+  purple: '#a855f7',
+  teal: '#14b8a6',
+  gray: '#71717a',
+
+  fontSans: "'Inter', system-ui, sans-serif",
+  fontMono: "'JetBrains Mono', monospace",
+
+  radiusSm: '6px',
+  radiusMd: '10px',
+  radiusLg: '14px',
+  radiusXl: '18px',
+  radiusPill: '999px',
+
+  labelTransform: 'none',
+  labelLetterSpacing: '0.3px',
+  labelFontSize: '12px',
+  labelFontWeight: 600,
+
+  grain: false,
+  grainOpacity: 0,
+
+  pageBackground: 'radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, #0c0c0c 55%)',
+
+  shadowCard: '0 2px 8px rgba(0,0,0,0.3)',
+  shadowCardHover: '0 8px 32px rgba(0,0,0,0.5)',
+  shadowElevated: '0 4px 24px rgba(0,0,0,0.4)',
+  shadowModal: '0 24px 64px rgba(0,0,0,0.6)',
+  shadowGlow: '0 0 24px',
+
+  bodyLineHeight: 1.6,
+  cardPadding: '28px',
+  sectionGap: '64px',
+  sectionTitleGap: '24px',
+  containerPadding: '48px',
+
+  headerGap: '14px',
+  headerMarginBottom: '64px',
+
+  cardHoverLift: true,
+  dotRadius: '50%',
+  accentLineColor: '#5a011c',
+};
+
+/* ─── Editorial Tokens ─── */
+const TOKENS_EDITORIAL = {
+  bg: '#000000',
+  bgSurface: '#0a0a0a',
+  bgElevated: '#111111',
+  bgHover: '#1a1a1a',
+  border: '#333333',
+  borderHover: '#555555',
+  text: '#ffffff',
+  textSecondary: '#888888',
+  textMuted: '#555555',
+
+  accent: '#9f1239',
+  accentLight: '#be123c',
+  accentGlow: 'rgba(159,18,57,0.15)',
+  accentGlowStrong: 'rgba(190,18,60,0.25)',
+
+  danger: '#9f1239',
+  dangerLight: '#be123c',
+  warning: '#d97706',
+  success: '#16a34a',
+  info: '#2563eb',
+  purple: '#9333ea',
+  teal: '#0d9488',
+  gray: '#555555',
+
+  fontSans: "'Inter', system-ui, sans-serif",
+  fontMono: "'JetBrains Mono', monospace",
+
+  radiusSm: '0px',
+  radiusMd: '0px',
+  radiusLg: '0px',
+  radiusXl: '0px',
+  radiusPill: '0px',
+
+  labelTransform: 'none',
+  labelLetterSpacing: '0.3px',
+  labelFontSize: '12px',
+  labelFontWeight: 500,
+
+  grain: false,
+  grainOpacity: 0,
+
+  pageBackground: '#000000',
+
+  shadowCard: 'none',
+  shadowCardHover: 'none',
+  shadowElevated: 'none',
+  shadowModal: 'none',
+  shadowGlow: 'none',
+
+  bodyLineHeight: 1.6,
+  cardPadding: '28px',
+  sectionGap: '64px',
+  sectionTitleGap: '24px',
+  containerPadding: '48px',
+
+  headerGap: '14px',
+  headerMarginBottom: '64px',
+
+  cardHoverLift: false,
+  dotRadius: '0px',
+  accentLineColor: '#ffffff',
+};
+
+/* ─── Components ─── */
+
 function Grain() {
+  const d = useTokens();
   return (
     <div
       style={{
@@ -41,7 +220,7 @@ function Grain() {
         inset: 0,
         pointerEvents: 'none',
         zIndex: 9999,
-        opacity: 0.022,
+        opacity: d.grainOpacity,
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         backgroundRepeat: 'repeat',
         backgroundSize: '128px',
@@ -51,6 +230,7 @@ function Grain() {
 }
 
 function Btn({ children, variant = 'primary', onClick, style = {} }) {
+  const d = useTokens();
   const [h, setH] = useState(false);
   const v = {
     primary: { bg: d.accent, color: '#f2f2f2', border: 'none', hBg: d.accentLight, hShadow: `0 4px 24px ${d.accentGlowStrong}` },
@@ -71,13 +251,13 @@ function Btn({ children, variant = 'primary', onClick, style = {} }) {
         fontWeight: 600,
         fontFamily: d.fontSans,
         letterSpacing: '0.2px',
-        borderRadius: '8px',
+        borderRadius: d.radiusMd,
         cursor: 'pointer',
         border: v.border,
         background: h ? v.hBg : v.bg,
         color: v.color,
         boxShadow: h ? v.hShadow : 'none',
-        transform: h ? 'translateY(-1px)' : 'none',
+        transform: (d.cardHoverLift && h) ? 'translateY(-1px)' : 'none',
         transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
         outline: 'none',
         ...style,
@@ -89,6 +269,7 @@ function Btn({ children, variant = 'primary', onClick, style = {} }) {
 }
 
 function Inp({ placeholder, icon, style = {}, w = '200px' }) {
+  const d = useTokens();
   const [f, setF] = useState(false);
   return (
     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -100,7 +281,7 @@ function Inp({ placeholder, icon, style = {}, w = '200px' }) {
         style={{
           height: '40px',
           padding: icon ? '0 12px 0 36px' : '0 14px',
-          borderRadius: '8px',
+          borderRadius: d.radiusMd,
           border: `1px solid ${f ? d.accentLight : d.border}`,
           background: d.bgSurface,
           color: d.text,
@@ -117,8 +298,10 @@ function Inp({ placeholder, icon, style = {}, w = '200px' }) {
   );
 }
 
-function Card({ children, style = {}, pad = '24px', accentLeft = false }) {
+function Card({ children, style = {}, pad, accentLeft = false }) {
+  const d = useTokens();
   const [h, setH] = useState(false);
+  const padding = pad ?? d.cardPadding;
   return (
     <div
       onMouseEnter={() => setH(true)}
@@ -126,13 +309,13 @@ function Card({ children, style = {}, pad = '24px', accentLeft = false }) {
       style={{
         background: d.bgSurface,
         border: `1px solid ${h ? d.borderHover : d.border}`,
-        borderRadius: '14px',
-        padding: pad,
+        borderRadius: d.radiusLg,
+        padding,
         position: 'relative',
         overflow: 'hidden',
         transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
-        boxShadow: h ? '0 8px 32px rgba(0,0,0,0.5)' : '0 2px 8px rgba(0,0,0,0.3)',
-        transform: h ? 'translateY(-2px)' : 'none',
+        boxShadow: h ? d.shadowCardHover : d.shadowCard,
+        transform: (d.cardHoverLift && h) ? 'translateY(-2px)' : 'none',
         ...style,
       }}
     >
@@ -145,7 +328,7 @@ function Card({ children, style = {}, pad = '24px', accentLeft = false }) {
             bottom: '20px',
             width: '3px',
             borderRadius: '0 2px 2px 0',
-            background: d.accent,
+            background: d.accentLineColor,
             opacity: 0.7,
             transition: 'opacity 0.2s ease',
           }}
@@ -157,9 +340,18 @@ function Card({ children, style = {}, pad = '24px', accentLeft = false }) {
 }
 
 function Section({ title, children }) {
+  const d = useTokens();
   return (
-    <div style={{ marginTop: '52px' }}>
-      <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', color: d.textMuted, marginBottom: '18px', fontFamily: d.fontSans }}>
+    <div style={{ marginTop: d.sectionGap }}>
+      <div style={{
+        fontSize: d.labelFontSize,
+        fontWeight: d.labelFontWeight,
+        textTransform: d.labelTransform,
+        letterSpacing: d.labelLetterSpacing,
+        color: d.textMuted,
+        marginBottom: d.sectionTitleGap,
+        fontFamily: d.fontSans,
+      }}>
         {title}
       </div>
       {children}
@@ -167,8 +359,9 @@ function Section({ title, children }) {
   );
 }
 
-/* ─── Pill Badge — brighter tints ─── */
-function Pill({ children, color = d.accent, dot = false }) {
+function Pill({ children, color, dot = false }) {
+  const d = useTokens();
+  const c = color || d.accent;
   return (
     <span
       style={{
@@ -176,25 +369,25 @@ function Pill({ children, color = d.accent, dot = false }) {
         alignItems: 'center',
         gap: dot ? '6px' : 0,
         padding: '3px 10px',
-        borderRadius: '999px',
+        borderRadius: d.radiusPill,
         fontSize: '11px',
         fontWeight: 700,
         textTransform: 'uppercase',
         letterSpacing: '0.6px',
         fontFamily: d.fontSans,
-        background: `${color}1a`,
-        color,
-        border: `1px solid ${color}40`,
+        background: `${c}1a`,
+        color: c,
+        border: `1px solid ${c}40`,
       }}
     >
-      {dot && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color }} />}
+      {dot && <span style={{ width: '5px', height: '5px', borderRadius: d.dotRadius, background: c }} />}
       {children}
     </span>
   );
 }
 
-/* ─── Severity Badge — flat, consistent, intimidating ─── */
 function SeverityStamp({ level = 3 }) {
+  const d = useTokens();
   const map = {
     1: { label: 'LOW',         color: '#4ade80' },
     2: { label: 'MODERATE',    color: '#fbbf24' },
@@ -211,7 +404,7 @@ function SeverityStamp({ level = 3 }) {
         alignItems: 'center',
         gap: '6px',
         padding: '4px 10px',
-        borderRadius: '6px',
+        borderRadius: d.radiusSm,
         background: `${s.color}10`,
         border: `1px solid ${s.color}30`,
         fontFamily: d.fontSans,
@@ -253,18 +446,19 @@ function SeverityStamp({ level = 3 }) {
   );
 }
 
-/* ─── Status Dot — brighter colors ─── */
-function StatusDot({ color = d.success, label }) {
+function StatusDot({ color, label }) {
+  const d = useTokens();
+  const c = color || d.success;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: d.textSecondary, fontWeight: 500 }}>
-      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, boxShadow: `0 0 8px ${color}80` }} />
+      <span style={{ width: '7px', height: '7px', borderRadius: d.dotRadius, background: c, boxShadow: `0 0 8px ${c}80` }} />
       {label}
     </span>
   );
 }
 
-/* ─── Data Table ─── */
 function DataTable() {
+  const d = useTokens();
   const incidents = [
     { title: 'Border Clash in Kashmir', cat: 'Conflict', sev: 5, status: 'active', loc: 'Jammu & Kashmir', date: 'May 03' },
     { title: 'Protests in Islamabad', cat: 'Protest', sev: 2, status: 'active', loc: 'Islamabad, Pakistan', date: 'May 02' },
@@ -275,7 +469,7 @@ function DataTable() {
   const statusColors = { active: d.success, resolved: d.gray, pending: d.warning };
 
   return (
-    <div style={{ overflow: 'hidden', borderRadius: '10px', border: `1px solid ${d.border}` }}>
+    <div style={{ overflow: 'hidden', borderRadius: d.radiusMd, border: `1px solid ${d.border}` }}>
       <div
         style={{
           display: 'grid',
@@ -283,10 +477,10 @@ function DataTable() {
           gap: '12px',
           padding: '10px 16px',
           background: d.bgElevated,
-          fontSize: '10px',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '1.2px',
+          fontSize: d.labelFontSize,
+          fontWeight: d.labelFontWeight,
+          textTransform: d.labelTransform,
+          letterSpacing: d.labelLetterSpacing,
           color: d.textMuted,
         }}
       >
@@ -313,10 +507,10 @@ function DataTable() {
           onMouseEnter={(ev) => (ev.currentTarget.style.background = d.bgHover)}
           onMouseLeave={(ev) => (ev.currentTarget.style.background = 'transparent')}
         >
-          <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.title}</div>
+          <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>
           <div><Pill color={catColors[e.cat]}>{e.cat}</Pill></div>
           <div><SeverityStamp level={e.sev} /></div>
-          <div><StatusDot color={statusColors[i.status]} label={i.status} /></div>
+          <div><StatusDot color={statusColors[e.status]} label={e.status} /></div>
           <div style={{ color: d.textSecondary, fontSize: '12px' }}>{e.loc}</div>
         </div>
       ))}
@@ -324,14 +518,14 @@ function DataTable() {
   );
 }
 
-/* ─── Skeleton ─── */
 function Skeleton({ w = '100%', h = '16px', style = {} }) {
+  const d = useTokens();
   return (
     <div
       style={{
         width: w,
         height: h,
-        borderRadius: '4px',
+        borderRadius: d.radiusSm,
         background: d.border,
         animation: 'shimmer 1.8s infinite',
         backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)',
@@ -342,8 +536,8 @@ function Skeleton({ w = '100%', h = '16px', style = {} }) {
   );
 }
 
-/* ─── Toast ─── */
 function Toast({ type = 'success', message }) {
+  const d = useTokens();
   const colors = {
     success: { bg: `${d.success}12`, border: `${d.success}30`, dot: d.success },
     error: { bg: `${d.accentLight}12`, border: `${d.accentLight}30`, dot: d.dangerLight },
@@ -357,7 +551,7 @@ function Toast({ type = 'success', message }) {
         alignItems: 'center',
         gap: '10px',
         padding: '10px 16px',
-        borderRadius: '10px',
+        borderRadius: d.radiusMd,
         background: c.bg,
         border: `1px solid ${c.border}`,
         fontSize: '13px',
@@ -365,14 +559,14 @@ function Toast({ type = 'success', message }) {
         maxWidth: '360px',
       }}
     >
-      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+      <span style={{ width: '8px', height: '8px', borderRadius: d.dotRadius, background: c.dot, flexShrink: 0 }} />
       <span>{message}</span>
     </div>
   );
 }
 
-/* ─── Modal Preview ─── */
 function ModalPreview() {
+  const d = useTokens();
   return (
     <div style={{ position: 'relative' }}>
       <div
@@ -391,11 +585,11 @@ function ModalPreview() {
           style={{
             background: d.bgSurface,
             border: `1px solid ${d.border}`,
-            borderRadius: '16px',
+            borderRadius: d.radiusXl,
             padding: '28px',
             width: '400px',
             maxWidth: '90vw',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+            boxShadow: d.shadowModal,
           }}
         >
           <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600 }}>Confirm Action</h3>
@@ -412,75 +606,140 @@ function ModalPreview() {
   );
 }
 
+/* ─── Style Toggle Component ─── */
+function StyleToggle({ value, onChange }) {
+  const d = useTokens();
+  const options = [
+    { key: 'tactical', label: 'Tactical' },
+    { key: 'saas', label: 'SaaS' },
+    { key: 'editorial', label: 'Editorial' },
+  ];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <span style={{ fontSize: '12px', color: d.textMuted, fontFamily: d.fontSans, fontWeight: 500 }}>
+        Interface
+      </span>
+      <div
+        style={{
+          display: 'flex',
+          background: d.bgElevated,
+          borderRadius: d.radiusMd,
+          padding: '3px',
+          border: `1px solid ${d.border}`,
+        }}
+      >
+        {options.map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => onChange(opt.key)}
+            style={{
+              padding: '5px 14px',
+              borderRadius: d.radiusSm,
+              border: 'none',
+              background: value === opt.key ? d.bgSurface : 'transparent',
+              color: value === opt.key ? d.text : d.textMuted,
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: d.fontSans,
+              transition: 'all 0.15s ease',
+              boxShadow: value === opt.key ? d.shadowCard : 'none',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main ─── */
 export default function DesignTrial() {
+  const [uiStyle, setUiStyle] = useState('tactical');
   const [activeTab, setActiveTab] = useState('overview');
   const [showModal, setShowModal] = useState(false);
 
+  const TOKEN_MAP = {
+    tactical: TOKENS_TACTICAL,
+    saas: TOKENS_SAAS_DARK,
+    editorial: TOKENS_EDITORIAL,
+  };
+  const d = TOKEN_MAP[uiStyle];
+
   return (
-    <>
-      <style>{fontStyle}</style>
+    <TokensContext.Provider value={d}>
+      <style>{fontImports}</style>
       <style>{`
         @keyframes shimmer {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
       `}</style>
-      <Grain />
+      {d.grain && <Grain />}
       {showModal && <ModalPreview />}
       <div
         style={{
           minHeight: '100vh',
-          background: `radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, ${d.bg} 55%)`,
+          background: d.pageBackground,
           color: d.text,
           fontFamily: d.fontSans,
-          padding: '48px',
-          lineHeight: 1.5,
+          padding: d.containerPadding,
+          lineHeight: d.bodyLineHeight,
           position: 'relative',
         }}
       >
         {/* Header */}
-        <div style={{ marginBottom: '56px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: d.accent,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '16px',
-                fontWeight: 700,
-                color: '#f2f2f2',
-                boxShadow: `0 0 24px ${d.accentGlowStrong}`,
-              }}
-            >
-              G
+        <div style={{ marginBottom: d.headerMarginBottom }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: d.headerGap,
+            marginBottom: '14px',
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: d.headerGap }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: d.radiusMd,
+                  background: d.accent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '16px',
+                  fontWeight: 700,
+                  color: '#f2f2f2',
+                  boxShadow: d.shadowGlow !== 'none' ? `${d.shadowGlow} ${d.accentGlowStrong}` : 'none',
+                }}
+              >
+                G
+              </div>
+              <h1 style={{ fontSize: '30px', fontWeight: 700, letterSpacing: '-1.2px', margin: 0, lineHeight: 1.1 }}>
+                GeoWatch
+              </h1>
+              <span
+                style={{
+                  fontSize: d.labelFontSize,
+                  fontWeight: d.labelFontWeight,
+                  textTransform: d.labelTransform,
+                  letterSpacing: d.labelLetterSpacing,
+                  color: d.textMuted,
+                  background: d.bgElevated,
+                  padding: '4px 10px',
+                  borderRadius: d.radiusSm,
+                  border: `1px solid ${d.border}`,
+                }}
+              >
+                Design Trial v5 — Style Test
+              </span>
             </div>
-            <h1 style={{ fontSize: '30px', fontWeight: 700, letterSpacing: '-1.2px', margin: 0, lineHeight: 1.1 }}>
-              GeoWatch
-            </h1>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '1.5px',
-                color: d.textMuted,
-                background: d.bgElevated,
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: `1px solid ${d.border}`,
-              }}
-            >
-              Design Trial v4 — Final
-            </span>
+            <StyleToggle value={uiStyle} onChange={setUiStyle} />
           </div>
           <p style={{ color: d.textSecondary, fontSize: '16px', margin: 0, maxWidth: '540px', lineHeight: 1.6 }}>
-            Deep maroon accent. Brighter badges & status colors. Intimidating severity stamps.
-            Skeleton loaders. Toast notifications. Modal preview. Ready for decision.
+            Toggle between Tactical, SaaS, and Editorial interface styles. All three run in dark mode for direct comparison.
           </p>
         </div>
 
@@ -502,7 +761,7 @@ export default function DesignTrial() {
           </div>
         </Section>
 
-        {/* ─── Badges — brighter ─── */}
+        {/* ─── Badges ─── */}
         <Section title="Badges">
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
             <Pill color={d.dangerLight} dot>Conflict</Pill>
@@ -517,7 +776,7 @@ export default function DesignTrial() {
         </Section>
 
         {/* ─── Severity Badges ─── */}
-        <Section title="Severity — Flat & Consistent">
+        <Section title="Severity">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
             <SeverityStamp level={1} />
             <SeverityStamp level={2} />
@@ -527,15 +786,29 @@ export default function DesignTrial() {
           </div>
         </Section>
 
-        {/* ─── Status — brighter ─── */}
+        {/* ─── Status ─── */}
         <Section title="Status">
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
             <StatusDot color={d.success} label="Active" />
             <StatusDot color={d.gray} label="Resolved" />
             <StatusDot color={d.warning} label="Pending" />
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', background: `${d.accent}10`, borderRadius: '8px', border: `1px solid ${d.accent}18` }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: d.dangerLight, boxShadow: `0 0 10px ${d.accentGlowStrong}` }} />
-              <span style={{ fontSize: '11px', fontWeight: 700, color: d.dangerLight, letterSpacing: '0.8px', textTransform: 'uppercase' }}>Live Mode</span>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '5px 14px',
+              background: `${d.accent}10`,
+              borderRadius: d.radiusMd,
+              border: `1px solid ${d.accent}18`,
+            }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: d.dotRadius, background: d.dangerLight, boxShadow: d.shadowGlow !== 'none' ? `0 0 10px ${d.accentGlowStrong}` : 'none' }} />
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: d.dangerLight,
+                letterSpacing: '0.8px',
+                textTransform: 'uppercase',
+              }}>Live Mode</span>
             </div>
           </div>
         </Section>
@@ -545,39 +818,82 @@ export default function DesignTrial() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', maxWidth: '960px' }}>
             <Card accentLeft>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: d.dangerLight, boxShadow: '0 0 12px rgba(159,18,57,0.5)' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: d.dotRadius, background: d.dangerLight, boxShadow: d.shadowGlow !== 'none' ? `0 0 12px ${d.accentGlowStrong}` : 'none' }} />
                 <span style={{ fontSize: '15px', fontWeight: 600 }}>Border Clash in Kashmir</span>
                 <span style={{ marginLeft: 'auto' }}><Pill color={d.dangerLight}>Conflict</Pill></span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.2px', color: d.textMuted, marginBottom: '4px', fontWeight: 700 }}>Severity</div>
+                  <div style={{
+                    fontSize: d.labelFontSize,
+                    fontWeight: d.labelFontWeight,
+                    textTransform: d.labelTransform,
+                    letterSpacing: d.labelLetterSpacing,
+                    color: d.textMuted,
+                    marginBottom: '4px',
+                  }}>Severity</div>
                   <SeverityStamp level={5} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.2px', color: d.textMuted, marginBottom: '4px', fontWeight: 700 }}>Status</div>
+                  <div style={{
+                    fontSize: d.labelFontSize,
+                    fontWeight: d.labelFontWeight,
+                    textTransform: d.labelTransform,
+                    letterSpacing: d.labelLetterSpacing,
+                    color: d.textMuted,
+                    marginBottom: '4px',
+                  }}>Status</div>
                   <StatusDot color={d.success} label="Active" />
                 </div>
                 <div>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.2px', color: d.textMuted, marginBottom: '4px', fontWeight: 700 }}>Start Date</div>
+                  <div style={{
+                    fontSize: d.labelFontSize,
+                    fontWeight: d.labelFontWeight,
+                    textTransform: d.labelTransform,
+                    letterSpacing: d.labelLetterSpacing,
+                    color: d.textMuted,
+                    marginBottom: '4px',
+                  }}>Start Date</div>
                   <span style={{ fontFamily: d.fontMono, fontSize: '13px' }}>May 03, 2025</span>
                 </div>
                 <div>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.2px', color: d.textMuted, marginBottom: '4px', fontWeight: 700 }}>Location</div>
+                  <div style={{
+                    fontSize: d.labelFontSize,
+                    fontWeight: d.labelFontWeight,
+                    textTransform: d.labelTransform,
+                    letterSpacing: d.labelLetterSpacing,
+                    color: d.textMuted,
+                    marginBottom: '4px',
+                  }}>Location</div>
                   <span style={{ fontSize: '13px' }}>Jammu and Kashmir</span>
                 </div>
               </div>
             </Card>
 
             <Card>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1.5px', color: d.textMuted, fontWeight: 700, marginBottom: '12px' }}>Events Today</div>
+              <div style={{
+                fontSize: d.labelFontSize,
+                fontWeight: d.labelFontWeight,
+                textTransform: d.labelTransform,
+                letterSpacing: d.labelLetterSpacing,
+                color: d.textMuted,
+                marginBottom: '12px',
+              }}>Events Today</div>
               <div style={{ fontSize: '44px', fontWeight: 700, fontFamily: d.fontMono, color: d.text, letterSpacing: '-2px', lineHeight: 1 }}>1,247</div>
               <div style={{ fontSize: '13px', color: d.success, marginTop: '10px', fontWeight: 500 }}>↑ 12% from yesterday</div>
             </Card>
 
             <Card pad="0">
               <div style={{ padding: '18px 18px 0' }}>
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '14px', background: d.bg, padding: '4px', borderRadius: '10px', width: 'fit-content' }}>
+                <div style={{
+                  display: 'flex',
+                  gap: '4px',
+                  marginBottom: '14px',
+                  background: d.bg,
+                  padding: '4px',
+                  borderRadius: d.radiusMd,
+                  width: 'fit-content',
+                }}>
                   {['overview', 'timeline', 'sources'].map((tab) => (
                     <button
                       key={tab}
@@ -586,12 +902,12 @@ export default function DesignTrial() {
                         padding: '5px 14px',
                         fontSize: '13px',
                         fontWeight: 600,
-                        borderRadius: '8px',
+                        borderRadius: d.radiusSm,
                         border: 'none',
                         cursor: 'pointer',
                         background: activeTab === tab ? d.bgElevated : 'transparent',
                         color: activeTab === tab ? d.text : d.textMuted,
-                        boxShadow: activeTab === tab ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
+                        boxShadow: activeTab === tab ? d.shadowCard : 'none',
                         transition: 'all 0.15s ease',
                         textTransform: 'capitalize',
                         fontFamily: d.fontSans,
@@ -642,8 +958,8 @@ export default function DesignTrial() {
             <Skeleton w="100%" h="14px" />
             <Skeleton w="80%" h="14px" />
             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-              <Skeleton w="80px" h="32px" style={{ borderRadius: '8px' }} />
-              <Skeleton w="80px" h="32px" style={{ borderRadius: '8px' }} />
+              <Skeleton w="80px" h="32px" style={{ borderRadius: d.radiusMd }} />
+              <Skeleton w="80px" h="32px" style={{ borderRadius: d.radiusMd }} />
             </div>
           </div>
         </Section>
@@ -663,13 +979,13 @@ export default function DesignTrial() {
             style={{
               background: d.bgSurface,
               border: `1px solid ${d.border}`,
-              borderRadius: '14px',
+              borderRadius: d.radiusLg,
               padding: '14px 22px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               maxWidth: '960px',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+              boxShadow: d.shadowElevated,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
@@ -678,7 +994,7 @@ export default function DesignTrial() {
                   style={{
                     width: '32px',
                     height: '32px',
-                    borderRadius: '8px',
+                    borderRadius: d.radiusSm,
                     background: d.accent,
                     display: 'flex',
                     alignItems: 'center',
@@ -686,7 +1002,7 @@ export default function DesignTrial() {
                     fontSize: '14px',
                     fontWeight: 700,
                     color: '#f2f2f2',
-                    boxShadow: `0 0 20px ${d.accentGlowStrong}`,
+                    boxShadow: d.shadowGlow !== 'none' ? `${d.shadowGlow} ${d.accentGlowStrong}` : 'none',
                   }}
                 >
                   G
@@ -695,13 +1011,13 @@ export default function DesignTrial() {
               </div>
               <span
                 style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1.2px',
+                  fontSize: d.labelFontSize,
+                  fontWeight: d.labelFontWeight,
+                  textTransform: d.labelTransform,
+                  letterSpacing: d.labelLetterSpacing,
                   color: d.textMuted,
                   padding: '3px 10px',
-                  borderRadius: '6px',
+                  borderRadius: d.radiusSm,
                   background: d.bgElevated,
                   border: `1px solid ${d.border}`,
                 }}
@@ -710,9 +1026,23 @@ export default function DesignTrial() {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: `${d.accent}10`, borderRadius: '8px', border: `1px solid ${d.accent}18` }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: d.dangerLight, boxShadow: `0 0 10px ${d.accentGlowStrong}` }} />
-                <span style={{ fontSize: '11px', fontWeight: 700, color: d.dangerLight, letterSpacing: '0.8px', textTransform: 'uppercase' }}>Live</span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                background: `${d.accent}10`,
+                borderRadius: d.radiusMd,
+                border: `1px solid ${d.accent}18`,
+              }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: d.dotRadius, background: d.dangerLight, boxShadow: d.shadowGlow !== 'none' ? `0 0 10px ${d.accentGlowStrong}` : 'none' }} />
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: d.dangerLight,
+                  letterSpacing: '0.8px',
+                  textTransform: 'uppercase',
+                }}>Live</span>
               </div>
               <Btn variant="primary" style={{ padding: '8px 16px', fontSize: '12px' }}>+ Add Incident</Btn>
             </div>
@@ -723,57 +1053,98 @@ export default function DesignTrial() {
         <Section title="Typography Scale">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '640px' }}>
             <div>
-              <div style={{ fontSize: '10px', color: d.textMuted, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '6px' }}>H1 — 30px / Bold / -1.2px tracking</div>
+              <div style={{
+                fontSize: d.labelFontSize,
+                fontWeight: d.labelFontWeight,
+                textTransform: d.labelTransform,
+                letterSpacing: d.labelLetterSpacing,
+                color: d.textMuted,
+                marginBottom: '6px',
+              }}>H1 — 30px / Bold / -1.2px tracking</div>
               <div style={{ fontSize: '30px', fontWeight: 700, letterSpacing: '-1.2px', color: d.text, lineHeight: 1.1 }}>Conflict Monitor Dashboard</div>
             </div>
             <div>
-              <div style={{ fontSize: '10px', color: d.textMuted, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '6px' }}>H2 — 20px / Semibold</div>
+              <div style={{
+                fontSize: d.labelFontSize,
+                fontWeight: d.labelFontWeight,
+                textTransform: d.labelTransform,
+                letterSpacing: d.labelLetterSpacing,
+                color: d.textMuted,
+                marginBottom: '6px',
+              }}>H2 — 20px / Semibold</div>
               <div style={{ fontSize: '20px', fontWeight: 600, color: d.text, lineHeight: 1.2 }}>Incident Details & Timeline</div>
             </div>
             <div>
-              <div style={{ fontSize: '10px', color: d.textMuted, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '6px' }}>Body — 15px / Regular / 1.6 line-height</div>
+              <div style={{
+                fontSize: d.labelFontSize,
+                fontWeight: d.labelFontWeight,
+                textTransform: d.labelTransform,
+                letterSpacing: d.labelLetterSpacing,
+                color: d.textMuted,
+                marginBottom: '6px',
+              }}>Body — 15px / Regular / 1.6 line-height</div>
               <div style={{ fontSize: '15px', color: d.textSecondary, lineHeight: 1.6 }}>
                 Shelling reported along the Line of Control in the Uri sector. Forces have been exchanging artillery fire since early morning hours with no ceasefire in sight.
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '10px', color: d.textMuted, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '6px' }}>Data / Mono — 13px / Medium</div>
+              <div style={{
+                fontSize: d.labelFontSize,
+                fontWeight: d.labelFontWeight,
+                textTransform: d.labelTransform,
+                letterSpacing: d.labelLetterSpacing,
+                color: d.textMuted,
+                marginBottom: '6px',
+              }}>Data / Mono — 13px / Medium</div>
               <div style={{ fontSize: '13px', fontFamily: d.fontMono, color: d.dangerLight, fontWeight: 500 }}>
                 34.0837° N, 74.7973° E · May 03, 2025 · 04:00 UTC
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '10px', color: d.textMuted, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '6px' }}>Label — 10px / Bold / Uppercase / 1.5px letter-spacing</div>
-              <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: d.textMuted }}>Severity · Status · Category · Location</div>
+              <div style={{
+                fontSize: d.labelFontSize,
+                fontWeight: d.labelFontWeight,
+                textTransform: d.labelTransform,
+                letterSpacing: d.labelLetterSpacing,
+                color: d.textMuted,
+                marginBottom: '6px',
+              }}>Label — {d.labelFontSize} / {d.labelFontWeight >= 700 ? 'Bold' : 'Semibold'} / {d.labelTransform === 'uppercase' ? 'Uppercase' : 'Sentence case'} / {d.labelLetterSpacing} letter-spacing</div>
+              <div style={{
+                fontSize: d.labelFontSize,
+                fontWeight: d.labelFontWeight,
+                textTransform: d.labelTransform,
+                letterSpacing: d.labelLetterSpacing,
+                color: d.textMuted,
+              }}>Severity · Status · Category · Location</div>
             </div>
           </div>
         </Section>
 
         {/* ─── Changelog ─── */}
-        <Section title="v4 Changes">
+        <Section title="v5 Changes">
           <div style={{ maxWidth: '680px', fontSize: '15px', color: d.textSecondary, lineHeight: 1.8 }}>
             <p style={{ margin: '0 0 12px' }}>
-              <strong style={{ color: d.text }}>Brighter badges.</strong> Background tint opacity increased
-              from 7% to 10%. Borders more visible. Colors pop against dark surfaces.
+              <strong style={{ color: d.text }}>Three interface styles.</strong> Toggle between
+              Tactical (military C2), SaaS (clean modern dashboard), and Editorial (Swiss minimal / flat).
+              All run in dark mode for direct comparison.
             </p>
             <p style={{ margin: '0 0 12px' }}>
-              <strong style={{ color: d.text }}>Brighter status colors.</strong> Success green is now
-              <code style={{ fontFamily: d.fontMono, color: d.success }}> #22c55e</code>, warning amber is
-              <code style={{ fontFamily: d.fontMono, color: d.warning }}> #f59e0b</code>. Glow effects stronger.
+              <strong style={{ color: d.text }}>Tactical style.</strong> Space Grotesk font,
+              uppercase labels, grain texture, deep crimson, dramatic shadows & radial gradient.
             </p>
             <p style={{ margin: '0 0 12px' }}>
-              <strong style={{ color: d.text }}>Severity Badge.</strong> Flat inline badge using the
-              same visual language as pills: tinted background, subtle border, Space Grotesk font.
-              Bold number separated by a thin line from the uppercase label. No box, no glow.
-              Levels: Low → Moderate → Significant → Severe → Critical.
+              <strong style={{ color: d.text }}>SaaS style.</strong> Inter font, sentence case,
+              no grain, soft ambient shadows, subtle borders, more spacing.
             </p>
             <p style={{ margin: '0 0 12px' }}>
-              <strong style={{ color: d.text }}>Modal preview.</strong> Added a dark overlay + card modal
-              with backdrop blur. Shows how confirmation dialogs would look.
+              <strong style={{ color: d.text }}>Editorial style.</strong> Inter font, sentence case,
+              zero border radius, no shadows, flat pure black background, explicit visible borders,
+              lighter label weight, square status indicators.
             </p>
             <p style={{ margin: 0 }}>
-              <strong style={{ color: d.text }}>Kept from v3.</strong> Skeleton loaders, toast notifications,
-              left accent line on cards, film grain texture, radial background gradient.
+              <strong style={{ color: d.text }}>Token architecture.</strong> All style decisions
+              pulled from token objects — radius, typography, spacing, shadows, transforms.
+              Ready for light mode expansion.
             </p>
           </div>
         </Section>
@@ -781,11 +1152,10 @@ export default function DesignTrial() {
         {/* Footer */}
         <div style={{ marginTop: '64px', paddingTop: '24px', borderTop: `1px solid ${d.border}` }}>
           <p style={{ fontSize: '13px', color: d.textMuted }}>
-            Trial 1 v5 — Crimson Seal. Flat severity badges. Brighter pills. Modal preview.
-            Take screenshots, review with stakeholders, then give the go/no-go.
+            Trial v5 — Three-Way Style Test. Toggle above to compare Tactical, SaaS, and Editorial aesthetics.
           </p>
         </div>
       </div>
-    </>
+    </TokensContext.Provider>
   );
 }
