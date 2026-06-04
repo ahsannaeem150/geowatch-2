@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, Check } from 'lucide-react';
+import { Link, Check, Image } from 'lucide-react';
+import { MediaUploader } from '../Media/MediaUploader.jsx';
+import { MediaGallery } from '../Media/MediaGallery.jsx';
 import { api } from '../../services/api.js';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
@@ -42,6 +44,10 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   // Verification override state
   const [overrideLoading, setOverrideLoading] = useState(false);
 
+  // Media state
+  const [media, setMedia] = useState([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -57,6 +63,16 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
 
   useEffect(() => {
     fetchData();
+  }, [incidentId]);
+
+  // Fetch media when incident loads
+  useEffect(() => {
+    if (!incidentId) return;
+    setMediaLoading(true);
+    api.listMedia(incidentId)
+      .then((res) => setMedia(res.data?.media || []))
+      .catch(() => setMedia([]))
+      .finally(() => setMediaLoading(false));
   }, [incidentId]);
 
   const resetAddForm = () => {
@@ -228,6 +244,21 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
       alert(err.message);
     } finally {
       setTimelineLoading(false);
+    }
+  };
+
+  const handleUploadMedia = async (file) => {
+    const res = await api.uploadMedia(incidentId, file);
+    setMedia((prev) => [...prev, res.data.media]);
+  };
+
+  const handleDeleteMedia = async (mediaId) => {
+    if (!confirm('Delete this file?')) return;
+    try {
+      await api.deleteMedia(incidentId, mediaId);
+      setMedia((prev) => prev.filter((m) => m.id !== mediaId));
+    } catch (err) {
+      alert(err.message || 'Failed to delete file');
     }
   };
 
@@ -629,7 +660,87 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
         </div>
       </div>
 
-      {/* Resolve Modal */}
+      {/* Media */}
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '12px',
+            marginTop: '20px',
+          }}
+        >
+          <h4
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: 'var(--text-muted)',
+              margin: 0,
+            }}
+          >
+            Media
+          </h4>
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: 'var(--accent-light)',
+              background: 'var(--accent-subtle-bg)',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-pill)',
+            }}
+          >
+            {media.length}
+          </span>
+        </div>
+
+        <MediaUploader onUpload={handleUploadMedia} disabled={mediaLoading} />
+
+        {mediaLoading && media.length === 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '20px',
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+            }}
+          >
+            Loading media...
+          </div>
+        )}
+
+        {media.length === 0 && !mediaLoading && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '24px 20px',
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+              border: '1px dashed var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
+            <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }}>
+              <Image size={24} style={{ display: 'inline-block' }} />
+            </div>
+            <div>No media yet.</div>
+            <div style={{ fontSize: '12px', marginTop: '4px' }}>
+              Drag and drop or click to upload photos and videos.
+            </div>
+          </div>
+        )}
+
+        <MediaGallery
+          media={media}
+          onDelete={handleDeleteMedia}
+          canEdit={true}
+        />
+      </div>
+
+      {/* Resolve Modal -->
       {showResolveModal && (
         <div
           style={{

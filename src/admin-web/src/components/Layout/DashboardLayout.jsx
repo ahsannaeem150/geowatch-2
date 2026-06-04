@@ -767,6 +767,7 @@ export default function DashboardLayout() {
           return next;
         });
 
+        let graceToastShown = false;
         if (newIncident.end_date) {
           const graceEnd = new Date(new Date(newIncident.end_date).getTime() + 24 * 60 * 60 * 1000);
           if (graceEnd < new Date()) {
@@ -774,7 +775,16 @@ export default function DashboardLayout() {
               message: 'Incident added successfully. It has already ended — use the date range picker to view it on the map.',
               type: 'info',
             });
+            graceToastShown = true;
           }
+        }
+
+        // Hint user that media can now be uploaded (unless grace warning took precedence)
+        if (!graceToastShown) {
+          setToast({
+            message: 'Incident created. Add photos and videos in the detail panel.',
+            type: 'success',
+          });
         }
       }
       setRefreshKey((k) => k + 1);

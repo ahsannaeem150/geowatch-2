@@ -5084,3 +5084,127 @@ feat(admin-web): add MediaGallery thumbnail grid and MediaLightbox fullscreen vi
 ```
 
 *End of Phase 7*
+
+---
+
+## 📅 2026-05-12 — Phase 8: Media Upload — Incident Form Integration
+
+### Summary
+Wired `MediaUploader` and `MediaGallery` into `IncidentDetailPanel.jsx` so admins can upload, view, and delete media directly from the incident detail view. Also added a post-creation toast in `DashboardLayout.jsx` to guide users to the media upload feature.
+
+### Objective
+Make the media upload pipeline fully usable from the admin dashboard UI.
+
+### Files Modified
+
+| File | Change |
+|:---|:---|
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx` | Added media state, fetch effect, upload/delete handlers, Media section JSX |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added post-creation toast hinting users to upload media in the detail panel |
+
+### IncidentDetailPanel Changes
+
+#### New Imports
+```jsx
+import { Image } from 'lucide-react';
+import { MediaUploader } from '../Media/MediaUploader.jsx';
+import { MediaGallery } from '../Media/MediaGallery.jsx';
+```
+
+#### New State
+```jsx
+const [media, setMedia] = useState([]);
+const [mediaLoading, setMediaLoading] = useState(false);
+```
+
+#### Media Fetch Effect
+Fetches media list whenever `incidentId` changes:
+```jsx
+useEffect(() => {
+  if (!incidentId) return;
+  setMediaLoading(true);
+  api.listMedia(incidentId)
+    .then((res) => setMedia(res.data?.media || []))
+    .catch(() => setMedia([]))
+    .finally(() => setMediaLoading(false));
+}, [incidentId]);
+```
+
+#### Upload Handler
+```jsx
+const handleUploadMedia = async (file) => {
+  const res = await api.uploadMedia(incidentId, file);
+  setMedia((prev) => [...prev, res.data.media]);
+};
+```
+
+#### Delete Handler
+```jsx
+const handleDeleteMedia = async (mediaId) => {
+  if (!confirm('Delete this file?')) return;
+  await api.deleteMedia(incidentId, mediaId);
+  setMedia((prev) => prev.filter((m) => m.id !== mediaId));
+};
+```
+
+#### JSX Placement
+The Media section is inserted **after the Timeline section** and **before the Resolve Modal / Actions bar**. It includes:
+- A header with "Media" label and a count badge (matching Timeline header style)
+- `MediaUploader` component
+- Empty state: dashed border box with `Image` icon and "No media yet" text
+- Loading state: "Loading media..." text
+- `MediaGallery` with `canEdit={true}`
+
+### DashboardLayout Changes
+
+In the `handleSubmit` function's create path, after the existing grace-period toast check, a new toast is conditionally shown:
+
+```jsx
+if (!graceToastShown) {
+  setToast({
+    message: 'Incident created. Add photos and videos in the detail panel.',
+    type: 'success',
+  });
+}
+```
+
+**Why conditional?** If the incident has an `end_date` in the past, a grace-period warning toast is already shown. That warning is more important, so the media hint is suppressed in that case to avoid overwriting it.
+
+### Design Decisions
+
+1. **No media in create form** — Following Option A from the spec: media can only be uploaded after an incident exists (needs `incident_id` FK). The form remains unchanged.
+2. **Detail panel integration** — Media appears alongside Timeline as a peer content section, keeping the layout consistent.
+3. **Empty state** — Matches the Timeline empty state pattern (dashed border, icon, helper text).
+4. **Count badge** — Reuses the same pill style as the Timeline "Updates" count for visual consistency.
+
+### Verification Results
+
+| Test | Result |
+|:---|:---|
+| Admin-web build | ✅ Clean, 2.41s |
+| JS bundle | ✅ 1,198.38 kB (delta: +8.46 kB from new components) |
+| Module count | ✅ 2100 (was 2097) |
+| No new warnings | ✅ Only existing MapLibre chunk size warning |
+
+### End-to-End Flow (Post-Phase 8)
+
+1. Admin double-clicks map → create form opens
+2. Admin fills form → clicks "Create Incident"
+3. Toast: "Incident created. Add photos and videos in the detail panel."
+4. Detail panel opens automatically
+5. Admin sees "Media" section with uploader
+6. Admin drags files → sequential upload with progress
+7. Uploaded files appear in gallery grid
+8. Admin clicks thumbnail → lightbox opens
+9. Admin hovers + clicks × → file deleted (confirm dialog)
+
+### Next Phase
+Phase 9 — Video Upload Support: Video processing placeholder + video player enhancements.
+
+### Git Commit
+
+```
+feat(admin-web): wire MediaUploader and MediaGallery into IncidentDetailPanel with post-creation toast hint
+```
+
+*End of Phase 8*
