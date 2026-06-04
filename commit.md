@@ -4782,3 +4782,84 @@ feat: add backend media API with upload/list/delete/reorder, multer integration,
 ```
 
 *End of Phase 4*
+
+---
+
+## 📅 2026-05-12 — Phase 5: Media Upload — Static File Serving
+
+### Summary
+Added Express `static` middleware to serve uploaded files from the `./uploads` directory. Files are now accessible via `GET /uploads/...` with proper cache headers. The middleware is placed BEFORE rate limiting so image requests don't consume API quota.
+
+### Objective
+Enable browsers to fetch processed images and thumbnails directly via HTTP.
+
+### Modified Files
+
+| File | Change |
+|:---|:---|
+| `src/backend/server.js` | Added `express.static()` middleware for `/uploads` path; imports `path` and `url` modules for `__dirname` resolution in ESM |
+
+### Middleware Placement
+
+```
+CORS
+Body Parsing
+Response Wrapper
+SSE Stream
+← NEW: Static File Serving (/uploads)
+Rate Limiting      ← static files skip this
+API Routes
+404 Handler
+Error Handler
+```
+
+### Static Configuration
+
+```javascript
+app.use('/uploads', express.static(UPLOAD_DIR, {
+  maxAge: '1d',      // Cache for 86,400 seconds
+  immutable: true,   // Tell browsers the content never changes at this URL
+}));
+```
+
+**Why `immutable: true`?** Every uploaded file has a UUID-based filename. The same URL will always serve the same bytes. If a file is re-uploaded, it gets a new UUID and a new URL. This makes aggressive caching safe.
+
+**Why before rate limiting?** Image-heavy pages (galleries, maps with thumbnails) could trigger hundreds of requests. Static files should not count toward the API rate limit.
+
+### Path Resolution
+
+| Variable | Value | Resolved To |
+|:---|:---|:---|
+| `UPLOAD_DIR` (from env) | `./uploads` | Relative to cwd where `node` is started |
+| `UPLOAD_DIR` (fallback) | `join(__dirname, '../../uploads')` | Project root `/uploads` |
+
+Both `LocalStorage` and the static middleware use the same `UPLOAD_DIR` resolution logic, ensuring files are written and served from the same location.
+
+### Verification Results
+
+| Test | Result |
+|:---|:---|
+| Server module loads | ✅ |
+| Text file served | ✅ `200 OK`, `Cache-Control: public, max-age=86400, immutable` |
+| WebP image served | ✅ `200 OK`, `Content-Type: image/webp`, correct byte size |
+| Admin-web build | ✅ Clean |
+
+### Response Headers (Example)
+
+```
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=86400, immutable
+Last-Modified: Thu, 04 Jun 2026 15:48:18 GMT
+Content-Type: image/webp
+```
+
+### Next Phase
+Phase 6 — Frontend Upload Components: Drag-and-drop file uploader (`MediaUploader.jsx`).
+
+### Git Commit
+
+```
+feat: add Express static middleware for /uploads with cache headers, placed before rate limiting
+```
+
+*End of Phase 5*

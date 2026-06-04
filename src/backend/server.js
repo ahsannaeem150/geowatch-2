@@ -1,6 +1,8 @@
 import './src/config/env.js';
 import express from 'express';
 import cors from 'cors';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 import { responseWrapper } from './src/middleware/response-wrapper.js';
 import { generalLimiter } from './src/middleware/rate-limiter.js';
@@ -22,6 +24,8 @@ import zoneRoutes from './src/routes/zone.routes.js';
 import mediaRoutes from './src/routes/media.routes.js';
 import { addClient, removeClient } from './src/utils/sse-broadcast.js';
 import { authenticate } from './src/middleware/auth.middleware.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -64,7 +68,15 @@ app.get('/api/v1/incidents/stream', authenticate, (req, res) => {
   });
 });
 
-// ─── Rate Limiting (applied to all API routes, NOT the SSE stream) ───
+// ─── Static File Serving (uploads) ───
+// Serve user-generated content BEFORE rate limiting so images don't count toward API limits
+const UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../uploads');
+app.use('/uploads', express.static(UPLOAD_DIR, {
+  maxAge: '1d',
+  immutable: true,
+}));
+
+// ─── Rate Limiting (applied to all API routes, NOT the SSE stream or static files) ───
 app.use(generalLimiter);
 
 // ─── API Routes ───
