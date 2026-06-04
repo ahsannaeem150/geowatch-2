@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { getStorageEngine } from '../storage/index.js';
 import { processImage, isProcessableImage, isVideo } from '../utils/image-processor.js';
+import { processVideo } from '../utils/video-processor.js';
 import * as mediaService from '../services/media.service.js';
 
 const storage = getStorageEngine();
@@ -42,9 +43,11 @@ export async function uploadMedia(req, res) {
     const thumbName = `${randomUUID()}_thumb.webp`;
     const thumbPath = `${folderPath}/${thumbName}`;
     thumbnailUrl = await storage.upload(processed.thumbnailBuffer, thumbPath, 'image/webp');
-  } else {
-    // Video: store as-is for now (Phase 9 adds compression)
-    fileUrl = await storage.upload(buffer, fullPath, mimetype);
+  } else if (fileType === 'video') {
+    const processed = await processVideo(buffer, mimetype);
+    processedBuffer = processed.processedBuffer;
+    fileUrl = await storage.upload(processedBuffer, fullPath, mimetype);
+    // Future: thumbnailUrl = processed.posterBuffer ? await storage.upload(...) : null;
   }
 
   const record = await mediaService.createMediaRecord({
