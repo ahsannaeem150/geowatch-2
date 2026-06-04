@@ -7,9 +7,13 @@ function getToken() {
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
   const headers = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  // Only set JSON content-type for non-FormData bodies
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const token = getToken();
   if (token) {
@@ -105,4 +109,25 @@ export const api = {
   createZone: (body) => request('/zones', { method: 'POST', body: JSON.stringify(body) }),
   updateZone: (id, body) => request(`/zones/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteZone: (id) => request(`/zones/${id}`, { method: 'DELETE' }),
+
+  // Media
+  uploadMedia: (incidentId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/incidents/${incidentId}/media`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  listMedia: (incidentId) => request(`/incidents/${incidentId}/media`),
+
+  deleteMedia: (incidentId, mediaId) =>
+    request(`/incidents/${incidentId}/media/${mediaId}`, { method: 'DELETE' }),
+
+  reorderMedia: (incidentId, mediaId, displayOrder) =>
+    request(`/incidents/${incidentId}/media/${mediaId}/order`, {
+      method: 'PATCH',
+      body: JSON.stringify({ displayOrder }),
+    }),
 };

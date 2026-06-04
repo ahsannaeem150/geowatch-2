@@ -19,6 +19,7 @@ import savedIncidentRoutes from './src/routes/saved-incident.routes.js';
 import timelineRoutes from './src/routes/timeline.routes.js';
 import sourceRoutes from './src/routes/source.routes.js';
 import zoneRoutes from './src/routes/zone.routes.js';
+import mediaRoutes from './src/routes/media.routes.js';
 import { addClient, removeClient } from './src/utils/sse-broadcast.js';
 import { authenticate } from './src/middleware/auth.middleware.js';
 
@@ -79,6 +80,7 @@ app.use('/api/v1/incidents', savedIncidentRoutes);
 app.use('/api/v1/incidents', incidentRoutes);
 app.use('/api/v1/incidents/:id/timeline', timelineRoutes);
 app.use('/api/v1/incidents/:id/sources', sourceRoutes);
+app.use('/api/v1/incidents/:id/media', mediaRoutes);
 app.use('/api/v1/zones', zoneRoutes);
 
 // ─── 404 Handler ───

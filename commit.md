@@ -4673,3 +4673,112 @@ feat: add Sharp image processor with WebP conversion, resize, and smart thumbnai
 ```
 
 *End of Phase 3*
+
+---
+
+## 📅 2026-05-12 — Phase 4: Media Upload — Backend Media API
+
+### Summary
+Created the complete backend API for media uploads: upload, list, delete, and reorder endpoints. Integrated Multer (memory storage), Sharp image processing, the storage abstraction layer, and database persistence. Updated the frontend API client with media methods and fixed the FormData content-type bug.
+
+### Objective
+Build the full backend API surface for media management with proper auth guards, validation, and error handling.
+
+### Created Files
+
+| File | Purpose |
+|:---|:---|
+| `src/backend/src/services/media.service.js` | Database CRUD for `incident_media`: list, create, delete, getById, updateDisplayOrder |
+| `src/backend/src/controllers/media.controller.js` | Upload (process + store + persist), list, delete (storage + DB), reorder |
+| `src/backend/src/validators/media.schema.js` | Zod schemas: `reorderMediaSchema` with `displayOrder: number.int().min(0)` |
+| `src/backend/src/routes/media.routes.js` | Express router with Multer config, auth guards, asyncHandler, and validation |
+
+### Modified Files
+
+| File | Change |
+|:---|:---|
+| `src/backend/server.js` | Imported `mediaRoutes` and mounted at `/api/v1/incidents/:id/media` |
+| `src/admin-web/src/services/api.js` | Added `uploadMedia`, `listMedia`, `deleteMedia`, `reorderMedia` methods; **fixed FormData content-type bug** — `request()` no longer forces `application/json` when `body instanceof FormData` |
+
+### API Endpoints
+
+| Method | Path | Auth | Role | Description |
+|:---|:---|:---|:---|:---|
+| `GET` | `/incidents/:id/media` | — | Public | List all media for an incident |
+| `POST` | `/incidents/:id/media` | Bearer JWT | admin, super_admin | Upload a file (image/video) |
+| `DELETE` | `/incidents/:id/media/:mediaId` | Bearer JWT | admin, super_admin | Delete media (storage + DB) |
+| `PATCH` | `/incidents/:id/media/:mediaId/order` | Bearer JWT | admin, super_admin | Update display order |
+
+### Multer Configuration
+
+```javascript
+storage: multer.memoryStorage()     // Files held in RAM for Sharp processing
+limits:
+  fileSize: 50MB                    // Per-file max
+  files: 10                         // Per-request max
+fileFilter:                          // Whitelist: jpeg, png, webp, gif, avif, mp4, webm, quicktime
+```
+
+### Upload Controller Flow
+
+```
+1. Validate file exists (req.file)
+2. Detect file type via isProcessableImage / isVideo
+3. Reject unsupported types → 400 VALIDATION_ERROR
+4. Generate UUID-based storedName
+5. IF image:
+   a. processImage() → { originalBuffer, thumbnailBuffer, width, height }
+   b. storage.upload(originalBuffer) → fileUrl
+   c. storage.upload(thumbnailBuffer) → thumbnailUrl
+6. IF video:
+   a. storage.upload(rawBuffer) → fileUrl (no processing yet)
+7. mediaService.createMediaRecord() → persist metadata to Postgres
+8. Return { media: record }
+```
+
+### Delete Controller Flow
+
+```
+1. Fetch media record from DB
+2. Not found → 404 NOT_FOUND
+3. Parse file_url → extract relative path from /uploads/ prefix
+4. storage.delete(relativePath) → remove main file
+5. If thumbnail exists → storage.delete(thumbnailPath)
+6. mediaService.deleteMediaRecord() → remove DB row
+7. Return { deleted: true }
+```
+
+### Key Design Decisions
+
+- **`crypto.randomUUID()` instead of `uuid` package:** Native Node.js 22 feature — zero new dependencies.
+- **`req.params.id` for incident ID:** Consistent with existing timeline and source controllers (mounted at `/incidents/:id/...`).
+- **`asyncHandler` on all route handlers:** Follows existing backend pattern — eliminates try/catch boilerplate, ensures unhandled promise rejections are caught by Express error middleware.
+- **Multer errors propagate to error handler:** If `fileFilter` rejects a file, Multer calls `next(err)` which reaches the centralized error handler.
+- **FormData content-type fix:** The frontend `request()` helper was unconditionally setting `Content-Type: application/json`. With FormData uploads, the browser MUST set its own `multipart/form-data` boundary. The fix checks `!(options.body instanceof FormData)` before setting the header.
+
+### Verification Results
+
+| Test | Method | Result |
+|:---|:---|:---|
+| Server module loads | `node -e import('./server.js')` | ✅ |
+| All media modules load | `Promise.all([service, controller, routes, schema])` | ✅ |
+| End-to-end pipeline | Direct module calls | ✅ Image → Sharp (WebP + thumb) → Storage → DB → Reorder → Delete → Cleanup |
+| Public list endpoint | `GET /incidents/:id/media` | ✅ Returns `{ success: true, data: { media: [] } }` |
+| Auth rejection | `POST /incidents/:id/media` (no token) | ✅ Returns 401 UNAUTHORIZED |
+| Admin-web build | `vite build` | ✅ 2097 modules, 1.19MB JS, 75KB CSS |
+
+### Architecture Notes
+
+- **Route mount order:** `/api/v1/incidents/:id/media` is mounted AFTER timeline and source routes, but this is safe because Express `app.use()` with distinct path prefixes does not conflict. The incident router's `/:id` pattern matches only single path segments, so `/abc/media` falls through to the media router.
+- **No audit logging yet:** Media operations are not audited. This can be added later by following the timeline controller's `auditLog()` pattern.
+
+### Next Phase
+Phase 5 — Static File Serving: Express `static` middleware for `/uploads` so browsers can fetch processed images.
+
+### Git Commit
+
+```
+feat: add backend media API with upload/list/delete/reorder, multer integration, and FormData fix
+```
+
+*End of Phase 4*
