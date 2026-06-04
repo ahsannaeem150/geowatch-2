@@ -4554,3 +4554,122 @@ feat: add storage abstraction layer with LocalStorage engine and multer/sharp de
 ```
 
 *End of Phase 2*
+
+---
+
+## 📅 2026-05-12 — Phase 3: Media Upload — Image Processing Pipeline
+
+### Summary
+Built the Sharp-based image processor that converts uploads to WebP, resizes oversized images, and generates smart-cropped thumbnails. All image formats (JPEG, PNG, GIF, WebP, AVIF) are supported. Videos are detected but passed through unprocessed until Phase 9.
+
+### Objective
+Create a server-side image processing pipeline that runs in BOTH local and production environments. Every uploaded image gets compressed and converted to WebP before storage.
+
+### Created Files
+
+| File | Purpose |
+|:---|:---|
+| `src/backend/src/utils/image-processor.js` | Sharp pipeline: resize → WebP conversion → thumbnail generation + mime type detectors |
+
+### Functions
+
+```javascript
+processImage(inputBuffer, originalMimeType)
+  → { originalBuffer, thumbnailBuffer, width, height }
+
+isProcessableImage(mimeType) → boolean
+isVideo(mimeType) → boolean
+```
+
+### Configuration Constants
+
+| Constant | Value | Rationale |
+|:---|:---|:---|
+| `MAX_IMAGE_WIDTH` | 1920 | Full HD width — enough detail without bloat |
+| `MAX_IMAGE_HEIGHT` | 1080 | Full HD height |
+| `THUMB_WIDTH` | 300 | Gallery thumbnail width |
+| `THUMB_HEIGHT` | 200 | Gallery thumbnail height (3:2 ratio) |
+| `WEBP_QUALITY` | 80 | Good quality, ~60% smaller than JPEG |
+| `limitInputPixels` | 268,402,689 | Prevents DoS via giant images (~16K²) |
+
+### Processing Pipeline
+
+```
+Input Buffer
+    │
+    ├──► Sharp pipeline.clone().metadata()
+    │         → returns { width, height } (original dimensions)
+    │
+    ├──► Sharp(inputBuffer)
+    │       .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+    │       .webp({ quality: 80, effort: 4 })
+    │       .toBuffer()
+    │         → originalBuffer (main image, WebP)
+    │
+    └──► Sharp(inputBuffer)
+              .resize(300, 200, { fit: 'cover', position: 'attention' })
+              .webp({ quality: 70, effort: 4 })
+              .toBuffer()
+                → thumbnailBuffer (smart-cropped thumbnail, WebP)
+```
+
+### Key Behaviors
+
+| Behavior | Detail |
+|:---|:---|
+| **Small images** (< 1920×1080) | Not enlarged — only converted to WebP (`withoutEnlargement: true`) |
+| **Large images** (> 1920×1080) | Downscaled to fit within 1920×1080 bounding box, aspect ratio preserved (`fit: 'inside'`) |
+| **Thumbnail crop** | `attention` strategy uses Sharp's entropy detection to crop to the most visually interesting area |
+| **Error tolerance** | `failOnError: false` allows partially corrupt images to still process |
+| **DoS protection** | `limitInputPixels` caps input at ~16K × 16K pixels |
+
+### Supported Formats
+
+| Input | Processed? | Output |
+|:---|:---|:---|
+| JPEG | ✅ | WebP |
+| PNG | ✅ | WebP |
+| WebP | ✅ | WebP (re-encoded) |
+| GIF | ✅ | WebP (static frame) |
+| AVIF | ✅ | WebP |
+| MP4 | ❌ (Phase 9) | Stored as-is |
+| WebM | ❌ (Phase 9) | Stored as-is |
+| MOV | ❌ (Phase 9) | Stored as-is |
+| PDF | ❌ | Rejected by `isProcessableImage` |
+| SVG | ❌ | Rejected by `isProcessableImage` |
+
+### Verification Results
+
+Ran 35 automated tests covering all supported formats, edge cases, and dimension scenarios:
+
+| Test Category | Tests | Result |
+|:---|:---|:---|
+| MIME type detection (images) | 9 | ✅ All passed |
+| MIME type detection (videos) | 7 | ✅ All passed |
+| Small image (400×300) | 10 | ✅ All passed — not enlarged, WebP output, correct thumbnail dims |
+| Large image (3000×2000) | 6 | ✅ All passed — resized to ≤1920×1080, aspect ratio preserved |
+| Extreme aspect ratio (300×15000) | 2 | ✅ All passed — height capped at 1080 |
+| JPEG → WebP conversion | 1 | ✅ All passed |
+| **Total** | **35** | **✅ 35/35 passed** |
+
+### Architecture Decisions
+
+- **Two-pass Sharp processing:** The main image and thumbnail are processed independently from the original buffer. This ensures the thumbnail gets full source quality for cropping, not a pre-downscaled version.
+- **`effort: 4` for WebP:** A balanced setting between encoding speed and file size. Higher effort = smaller files but slower. For a backend upload API, 4 is the sweet spot.
+- **Thumbnail quality 70 vs main 80:** Thumbnails are smaller and viewed at reduced size, so slightly lower quality is imperceptible but saves bytes.
+- **Dimensions from metadata, not output:** `width` and `height` returned are the ORIGINAL image dimensions (from `metadata()`), not the processed output. This preserves the source resolution in the database for display purposes.
+
+### Dependencies
+
+`sharp` was installed in Phase 2 alongside `multer`. No additional packages needed.
+
+### Next Phase
+Phase 4 — Backend Media API: upload/list/delete endpoints, Multer integration, and wiring into `server.js`.
+
+### Git Commit
+
+```
+feat: add Sharp image processor with WebP conversion, resize, and smart thumbnail generation
+```
+
+*End of Phase 3*
