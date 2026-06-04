@@ -7,7 +7,7 @@ import { requireRole } from '../middleware/role.middleware.js';
 import { validateRequest } from '../middleware/validate-request.js';
 import { reorderMediaSchema } from '../validators/media.schema.js';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 // Multer: store in memory (we process with Sharp then save to disk/R2)
 const upload = multer({
