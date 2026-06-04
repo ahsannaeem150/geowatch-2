@@ -4958,3 +4958,129 @@ feat(admin-web): add MediaUploader drag-and-drop component with per-file progres
 ```
 
 *End of Phase 6*
+
+---
+
+## 📅 2026-05-12 — Phase 7: Media Upload — Frontend Gallery & Lightbox
+
+### Summary
+Built `MediaGallery.jsx` (thumbnail grid with image/video sections and delete buttons) and `MediaLightbox.jsx` (full-screen image viewer with keyboard navigation). Both components use Lucide icons for visual consistency with the rest of the admin dashboard.
+
+### Objective
+Display uploaded media as a thumbnail grid and provide a polished full-screen viewer for images.
+
+### Files Created
+
+| File | Description |
+|:---|:---|
+| `src/admin-web/src/components/Media/MediaGallery.jsx` | Thumbnail grid separating images and videos, opens lightbox on click |
+| `src/admin-web/src/components/Media/MediaLightbox.jsx` | Full-screen viewer with prev/next arrows, keyboard nav, image counter, dims |
+
+### Files Modified
+
+| File | Change |
+|:---|:---|
+| `src/admin-web/src/index.css` | Added gallery grid styles, lightbox overlay/nav/loader styles (~200 lines) |
+
+### Component APIs
+
+#### MediaGallery
+
+```jsx
+<MediaGallery
+  media={mediaList}
+  onDelete={(mediaId) => api.deleteMedia(incidentId, mediaId)}
+  canEdit={true}
+/>
+```
+
+| Prop | Type | Default | Description |
+|:---|:---|:---|:---|
+| `media` | `Array<MediaItem>` | `[]` | List of media objects from API |
+| `onDelete` | `(mediaId) => void` | `undefined` | Called when delete button clicked |
+| `canEdit` | `boolean` | `false` | Shows delete buttons on hover |
+
+**Features:**
+- Separates images and videos into sections with Lucide `Camera` and `Video` icons
+- Responsive grid: `repeat(auto-fill, minmax(120px, 1fr))`
+- Lazy-loaded thumbnails via `loading="lazy"`
+- Delete button appears on hover (opacity 0 → 1 transition)
+- Clicking an image opens the lightbox at the correct index
+
+#### MediaLightbox
+
+```jsx
+<MediaLightbox
+  items={imageList}
+  startIndex={0}
+  onClose={() => setLightboxIndex(null)}
+/>
+```
+
+| Prop | Type | Default | Description |
+|:---|:---|:---|:---|
+| `items` | `Array<MediaItem>` | **required** | Images to navigate through |
+| `startIndex` | `number` | `0` | Initial image index |
+| `onClose` | `() => void` | **required** | Called on close (Escape, click backdrop, X button) |
+
+**Features:**
+- **Keyboard navigation:** `Escape` closes, `ArrowRight` next, `ArrowLeft` prev
+- **Body scroll lock:** `document.body.style.overflow = 'hidden'` while open
+- **Backdrop blur:** `backdrop-filter: blur(4px)` on dark overlay
+- **Prev/Next arrows:** Lucide `ChevronLeft` / `ChevronRight`, hidden when only 1 image
+- **Loading spinner:** `Loader2` with `spin` animation while image loads
+- **Info bar:** Counter (`3 / 7`), original filename, dimensions (`1920 × 1080`)
+- **Wrap-around navigation:** Last → First and First → Last via modulo arithmetic
+
+### CSS Classes Added
+
+| Class | Purpose |
+|:---|:---|
+| `.media-gallery` | Container wrapper |
+| `.media-section` | Image or video section block |
+| `.media-section-title` | Uppercase section header with icon |
+| `.media-grid` | CSS Grid for thumbnails |
+| `.media-grid-item` | Individual thumbnail cell with hover border |
+| `.media-delete-btn` | Absolute-positioned delete button (hover reveal) |
+| `.media-video-item` | Video-specific pointer-events toggle |
+| `.media-lightbox` | Fixed-position overlay (z-index: 9999) |
+| `.media-lightbox-backdrop` | Dark blurred backdrop |
+| `.media-lightbox-content` | Centered content container |
+| `.media-lightbox-close` | Top-right close button |
+| `.media-lightbox-nav` | Side arrow buttons (prev/next) |
+| `.media-lightbox-image-wrap` | Image container with min dimensions |
+| `.media-lightbox-image` | Actual image with fade-in on load |
+| `.media-lightbox-loader` | Spinner overlay while loading |
+| `.media-lightbox-info` | Bottom info bar (counter, name, dims) |
+
+### Design System Compliance
+
+- Uses CSS variables: `--bg-hover`, `--bg-surface`, `--text-primary`, `--text-secondary`, `--text-muted`, `--accent-cyan`, `--danger`, `--radius-sm`, `--radius-md`, `--border-color`
+- Lucide icons throughout (`Camera`, `Video`, `X`, `ChevronLeft`, `ChevronRight`, `Loader2`)
+- No external UI libraries — pure React + CSS
+- Dark theme first, no light-mode-specific overrides needed
+
+### Verification Results
+
+| Test | Result |
+|:---|:---|
+| Admin-web build | ✅ Clean, 2.43s |
+| CSS bundle | ✅ 80.60 kB (includes all media styles) |
+| Component exports | ✅ Named exports `MediaGallery`, `MediaLightbox` |
+
+### Notes
+
+- Components are **not yet wired** into `IncidentDetailPanel` — integration is Phase 8 (Form Integration).
+- Videos display inline with native `<video controls>` in the gallery; no lightbox support for videos (they have their own controls).
+- Delete buttons are only visible on hover to keep the grid clean.
+
+### Next Phase
+Phase 8 — Incident Form Integration: Wire `MediaUploader` + `MediaGallery` into `IncidentDetailPanel` and `IncidentForm`.
+
+### Git Commit
+
+```
+feat(admin-web): add MediaGallery thumbnail grid and MediaLightbox fullscreen viewer
+```
+
+*End of Phase 7*
