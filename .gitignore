@@ -39,6 +39,9 @@ npm-debug.log*
 *.mbtiles
 assets/tiles/
 
+# Uploads (user-generated content, never commit)
+uploads/
+
 # Third-party tools (downloadable)
 tools/martin
 

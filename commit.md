@@ -4477,3 +4477,80 @@ feat: add incident_media table for file upload metadata with indexes and audit f
 ```
 
 *End of Phase 1*
+
+---
+
+## 📅 2026-05-12 — Phase 2: Media Upload — Storage Abstraction Layer
+
+### Summary
+Built the swappable storage engine interface and the local disk implementation. The same code will work in production — only the `STORAGE_PROVIDER` env var changes (`local` → `r2`).
+
+### Objective
+Create a clean abstraction over file storage so that development uses local disk and production uses Cloudflare R2 with zero code changes.
+
+### Created Files
+
+| File | Purpose |
+|:---|:---|
+| `src/backend/src/storage/index.js` | Storage factory — reads `STORAGE_PROVIDER` env var and returns the correct engine instance |
+| `src/backend/src/storage/local.storage.js` | Local disk implementation: writes to `./uploads/`, serves via Express static |
+
+### Modified Files
+
+| File | Change |
+|:---|:---|
+| `src/backend/package.json` | Added `multer` (^1.4.x) and `sharp` (^0.33.x) dependencies |
+| `src/backend/.env.example` | Added `STORAGE_PROVIDER=local` and `UPLOAD_DIR=./uploads` |
+| `src/backend/.env.development` | Added `STORAGE_PROVIDER=local` and `UPLOAD_DIR=./uploads` |
+| `.gitignore` | Added `uploads/` — user-generated content must never be committed |
+
+### StorageEngine Interface
+
+Every storage engine implements the same contract:
+
+```javascript
+interface StorageEngine {
+  upload(buffer, filename, contentType) → Promise<string>  // Returns public URL
+  getUrl(filename) → string                                 // Returns public URL
+  delete(filename) → Promise<void>                          // Silently ignores ENOENT
+}
+```
+
+### LocalStorage Implementation
+
+| Method | Behavior |
+|:---|:---|
+| `upload(buffer, filename, contentType)` | Creates subdirectories as needed, writes buffer to disk, returns `\${API_URL}/uploads/\${filename}` |
+| `getUrl(filename)` | Constructs the full public URL from `API_URL` + `/uploads/` + filename |
+| `delete(filename)` | Removes file from disk; silently returns if file does not exist (idempotent) |
+
+**Path resolution:** `UPLOAD_DIR` defaults to `../../../../uploads` relative to `src/backend/src/storage/`, which resolves to the project root `./uploads/`.
+
+### Verification Results
+
+| Test | Result |
+|:---|:---|
+| Engine loads as `LocalStorage` | ✅ |
+| Upload writes file to correct path | ✅ |
+| URL generation matches expected format | ✅ (`http://localhost:3000/uploads/...`) |
+| Delete removes file | ✅ |
+| Delete is idempotent (no error on missing file) | ✅ |
+| Subdirectories auto-created | ✅ |
+
+### Architecture Decisions
+
+- **`multer.memoryStorage()`** (not diskStorage): Files are held in RAM buffers so Sharp can process them before any disk write. This means the storage engine decides where and how to persist — not Multer.
+- **UUID filenames in `stored_name`:** The actual filename on disk is a UUID. The `original_name` column preserves the user's original filename for display.
+- **Folder-per-incident:** Files are organized as `uploads/incidents/\${incidentId}/\${uuid}.webp` to keep related media together and simplify cleanup.
+- **Idempotent delete:** `LocalStorage.delete()` catches `ENOENT` and returns cleanly. This prevents crashes during cleanup if a file was already removed.
+
+### Next Phase
+Phase 3 — Image Processing Pipeline: Sharp-based WebP conversion + thumbnail generation.
+
+### Git Commit
+
+```
+feat: add storage abstraction layer with LocalStorage engine and multer/sharp deps
+```
+
+*End of Phase 2*
