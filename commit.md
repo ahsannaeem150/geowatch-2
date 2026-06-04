@@ -4863,3 +4863,98 @@ feat: add Express static middleware for /uploads with cache headers, placed befo
 ```
 
 *End of Phase 5*
+
+---
+
+## 📅 2026-05-12 — Phase 6: Media Upload — Frontend Upload Component
+
+### Summary
+Built `MediaUploader.jsx`, a drag-and-drop file uploader component for the admin dashboard. Supports click-to-select, drag-and-drop, multi-file upload, per-file progress tracking, and Lucide icons for visual consistency.
+
+### Objective
+Provide an intuitive file upload UI that admins can drop into any incident detail/form view.
+
+### Files Created
+
+| File | Description |
+|:---|:---|
+| `src/admin-web/src/components/Media/MediaUploader.jsx` | Drag-and-drop uploader with per-file progress |
+
+### Files Modified
+
+| File | Change |
+|:---|:---|
+| `src/admin-web/src/index.css` | Added `.media-uploader`, `.media-dropzone`, `.media-upload-progress`, `.media-upload-item` and status variants |
+
+### Component API
+
+```jsx
+<MediaUploader
+  onUpload={(file) => api.uploadMedia(incidentId, file)}
+  accept="image/*,video/*"
+  maxFiles={10}
+  disabled={false}
+/>
+```
+
+| Prop | Type | Default | Description |
+|:---|:---|:---|:---|
+| `onUpload` | `(file) => Promise<void>` | **required** | Called for each file individually |
+| `accept` | `string` | `'image/*,video/*'` | `<input accept>` attribute |
+| `maxFiles` | `number` | `10` | Max files per batch |
+| `disabled` | `boolean` | `false` | Disables the dropzone |
+
+### Key Features
+
+1. **Drag & Drop**: Files dropped on the zone are processed sequentially.
+2. **Click to Select**: Hidden `<input type="file" multiple>` triggered by clicking the zone.
+3. **Per-File Progress**: Each file gets a row with status indicator (uploading / done / error).
+4. **Lucide Icons**: Uses `Upload`, `Image`, `Film`, `Loader2`, `CheckCircle`, `XCircle` for consistent iconography.
+5. **Status Color Coding**:
+   - Uploading: cyan left border + spinning loader
+   - Done: green left border + checkmark
+   - Error: red left border + X circle
+6. **Input Reset**: File input value is reset after selection so the same file can be re-selected.
+
+### CSS Classes Added
+
+| Class | Purpose |
+|:---|:---|
+| `.media-uploader` | Container wrapper |
+| `.media-dropzone` | Clickable drag target (dashed border, hover → cyan) |
+| `.media-dropzone.dragging` | Active drag state (cyan border + subtle tint) |
+| `.media-dropzone.disabled` | Dimmed, `not-allowed` cursor |
+| `.media-upload-progress` | List container for status rows |
+| `.media-upload-item` | Individual file row (flex, truncated name) |
+| `.media-upload-item.uploading/.done/.error` | Status-specific left-border color |
+| `.media-upload-spinner` | Spinning `Loader2` using existing `@keyframes spin` |
+
+### Design System Compliance
+
+- Uses CSS variables from `design-tokens.css`: `--bg-surface`, `--bg-hover`, `--text-primary`, `--text-secondary`, `--text-muted`, `--accent-cyan`, `--success`, `--danger`, `--radius-md`, `--radius-sm`, `--border-color`
+- No external UI libraries — pure React + CSS
+- Dark theme first, no light-mode-specific overrides needed (variables handle it)
+
+### Verification Results
+
+| Test | Result |
+|:---|:---|
+| Admin-web build | ✅ Clean, no errors |
+| Component exports correctly | ✅ Named export `MediaUploader` |
+| CSS loads (part of index.css bundle) | ✅ 77.22 kB CSS bundle |
+
+### Notes
+
+- Component is **not yet wired** into `IncidentDetailPanel` or `IncidentForm` — that integration is Phase 8 (Form Integration).
+- The component accepts an `onUpload` callback so it stays decoupled from the API layer. Any parent can pass `api.uploadMedia` or a custom handler.
+
+### Next Phase
+Phase 7 — Frontend Media Gallery & Viewer: `MediaGallery.jsx` + `MediaLightbox.jsx`
+
+### Git Commit
+
+```
+feat(admin-web): add MediaUploader drag-and-drop component with per-file progress and Lucide icons
+```
+
+*End of Phase 6*
