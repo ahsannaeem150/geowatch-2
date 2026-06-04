@@ -27,6 +27,7 @@ GeoWatch is a tactical intelligence dashboard that displays real-world incidents
 | Map Tiles | Martin (self-hosted `.mbtiles`) |
 | Auth | JWT + bcryptjs |
 | Validation | Zod |
+| File Storage | Local disk (dev) → Cloudflare R2 (production) |
 
 ---
 

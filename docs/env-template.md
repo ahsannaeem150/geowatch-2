@@ -34,6 +34,15 @@ RATE_LIMIT_MAX_REQUESTS=100
 
 TWITTER_OEMBED_URL=https://publish.twitter.com/oembed
 
+# File Storage — local for dev, R2 for production
+STORAGE_PROVIDER=local              # 'local' | 'r2'
+UPLOAD_DIR=./uploads                # Local disk path (dev only)
+# R2_BUCKET=geowatch-media          # R2 bucket name (production)
+# R2_ENDPOINT=https://...           # R2 S3-compatible endpoint
+# R2_ACCESS_KEY_ID=...              # R2 API token
+# R2_SECRET_ACCESS_KEY=...          # R2 API secret
+# R2_PUBLIC_URL=https://...         # CDN/public URL prefix for served files
+
 # Google OAuth (public user sign-in)
 # Get your Client ID from https://console.cloud.google.com/apis/credentials
 GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com

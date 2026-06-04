@@ -184,3 +184,44 @@ CREATE INDEX idx_deleted_incidents_log_deleted_at ON deleted_incidents_log(delet
 -- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO geowatch_user;
 -- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO geowatch_user;
 -- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO geowatch_user;
+-- ============================================
+-- INCIDENT MEDIA (File uploads)
+-- ============================================
+CREATE TABLE incident_media (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+
+    -- File metadata
+    original_name VARCHAR(500) NOT NULL,
+    stored_name VARCHAR(500) NOT NULL,
+    file_type VARCHAR(20) NOT NULL,
+    mime_type VARCHAR(50) NOT NULL,
+    file_size_bytes INTEGER NOT NULL,
+
+    -- URLs / paths
+    file_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+
+    -- Image dimensions
+    width INTEGER,
+    height INTEGER,
+
+    -- Processing metadata
+    is_processed BOOLEAN DEFAULT true,
+    processing_error TEXT,
+
+    -- Ordering
+    display_order INTEGER DEFAULT 0,
+
+    -- Audit
+    uploaded_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_media_incident ON incident_media(incident_id);
+CREATE INDEX idx_media_created ON incident_media(created_at DESC);
+CREATE INDEX idx_media_type ON incident_media(incident_id, file_type);
+
+CREATE TRIGGER update_incident_media_updated_at BEFORE UPDATE ON incident_media
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

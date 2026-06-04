@@ -53,6 +53,12 @@ Map-based global conflict and major events visualization platform.
 - External embeds only: X/Twitter oEmbed, news article links
 - Post-MVP: Direct uploads via Cloudflare R2
 
+## Media Storage Strategy (Local-First → Cloud)
+- **Development:** Files stored on local disk (`./uploads/`) via abstracted storage interface
+- **Production:** Flip `STORAGE_PROVIDER=r2` — same code, Cloudflare R2 backend
+- **Why:** Zero cloud cost during dev, no internet dependency, no API keys to manage
+- **Migration:** Change one env var. Postgres stores URLs only — no data migration needed.
+
 ## Admin MVP Features
 - Click map to place marker
 - Paste lat/lng → map flies there → place marker

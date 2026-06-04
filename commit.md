@@ -4407,3 +4407,73 @@ feat: add zone management panel, incident-in-zone spatial queries, and color cus
 ```
 
 *End of Phase 5*
+
+---
+
+## 📅 2026-05-12 — Phase 1: Media Upload — Database Schema
+
+### Summary
+Created the `incident_media` table to store file upload metadata. This is the foundation for the local-to-cloud media storage pipeline. Postgres stores ONLY metadata — file blobs never enter the database.
+
+### Objective
+Phase 1 of the media upload feature: establish the database schema before building the storage layer, image processor, and API.
+
+### Created Files
+
+| File | Purpose |
+|:---|:---|
+| `docs/media-migration.sql` | Migration script for existing databases — creates `incident_media` table + indexes + trigger |
+
+### Modified Files
+
+| File | Change |
+|:---|:---|
+| `docs/database-schema.sql` | Appended `incident_media` CREATE TABLE, indexes, and `update_incident_media_updated_at` trigger to the master schema |
+
+### Table Schema: `incident_media`
+
+| Column | Type | Constraints | Description |
+|:---|:---|:---|:---|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Unique media record ID |
+| `incident_id` | UUID | NOT NULL, FK → incidents(id), CASCADE | Parent incident |
+| `original_name` | VARCHAR(500) | NOT NULL | Original uploaded filename |
+| `stored_name` | VARCHAR(500) | NOT NULL | UUID-based filename on disk/R2 |
+| `file_type` | VARCHAR(20) | NOT NULL | `'image'` or `'video'` |
+| `mime_type` | VARCHAR(50) | NOT NULL | `'image/webp'`, `'video/mp4'`, etc. |
+| `file_size_bytes` | INTEGER | NOT NULL | Size after processing |
+| `file_url` | TEXT | NOT NULL | Full URL or relative path |
+| `thumbnail_url` | TEXT | — | Generated thumbnail URL (images only) |
+| `width` | INTEGER | — | Image width in pixels |
+| `height` | INTEGER | — | Image height in pixels |
+| `is_processed` | BOOLEAN | DEFAULT true | Sharp/FFmpeg processing status |
+| `processing_error` | TEXT | — | Error message if processing failed |
+| `display_order` | INTEGER | DEFAULT 0 | Manual sort order in gallery |
+| `uploaded_by` | UUID | FK → users(id) | Uploader audit trail |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Upload timestamp |
+| `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | Last modified timestamp |
+
+### Indexes
+
+| Name | Columns | Purpose |
+|:---|:---|:---|
+| `idx_media_incident` | `incident_id` | Fast lookup of all media for an incident |
+| `idx_media_created` | `created_at DESC` | Gallery default sort order |
+| `idx_media_type` | `incident_id, file_type` | Filter images vs videos per incident |
+
+### Architecture Decisions
+
+- **No file blobs in DB:** Only metadata is stored. Files live on disk (dev) or R2 (production).
+- **ON DELETE CASCADE:** When an incident is deleted, all its media records are automatically cleaned up.
+- **UUID filenames:** `stored_name` uses UUIDs to prevent collisions and avoid path traversal.
+- **Separate thumbnail URL:** Thumbnails are first-class citizens — can be fetched independently of the full image.
+
+### Next Phase
+Phase 2 — Storage Abstraction Layer: `StorageEngine` interface + `LocalStorage` implementation.
+
+### Git Commit
+
+```
+feat: add incident_media table for file upload metadata with indexes and audit fields
+```
+
+*End of Phase 1*

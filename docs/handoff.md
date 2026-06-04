@@ -419,6 +419,7 @@ chore: description
 |:--|:--|:--|
 | **Module 8 — Public User Website** | Pending | Not started. Will share admin layout but read-only. |
 | **UI overhaul** | Planned | User said current UI is "generic." Will search web for a template to copy. **Do NOT do full UI changes until template is chosen.** |
+| **Media uploads** | Planned | Local disk storage (`./uploads/`) during dev. Abstracted interface — flip `STORAGE_PROVIDER=r2` env var for Cloudflare R2 in production. No code changes needed at migration. |
 | **DateTimePicker component** | Shelved | Built but reverted — native `datetime-local` inputs have poor dark theme visibility. Will revisit during UI overhaul. |
 | **Self-hosted fonts** | Future | Currently using MapLibre's free font CDN (`demotiles.maplibre.org`). Self-hosting is a future enhancement. |
 | **Martin manual restart** | Known | `./scripts/start-martin.sh` must be run after PC restart. |
