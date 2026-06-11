@@ -22,9 +22,11 @@ export async function getIncidents(req, res) {
     dateFrom: req.query.dateFrom,
     dateTo: req.query.dateTo,
     categoryId: req.query.categoryId,
+    zoneCategoryId: req.query.zoneCategoryId,
     severity: req.query.severity,
     status: req.query.status,
     viewport: req.query.viewport,
+    geometryType: req.query.geometryType,
   };
 
   const { incidents, count, hasMore } = await listIncidents(filters);
@@ -43,9 +45,11 @@ export async function searchIncidentsController(req, res) {
     dateFrom: req.query.dateFrom,
     dateTo: req.query.dateTo,
     categoryId: req.query.categoryId,
+    zoneCategoryId: req.query.zoneCategoryId,
     severity: req.query.severity,
     status: req.query.status,
     viewport: req.query.viewport,
+    geometryType: req.query.geometryType,
     limit: req.query.limit ? parseInt(req.query.limit, 10) : undefined,
     offset: req.query.offset ? parseInt(req.query.offset, 10) : undefined,
   };

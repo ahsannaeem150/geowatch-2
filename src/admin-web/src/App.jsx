@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import LoginPage from './components/Login/LoginPage.jsx';
 import DashboardLayout from './components/Layout/DashboardLayout.jsx';
 import DesignTrial from './components/DesignTrial/DesignTrial.jsx';
+import ZonesPage from './pages/ZonesPage.jsx';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -31,6 +32,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/trial" element={<DesignTrial />} />
+      <Route
+        path="/zones"
+        element={
+          <ProtectedRoute>
+            <ZonesPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/*"
         element={

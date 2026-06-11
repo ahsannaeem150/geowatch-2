@@ -73,8 +73,8 @@ export default function DrawingToolbar({
         <span>Pan</span>
       </button>
 
-      {/* Edit Zone — visible when a zone is selected and not drawing */}
-      {mode === 'pan' && selectedZoneId && (
+      {/* Edit Zone — visible when a zone is selected, not drawing, and editing is wired up */}
+      {mode === 'pan' && selectedZoneId && onEditZone && (
         <button
           type="button"
           style={{ ...btnBase, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', borderColor: '#f59e0b' }}

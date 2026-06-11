@@ -86,6 +86,10 @@ function buildIncidentWhereClause(filters, options = {}) {
     conditions.push(`i.category_id = $${idx++}`);
     params.push(filters.categoryId);
   }
+  if (filters.zoneCategoryId) {
+    conditions.push(`i.zone_category_id = $${idx++}`);
+    params.push(filters.zoneCategoryId);
+  }
   if (filters.severity) {
     conditions.push(`i.severity = $${idx++}`);
     params.push(filters.severity);

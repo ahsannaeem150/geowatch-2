@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
@@ -9,9 +9,6 @@ import SearchModal from '../SearchModal/SearchModal.jsx';
 import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
 import ZoneForm from '../ZoneForm/ZoneForm.jsx';
-import ZoneEditPanel from '../Zones/ZoneEditPanel.jsx';
-import ZoneManagementPanel from '../Zones/ZoneManagementPanel.jsx';
-import ZoneDetailPanel from '../Zones/ZoneDetailPanel.jsx';
 import MapContextMenu from '../Map/MapContextMenu.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
@@ -98,11 +95,13 @@ export default function DashboardLayout() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState(null);
 
-  // ─── Zones ───
-  const [zones, setZones] = useState([]);
+  // ─── Zones (polygon incidents) ───
   const [selectedZoneId, setSelectedZoneId] = useState(null);
-  const [selectedZone, setSelectedZone] = useState(null);
   const [fitBounds, setFitBounds] = useState(null);
+  const polygonIncidents = useMemo(
+    () => incidents.filter((i) => i.geometry_type === 'polygon'),
+    [incidents]
+  );
 
   // ─── Zone Drawing ───
   const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
@@ -202,8 +201,12 @@ export default function DashboardLayout() {
 
   // ─── URL Sharing (Deep-linking) ───
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const incidentIdFromUrl = searchParams.get('incident');
+  const zoneIdFromUrl = searchParams.get('zone');
   const ghostFetchAttempted = useRef(false);
+  const zoneDeepLinkProcessed = useRef(false);
 
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
@@ -353,19 +356,90 @@ export default function DashboardLayout() {
     }
   }, [incidentIdFromUrl, incidents.length]);
 
+  // ─── Handle zone focus from ZonesPage or ?zone=<id> deep-link ───
+  useEffect(() => {
+    const focusZoneFromState = location.state?.focusZone;
+
+    if (focusZoneFromState) {
+      const zone = focusZoneFromState;
+      setSelectedZoneId(zone.id);
+      setSelectedIncident(null);
+      setPanelMode('empty');
+      if (zone.geometry?.coordinates?.[0]) {
+        const coords = zone.geometry.coordinates[0];
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        });
+        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      }
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+      return;
+    }
+
+    if (location.state?.drawZone) {
+      setMarkerCoords(null);
+      setSelectedIncident(null);
+      setIsEditing(false);
+      setPanelMode('empty');
+      setSelectedZoneId(null);
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
+      setMapMode('polygon');
+      setDrawVertices([]);
+      setIsPolygonClosed(false);
+      setShowZoneCreatePanel(false);
+      setSelectedDrawVertexIndex(null);
+      drawHistoryRef.current = [{ vertices: [], isClosed: false }];
+      historyIndexRef.current = 0;
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+      return;
+    }
+
+    if (!zoneIdFromUrl) {
+      zoneDeepLinkProcessed.current = false;
+      return;
+    }
+
+    const zone = polygonIncidents.find((z) => z.id === zoneIdFromUrl);
+    if (zone) {
+      setSelectedZoneId(zone.id);
+      setSelectedIncident(null);
+      setPanelMode('empty');
+      if (zone.geometry?.coordinates?.[0]) {
+        const coords = zone.geometry.coordinates[0];
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        });
+        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      }
+      zoneDeepLinkProcessed.current = true;
+      return;
+    }
+
+    if (polygonIncidents.length > 0 && !zoneDeepLinkProcessed.current) {
+      zoneDeepLinkProcessed.current = true;
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('zone');
+        return next;
+      });
+      setToast({ message: 'Zone not found in current date range', type: 'error' });
+    }
+  }, [location.state, location.pathname, location.search, zoneIdFromUrl, polygonIncidents, navigate, setSearchParams]);
+
   // Clear context menu when switching modes
   useEffect(() => {
     setContextMenu(null);
   }, [mapMode, editingZoneId]);
-
-  // Fetch zones on mount and when refreshKey changes
-  useEffect(() => {
-    api.getZones()
-      .then((res) => {
-        setZones(res.data.zones || []);
-      })
-      .catch(() => setZones([]));
-  }, [refreshKey]);
 
   // Fetch domains for legend
   useEffect(() => {
@@ -616,18 +690,15 @@ export default function DashboardLayout() {
   }, [setSearchParams]);
 
   const handleZoneClick = useCallback((zoneId) => {
-    const zone = zones.find((z) => z.id === zoneId);
+    const zone = polygonIncidents.find((z) => z.id === zoneId);
     if (!zone) return;
     setSelectedZoneId(zoneId);
-    setSelectedZone(zone);
     // Clear incident selection when a zone is selected
     setSelectedIncident(null);
-    setPanelMode('zone-detail');
     // Clear editing state when selecting a different zone
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
-    setFitBounds(null);
     // Compute bounds from polygon and fly map there
     if (zone.geometry?.coordinates?.[0]) {
       const coords = zone.geometry.coordinates[0];
@@ -640,7 +711,7 @@ export default function DashboardLayout() {
       });
       setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
     }
-  }, [zones]);
+  }, [polygonIncidents]);
 
   // ─── Drawing handlers ───
   const handleSetMode = useCallback((mode) => {
@@ -763,7 +834,7 @@ export default function DashboardLayout() {
   }, []);
 
   const handleEditZone = useCallback(() => {
-    const zone = zones.find((z) => z.id === selectedZoneId);
+    const zone = polygonIncidents.find((z) => z.id === selectedZoneId);
     if (!zone || !zone.geometry?.coordinates?.[0]) return;
 
     // Clear drawing state
@@ -788,7 +859,7 @@ export default function DashboardLayout() {
     setSelectedEditVertexIndex(null);
     editHistoryRef.current = [coords.map((v) => [...v])];
     editHistoryIndexRef.current = 0;
-  }, [selectedZoneId, zones]);
+  }, [selectedZoneId, polygonIncidents]);
 
   const handleVertexDrag = useCallback((index, { lng, lat }) => {
     setEditingZoneVertices((prev) => {
@@ -929,7 +1000,6 @@ export default function DashboardLayout() {
     setPanelMode('empty');
     // Reset any existing zone selection/editing
     setSelectedZoneId(null);
-    setSelectedZone(null);
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
@@ -962,7 +1032,6 @@ export default function DashboardLayout() {
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
     setSelectedZoneId(null);
-    setSelectedZone(null);
     setFitBounds(null);
     // Clear incident from URL while preserving other params
     setSearchParams((prev) => {
@@ -1102,101 +1171,13 @@ export default function DashboardLayout() {
     setActiveDomainFilter((prev) => (prev === domainId ? null : domainId));
   }, []);
 
-  // ─── Zone panel handlers ───
+  // ─── Zone page navigation ───
   const handleOpenZones = useCallback(() => {
-    setPanelMode('zones');
-    setSelectedIncident(null);
-    setMarkerCoords(null);
-    setIsEditing(false);
-    setEditingZoneId(null);
-    setEditingZoneVertices([]);
-    setOriginalZoneVertices([]);
-    setFitBounds(null);
-  }, []);
-
-  const handleZoneDetailBack = useCallback(() => {
-    setPanelMode('zones');
-    setSelectedZoneId(null);
-    setSelectedZone(null);
-    setFitBounds(null);
-  }, []);
-
-  const handleZoneDetailEdit = useCallback(() => {
-    handleEditZone();
-  }, [handleEditZone]);
-
-  const handleZoneDetailDelete = useCallback(async () => {
-    if (!selectedZone) return;
-    try {
-      await api.deleteZone(selectedZone.id);
-      setSelectedZone(null);
-      setSelectedZoneId(null);
-      setPanelMode('zones');
-      setRefreshKey((k) => k + 1);
-      setToast({ message: 'Zone deleted successfully', type: 'info' });
-    } catch (err) {
-      alert(err.message || 'Failed to delete zone');
-    }
-  }, [selectedZone]);
-
-  const handleZoneDetailColorChange = useCallback((color) => {
-    setSelectedZone((prev) => (prev ? { ...prev, fill_color: color, stroke_color: color } : null));
-    setRefreshKey((k) => k + 1);
-  }, []);
-
-  const handleZoneIncidentSelect = useCallback((incident) => {
-    setSelectedIncident(incident);
-    setSelectedZoneId(null);
-    setSelectedZone(null);
-    setPanelMode('detail');
-    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
-    setMarkerCoords(null);
-    setFitBounds(null);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('incident', incident.id);
-      return next;
-    });
-  }, [setSearchParams]);
-
-  const handleNewZoneFromPanel = useCallback(() => {
-    setPanelMode('empty');
-    setMapMode('polygon');
-    setDrawVertices([]);
-    setIsPolygonClosed(false);
-    setShowZoneCreatePanel(false);
-    setSelectedZoneId(null);
-    setSelectedZone(null);
-    setEditingZoneId(null);
-    setEditingZoneVertices([]);
-    setOriginalZoneVertices([]);
-  }, []);
-
-  // Keep selectedZone in sync when zones list refreshes
-  useEffect(() => {
-    if (!selectedZone) return;
-    const updated = zones.find((z) => z.id === selectedZone.id);
-    if (updated && updated.updated_at !== selectedZone.updated_at) {
-      setSelectedZone(updated);
-    }
-  }, [zones]);
+    navigate('/zones');
+  }, [navigate]);
 
   // Determine what to show in the right panel
   const renderPanel = () => {
-    if (editingZoneId) {
-      const zone = zones.find((z) => z.id === editingZoneId);
-      if (!zone) return null;
-      return (
-        <ZoneEditPanel
-          zone={zone}
-          vertexCount={editingZoneVertices.length}
-          onSave={handleZoneEditSave}
-          onCancel={handleZoneEditCancel}
-          onDelete={handleZoneDelete}
-        />
-      );
-    }
-
     if (showZoneCreatePanel) {
       return (
         <ZoneForm
@@ -1204,49 +1185,6 @@ export default function DashboardLayout() {
           onSubmit={handleZoneCreateSubmit}
           onCancel={handleDrawCancel}
           submitting={submitting}
-        />
-      );
-    }
-
-    if (panelMode === 'zone-detail' && selectedZone) {
-      return (
-        <ZoneDetailPanel
-          zone={selectedZone}
-          onBack={handleZoneDetailBack}
-          onEdit={handleZoneDetailEdit}
-          onDelete={handleZoneDetailDelete}
-          onSelectIncident={handleZoneIncidentSelect}
-          onColorChange={handleZoneDetailColorChange}
-        />
-      );
-    }
-
-    if (panelMode === 'zones') {
-      return (
-        <ZoneManagementPanel
-          zones={zones}
-          onSelectZone={(zone) => {
-            setSelectedZoneId(zone.id);
-            setSelectedZone(zone);
-            setSelectedIncident(null);
-            setPanelMode('zone-detail');
-            setEditingZoneId(null);
-            setEditingZoneVertices([]);
-            setOriginalZoneVertices([]);
-            setFitBounds(null);
-            if (zone.geometry?.coordinates?.[0]) {
-              const coords = zone.geometry.coordinates[0];
-              let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-              coords.forEach(([lng, lat]) => {
-                minLng = Math.min(minLng, lng);
-                minLat = Math.min(minLat, lat);
-                maxLng = Math.max(maxLng, lng);
-                maxLat = Math.max(maxLat, lat);
-              });
-              setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
-            }
-          }}
-          onNewZone={handleNewZoneFromPanel}
         />
       );
     }
@@ -1281,7 +1219,7 @@ export default function DashboardLayout() {
     return null;
   };
 
-  const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel || !!editingZoneId;
+  const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
@@ -1367,7 +1305,7 @@ export default function DashboardLayout() {
         >
           <AdminMap
             incidents={filteredIncidents}
-            zones={zones}
+            zones={polygonIncidents}
             selectedEventId={selectedIncident?.id}
             selectedZoneId={selectedZoneId}
             onEventClick={handleEventClick}
@@ -1414,7 +1352,7 @@ export default function DashboardLayout() {
               onSetMode={handleSetMode}
               onSave={() => setShowZoneCreatePanel(true)}
               onCancel={handleDrawCancel}
-              onEditZone={handleEditZone}
+              onEditZone={null}
             />
           )}
 

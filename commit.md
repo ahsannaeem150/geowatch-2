@@ -5884,3 +5884,50 @@ feat(admin): add dedicated ZoneForm for creating polygon incidents
 ```
 
 *End of Phase 6 — Admin Zone Form*
+
+---
+
+## 📅 2026-06-11 — Phase 7: Admin Zone List Page
+
+### Summary
+Built a dedicated `/zones` page for managing polygon incidents. The page lists only zones (`geometryType: 'polygon'`), supports filters (date range, zone category, status), title search, and per-row actions (view on map, resolve, delete). It replaces the broken legacy zone-panel flow that still called removed `/api/v1/zones` endpoints. The dashboard now derives zones from the incident list, and clicking a zone on the map or navigating from the list flies the map to the polygon and highlights it.
+
+### Modified / Created Files
+
+| File | Changes |
+|:--|:--|
+| `src/admin-web/src/pages/ZonesPage.jsx` | **New** full-page zone list with filters, search, table, and actions |
+| `src/admin-web/src/App.jsx` | Added protected `/zones` route |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Removed legacy zone fetch/panels; derives `polygonIncidents` from incidents; added zone deep-link/focus handling; "Zones" top-bar button now navigates to `/zones` |
+| `src/admin-web/src/components/Map/DrawingToolbar.jsx` | Hid the "Edit Zone" button when no edit handler is provided |
+| `src/admin-web/src/services/api.js` | Removed legacy zone methods; added `geometryType` and `zoneCategoryId` query params |
+| `src/backend/src/controllers/incident.controller.js` | Exposed `geometryType` and `zoneCategoryId` filters from query params |
+| `src/backend/src/services/incident.service.js` | Added `zoneCategoryId` to incident where-clause builder |
+
+### Zone List Features
+
+- Table columns: **Title | Category | Severity | Status | Start | End | Actions**
+- Filters: date range, zone category, status
+- Client-side title search
+- Row click or **View** button returns to the dashboard centered on the zone
+- **Resolve** and **Delete** actions call the incident endpoints
+- **Add Zone** button returns to the dashboard and enters polygon drawing mode
+
+### Verification
+
+```bash
+npm run build:admin-web
+# Result: ✅ built in 2.42s, zero errors
+
+node --check src/backend/src/controllers/incident.controller.js
+node --check src/backend/src/services/incident.service.js
+# Result: ✅ syntax OK
+```
+
+### Git Commit
+
+```
+feat(admin): add dedicated Zones list page with filters and map deep-linking
+```
+
+*End of Phase 7 — Admin Zone List Page*

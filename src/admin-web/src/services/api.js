@@ -78,8 +78,10 @@ export const api = {
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params.dateTo) qs.append('dateTo', params.dateTo);
     if (params.categoryId) qs.append('categoryId', params.categoryId);
+    if (params.zoneCategoryId) qs.append('zoneCategoryId', params.zoneCategoryId);
     if (params.severity) qs.append('severity', params.severity);
     if (params.status) qs.append('status', params.status);
+    if (params.geometryType) qs.append('geometryType', params.geometryType);
     if (params.viewport) qs.append('viewport', params.viewport);
     const query = qs.toString();
     return request(`/incidents${query ? '?' + query : ''}`);
@@ -90,8 +92,10 @@ export const api = {
     if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params.dateTo) qs.append('dateTo', params.dateTo);
     if (params.categoryId) qs.append('categoryId', params.categoryId);
+    if (params.zoneCategoryId) qs.append('zoneCategoryId', params.zoneCategoryId);
     if (params.severity) qs.append('severity', params.severity);
     if (params.status) qs.append('status', params.status);
+    if (params.geometryType) qs.append('geometryType', params.geometryType);
     if (params.viewport) qs.append('viewport', params.viewport);
     if (params.limit) qs.append('limit', params.limit);
     if (params.offset !== undefined) qs.append('offset', params.offset);
@@ -119,14 +123,6 @@ export const api = {
     request(`/incidents/${incidentId}/sources`, { method: 'POST', body: JSON.stringify(body) }),
   updateSourceVerification: (incidentId, sourceId, body) =>
     request(`/incidents/${incidentId}/sources/${sourceId}`, { method: 'PATCH', body: JSON.stringify(body) }),
-
-  // Zones
-  getZones: () => request('/zones'),
-  getZone: (id) => request(`/zones/${id}`),
-  getZoneIncidents: (id) => request(`/zones/${id}/incidents`),
-  createZone: (body) => request('/zones', { method: 'POST', body: JSON.stringify(body) }),
-  updateZone: (id, body) => request(`/zones/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteZone: (id) => request(`/zones/${id}`, { method: 'DELETE' }),
 
   // Media
   uploadMedia: (incidentId, file) => {
