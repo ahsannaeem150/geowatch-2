@@ -68,7 +68,7 @@ export async function updateUserController(req, res) {
 
 export async function deleteUserController(req, res) {
   const deps = await getUserDependencyCounts(req.params.id);
-  const hasDeps = deps.incidents > 0 || deps.sources > 0 || deps.timeline > 0 || deps.zones > 0;
+  const hasDeps = deps.incidents > 0 || deps.sources > 0 || deps.timeline > 0;
 
   if (hasDeps) {
     return res.apiError(

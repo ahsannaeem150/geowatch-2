@@ -197,7 +197,3 @@ export async function getCategoryIncidentCount(id) {
   return parseInt(result.rows[0].c, 10);
 }
 
-export async function getCategoryZoneCount(id) {
-  const result = await query('SELECT COUNT(*) as c FROM zones WHERE category_id = $1', [id]);
-  return parseInt(result.rows[0].c, 10);
-}

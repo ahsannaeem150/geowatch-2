@@ -106,6 +106,7 @@ export async function createIncidentController(req, res) {
     title: incident.title,
     severity: incident.severity,
     categoryId: incident.category_id,
+    geometryType: incident.geometry_type,
     latitude: incident.latitude,
     longitude: incident.longitude,
   });

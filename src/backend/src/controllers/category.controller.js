@@ -12,7 +12,6 @@ import {
   getCategoryById,
   deleteCategory,
   getCategoryIncidentCount,
-  getCategoryZoneCount,
 } from '../services/category.service.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
@@ -174,14 +173,13 @@ export async function deleteCategoryController(req, res) {
   }
 
   const incidentCount = await getCategoryIncidentCount(req.params.id);
-  const zoneCount = await getCategoryZoneCount(req.params.id);
 
-  if (incidentCount > 0 || zoneCount > 0) {
+  if (incidentCount > 0) {
     return res.apiError(
-      `Cannot delete category with ${incidentCount} incidents and ${zoneCount} zones. Reassign or delete dependent records first.`,
+      `Cannot delete category with ${incidentCount} dependent incident(s). Reassign or delete dependent records first.`,
       'CONFLICT',
       409,
-      { incidentCount, zoneCount }
+      { incidentCount }
     );
   }
 

@@ -147,7 +147,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================
 INSERT INTO zone_categories (name, slug, description, color, icon, sort_order, is_active)
 VALUES
-    ('NOTAM', 'notam', 'Notice to Airmen — temporary or permanent airspace restriction.', '#f97316', 'plane', 10, true),
+    ('NOTAM', 'notam', 'Notice to Airmen — temporary or permanent airspace restriction.', '#6366f1', 'plane', 10, true),
     ('NOTMAR', 'notmar', 'Notice to Mariners — maritime hazard or restricted area.', '#0ea5e9', 'anchor', 20, true),
     ('Curfew', 'curfew', 'Movement restriction during specified hours.', '#7c3aed', 'lock', 30, true),
     ('No-Fly Zone', 'no-fly-zone', 'Prohibited airspace for all or selected aircraft.', '#ef4444', 'alert-triangle', 40, true),

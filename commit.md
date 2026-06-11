@@ -5627,3 +5627,79 @@ feat(schema): add geometry_type and polymorphic geom to incidents; create zone_c
 ```
 
 *End of Phase 1 — Backend Database & Schema*
+
+---
+
+## 📅 2026-06-11 — Phase 2: Backend API & Validators (Polygon Incidents)
+
+### Summary
+Updated the incident CRUD layer to accept and store both point and polygon geometries. Removed the now-obsolete standalone `/zones` backend stack since zones are represented as polygon incidents. Existing marker workflows remain backward-compatible: requests with `latitude`/`longitude` are still accepted and stored as `geometry_type = 'point'`. Validated syntax and ran direct service tests for both point and polygon creation, update, and deletion.
+
+### Modified / Created / Deleted Files
+
+| File | Changes |
+|:--|:--|
+| `src/backend/src/validators/incident.schema.js` | Added `geometryType`, `geometry` (GeoJSON Point/Polygon), made `latitude`/`longitude`/`categoryId` conditional; added closed-ring validation for polygons |
+| `src/backend/src/services/incident.service.js` | `createIncident`/`updateIncident` now build `geom` from GeoJSON Polygon or lat/lon Point; selects include `geometry_type` and `ST_AsGeoJSON(geom)`; list/search support `geometryType` filter |
+| `src/backend/src/controllers/incident.controller.js` | Audit log now records `geometryType` |
+| `src/backend/server.js` | Removed `/api/v1/zones` route import and mount |
+| `src/backend/src/routes/zone.routes.js` | **Deleted** — legacy zone routes removed |
+| `src/backend/src/controllers/zone.controller.js` | **Deleted** — legacy zone controller removed |
+| `src/backend/src/services/zone.service.js` | **Deleted** — legacy zone service removed |
+| `src/backend/src/validators/zone.schema.js` | **Deleted** — legacy zone validator removed |
+| `src/backend/src/services/category.service.js` | Removed `getCategoryZoneCount` helper |
+| `src/backend/src/controllers/category.controller.js` | Category delete check no longer references zones |
+| `src/backend/src/services/user.service.js` | `getUserDependencyCounts` no longer counts zones |
+| `src/backend/src/controllers/user.controller.js` | User delete dependency check no longer includes zones |
+| `docs/api-spec.md` | Removed standalone Zone Endpoints section; documented `geometryType`/`geometry` on incident endpoints; added polygon example |
+
+### API Behavior
+
+**Create point incident (backward compatible)**
+```json
+{
+  "title": "...",
+  "latitude": 31.5204,
+  "longitude": 74.3587,
+  "categoryId": 1,
+  "severity": 3,
+  "startDate": "2024-01-15T10:00:00Z"
+}
+```
+
+**Create polygon incident (new)**
+```json
+{
+  "title": "No-Fly Zone",
+  "geometryType": "polygon",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]
+  },
+  "severity": 4,
+  "startDate": "2024-01-15T10:00:00Z"
+}
+```
+
+### Verification
+
+```bash
+# Syntax check all touched backend files
+cd src/backend
+for f in server.js src/validators/incident.schema.js src/services/incident.service.js src/controllers/incident.controller.js src/services/category.service.js src/controllers/category.controller.js src/services/user.service.js src/controllers/user.controller.js; do
+  node --check "$f" || exit 1
+done
+# Result: no errors
+
+# Direct service tests
+DB_PASSWORD=... node test-polygon.mjs  # ✅ polygon create/update/delete
+DB_PASSWORD=... node test-point.mjs     # ✅ point create/fetch/delete (backward compat)
+```
+
+### Git Commit
+
+```
+feat(api): incident CRUD accepts polygon geometry; remove legacy zone endpoints
+```
+
+*End of Phase 2 — Backend API & Validators*

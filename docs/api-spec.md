@@ -81,6 +81,7 @@ Query Parameters:
 - `severity` (integer, optional, 1-5)
 - `status` (string, optional: `active`, `resolved`, `hidden`)
 - `viewport` (string, optional) — `minLng,minLat,maxLng,maxLat`
+- `geometryType` (string, optional: `point`, `polygon`) — filter by geometry type
 - `verifiedOnly` (boolean, optional) — client-side filter hint
 
 Response:
@@ -92,6 +93,8 @@ Response:
         "id": "uuid",
         "title": "Incident Title",
         "description": "...",
+        "geometryType": "point",
+        "geometry": { "type": "Point", "coordinates": [74.3587, 31.5204] },
         "latitude": 31.5204,
         "longitude": 74.3587,
         "categoryId": 42,
@@ -162,6 +165,7 @@ Body:
 {
   "title": "Clashes in Region",
   "description": "Detailed description",
+  "geometryType": "point",
   "latitude": 31.5204,
   "longitude": 74.3587,
   "categoryId": 42,
@@ -185,8 +189,22 @@ Note: Backend fetches oEmbed HTML automatically for X posts.
 
 ### PATCH /incidents/:id
 Access: `admin` / `super_admin`  
-Body: Same as POST but partial  
+Body: Same as POST but partial. To convert a marker to a zone, send `geometryType: 'polygon'` and `geometry: { type: 'Polygon', coordinates: [...] }`.  
 Response: Updated incident
+
+#### Polygon incident example
+```json
+{
+  "title": "No-Fly Zone",
+  "geometryType": "polygon",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]
+  },
+  "severity": 4,
+  "startDate": "2024-01-15T10:00:00Z"
+}
+```
 
 ### DELETE /incidents/:id
 Access: `admin` / `super_admin`  
@@ -281,43 +299,7 @@ Body: `{ displayOrder: number }`
 
 ---
 
-## ZONE ENDPOINTS
-
-### GET /zones
-Access: Public  
-Query: `?active=true`  
-Response: `{ data: { zones: [ { id, name, description, geometry, fillColor, strokeColor, strokeWidth, opacity, category, incidentCount, isActive } ] } }`
-
-### GET /zones/:id
-Access: Public  
-Response: `{ data: { zone: { ... } } }`
-
-### GET /zones/:id/incidents
-Access: Public  
-Response: `{ data: { incidents: [...] } }` (incidents inside zone via `ST_Contains`)
-
-### POST /zones
-Access: `admin` / `super_admin`  
-Body:
-```json
-{
-  "name": "Red Zone A",
-  "description": "...",
-  "geometry": { "type": "Polygon", "coordinates": [...] },
-  "fillColor": "#9f1239",
-  "strokeColor": "#9f1239",
-  "strokeWidth": 2,
-  "opacity": 0.08,
-  "category": "conflict"
-}
-```
-
-### PATCH /zones/:id
-Access: `admin` / `super_admin`
-
-### DELETE /zones/:id
-Access: `admin` / `super_admin`  
-Note: Soft delete (`is_active = false`)
+> **Zones are now Polygon Incidents.** The standalone `/zones` endpoints have been removed. Create or update zones via `POST /incidents` or `PATCH /incidents/:id` with `geometryType: 'polygon'` and a GeoJSON `geometry` object.
 
 ---
 

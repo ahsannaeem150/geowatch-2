@@ -2,13 +2,15 @@ import { query } from '../config/database.js';
 
 const INCIDENT_COLUMNS = `
   i.id, i.title, i.description, i.latitude, i.longitude,
+  i.geometry_type,
   i.severity, i.status, i.start_date, i.end_date,
   i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
   i.location_context,
   i.category_id,
   i.verification_override,
   c.name AS category_name, c.slug AS category_slug,
-  d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color
+  d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
+  ST_AsGeoJSON(i.geom)::json AS geometry
 `;
 
 const INCIDENT_FROM = `
@@ -96,6 +98,11 @@ function buildIncidentWhereClause(filters, options = {}) {
       `ST_Within(i.geom, ST_MakeEnvelope($${idx++}, $${idx++}, $${idx++}, $${idx++}, 4326))`
     );
     params.push(minLng, minLat, maxLng, maxLat);
+  }
+
+  if (filters.geometryType) {
+    conditions.push(`i.geometry_type = $${idx++}`);
+    params.push(filters.geometryType);
   }
 
   return { where: conditions.join(' AND '), params, nextIndex: idx };
@@ -269,6 +276,7 @@ export async function createIncident(data, createdBy) {
   const {
     title,
     description,
+    geometry,
     latitude,
     longitude,
     categoryId,
@@ -279,17 +287,41 @@ export async function createIncident(data, createdBy) {
     verificationOverride,
   } = data;
 
+  let { geometryType } = data;
+  if (!geometryType) {
+    geometryType = geometry?.type === 'Polygon' ? 'polygon' : 'point';
+  }
+
   const status = endDate ? 'resolved' : 'active';
 
-  const result = await query(
-    `INSERT INTO incidents (
-      title, description, latitude, longitude, geom,
-      category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
-    ) VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, $9, $10, $11, $12, $13, $14)
-    RETURNING *`,
-    [title, description || null, latitude, longitude, longitude, latitude, categoryId, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null]
-  );
+  let sql;
+  let params;
 
+  if (geometryType === 'polygon') {
+    sql = `
+      INSERT INTO incidents (
+        title, description, geometry_type, geom,
+        category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
+      ) VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), 4326), $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *`;
+    params = [
+      title, description || null, geometryType, JSON.stringify(geometry),
+      categoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
+    ];
+  } else {
+    sql = `
+      INSERT INTO incidents (
+        title, description, geometry_type, geom, latitude, longitude,
+        category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
+      ) VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *`;
+    params = [
+      title, description || null, geometryType, longitude, latitude, latitude, longitude,
+      categoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
+    ];
+  }
+
+  const result = await query(sql, params);
   return result.rows[0];
 }
 
@@ -320,17 +352,32 @@ export async function updateIncident(id, data) {
     addField('status', 'resolved');
   }
 
-  if (data.latitude !== undefined) {
-    fields.push(`latitude = $${idx++}`);
-    values.push(data.latitude);
+  // Geometry updates
+  if (data.geometryType !== undefined) {
+    addField('geometry_type', data.geometryType);
   }
-  if (data.longitude !== undefined) {
-    fields.push(`longitude = $${idx++}`);
-    values.push(data.longitude);
-  }
-  if (data.latitude !== undefined && data.longitude !== undefined) {
+
+  if (data.geometry !== undefined) {
+    if (data.geometry.type === 'Polygon') {
+      fields.push(`geometry_type = 'polygon'`);
+      fields.push(`geom = ST_SetSRID(ST_GeomFromGeoJSON($${idx++}), 4326)`);
+      values.push(JSON.stringify(data.geometry));
+      fields.push('latitude = NULL');
+      fields.push('longitude = NULL');
+    } else if (data.geometry.type === 'Point') {
+      const [lng, lat] = data.geometry.coordinates;
+      fields.push(`geometry_type = 'point'`);
+      fields.push(`geom = ST_SetSRID(ST_MakePoint($${idx++}, $${idx++}), 4326)`);
+      fields.push(`latitude = $${idx++}`);
+      fields.push(`longitude = $${idx++}`);
+      values.push(lng, lat, lat, lng);
+    }
+  } else if (data.latitude !== undefined && data.longitude !== undefined) {
+    fields.push(`geometry_type = 'point'`);
     fields.push(`geom = ST_SetSRID(ST_MakePoint($${idx++}, $${idx++}), 4326)`);
-    values.push(data.longitude, data.latitude);
+    fields.push(`latitude = $${idx++}`);
+    fields.push(`longitude = $${idx++}`);
+    values.push(data.longitude, data.latitude, data.latitude, data.longitude);
   }
 
   if (fields.length === 0) {

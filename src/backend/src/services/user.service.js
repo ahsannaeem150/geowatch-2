@@ -132,19 +132,16 @@ export async function getUserDependencyCounts(id) {
     incidents,
     sources,
     timeline,
-    zones,
   ] = await Promise.all([
     query('SELECT COUNT(*) as c FROM incidents WHERE created_by = $1', [id]),
     query('SELECT COUNT(*) as c FROM incident_sources WHERE created_by = $1', [id]),
     query('SELECT COUNT(*) as c FROM incident_updates WHERE created_by = $1', [id]),
-    query('SELECT COUNT(*) as c FROM zones WHERE created_by = $1', [id]),
   ]);
 
   return {
     incidents: parseInt(incidents.rows[0].c, 10),
     sources: parseInt(sources.rows[0].c, 10),
     timeline: parseInt(timeline.rows[0].c, 10),
-    zones: parseInt(zones.rows[0].c, 10),
   };
 }
 
