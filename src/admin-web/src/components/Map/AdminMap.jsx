@@ -525,6 +525,15 @@ export default function AdminMap({
       const lat = parseFloat(incident.latitude);
       const lng = parseFloat(incident.longitude);
 
+      // Skip polygon incidents or rows with invalid coordinates
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        if (existing) {
+          existing.remove();
+          markers.current.delete(incident.id);
+        }
+        return;
+      }
+
       if (existing) {
         // Update position if changed
         existing.setLngLat([lng, lat]);

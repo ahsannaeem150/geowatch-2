@@ -211,6 +211,7 @@ export default function DashboardLayout() {
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
+  const [showZones, setShowZones] = useState(true);
 
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
@@ -221,7 +222,6 @@ export default function DashboardLayout() {
 
   // ─── Domain Filters ───
   const [activeDomainFilter, setActiveDomainFilter] = useState(null);
-  const [showZones, setShowZones] = useState(true);
 
   // Compute domain filter badges from current incidents
   const domainFilters = useMemo(() => {
@@ -258,6 +258,12 @@ export default function DashboardLayout() {
     }
     return result;
   }, [incidents, activeDomainFilter, activeDomainFilters]);
+
+  // Point incidents are rendered as markers; polygons are rendered via the zones source
+  const pointIncidents = useMemo(
+    () => filteredIncidents.filter((i) => i.geometry_type !== 'polygon'),
+    [filteredIncidents]
+  );
 
   // Fetch incidents: date-based with smart viewport only
   useEffect(() => {
@@ -1270,7 +1276,7 @@ export default function DashboardLayout() {
           }}
         >
           <AdminMap
-            incidents={filteredIncidents}
+            incidents={pointIncidents}
             zones={polygonIncidents}
             showZones={showZones}
             selectedEventId={selectedIncident?.id}
@@ -1495,8 +1501,15 @@ export default function DashboardLayout() {
             }}
           >
             <div>
-              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{filteredIncidents.length}</span>
+              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{pointIncidents.length}</span>
               {' incidents visible'}
+              {showZones && (
+                <>
+                  {' · '}
+                  <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{polygonIncidents.length}</span>
+                  {' zones'}
+                </>
+              )}
               {viewportFiltering === true && (
                 <span style={{ color: 'var(--text-muted)' }}> in current map area</span>
               )}
