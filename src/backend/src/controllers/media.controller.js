@@ -2,12 +2,16 @@ import { randomUUID } from 'crypto';
 import { getStorageEngine } from '../storage/index.js';
 import { processImage, isProcessableImage, isVideo } from '../utils/image-processor.js';
 import { processVideo } from '../utils/video-processor.js';
+import { generateMediaFilename, generateThumbFilename } from '../utils/slugify.js';
+import { getIncidentTitle } from '../services/incident.service.js';
 import * as mediaService from '../services/media.service.js';
 
 const storage = getStorageEngine();
 
 export async function uploadMedia(req, res) {
+  console.log('[MediaUpload] Request received — incidentId:', req.params.id, 'file:', req.file?.originalname, 'mimetype:', req.file?.mimetype, 'size:', req.file?.size);
   if (!req.file) {
+    console.log('[MediaUpload] Rejected: no file provided');
     return res.apiError('No file provided', 'VALIDATION_ERROR', 400);
   }
 
@@ -16,11 +20,14 @@ export async function uploadMedia(req, res) {
   const fileType = isProcessableImage(mimetype) ? 'image' : isVideo(mimetype) ? 'video' : 'other';
 
   if (fileType === 'other') {
+    console.log('[MediaUpload] Rejected: unsupported file type', mimetype);
     return res.apiError('Unsupported file type', 'VALIDATION_ERROR', 400);
   }
 
+  // Build SEO-friendly filename from incident title
+  const incidentTitle = await getIncidentTitle(incidentId);
   const ext = fileType === 'image' ? 'webp' : mimetype.split('/')[1] || 'bin';
-  const storedName = `${randomUUID()}.${ext}`;
+  const storedName = generateMediaFilename(incidentTitle || incidentId, ext);
   const folderPath = `incidents/${incidentId}`;
   const fullPath = `${folderPath}/${storedName}`;
 
@@ -30,41 +37,55 @@ export async function uploadMedia(req, res) {
   let height = null;
   let processedBuffer = buffer;
 
-  if (fileType === 'image') {
-    const processed = await processImage(buffer, mimetype);
-    processedBuffer = processed.originalBuffer;
-    width = processed.width;
-    height = processed.height;
+  try {
+    if (fileType === 'image') {
+      console.log('[MediaUpload] Processing image...');
+      const processed = await processImage(buffer, mimetype);
+      processedBuffer = processed.originalBuffer;
+      width = processed.width;
+      height = processed.height;
+      console.log('[MediaUpload] Image processed — dimensions:', width, 'x', height, 'buffer size:', processedBuffer.length);
 
-    // Upload main image
-    fileUrl = await storage.upload(processedBuffer, fullPath, 'image/webp');
+      // Upload main image
+      fileUrl = await storage.upload(processedBuffer, fullPath, 'image/webp');
+      console.log('[MediaUpload] Main image stored at:', fileUrl);
 
-    // Upload thumbnail
-    const thumbName = `${randomUUID()}_thumb.webp`;
-    const thumbPath = `${folderPath}/${thumbName}`;
-    thumbnailUrl = await storage.upload(processed.thumbnailBuffer, thumbPath, 'image/webp');
-  } else if (fileType === 'video') {
-    const processed = await processVideo(buffer, mimetype);
-    processedBuffer = processed.processedBuffer;
-    fileUrl = await storage.upload(processedBuffer, fullPath, mimetype);
-    // Future: thumbnailUrl = processed.posterBuffer ? await storage.upload(...) : null;
+      // Upload thumbnail with paired name
+      const baseName = storedName.replace(/\.webp$/, '');
+      const thumbName = generateThumbFilename(baseName, 'webp');
+      const thumbPath = `${folderPath}/${thumbName}`;
+      thumbnailUrl = await storage.upload(processed.thumbnailBuffer, thumbPath, 'image/webp');
+      console.log('[MediaUpload] Thumbnail stored at:', thumbnailUrl);
+    } else if (fileType === 'video') {
+      console.log('[MediaUpload] Processing video...');
+      const processed = await processVideo(buffer, mimetype);
+      processedBuffer = processed.processedBuffer;
+      fileUrl = await storage.upload(processedBuffer, fullPath, mimetype);
+      console.log('[MediaUpload] Video stored at:', fileUrl);
+      // Future: thumbnailUrl = processed.posterBuffer ? await storage.upload(...) : null;
+    }
+
+    console.log('[MediaUpload] Creating DB record...');
+    const record = await mediaService.createMediaRecord({
+      incidentId,
+      originalName: originalname,
+      storedName,
+      fileType,
+      mimeType: fileType === 'image' ? 'image/webp' : mimetype,
+      fileSizeBytes: processedBuffer.length,
+      fileUrl,
+      thumbnailUrl,
+      width,
+      height,
+      uploadedBy: req.user.id,
+    });
+    console.log('[MediaUpload] DB record created — id:', record.id);
+
+    res.apiSuccess({ media: record }, 'File uploaded successfully');
+  } catch (err) {
+    console.error('[MediaUpload] Processing error:', err.message, err.stack);
+    throw err;
   }
-
-  const record = await mediaService.createMediaRecord({
-    incidentId,
-    originalName: originalname,
-    storedName,
-    fileType,
-    mimeType: fileType === 'image' ? 'image/webp' : mimetype,
-    fileSizeBytes: processedBuffer.length,
-    fileUrl,
-    thumbnailUrl,
-    width,
-    height,
-    uploadedBy: req.user.id,
-  });
-
-  res.apiSuccess({ media: record }, 'File uploaded successfully');
 }
 
 export async function listMedia(req, res) {

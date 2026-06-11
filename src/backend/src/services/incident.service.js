@@ -346,6 +346,17 @@ export async function updateIncident(id, data) {
   return result.rows[0] || null;
 }
 
+/**
+ * Lightweight lookup for incident title (used by media upload naming).
+ */
+export async function getIncidentTitle(id) {
+  const result = await query(
+    `SELECT title FROM incidents WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0]?.title || null;
+}
+
 export async function deleteIncident(id, deletedBy) {
   // Soft delete: set status to 'hidden' and log the deletion
   const incidentResult = await query(

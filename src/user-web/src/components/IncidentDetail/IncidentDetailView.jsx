@@ -5,11 +5,14 @@ import SaveButton from '../SaveButton/SaveButton.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
+import { MediaGallery } from '@shared/components/MediaGallery.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function IncidentDetailView({ incidentId, onBack, refreshKey, isSaved, onSaveChange }) {
   const [data, setData] = useState(null);
+  const [media, setMedia] = useState([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedUpdateId, setExpandedUpdateId] = useState(null);
@@ -28,8 +31,18 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
       .finally(() => setLoading(false));
   };
 
+  const fetchMedia = () => {
+    setMediaLoading(true);
+    api
+      .listMedia(incidentId)
+      .then((res) => setMedia(res.data?.media || []))
+      .catch(() => setMedia([]))
+      .finally(() => setMediaLoading(false));
+  };
+
   useEffect(() => {
     fetchData();
+    fetchMedia();
   }, [incidentId]);
 
   // Re-fetch when refreshKey changes (SSE-driven live update)
@@ -225,6 +238,14 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
           >
             {incident.description}
           </p>
+        </div>
+      )}
+
+      {/* Media */}
+      {media.length > 0 && (
+        <div>
+          <SectionLabel>Media</SectionLabel>
+          <MediaGallery media={media} canEdit={false} />
         </div>
       )}
 

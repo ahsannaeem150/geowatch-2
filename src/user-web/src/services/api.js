@@ -75,6 +75,9 @@ export const api = {
   }),
   publicMe: () => request('/auth/public/me'),
 
+  // Media
+  listMedia: (incidentId) => request(`/incidents/${incidentId}/media`),
+
   // Saved incidents
   listSavedIncidents: () => request('/incidents/saved'),
   saveIncident: (id) => request(`/incidents/${id}/save`, { method: 'POST' }),

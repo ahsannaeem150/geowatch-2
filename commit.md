@@ -5425,3 +5425,50 @@ feat: complete local media upload pipeline (Phases 1-10) with Sharp compression,
 ```
 
 *End of Phase 10 — Media Upload Feature Complete*
+
+---
+
+## 📅 2026-06-11 — Module: SEO-Friendly Media Filenames + User-Web Media Gallery
+
+### Summary
+Implemented SEO-friendly, incident-based filenames for uploaded media to replace random UUIDs. Moved MediaGallery and MediaLightbox to shared components so both admin-web and user-web can display incident media. Added frontend fetch timeout and backend tracing logs to prevent/debug upload hangs. Fixed fileFilter to return 400 instead of 500 for unsupported MIME types.
+
+### Created Files & Folders
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/backend/src/utils/slugify.js` | `slugify()`, `generateMediaFilename()`, `generateThumbFilename()` utilities |
+| `src/shared/media-components.css` | Shared CSS for MediaUploader, MediaGallery, and MediaLightbox |
+| `src/shared/components/MediaGallery.jsx` | Reusable thumbnail grid + lightbox trigger (moved from admin-web) |
+| `src/shared/components/MediaLightbox.jsx` | Full-screen image viewer with keyboard nav (moved from admin-web) |
+
+### Modified Files
+
+| File | Changes |
+|:--|:--|
+| `src/backend/src/controllers/media.controller.js` | Fetches incident title; generates `{slug}-{YYYYMMDD}-{suffix}.{ext}` stored names; logs every upload step |
+| `src/backend/src/routes/media.routes.js` | Changed `fileFilter` to `cb(null, false)` instead of throwing 500 error |
+| `src/backend/src/services/incident.service.js` | Added `getIncidentTitle(id)` lightweight lookup |
+| `src/admin-web/src/services/api.js` | Added `AbortController` with 60s timeout to prevent infinite fetch hangs |
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx` | Added `[MediaUpload]` console tracing; imports MediaGallery from `@shared` |
+| `src/admin-web/src/main.jsx` | Imports `@shared/media-components.css` |
+| `src/user-web/src/services/api.js` | Added `listMedia()` endpoint |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` | Fetches + displays incident media via `MediaGallery` |
+| `src/user-web/src/main.jsx` | Imports `@shared/media-components.css` |
+
+### Filename Pattern
+
+Before: `7d389a56-422e-4de0-94e8-186befa77788.webp`
+After:  `israel-hamas-conflict-gaza-20240611-a7b3.webp`
+
+Thumbnail pairing: `israel-hamas-conflict-gaza-20240611-a7b3_thumb.webp`
+
+Fallback: if incident has no title, uses `incident-{uuid}-{date}-{suffix}.{ext}`.
+
+### Git Commit
+
+```
+feat: SEO-friendly media filenames based on incident title; shared MediaGallery for user-web; upload timeout + tracing
+```
+
+*End of Module — SEO Media Naming & Cross-Frontend Gallery*

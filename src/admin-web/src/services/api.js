@@ -20,27 +20,44 @@ async function request(path, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // AbortController with 60s timeout (prevents indefinite hangs on large uploads)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-  let data;
   try {
-    data = await res.json();
-  } catch {
-    data = { success: false, message: 'Invalid JSON response', error: 'PARSE_ERROR' };
-  }
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-  if (!res.ok || !data.success) {
-    const err = new Error(data.message || `HTTP ${res.status}`);
-    err.statusCode = res.status;
-    err.errorCode = data.error || 'UNKNOWN_ERROR';
-    err.responseData = data;
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      data = { success: false, message: 'Invalid JSON response', error: 'PARSE_ERROR' };
+    }
+
+    if (!res.ok || !data.success) {
+      const err = new Error(data.message || `HTTP ${res.status}`);
+      err.statusCode = res.status;
+      err.errorCode = data.error || 'UNKNOWN_ERROR';
+      err.responseData = data;
+      throw err;
+    }
+
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      const timeoutErr = new Error('Request timed out after 60 seconds');
+      timeoutErr.statusCode = 408;
+      timeoutErr.errorCode = 'TIMEOUT';
+      throw timeoutErr;
+    }
     throw err;
   }
-
-  return data;
 }
 
 export const api = {

@@ -21,11 +21,8 @@ const upload = multer({
       'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
       'video/mp4', 'video/webm', 'video/quicktime',
     ];
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error(`Unsupported file type: ${file.mimetype}`), false);
-    }
+    // Reject unsupported types silently — controller returns 400 with a clear message
+    cb(null, allowed.includes(file.mimetype));
   },
 });
 

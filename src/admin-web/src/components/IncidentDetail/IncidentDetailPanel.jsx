@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, Check, Image } from 'lucide-react';
 import { MediaUploader } from '../Media/MediaUploader.jsx';
-import { MediaGallery } from '../Media/MediaGallery.jsx';
+import { MediaGallery } from '@shared/components/MediaGallery.jsx';
 import { api } from '../../services/api.js';
 import { Button } from '@shared/components/Button.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
@@ -248,8 +248,15 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   };
 
   const handleUploadMedia = async (file) => {
-    const res = await api.uploadMedia(incidentId, file);
-    setMedia((prev) => [...prev, res.data.media]);
+    console.log('[MediaUpload] Starting upload:', file.name, 'size:', file.size, 'type:', file.type, 'incident:', incidentId);
+    try {
+      const res = await api.uploadMedia(incidentId, file);
+      console.log('[MediaUpload] Success:', res.data.media?.id, res.data.media?.stored_name);
+      setMedia((prev) => [...prev, res.data.media]);
+    } catch (err) {
+      console.error('[MediaUpload] Failed:', err.message, err.statusCode, err.errorCode);
+      throw err;
+    }
   };
 
   const handleDeleteMedia = async (mediaId) => {
