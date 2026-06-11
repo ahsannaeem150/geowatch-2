@@ -108,6 +108,7 @@ export default function DashboardLayout() {
   const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
   const [drawVertices, setDrawVertices] = useState([]);
   const [isPolygonClosed, setIsPolygonClosed] = useState(false);
+  const isPolygonClosedRef = useRef(isPolygonClosed);
   const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
   const [selectedDrawVertexIndex, setSelectedDrawVertexIndex] = useState(null);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, type, index }
@@ -116,20 +117,22 @@ export default function DashboardLayout() {
   const [editingZoneId, setEditingZoneId] = useState(null);
   const [editingZoneVertices, setEditingZoneVertices] = useState([]);
   const [originalZoneVertices, setOriginalZoneVertices] = useState([]);
+  const [selectedEditVertexIndex, setSelectedEditVertexIndex] = useState(null);
   const editingZoneIdRef = useRef(editingZoneId);
   const editingZoneVerticesRef = useRef(editingZoneVertices);
   const drawVerticesRef = useRef(drawVertices);
+  isPolygonClosedRef.current = isPolygonClosed;
   editingZoneIdRef.current = editingZoneId;
   editingZoneVerticesRef.current = editingZoneVertices;
   drawVerticesRef.current = drawVertices;
 
   // ─── Drawing Undo History ───
-  const drawHistoryRef = useRef([[]]);
+  const drawHistoryRef = useRef([{ vertices: [], isClosed: false }]);
   const historyIndexRef = useRef(0);
 
-  const pushToHistory = useCallback((vertices) => {
+  const pushToHistory = useCallback((vertices, isClosed) => {
     drawHistoryRef.current = drawHistoryRef.current.slice(0, historyIndexRef.current + 1);
-    drawHistoryRef.current.push(vertices.map((v) => [...v]));
+    drawHistoryRef.current.push({ vertices: vertices.map((v) => [...v]), isClosed });
     historyIndexRef.current += 1;
     if (drawHistoryRef.current.length > 50) {
       drawHistoryRef.current.shift();
@@ -141,9 +144,50 @@ export default function DashboardLayout() {
     if (historyIndexRef.current <= 0) return;
     historyIndexRef.current -= 1;
     const prev = drawHistoryRef.current[historyIndexRef.current];
-    setDrawVertices(prev.map((v) => [...v]));
+    setDrawVertices(prev.vertices.map((v) => [...v]));
+    setIsPolygonClosed(prev.isClosed);
     setSelectedDrawVertexIndex(null);
   }, []);
+
+  const handleDrawRedo = useCallback(() => {
+    if (historyIndexRef.current >= drawHistoryRef.current.length - 1) return;
+    historyIndexRef.current += 1;
+    const next = drawHistoryRef.current[historyIndexRef.current];
+    setDrawVertices(next.vertices.map((v) => [...v]));
+    setIsPolygonClosed(next.isClosed);
+    setSelectedDrawVertexIndex(null);
+  }, []);
+
+  // ─── Edit Mode Undo History ───
+  const editHistoryRef = useRef([]);
+  const editHistoryIndexRef = useRef(-1);
+
+  const pushToEditHistory = useCallback((vertices) => {
+    editHistoryRef.current = editHistoryRef.current.slice(0, editHistoryIndexRef.current + 1);
+    editHistoryRef.current.push(vertices.map((v) => [...v]));
+    editHistoryIndexRef.current += 1;
+    if (editHistoryRef.current.length > 50) {
+      editHistoryRef.current.shift();
+      editHistoryIndexRef.current -= 1;
+    }
+  }, []);
+
+  const handleEditUndo = useCallback(() => {
+    if (editHistoryIndexRef.current <= 0) return;
+    editHistoryIndexRef.current -= 1;
+    const prev = editHistoryRef.current[editHistoryIndexRef.current];
+    setEditingZoneVertices(prev.map((v) => [...v]));
+    setSelectedEditVertexIndex(null);
+  }, []);
+
+  // Clean up edit selection/history whenever edit mode is exited
+  useEffect(() => {
+    if (!editingZoneId) {
+      setSelectedEditVertexIndex(null);
+      editHistoryRef.current = [];
+      editHistoryIndexRef.current = -1;
+    }
+  }, [editingZoneId]);
 
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -606,12 +650,15 @@ export default function DashboardLayout() {
       setIsPolygonClosed(false);
       setShowZoneCreatePanel(false);
       setSelectedDrawVertexIndex(null);
-      drawHistoryRef.current = [[]];
+      drawHistoryRef.current = [{ vertices: [], isClosed: false }];
       historyIndexRef.current = 0;
       // Clear editing state when entering drawing mode
       setEditingZoneId(null);
       setEditingZoneVertices([]);
       setOriginalZoneVertices([]);
+      setSelectedEditVertexIndex(null);
+      editHistoryRef.current = [];
+      editHistoryIndexRef.current = -1;
     }
   }, []);
 
@@ -625,13 +672,14 @@ export default function DashboardLayout() {
     }
     setDrawVertices(next);
     setSelectedDrawVertexIndex(null); // Deselect when adding new point
-    pushToHistory(next);
+    pushToHistory(next, isPolygonClosedRef.current);
   }, [pushToHistory]);
 
   const handleDrawClose = useCallback(() => {
     setIsPolygonClosed(true);
     setSelectedDrawVertexIndex(null);
-  }, []);
+    pushToHistory(drawVerticesRef.current, true);
+  }, [pushToHistory]);
 
   const handleDrawCancel = useCallback(() => {
     setMapMode('pan');
@@ -640,7 +688,7 @@ export default function DashboardLayout() {
     setShowZoneCreatePanel(false);
     setSelectedDrawVertexIndex(null);
     setContextMenu(null);
-    drawHistoryRef.current = [[]];
+    drawHistoryRef.current = [{ vertices: [], isClosed: false }];
     historyIndexRef.current = 0;
   }, []);
 
@@ -657,7 +705,7 @@ export default function DashboardLayout() {
   }, []);
 
   const handleDrawVertexDragEnd = useCallback((index) => {
-    pushToHistory(drawVerticesRef.current);
+    pushToHistory(drawVerticesRef.current, isPolygonClosedRef.current);
   }, [pushToHistory]);
 
   const handleEditEdgeVertexInsert = useCallback((coords, segmentIndex) => {
@@ -666,10 +714,12 @@ export default function DashboardLayout() {
       if (idx === -1) return prev;
       const next = [...prev];
       next.splice(idx + 1, 0, coords);
+      pushToEditHistory(next);
       return next;
     });
+    setSelectedEditVertexIndex(null);
     setContextMenu(null);
-  }, []);
+  }, [pushToEditHistory]);
 
   const handleDrawVertexDelete = useCallback((index) => {
     if (drawVerticesRef.current.length <= 3) {
@@ -681,7 +731,7 @@ export default function DashboardLayout() {
     setDrawVertices(next);
     setSelectedDrawVertexIndex(null);
     setContextMenu(null);
-    pushToHistory(next);
+    pushToHistory(next, isPolygonClosedRef.current);
   }, [pushToHistory]);
 
   const handleContextMenu = useCallback((data) => {
@@ -724,6 +774,9 @@ export default function DashboardLayout() {
     setEditingZoneId(zone.id);
     setEditingZoneVertices(coords);
     setOriginalZoneVertices(JSON.parse(JSON.stringify(coords)));
+    setSelectedEditVertexIndex(null);
+    editHistoryRef.current = [coords.map((v) => [...v])];
+    editHistoryIndexRef.current = 0;
   }, [selectedZoneId, zones]);
 
   const handleVertexDrag = useCallback((index, { lng, lat }) => {
@@ -734,6 +787,10 @@ export default function DashboardLayout() {
     });
   }, []);
 
+  const handleVertexDragEnd = useCallback(() => {
+    pushToEditHistory(editingZoneVerticesRef.current);
+  }, [pushToEditHistory]);
+
   const handleMidpointClick = useCallback((edgeIndex) => {
     setEditingZoneVertices((prev) => {
       const a = prev[edgeIndex];
@@ -741,9 +798,11 @@ export default function DashboardLayout() {
       const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       const next = [...prev];
       next.splice(edgeIndex + 1, 0, midpoint);
+      pushToEditHistory(next);
       return next;
     });
-  }, []);
+    setSelectedEditVertexIndex(null);
+  }, [pushToEditHistory]);
 
   const handleVertexDoubleClick = useCallback((index) => {
     setEditingZoneVertices((prev) => {
@@ -753,9 +812,29 @@ export default function DashboardLayout() {
       }
       const next = [...prev];
       next.splice(index, 1);
+      pushToEditHistory(next);
       return next;
     });
+    setSelectedEditVertexIndex(null);
+  }, [pushToEditHistory]);
+
+  const handleEditVertexSelect = useCallback((index) => {
+    setSelectedEditVertexIndex(index);
   }, []);
+
+  const handleEditVertexDelete = useCallback((index) => {
+    setEditingZoneVertices((prev) => {
+      if (prev.length <= 3) {
+        console.warn('Cannot delete vertex: polygon must have at least 3 vertices');
+        return prev;
+      }
+      const next = [...prev];
+      next.splice(index, 1);
+      pushToEditHistory(next);
+      return next;
+    });
+    setSelectedEditVertexIndex(null);
+  }, [pushToEditHistory]);
 
   const handleZoneEditSave = useCallback(async (data) => {
     const id = editingZoneIdRef.current;
@@ -770,6 +849,9 @@ export default function DashboardLayout() {
       setEditingZoneId(null);
       setEditingZoneVertices([]);
       setOriginalZoneVertices([]);
+      setSelectedEditVertexIndex(null);
+      editHistoryRef.current = [];
+      editHistoryIndexRef.current = -1;
       setRefreshKey((k) => k + 1);
       setToast({ message: 'Zone updated successfully', type: 'success' });
     } catch (err) {
@@ -781,6 +863,9 @@ export default function DashboardLayout() {
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
+    setSelectedEditVertexIndex(null);
+    editHistoryRef.current = [];
+    editHistoryIndexRef.current = -1;
   }, []);
 
   const handleZoneDelete = useCallback(async () => {
@@ -1272,11 +1357,18 @@ export default function DashboardLayout() {
             onContextMenu={handleContextMenu}
             onDrawVertexDelete={handleDrawVertexDelete}
             onDrawUndo={handleDrawUndo}
+            onDrawRedo={handleDrawRedo}
             editingZoneId={editingZoneId}
             editingZoneVertices={editingZoneVertices}
+            selectedEditVertexIndex={selectedEditVertexIndex}
             onVertexDrag={handleVertexDrag}
+            onVertexDragEnd={handleVertexDragEnd}
             onMidpointClick={handleMidpointClick}
             onVertexDoubleClick={handleVertexDoubleClick}
+            onEditVertexSelect={handleEditVertexSelect}
+            onEditVertexDelete={handleEditVertexDelete}
+            onEditUndo={handleEditUndo}
+            onEditCancel={handleZoneEditCancel}
           />
 
           {!editingZoneId && (

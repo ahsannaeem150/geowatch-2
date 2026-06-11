@@ -90,11 +90,18 @@ export default function AdminMap({
   onContextMenu,
   onDrawVertexDelete,
   onDrawUndo,
+  onDrawRedo,
   editingZoneId = null,
   editingZoneVertices = [],
+  selectedEditVertexIndex = null,
   onVertexDrag,
+  onVertexDragEnd,
   onMidpointClick,
   onVertexDoubleClick,
+  onEditVertexSelect,
+  onEditVertexDelete,
+  onEditUndo,
+  onEditCancel,
 }) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -115,11 +122,19 @@ export default function AdminMap({
   const editingZoneVerticesRef = useRef(editingZoneVertices);
   const isDraggingVertex = useRef(false);
   const draggedVertexIndex = useRef(null);
+  const didDragVertex = useRef(false);
+  const dragStartPixelVertex = useRef({ x: 0, y: 0 });
+  const selectedEditVertexIndexRef = useRef(selectedEditVertexIndex);
   const onDrawCloseRef = useRef(onDrawClose);
   const onMapDblClickRef = useRef(onMapDblClick);
   const onVertexDragRef = useRef(onVertexDrag);
+  const onVertexDragEndRef = useRef(onVertexDragEnd);
   const onMidpointClickRef = useRef(onMidpointClick);
   const onVertexDoubleClickRef = useRef(onVertexDoubleClick);
+  const onEditVertexSelectRef = useRef(onEditVertexSelect);
+  const onEditVertexDeleteRef = useRef(onEditVertexDelete);
+  const onEditUndoRef = useRef(onEditUndo);
+  const onEditCancelRef = useRef(onEditCancel);
   onViewportChangeRef.current = onViewportChange;
   mapModeRef.current = mapMode;
   drawVerticesRef.current = drawVertices;
@@ -129,8 +144,14 @@ export default function AdminMap({
   onDrawCloseRef.current = onDrawClose;
   onMapDblClickRef.current = onMapDblClick;
   onVertexDragRef.current = onVertexDrag;
+  onVertexDragEndRef.current = onVertexDragEnd;
   onMidpointClickRef.current = onMidpointClick;
   onVertexDoubleClickRef.current = onVertexDoubleClick;
+  onEditVertexSelectRef.current = onEditVertexSelect;
+  onEditVertexDeleteRef.current = onEditVertexDelete;
+  onEditUndoRef.current = onEditUndo;
+  onEditCancelRef.current = onEditCancel;
+  selectedEditVertexIndexRef.current = selectedEditVertexIndex;
 
   const [hoveredDrawVertexIndex, setHoveredDrawVertexIndex] = useState(null);
   const isDraggingDrawVertex = useRef(false);
@@ -143,14 +164,18 @@ export default function AdminMap({
   const onContextMenuRef = useRef(onContextMenu);
   const onDrawVertexDeleteRef = useRef(onDrawVertexDelete);
   const onDrawUndoRef = useRef(onDrawUndo);
+  const onDrawRedoRef = useRef(onDrawRedo);
   const selectedDrawVertexIndexRef = useRef(selectedDrawVertexIndex);
+  const hoveredDrawVertexIndexRef = useRef(hoveredDrawVertexIndex);
   onDrawVertexSelectRef.current = onDrawVertexSelect;
   onDrawVertexMoveRef.current = onDrawVertexMove;
   onDrawVertexDragEndRef.current = onDrawVertexDragEnd;
   onContextMenuRef.current = onContextMenu;
   onDrawVertexDeleteRef.current = onDrawVertexDelete;
   onDrawUndoRef.current = onDrawUndo;
+  onDrawRedoRef.current = onDrawRedo;
   selectedDrawVertexIndexRef.current = selectedDrawVertexIndex;
+  hoveredDrawVertexIndexRef.current = hoveredDrawVertexIndex;
 
   // Initialize map once
   useEffect(() => {
@@ -306,11 +331,14 @@ export default function AdminMap({
             'case',
             ['boolean', ['get', 'isSelected'], false], 10,
             ['boolean', ['get', 'isHovered'], false], 9,
+            ['boolean', ['get', 'isFirst'], false], 9,
             8,
           ],
           'circle-color': [
             'case',
             ['boolean', ['get', 'isSelected'], false], '#f59e0b',
+            ['boolean', ['get', 'isHovered'], false], '#fff',
+            ['boolean', ['get', 'isFirst'], false], '#3b82f6',
             '#fff',
           ],
           'circle-stroke-width': 2,
@@ -379,8 +407,8 @@ export default function AdminMap({
         type: 'circle',
         source: 'edit-vertices',
         paint: {
-          'circle-radius': 6,
-          'circle-color': '#fff',
+          'circle-radius': ['case', ['boolean', ['get', 'isSelected'], false], 9, 6],
+          'circle-color': ['case', ['boolean', ['get', 'isSelected'], false], '#f59e0b', '#fff'],
           'circle-stroke-width': 2,
           'circle-stroke-color': '#f59e0b',
         },
@@ -783,7 +811,7 @@ export default function AdminMap({
         features: editingZoneVertices.map((coord, idx) => ({
           type: 'Feature',
           geometry: { type: 'Point', coordinates: coord },
-          properties: { index: idx },
+          properties: { index: idx, isSelected: idx === selectedEditVertexIndex },
         })),
       });
 
@@ -807,7 +835,7 @@ export default function AdminMap({
       vertexSource.setData({ type: 'FeatureCollection', features: [] });
       midpointSource.setData({ type: 'FeatureCollection', features: [] });
     }
-  }, [editingZoneId, editingZoneVertices]);
+  }, [editingZoneId, editingZoneVertices, selectedEditVertexIndex]);
 
   // ─── Drawing preview data update ───
   useEffect(() => {
@@ -830,6 +858,7 @@ export default function AdminMap({
             index: idx,
             isHovered: idx === hoveredIdx,
             isSelected: idx === selectedIdx,
+            isFirst: idx === 0,
           },
         });
       });
@@ -938,13 +967,21 @@ export default function AdminMap({
       if (!source) return;
 
       const features = [];
+      const hoveredIdx = hoveredDrawVertexIndexRef.current;
+      const selectedIdx = selectedDrawVertexIndexRef.current;
 
       // Rebuild all features with updated rubber band
       drawVerticesRef.current.forEach((coord, idx) => {
         features.push({
           type: 'Feature',
           geometry: { type: 'Point', coordinates: coord },
-          properties: { isVertex: true, index: idx },
+          properties: {
+            isVertex: true,
+            index: idx,
+            isHovered: idx === hoveredIdx,
+            isSelected: idx === selectedIdx,
+            isFirst: idx === 0,
+          },
         });
       });
 
@@ -991,38 +1028,77 @@ export default function AdminMap({
     };
   }, []);
 
-  // ─── Escape key to cancel drawing ───
+  // ─── Keyboard shortcuts for drawing and edit modes ───
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (mapModeRef.current !== 'polygon') return;
-
       const activeTag = document.activeElement?.tagName;
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
 
-      if (e.key === 'Escape') {
-        onDrawCancel?.();
-        return;
+      if (mapModeRef.current === 'polygon') {
+        if (e.key === 'Escape') {
+          onDrawCancelRef.current?.();
+          return;
+        }
+
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedDrawVertexIndexRef.current !== null) {
+          onDrawVertexDeleteRef.current?.(selectedDrawVertexIndexRef.current);
+          return;
+        }
+
+        // Ctrl+Z / Cmd+Z → undo
+        if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+          e.preventDefault();
+          onDrawUndoRef.current?.();
+          return;
+        }
+
+        // Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z → redo
+        if ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+          e.preventDefault();
+          onDrawRedoRef.current?.();
+          return;
+        }
+        if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+          e.preventDefault();
+          onDrawRedoRef.current?.();
+          return;
+        }
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedDrawVertexIndexRef.current !== null) {
-        onDrawVertexDeleteRef.current?.(selectedDrawVertexIndexRef.current);
-        return;
-      }
+      if (editingZoneIdRef.current) {
+        if (e.key === 'Escape') {
+          onEditCancelRef.current?.();
+          return;
+        }
 
-      if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        onDrawUndoRef.current?.();
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEditVertexIndexRef.current !== null) {
+          onEditVertexDeleteRef.current?.(selectedEditVertexIndexRef.current);
+          return;
+        }
+
+        if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+          e.preventDefault();
+          onEditUndoRef.current?.();
+          return;
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onDrawCancel]);
+  }, []);
 
   // ─── Cursor change for drawing mode ───
   useEffect(() => {
     if (!map.current) return;
     map.current.getCanvas().style.cursor = mapMode === 'polygon' ? 'crosshair' : '';
   }, [mapMode]);
+
+  // ─── Clear rubber band when polygon is closed (prevents stale line after undo) ───
+  useEffect(() => {
+    if (isPolygonClosed) {
+      rubberBandCoords.current = null;
+    }
+  }, [isPolygonClosed]);
 
   // ─── Clear drawing preview when leaving polygon mode ───
   useEffect(() => {
@@ -1094,6 +1170,8 @@ export default function AdminMap({
           const idx = features[0].properties.index;
           isDraggingVertex.current = true;
           draggedVertexIndex.current = idx;
+          didDragVertex.current = false;
+          dragStartPixelVertex.current = { x: e.point.x, y: e.point.y };
           mapInstance.dragPan.disable();
           mapInstance.getCanvas().style.cursor = 'grabbing';
         }
@@ -1118,6 +1196,11 @@ export default function AdminMap({
     const onMouseMove = (e) => {
       // Edit mode drag
       if (isDraggingVertex.current) {
+        const dx = e.point.x - dragStartPixelVertex.current.x;
+        const dy = e.point.y - dragStartPixelVertex.current.y;
+        if (!didDragVertex.current && Math.sqrt(dx * dx + dy * dy) > 3) {
+          didDragVertex.current = true;
+        }
         const idx = draggedVertexIndex.current;
         if (idx !== null) {
           onVertexDragRef.current?.(idx, { lng: e.lngLat.lng, lat: e.lngLat.lat });
@@ -1143,10 +1226,16 @@ export default function AdminMap({
 
     const onMouseUp = () => {
       if (isDraggingVertex.current) {
+        const idx = draggedVertexIndex.current;
+        const wasDrag = didDragVertex.current;
         isDraggingVertex.current = false;
         draggedVertexIndex.current = null;
+        didDragVertex.current = false;
         mapInstance.dragPan.enable();
         mapInstance.getCanvas().style.cursor = '';
+        if (wasDrag && idx !== null) {
+          onVertexDragEndRef.current?.(idx);
+        }
       }
 
       if (isDraggingDrawVertex.current) {
@@ -1165,6 +1254,7 @@ export default function AdminMap({
     const onClick = (e) => {
       if (!editingZoneIdRef.current) return;
       if (isDraggingVertex.current) return;
+      if (didDragVertex.current) { didDragVertex.current = false; return; }
 
       const midpointFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-midpoints'] });
       if (midpointFeatures.length > 0) {
@@ -1172,6 +1262,16 @@ export default function AdminMap({
         onMidpointClickRef.current?.(edgeIndex);
         return;
       }
+
+      const vertexFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
+      if (vertexFeatures.length > 0) {
+        const idx = vertexFeatures[0].properties.index;
+        onEditVertexSelectRef.current?.(idx);
+        return;
+      }
+
+      // Clicked empty map while editing → deselect
+      onEditVertexSelectRef.current?.(null);
     };
 
     const onMouseMoveCursor = (e) => {
