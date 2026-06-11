@@ -42,6 +42,7 @@ async function request(path, options = {}) {
 export const api = {
   getCategories: () => request('/categories'),
   getDomains: () => request('/categories/domains'),
+  getZoneCategories: () => request('/zone-categories'),
 
   getIncidents: (params = {}) => {
     const qs = new URLSearchParams();
@@ -50,6 +51,7 @@ export const api = {
     if (params.categoryId) qs.append('categoryId', params.categoryId);
     if (params.severity) qs.append('severity', params.severity);
     if (params.status) qs.append('status', params.status);
+    if (params.geometryType) qs.append('geometryType', params.geometryType);
     if (params.viewport) qs.append('viewport', params.viewport);
     const query = qs.toString();
     return request(`/incidents${query ? '?' + query : ''}`);

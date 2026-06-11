@@ -22,11 +22,16 @@ function getMaxZoomForCenter(lng, lat) {
 
 export default function UserMap({
   incidents,
+  zones = [],
   selectedEventId,
+  selectedZoneId,
   onEventClick,
+  onZoneClick,
   onViewportChange,
   flyToCoords,
+  fitBounds,
   ghostIncident,
+  showZones = true,
 }) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -36,6 +41,8 @@ export default function UserMap({
   const popupRef = useRef(null);
   const popupTimeoutRef = useRef(null);
   const isProgrammaticMove = useRef(false);
+  const onZoneClickRef = useRef(onZoneClick);
+  onZoneClickRef.current = onZoneClick;
   const isClamping = useRef(false);
   const onViewportChangeRef = useRef(onViewportChange);
   onViewportChangeRef.current = onViewportChange;
@@ -61,6 +68,45 @@ export default function UserMap({
     // Report initial bounds once the map is loaded
     map.current.on('load', () => {
       if (!map.current) return;
+
+      // ─── Zone layers (added BEFORE markers so markers render on top) ───
+      map.current.addSource('zones', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+        promoteId: 'id',
+      });
+
+      map.current.addLayer({
+        id: 'zone-fills',
+        type: 'fill',
+        source: 'zones',
+        paint: {
+          'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false], 0.12,
+            ['boolean', ['feature-state', 'selected'], false], 0.10,
+            ['get', 'opacity'],
+          ],
+        },
+      });
+
+      map.current.addLayer({
+        id: 'zone-outlines',
+        type: 'line',
+        source: 'zones',
+        paint: {
+          'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
+          'line-width': ['get', 'strokeWidth'],
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false], 0.8,
+            ['boolean', ['feature-state', 'selected'], false], 0.9,
+            0.6,
+          ],
+        },
+      });
+
       const bounds = map.current.getBounds();
       const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
       onViewportChangeRef.current?.(viewport);
@@ -139,6 +185,102 @@ export default function UserMap({
       essential: true,
     });
   }, [flyToCoords]);
+
+  // Fit to bounds (for zone selection)
+  useEffect(() => {
+    if (!map.current || !fitBounds) return;
+    isProgrammaticMove.current = true;
+    map.current.fitBounds(fitBounds.bounds, {
+      padding: fitBounds.padding ?? 40,
+      duration: fitBounds.duration ?? 800,
+      essential: true,
+    });
+  }, [fitBounds]);
+
+  // Update zone source data when zones prop changes
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('zones');
+    if (!source) return;
+
+    const features = showZones
+      ? zones.map((zone) => {
+          const color = zone.zone_category_color || '#6366f1';
+          return {
+            type: 'Feature',
+            id: zone.id,
+            geometry: zone.geometry,
+            properties: {
+              name: zone.title || zone.name,
+              fillColor: color,
+              strokeColor: color,
+              strokeWidth: 2,
+              opacity: 0.08,
+            },
+          };
+        })
+      : [];
+
+    source.setData({ type: 'FeatureCollection', features });
+  }, [zones, showZones]);
+
+  // Zone hover and click interactions
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+    let hoveredZoneId = null;
+
+    const onMouseMove = (e) => {
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      if (features.length > 0) {
+        const feature = features[0];
+        if (hoveredZoneId !== feature.id) {
+          if (hoveredZoneId !== null) {
+            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          }
+          hoveredZoneId = feature.id;
+          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
+          mapInstance.getCanvas().style.cursor = 'pointer';
+        }
+      } else {
+        if (hoveredZoneId !== null) {
+          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          hoveredZoneId = null;
+        }
+        mapInstance.getCanvas().style.cursor = '';
+      }
+    };
+
+    const onClick = (e) => {
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      if (features.length > 0) {
+        const zone = zones.find((z) => z.id === features[0].id);
+        if (zone) onZoneClickRef.current?.(zone);
+      }
+    };
+
+    mapInstance.on('mousemove', onMouseMove);
+    mapInstance.on('click', onClick);
+
+    return () => {
+      mapInstance.off('mousemove', onMouseMove);
+      mapInstance.off('click', onClick);
+    };
+  }, [zones]);
+
+  // Update zone selection state
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('zones');
+    if (!source) return;
+
+    zones.forEach((zone) => {
+      map.current.setFeatureState(
+        { source: 'zones', id: zone.id },
+        { selected: zone.id === selectedZoneId }
+      );
+    });
+  }, [selectedZoneId, zones]);
 
   // Switch map style when theme changes
   useEffect(() => {

@@ -5971,3 +5971,51 @@ feat(admin): render polygon zones on map with category colors and legend toggle
 ```
 
 *End of Phase 8 — Admin Map Rendering for Zones*
+
+---
+
+## 📅 2026-06-11 — Phase 10: User-web Public Map & Zone Detail
+
+### Summary
+Brought polygon zones to the public user map. The map now renders zones using their category colors with translucent fills and outlines, includes a legend toggle to show/hide zones, and supports clicking a zone to open its detail in the sidebar. Zone detail reuses the incident detail layout but shows zone category, polygon area, and vertex count instead of point coordinates. Date filters now apply to zones, and the viewport query was switched from `ST_Within` to `ST_Intersects` so zones appear when any part is visible.
+
+### Modified / Created Files
+
+| File | Changes |
+|:--|:--|
+| `src/backend/src/services/incident.service.js` | Changed viewport filter from `ST_Within` to `ST_Intersects` |
+| `src/user-web/src/services/api.js` | Added `geometryType` param to `getIncidents`; added `getZoneCategories()` |
+| `src/user-web/src/components/Map/UserMap.jsx` | Added `zones` source/layers, hover/click interactions, `showZones`, `fitBounds`, `onZoneClick` props |
+| `src/user-web/src/pages/MapPage.jsx` | Fetches and merges polygon zones separately; derives point/polygon incidents; wires zone toggle and fit bounds |
+| `src/shared/components/MapLegend.jsx` | Wired optional **Zones** toggle row |
+| `src/user-web/src/components/IncidentList/IncidentListItem.jsx` | Zone-aware badge and polygon stats in list rows |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` | Zone-aware header and metadata for polygon incidents |
+
+### Public Zone Features
+
+- Zones render by category color with hover/select highlights
+- Legend toggle shows/hides zones
+- Clicking a zone opens detail and flies map to its bounds
+- Zone detail shows category, severity, status, dates, description, sources, timeline, media, area, vertex count
+- Date filters apply to zones; marker category filters do not hide zones
+
+### Verification
+
+```bash
+npm run build:user-web
+# Result: ✅ built in 2.40s, zero errors
+
+npm run build:admin-web
+# Result: ✅ built in 2.25s, zero errors
+
+node --check src/backend/src/services/incident.service.js
+# Result: ✅ syntax OK
+```
+
+### Git Commit
+
+```
+feat(user-web): render polygon zones on public map with legend toggle and zone detail
+```
+
+*End of Phase 10 — User-web Public Map & Zone Detail*

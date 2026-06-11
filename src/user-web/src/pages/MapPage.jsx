@@ -45,6 +45,8 @@ export default function MapPage() {
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
+  const [showZones, setShowZones] = useState(true);
+  const [fitBounds, setFitBounds] = useState(null);
 
   // Ghost fetch tracking
   const ghostFetchAttempted = useRef(false);
@@ -85,7 +87,7 @@ export default function MapPage() {
     selectedIncidentRef.current = selectedIncident;
   }, [selectedIncident]);
 
-  // ─── Fetch incidents with smart viewport filtering ───
+  // ─── Fetch point incidents and polygon zones with smart viewport filtering ───
   useEffect(() => {
     let cancelled = false;
 
@@ -98,16 +100,25 @@ export default function MapPage() {
       if (filters.categoryId) baseParams.categoryId = filters.categoryId;
       if (filters.severity) baseParams.severity = filters.severity;
 
-      // Step 1: Fetch without viewport to count total incidents for this date range
-      const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
-      const res1 = await api.getIncidents(params1);
+      // Point incidents: marker category/severity filters apply
+      const pointParams = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
+      // Polygon zones: date filter applies; marker category filters do not
+      const zoneParams = { dateFrom: dateRange.from, dateTo: dateRange.to, geometryType: 'polygon' };
+
+      // Step 1: Fetch counts without viewport
+      const [pointRes, zoneRes] = await Promise.all([
+        api.getIncidents(pointParams),
+        api.getIncidents(zoneParams),
+      ]);
 
       if (cancelled) return;
-      setTotalEventCount(res1.data.count);
+      const pointCount = pointRes.data.count || 0;
+      const zoneCount = zoneRes.data.count || 0;
+      setTotalEventCount(pointCount + zoneCount);
 
-      if (res1.data.count <= 100) {
-        // Light load: show all incidents, no viewport filtering needed
-        setIncidents(res1.data.incidents || []);
+      if (pointCount <= 100) {
+        // Light load: show all points and zones, no viewport filtering needed
+        setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
         setViewportFiltering(false);
         viewportFilteringRef.current = false;
         setLoading(false);
@@ -116,21 +127,18 @@ export default function MapPage() {
         setViewportFiltering(true);
         viewportFilteringRef.current = true;
 
-        // Step 2: If viewport bounds are already known, fetch with them
+        // Step 2: If viewport bounds are already known, fetch visible points and zones
         if (viewportBoundsRef.current) {
-          const params2 = {
-            dateFrom: dateRange.from,
-            dateTo: dateRange.to,
-            viewport: viewportBoundsRef.current,
-            ...baseParams,
-          };
-          const res2 = await api.getIncidents(params2);
+          const [pointRes2, zoneRes2] = await Promise.all([
+            api.getIncidents({ ...pointParams, viewport: viewportBoundsRef.current }),
+            api.getIncidents({ ...zoneParams, viewport: viewportBoundsRef.current }),
+          ]);
           if (cancelled) return;
-          setIncidents(res2.data.incidents || []);
-          setTotalEventCount(res2.data.count);
+          setIncidents([...(pointRes2.data.incidents || []), ...(zoneRes2.data.incidents || [])]);
+          setTotalEventCount((pointRes2.data.count || 0) + (zoneRes2.data.count || 0));
         } else {
           // Bounds not ready yet — show the first batch temporarily
-          setIncidents(res1.data.incidents || []);
+          setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
         }
         setLoading(false);
       }
@@ -164,12 +172,7 @@ export default function MapPage() {
         .getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            setSelectedIncident(res.data.incident);
-            setFlyToCoords({
-              lat: parseFloat(res.data.incident.latitude),
-              lng: parseFloat(res.data.incident.longitude),
-              zoom: 10,
-            });
+            handleSelectIncident(res.data.incident);
           }
         })
         .catch(() => {
@@ -214,11 +217,14 @@ export default function MapPage() {
     refreshSaves();
   }, [refreshSaves]);
 
-  // Filtered incidents for map
-  const filteredIncidents = useMemo(() => {
-    if (activeDomainFilters.size === 0) return incidents;
-    return incidents.filter((i) => !activeDomainFilters.has(i.domain_slug));
+  // Separate point and polygon incidents for the map
+  const pointIncidents = useMemo(() => {
+    return incidents.filter((i) => i.geometry_type !== 'polygon' && !activeDomainFilters.has(i.domain_slug));
   }, [incidents, activeDomainFilters]);
+
+  const polygonIncidents = useMemo(() => {
+    return incidents.filter((i) => i.geometry_type === 'polygon');
+  }, [incidents]);
 
   // Legend handlers
   const handleToggleDomain = useCallback((slug) => {
@@ -241,25 +247,35 @@ export default function MapPage() {
     setActiveDomainFilters(new Set(domains.map((d) => d.slug)));
   }, [domains]);
 
+  const handleToggleZones = useCallback(() => {
+    setShowZones((prev) => !prev);
+  }, []);
+
   // ─── Handle viewport bounds changes from the map ───
   const handleViewportChange = useCallback((bounds) => {
     viewportBoundsRef.current = bounds;
 
-    // If viewport filtering is already active, re-fetch with new bounds
+    // If viewport filtering is already active, re-fetch points and zones with new bounds
     if (viewportFilteringRef.current === true) {
-      const params = {
+      const pointParams = {
         dateFrom: dateRange.from,
         dateTo: dateRange.to,
         viewport: bounds,
       };
-      if (filters.categoryId) params.categoryId = filters.categoryId;
-      if (filters.severity) params.severity = filters.severity;
+      if (filters.categoryId) pointParams.categoryId = filters.categoryId;
+      if (filters.severity) pointParams.severity = filters.severity;
 
-      api
-        .getIncidents(params)
-        .then((res) => {
-          setIncidents(res.data.incidents || []);
-          setTotalEventCount(res.data.count);
+      const zoneParams = {
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to,
+        geometryType: 'polygon',
+        viewport: bounds,
+      };
+
+      Promise.all([api.getIncidents(pointParams), api.getIncidents(zoneParams)])
+        .then(([pointRes, zoneRes]) => {
+          setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
+          setTotalEventCount((pointRes.data.count || 0) + (zoneRes.data.count || 0));
         })
         .catch(() => setIncidents([]));
     }
@@ -414,11 +430,28 @@ export default function MapPage() {
   const handleSelectIncident = useCallback(
     (incident) => {
       setSelectedIncident(incident);
-      setFlyToCoords({
-        lat: parseFloat(incident.latitude),
-        lng: parseFloat(incident.longitude),
-        zoom: 10,
-      });
+      setFitBounds(null);
+
+      if (incident.geometry_type === 'polygon') {
+        if (incident.geometry?.coordinates?.[0]) {
+          const coords = incident.geometry.coordinates[0];
+          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+          coords.forEach(([lng, lat]) => {
+            minLng = Math.min(minLng, lng);
+            minLat = Math.min(minLat, lat);
+            maxLng = Math.max(maxLng, lng);
+            maxLat = Math.max(maxLat, lat);
+          });
+          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        }
+      } else {
+        setFlyToCoords({
+          lat: parseFloat(incident.latitude),
+          lng: parseFloat(incident.longitude),
+          zoom: 10,
+        });
+      }
+
       // Update URL to make incident shareable, preserving other params
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -456,6 +489,7 @@ export default function MapPage() {
 
   const handleBack = useCallback(() => {
     setSelectedIncident(null);
+    setFitBounds(null);
     // Clear incident from URL while preserving other params
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -508,17 +542,11 @@ export default function MapPage() {
     setDateRange({ from: incidentDate, to: incidentDate });
   };
 
-  // Filter incidents by verification status and domain legend
+  // Filter point incidents by verification status (domain filter already applied in pointIncidents)
   const visibleIncidents = useMemo(() => {
-    let result = incidents;
-    if (filters.verifiedOnly) {
-      result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
-    }
-    if (activeDomainFilters.size > 0) {
-      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
-    }
-    return result;
-  }, [incidents, filters.verifiedOnly, activeDomainFilters]);
+    if (!filters.verifiedOnly) return pointIncidents;
+    return pointIncidents.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
+  }, [pointIncidents, filters.verifiedOnly]);
 
   // Filter saved incidents with same rules
   const visibleSavedIncidents = useMemo(() => {
@@ -577,11 +605,16 @@ export default function MapPage() {
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <UserMap
             incidents={visibleIncidents}
-            selectedEventId={selectedIncident?.id}
+            zones={polygonIncidents}
+            selectedEventId={selectedIncident?.geometry_type !== 'polygon' ? selectedIncident?.id : null}
+            selectedZoneId={selectedIncident?.geometry_type === 'polygon' ? selectedIncident?.id : null}
             onEventClick={handleSelectIncident}
+            onZoneClick={handleSelectIncident}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
+            fitBounds={fitBounds}
             ghostIncident={ghostIncident}
+            showZones={showZones}
           />
 
           <MapLegend
@@ -590,6 +623,8 @@ export default function MapPage() {
             onToggleDomain={handleToggleDomain}
             onShowAll={handleShowAllDomains}
             onHideAll={handleHideAllDomains}
+            showZones={showZones}
+            onToggleZones={handleToggleZones}
           />
 
           {/* Map controls overlay — top center */}
@@ -649,6 +684,13 @@ export default function MapPage() {
             <div>
               <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{visibleIncidents.length}</span>
               {' incidents visible'}
+              {showZones && (
+                <>
+                  {' · '}
+                  <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{polygonIncidents.length}</span>
+                  {' zones'}
+                </>
+              )}
               {viewportFiltering === true && ' in current map area'}
             </div>
             {viewportFiltering === true && totalEventCount > 100 && (
@@ -750,7 +792,11 @@ export default function MapPage() {
         {/* Right — Incident sidebar */}
         <div style={{ width: '630px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
           <IncidentSidebar
-            incidents={isAuthenticated && sidebarTab === 'saved' ? visibleSavedIncidents : visibleIncidents}
+            incidents={
+              isAuthenticated && sidebarTab === 'saved'
+                ? visibleSavedIncidents
+                : [...visibleIncidents, ...(showZones ? polygonIncidents : [])]
+            }
             selectedIncident={selectedIncident}
             onSelectEvent={handleSelectIncident}
             onBack={handleBack}

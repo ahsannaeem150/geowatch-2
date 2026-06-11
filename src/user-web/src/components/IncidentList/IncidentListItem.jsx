@@ -3,13 +3,36 @@ import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { VERIFICATION_CONFIG } from '@shared/constants.js';
 import SaveButton from '../SaveButton/SaveButton.jsx';
+import { Hexagon } from 'lucide-react';
 
 import { format } from 'date-fns';
+
+function calculatePolygonArea(coords) {
+  if (!coords || coords.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < coords.length; i++) {
+    const j = (i + 1) % coords.length;
+    area += coords[i][0] * coords[j][1];
+    area -= coords[j][0] * coords[i][1];
+  }
+  return Math.abs(area) / 2 * 111.32 * 111.32;
+}
+
+function formatArea(km2) {
+  if (km2 < 1) return `~${(km2 * 100).toFixed(1)} ha`;
+  if (km2 < 1000) return `~${km2.toFixed(1)} km²`;
+  return `~${(km2 / 1000).toFixed(1)}k km²`;
+}
 
 export default function IncidentListItem({ incident, isSelected, onClick, isSaved, onSaveChange }) {
   const dateStr = incident.start_date
     ? format(new Date(incident.start_date), 'MMM d, yyyy')
     : 'Unknown date';
+
+  const isPolygon = incident.geometry_type === 'polygon';
+  const ring = incident.geometry?.coordinates?.[0] || [];
+  const vertexCount = Math.max(0, ring.length - 1);
+  const areaKm2 = calculatePolygonArea(ring);
 
   return (
     <div
@@ -30,7 +53,13 @@ export default function IncidentListItem({ incident, isSelected, onClick, isSave
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-        <Badge color={incident.domain_color}>{incident.category_name}</Badge>
+        {isPolygon && incident.zone_category_name ? (
+          <Badge color={incident.zone_category_color || '#6366f1'}>
+            <Hexagon size={10} /> {incident.zone_category_name}
+          </Badge>
+        ) : (
+          <Badge color={incident.domain_color}>{incident.category_name}</Badge>
+        )}
         <SeverityBadge level={incident.severity} />
         {incident.verification_status && (
           <VerificationBadge status={incident.verification_status} />
@@ -77,7 +106,11 @@ export default function IncidentListItem({ incident, isSelected, onClick, isSave
           gap: '8px',
         }}
       >
-        <span>📍 {incident.location_context || `${parseFloat(incident.latitude).toFixed(2)}, ${parseFloat(incident.longitude).toFixed(2)}`}</span>
+        <span>
+          {isPolygon
+            ? `⬡ ${formatArea(areaKm2)} · ${vertexCount} vertices`
+            : `📍 ${incident.location_context || `${parseFloat(incident.latitude).toFixed(2)}, ${parseFloat(incident.longitude).toFixed(2)}`}`}
+        </span>
         <span>·</span>
         <span>{dateStr}</span>
       </div>

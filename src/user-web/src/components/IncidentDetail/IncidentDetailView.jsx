@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, Copy, Check } from 'lucide-react';
+import { Link, Copy, Check, Hexagon } from 'lucide-react';
 import { api } from '../../services/api.js';
 import SaveButton from '../SaveButton/SaveButton.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
@@ -82,7 +82,26 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
   if (!data) return null;
 
   const { incident, sources, timeline } = data;
-  const catColor = incident.domain_color || '#6b7280';
+  const isPolygon = incident.geometry_type === 'polygon';
+  const catColor = isPolygon
+    ? incident.zone_category_color || '#6366f1'
+    : incident.domain_color || '#6b7280';
+
+  const ring = incident.geometry?.coordinates?.[0] || [];
+  const vertexCount = Math.max(0, ring.length - 1);
+  const areaKm2 = (() => {
+    if (ring.length < 3) return 0;
+    let a = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const j = (i + 1) % ring.length;
+      a += ring[i][0] * ring[j][1];
+      a -= ring[j][0] * ring[i][1];
+    }
+    a = Math.abs(a) / 2 * 111.32 * 111.32;
+    if (a < 1) return `${(a * 100).toFixed(1)} ha`;
+    if (a < 1000) return `${a.toFixed(1)} km²`;
+    return `${(a / 1000).toFixed(1)}k km²`;
+  })();
 
   const dateStr = incident.start_date
     ? format(new Date(incident.start_date), 'MMM d, yyyy · h:mm a')
@@ -166,7 +185,13 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
           }}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-          <Badge color={incident.domain_color}>{incident.category_name}</Badge>
+          {isPolygon && incident.zone_category_name ? (
+            <Badge color={incident.zone_category_color || '#6366f1'}>
+              <Hexagon size={10} /> {incident.zone_category_name}
+            </Badge>
+          ) : (
+            <Badge color={incident.domain_color}>{incident.category_name}</Badge>
+          )}
           <Badge status={incident.status}>{incident.status}</Badge>
           {incident.verification_status && (
             <VerificationBadge status={incident.verification_status} />
@@ -176,7 +201,9 @@ export default function IncidentDetailView({ incidentId, onBack, refreshKey, isS
           {incident.title}
         </h2>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
-          📍 {incident.location_context || `${parseFloat(incident.latitude).toFixed(4)}, ${parseFloat(incident.longitude).toFixed(4)}`}
+          {isPolygon
+            ? `⬡ ${areaKm2} · ${vertexCount} vertices`
+            : `📍 ${incident.location_context || `${parseFloat(incident.latitude).toFixed(4)}, ${parseFloat(incident.longitude).toFixed(4)}`}`}
         </p>
       </div>
 

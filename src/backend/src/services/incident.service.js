@@ -102,7 +102,7 @@ function buildIncidentWhereClause(filters, options = {}) {
   if (filters.viewport) {
     const [minLng, minLat, maxLng, maxLat] = filters.viewport.split(',').map(Number);
     conditions.push(
-      `ST_Within(i.geom, ST_MakeEnvelope($${idx++}, $${idx++}, $${idx++}, $${idx++}, 4326))`
+      `ST_Intersects(i.geom, ST_MakeEnvelope($${idx++}, $${idx++}, $${idx++}, $${idx++}, 4326))`
     );
     params.push(minLng, minLat, maxLng, maxLat);
   }
