@@ -910,6 +910,29 @@ export default function DashboardLayout() {
     setPanelMode('form');
   };
 
+  const handleAddZone = useCallback(() => {
+    // Reset any incident/marker state
+    setMarkerCoords(null);
+    setSelectedIncident(null);
+    setIsEditing(false);
+    setPanelMode('empty');
+    // Reset any existing zone selection/editing
+    setSelectedZoneId(null);
+    setSelectedZone(null);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    // Enter polygon drawing mode
+    setMapMode('polygon');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+    setSelectedDrawVertexIndex(null);
+    // Reset drawing history
+    drawHistoryRef.current = [{ vertices: [], isClosed: false }];
+    historyIndexRef.current = 0;
+  }, []);
+
   const handleResetToToday = () => {
     setDateRange({ from: today, to: today });
   };
@@ -1253,6 +1276,7 @@ export default function DashboardLayout() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
       <TopBar
         onAddEvent={handleAddIncident}
+        onAddZone={handleAddZone}
         onOpenZones={handleOpenZones}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}

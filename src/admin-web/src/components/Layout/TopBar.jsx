@@ -7,7 +7,7 @@ import DatePicker from '../DatePicker/DatePicker.jsx';
 import { api } from '../../services/api.js';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { useStyle } from '@shared/useStyle.js';
-import { Palette } from 'lucide-react';
+import { Palette, Hexagon } from 'lucide-react';
 
 function StyleToggle() {
   const { style, setStyle } = useStyle();
@@ -84,6 +84,7 @@ function StyleToggle() {
 
 export default function TopBar({
   onAddEvent,
+  onAddZone,
   onOpenZones,
   dateRange,
   onDateRangeChange,
@@ -456,6 +457,9 @@ export default function TopBar({
         )}
         <Button variant="secondary" size="sm" onClick={onOpenZones}>
           Zones
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onAddZone}>
+          <Hexagon size={14} /> Add Zone
         </Button>
         <Button variant="primary" size="sm" onClick={onAddEvent}>
           + Add Incident

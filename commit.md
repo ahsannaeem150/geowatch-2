@@ -5804,3 +5804,41 @@ feat(superadmin): add Zone Categories management page with CRUD modal and sideba
 ```
 
 *End of Phase 4 — Superadmin Zone Categories Page*
+
+---
+
+## 📅 2026-06-11 — Phase 5: Admin Top Bar "Add Zone" Button
+
+### Summary
+Added an "Add Zone" button to the admin top bar that immediately puts the map into polygon drawing mode. The handler resets any active incident/zone selection and clears the drawing state so the user starts with a fresh polygon.
+
+### Modified Files
+
+| File | Changes |
+|:--|:--|
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Imported `Hexagon` icon; added `onAddZone` prop and "Add Zone" button next to "Add Incident" |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `handleAddZone` callback that resets state and sets `mapMode='polygon'`; passed `onAddZone` to `TopBar` |
+
+### UI
+
+Top bar action order (right side):
+1. Resolve (when applicable)
+2. Zones
+3. **Add Zone** ← new
+4. Add Incident
+5. Logout
+
+### Verification
+
+```bash
+npm run build:admin-web
+# Result: ✅ built in 2.25s, no errors
+```
+
+### Git Commit
+
+```
+feat(admin): add Add Zone button to top bar that enters polygon drawing mode
+```
+
+*End of Phase 5 — Admin Top Bar Add Zone Button*
