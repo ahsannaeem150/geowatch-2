@@ -12,6 +12,7 @@ import ZoneCreatePanel from '../Zones/ZoneCreatePanel.jsx';
 import ZoneEditPanel from '../Zones/ZoneEditPanel.jsx';
 import ZoneManagementPanel from '../Zones/ZoneManagementPanel.jsx';
 import ZoneDetailPanel from '../Zones/ZoneDetailPanel.jsx';
+import MapContextMenu from '../Map/MapContextMenu.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
@@ -27,6 +28,32 @@ function getLastSeen() {
 
 function setLastSeen(ts) {
   localStorage.setItem(LS_KEY, String(ts));
+}
+
+function pointToSegmentDistance(p, a, b) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  if (dx === 0 && dy === 0) return Math.sqrt((p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2);
+
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)));
+  const projX = a[0] + t * dx;
+  const projY = a[1] + t * dy;
+  return Math.sqrt((p[0] - projX) ** 2 + (p[1] - projY) ** 2);
+}
+
+function findNearestSegmentIndex(point, vertices) {
+  let minIdx = -1;
+  let minDist = Infinity;
+  for (let i = 0; i < vertices.length; i++) {
+    const a = vertices[i];
+    const b = vertices[(i + 1) % vertices.length];
+    const dist = pointToSegmentDistance(point, a, b);
+    if (dist < minDist) {
+      minDist = dist;
+      minIdx = i;
+    }
+  }
+  return minIdx;
 }
 
 function getZoomForLocation(type, cls) {
@@ -82,6 +109,8 @@ export default function DashboardLayout() {
   const [drawVertices, setDrawVertices] = useState([]);
   const [isPolygonClosed, setIsPolygonClosed] = useState(false);
   const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
+  const [selectedDrawVertexIndex, setSelectedDrawVertexIndex] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, type, index }
 
   // ─── Zone Editing ───
   const [editingZoneId, setEditingZoneId] = useState(null);
@@ -89,8 +118,32 @@ export default function DashboardLayout() {
   const [originalZoneVertices, setOriginalZoneVertices] = useState([]);
   const editingZoneIdRef = useRef(editingZoneId);
   const editingZoneVerticesRef = useRef(editingZoneVertices);
+  const drawVerticesRef = useRef(drawVertices);
   editingZoneIdRef.current = editingZoneId;
   editingZoneVerticesRef.current = editingZoneVertices;
+  drawVerticesRef.current = drawVertices;
+
+  // ─── Drawing Undo History ───
+  const drawHistoryRef = useRef([[]]);
+  const historyIndexRef = useRef(0);
+
+  const pushToHistory = useCallback((vertices) => {
+    drawHistoryRef.current = drawHistoryRef.current.slice(0, historyIndexRef.current + 1);
+    drawHistoryRef.current.push(vertices.map((v) => [...v]));
+    historyIndexRef.current += 1;
+    if (drawHistoryRef.current.length > 50) {
+      drawHistoryRef.current.shift();
+      historyIndexRef.current -= 1;
+    }
+  }, []);
+
+  const handleDrawUndo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
+    const prev = drawHistoryRef.current[historyIndexRef.current];
+    setDrawVertices(prev.map((v) => [...v]));
+    setSelectedDrawVertexIndex(null);
+  }, []);
 
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -255,6 +308,11 @@ export default function DashboardLayout() {
         });
     }
   }, [incidentIdFromUrl, incidents.length]);
+
+  // Clear context menu when switching modes
+  useEffect(() => {
+    setContextMenu(null);
+  }, [mapMode, editingZoneId]);
 
   // Fetch zones on mount and when refreshKey changes
   useEffect(() => {
@@ -547,6 +605,9 @@ export default function DashboardLayout() {
       setDrawVertices([]);
       setIsPolygonClosed(false);
       setShowZoneCreatePanel(false);
+      setSelectedDrawVertexIndex(null);
+      drawHistoryRef.current = [[]];
+      historyIndexRef.current = 0;
       // Clear editing state when entering drawing mode
       setEditingZoneId(null);
       setEditingZoneVertices([]);
@@ -554,13 +615,22 @@ export default function DashboardLayout() {
     }
   }, []);
 
-  const handleDrawVertexAdd = useCallback(({ lat, lng }) => {
-    if (isPolygonClosed) return;
-    setDrawVertices((prev) => [...prev, [lng, lat]]);
-  }, [isPolygonClosed]);
+  const handleDrawVertexAdd = useCallback(({ lat, lng, insertIndex }) => {
+    const prev = drawVerticesRef.current;
+    const next = [...prev];
+    if (insertIndex !== undefined && insertIndex !== null && insertIndex >= 0 && insertIndex < prev.length) {
+      next.splice(insertIndex + 1, 0, [lng, lat]);
+    } else {
+      next.push([lng, lat]);
+    }
+    setDrawVertices(next);
+    setSelectedDrawVertexIndex(null); // Deselect when adding new point
+    pushToHistory(next);
+  }, [pushToHistory]);
 
   const handleDrawClose = useCallback(() => {
     setIsPolygonClosed(true);
+    setSelectedDrawVertexIndex(null);
   }, []);
 
   const handleDrawCancel = useCallback(() => {
@@ -568,6 +638,58 @@ export default function DashboardLayout() {
     setDrawVertices([]);
     setIsPolygonClosed(false);
     setShowZoneCreatePanel(false);
+    setSelectedDrawVertexIndex(null);
+    setContextMenu(null);
+    drawHistoryRef.current = [[]];
+    historyIndexRef.current = 0;
+  }, []);
+
+  const handleDrawVertexSelect = useCallback((index) => {
+    setSelectedDrawVertexIndex(index);
+  }, []);
+
+  const handleDrawVertexMove = useCallback((index, { lng, lat }) => {
+    setDrawVertices((prev) => {
+      const next = [...prev];
+      next[index] = [lng, lat];
+      return next;
+    });
+  }, []);
+
+  const handleDrawVertexDragEnd = useCallback((index) => {
+    pushToHistory(drawVerticesRef.current);
+  }, [pushToHistory]);
+
+  const handleEditEdgeVertexInsert = useCallback((coords, segmentIndex) => {
+    setEditingZoneVertices((prev) => {
+      const idx = segmentIndex !== undefined && segmentIndex !== null ? segmentIndex : findNearestSegmentIndex(coords, prev);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next.splice(idx + 1, 0, coords);
+      return next;
+    });
+    setContextMenu(null);
+  }, []);
+
+  const handleDrawVertexDelete = useCallback((index) => {
+    if (drawVerticesRef.current.length <= 3) {
+      console.warn('Cannot delete vertex: polygon must have at least 3 vertices');
+      return;
+    }
+    const next = [...drawVerticesRef.current];
+    next.splice(index, 1);
+    setDrawVertices(next);
+    setSelectedDrawVertexIndex(null);
+    setContextMenu(null);
+    pushToHistory(next);
+  }, [pushToHistory]);
+
+  const handleContextMenu = useCallback((data) => {
+    setContextMenu(data);
+  }, []);
+
+  const handleContextMenuClose = useCallback(() => {
+    setContextMenu(null);
   }, []);
 
   const handleZoneCreateSubmit = useCallback(() => {
@@ -575,6 +697,7 @@ export default function DashboardLayout() {
     setDrawVertices([]);
     setIsPolygonClosed(false);
     setShowZoneCreatePanel(false);
+    setSelectedDrawVertexIndex(null);
     setRefreshKey((k) => k + 1);
   }, []);
 
@@ -1142,6 +1265,13 @@ export default function DashboardLayout() {
             onDrawVertexAdd={handleDrawVertexAdd}
             onDrawClose={handleDrawClose}
             onDrawCancel={handleDrawCancel}
+            selectedDrawVertexIndex={selectedDrawVertexIndex}
+            onDrawVertexSelect={handleDrawVertexSelect}
+            onDrawVertexMove={handleDrawVertexMove}
+            onDrawVertexDragEnd={handleDrawVertexDragEnd}
+            onContextMenu={handleContextMenu}
+            onDrawVertexDelete={handleDrawVertexDelete}
+            onDrawUndo={handleDrawUndo}
             editingZoneId={editingZoneId}
             editingZoneVertices={editingZoneVertices}
             onVertexDrag={handleVertexDrag}
@@ -1158,6 +1288,38 @@ export default function DashboardLayout() {
               onSave={() => setShowZoneCreatePanel(true)}
               onCancel={handleDrawCancel}
               onEditZone={handleEditZone}
+            />
+          )}
+
+          {contextMenu && (
+            <MapContextMenu
+              position={{ x: contextMenu.x, y: contextMenu.y }}
+              items={
+                contextMenu.type === 'vertex'
+                  ? [
+                      {
+                        label: 'Delete vertex',
+                        danger: true,
+                        onClick: () => handleDrawVertexDelete(contextMenu.index),
+                      },
+                    ]
+                  : contextMenu.type === 'empty'
+                  ? [
+                      {
+                        label: 'Add vertex here',
+                        onClick: () => handleDrawVertexAdd({ lat: contextMenu.lat, lng: contextMenu.lng, insertIndex: contextMenu.insertIndex }),
+                      },
+                    ]
+                  : contextMenu.type === 'edge'
+                  ? [
+                      {
+                        label: 'Add vertex here',
+                        onClick: () => handleEditEdgeVertexInsert([contextMenu.lng, contextMenu.lat], contextMenu.index),
+                      },
+                    ]
+                  : []
+              }
+              onClose={handleContextMenuClose}
             />
           )}
 

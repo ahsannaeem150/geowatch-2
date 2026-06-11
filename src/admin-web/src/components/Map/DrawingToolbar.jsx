@@ -48,8 +48,8 @@ export default function DrawingToolbar({
     <div
       style={{
         position: 'absolute',
-        bottom: '24px',
-        left: '12px',
+        top: '12px',
+        right: '12px',
         zIndex: 20,
         display: 'flex',
         alignItems: 'center',

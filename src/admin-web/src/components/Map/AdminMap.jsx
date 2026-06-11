@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE } from '@shared/constants.js';
@@ -13,6 +13,49 @@ import { format } from 'date-fns';
 // must switch cleanly between 14 and 10.
 const TILE_BBOX = [25.3125, 4.7626, 105.1831, 42.5531];
 const HOT_BBOX = [26.3125, 5.7626, 104.1831, 41.5531]; // 1° inset
+
+// ─── Pixel-distance helpers for reliable vertex/edge hit-testing ───
+// queryRenderedFeatures with tiny circle radii is too hard for users to hit.
+// These project geo coords to screen pixels and compute distance directly.
+
+function findNearestDrawVertex(point, vertices, mapInstance, tolerance = 12) {
+  let nearestIdx = -1;
+  let nearestDist = Infinity;
+  vertices.forEach((coord, idx) => {
+    const pixel = mapInstance.project(coord);
+    const dist = Math.sqrt(Math.pow(pixel.x - point.x, 2) + Math.pow(pixel.y - point.y, 2));
+    if (dist < tolerance && dist < nearestDist) {
+      nearestDist = dist;
+      nearestIdx = idx;
+    }
+  });
+  return nearestIdx;
+}
+
+function screenDistanceToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  if (dx === 0 && dy === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  const projX = ax + t * dx;
+  const projY = ay + t * dy;
+  return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+}
+
+function findNearestEditEdge(point, vertices, mapInstance, tolerance = 10) {
+  let nearestIdx = -1;
+  let nearestDist = Infinity;
+  vertices.forEach((coord, idx) => {
+    const a = mapInstance.project(coord);
+    const b = mapInstance.project(vertices[(idx + 1) % vertices.length]);
+    const dist = screenDistanceToSegment(point.x, point.y, a.x, a.y, b.x, b.y);
+    if (dist < tolerance && dist < nearestDist) {
+      nearestDist = dist;
+      nearestIdx = idx;
+    }
+  });
+  return nearestIdx;
+}
 
 function getMaxZoomForCenter(lng, lat) {
   const [minLng, minLat, maxLng, maxLat] = HOT_BBOX;
@@ -40,6 +83,13 @@ export default function AdminMap({
   onDrawVertexAdd,
   onDrawClose,
   onDrawCancel,
+  selectedDrawVertexIndex = null,
+  onDrawVertexSelect,
+  onDrawVertexMove,
+  onDrawVertexDragEnd,
+  onContextMenu,
+  onDrawVertexDelete,
+  onDrawUndo,
   editingZoneId = null,
   editingZoneVertices = [],
   onVertexDrag,
@@ -62,6 +112,7 @@ export default function AdminMap({
   const drawVerticesRef = useRef(drawVertices);
   const isPolygonClosedRef = useRef(isPolygonClosed);
   const editingZoneIdRef = useRef(editingZoneId);
+  const editingZoneVerticesRef = useRef(editingZoneVertices);
   const isDraggingVertex = useRef(false);
   const draggedVertexIndex = useRef(null);
   const onDrawCloseRef = useRef(onDrawClose);
@@ -74,11 +125,32 @@ export default function AdminMap({
   drawVerticesRef.current = drawVertices;
   isPolygonClosedRef.current = isPolygonClosed;
   editingZoneIdRef.current = editingZoneId;
+  editingZoneVerticesRef.current = editingZoneVertices;
   onDrawCloseRef.current = onDrawClose;
   onMapDblClickRef.current = onMapDblClick;
   onVertexDragRef.current = onVertexDrag;
   onMidpointClickRef.current = onMidpointClick;
   onVertexDoubleClickRef.current = onVertexDoubleClick;
+
+  const [hoveredDrawVertexIndex, setHoveredDrawVertexIndex] = useState(null);
+  const isDraggingDrawVertex = useRef(false);
+  const draggedDrawVertexIndex = useRef(null);
+  const didDragDrawVertex = useRef(false);
+  const dragStartPixel = useRef({ x: 0, y: 0 });
+  const onDrawVertexSelectRef = useRef(onDrawVertexSelect);
+  const onDrawVertexMoveRef = useRef(onDrawVertexMove);
+  const onDrawVertexDragEndRef = useRef(onDrawVertexDragEnd);
+  const onContextMenuRef = useRef(onContextMenu);
+  const onDrawVertexDeleteRef = useRef(onDrawVertexDelete);
+  const onDrawUndoRef = useRef(onDrawUndo);
+  const selectedDrawVertexIndexRef = useRef(selectedDrawVertexIndex);
+  onDrawVertexSelectRef.current = onDrawVertexSelect;
+  onDrawVertexMoveRef.current = onDrawVertexMove;
+  onDrawVertexDragEndRef.current = onDrawVertexDragEnd;
+  onContextMenuRef.current = onContextMenu;
+  onDrawVertexDeleteRef.current = onDrawVertexDelete;
+  onDrawUndoRef.current = onDrawUndo;
+  selectedDrawVertexIndexRef.current = selectedDrawVertexIndex;
 
   // Initialize map once
   useEffect(() => {
@@ -230,8 +302,17 @@ export default function AdminMap({
         source: 'draw-preview',
         filter: ['==', ['get', 'isVertex'], true],
         paint: {
-          'circle-radius': 5,
-          'circle-color': '#fff',
+          'circle-radius': [
+            'case',
+            ['boolean', ['get', 'isSelected'], false], 10,
+            ['boolean', ['get', 'isHovered'], false], 9,
+            8,
+          ],
+          'circle-color': [
+            'case',
+            ['boolean', ['get', 'isSelected'], false], '#f59e0b',
+            '#fff',
+          ],
           'circle-stroke-width': 2,
           'circle-stroke-color': '#3b82f6',
         },
@@ -275,6 +356,16 @@ export default function AdminMap({
           'line-width': 2,
           'line-dasharray': [4, 3],
           'line-opacity': 0.9,
+        },
+      });
+
+      map.current.addLayer({
+        id: 'edit-zone-hit-line',
+        type: 'line',
+        source: 'edit-zone',
+        paint: {
+          'line-width': 12,
+          'line-opacity': 0,
         },
       });
 
@@ -725,6 +816,8 @@ export default function AdminMap({
     if (!source) return;
 
     const features = [];
+    const hoveredIdx = hoveredDrawVertexIndex;
+    const selectedIdx = selectedDrawVertexIndex;
 
     if (mapMode === 'polygon' && drawVertices.length > 0) {
       // Vertex dots
@@ -732,7 +825,12 @@ export default function AdminMap({
         features.push({
           type: 'Feature',
           geometry: { type: 'Point', coordinates: coord },
-          properties: { isVertex: true, index: idx },
+          properties: {
+            isVertex: true,
+            index: idx,
+            isHovered: idx === hoveredIdx,
+            isSelected: idx === selectedIdx,
+          },
         });
       });
 
@@ -777,7 +875,7 @@ export default function AdminMap({
     }
 
     source.setData({ type: 'FeatureCollection', features });
-  }, [mapMode, drawVertices, isPolygonClosed]);
+  }, [mapMode, drawVertices, isPolygonClosed, hoveredDrawVertexIndex, selectedDrawVertexIndex]);
 
   // ─── Drawing click handler ───
   useEffect(() => {
@@ -786,34 +884,42 @@ export default function AdminMap({
 
     const onClick = (e) => {
       if (mapModeRef.current !== 'polygon') return;
-      if (isPolygonClosedRef.current) return;
 
-      const { lng, lat } = e.lngLat;
+      // Suppress click if we just dragged a vertex
+      if (didDragDrawVertex.current) {
+        didDragDrawVertex.current = false;
+        return;
+      }
 
-      // Check if user clicked on the first vertex to close the polygon
-      if (drawVerticesRef.current.length >= 3) {
-        const first = drawVerticesRef.current[0];
-        // Use a small pixel tolerance for vertex click detection
-        const firstPixel = mapInstance.project(first);
-        const clickPixel = e.point;
-        const dist = Math.sqrt(
-          Math.pow(firstPixel.x - clickPixel.x, 2) +
-          Math.pow(firstPixel.y - clickPixel.y, 2)
-        );
-        if (dist < 15) {
+      // Check if user clicked on any vertex (12px tolerance)
+      const nearestIdx = findNearestDrawVertex(e.point, drawVerticesRef.current, mapInstance, 12);
+      if (nearestIdx !== -1) {
+        if (nearestIdx === 0 && drawVerticesRef.current.length >= 3 && !isPolygonClosedRef.current) {
+          // Clicked first vertex with enough vertices → close polygon
           onDrawClose?.();
           return;
         }
+        if (nearestIdx !== 0) {
+          // Clicked non-first vertex → select it
+          onDrawVertexSelect?.(nearestIdx);
+          return;
+        }
+        // Clicked first vertex but already closed or < 3 vertices → do nothing
+        return;
       }
 
-      onDrawVertexAdd?.({ lat, lng });
+      // Clicked empty map → add new vertex (only if not already closed)
+      if (!isPolygonClosedRef.current) {
+        const { lng, lat } = e.lngLat;
+        onDrawVertexAdd?.({ lat, lng });
+      }
     };
 
     mapInstance.on('click', onClick);
     return () => {
       mapInstance.off('click', onClick);
     };
-  }, [onDrawVertexAdd, onDrawClose]);
+  }, [onDrawVertexAdd, onDrawClose, onDrawVertexSelect]);
 
   // ─── Rubber band mousemove ───
   useEffect(() => {
@@ -824,6 +930,7 @@ export default function AdminMap({
       if (mapModeRef.current !== 'polygon') return;
       if (isPolygonClosedRef.current) return;
       if (drawVerticesRef.current.length === 0) return;
+      if (isDraggingDrawVertex.current) return;
 
       rubberBandCoords.current = [e.lngLat.lng, e.lngLat.lat];
       // Trigger re-render of draw-preview source
@@ -887,8 +994,24 @@ export default function AdminMap({
   // ─── Escape key to cancel drawing ───
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === 'Escape' && mapModeRef.current === 'polygon') {
+      if (mapModeRef.current !== 'polygon') return;
+
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+
+      if (e.key === 'Escape') {
         onDrawCancel?.();
+        return;
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedDrawVertexIndexRef.current !== null) {
+        onDrawVertexDeleteRef.current?.(selectedDrawVertexIndexRef.current);
+        return;
+      }
+
+      if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        onDrawUndoRef.current?.();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -912,29 +1035,109 @@ export default function AdminMap({
     }
   }, [mapMode]);
 
+  // ─── Right-click context menu for drawing mode ───
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    const onContextMenuEvent = (e) => {
+      // Drawing mode — custom context menu only available after polygon is closed
+      if (mapModeRef.current === 'polygon') {
+        if (!isPolygonClosedRef.current) {
+          return; // Let browser default show while drawing
+        }
+        e.preventDefault();
+        const nearestIdx = findNearestDrawVertex(e.point, drawVerticesRef.current, mapInstance, 12);
+        if (nearestIdx !== -1) {
+          onContextMenuRef.current?.({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat, type: 'vertex', index: nearestIdx });
+          return;
+        }
+        // Closed polygon: insert on nearest edge
+        if (drawVerticesRef.current.length >= 3) {
+          const nearestEdgeIdx = findNearestEditEdge(e.point, drawVerticesRef.current, mapInstance, 12);
+          if (nearestEdgeIdx !== -1) {
+            onContextMenuRef.current?.({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat, type: 'empty', insertIndex: nearestEdgeIdx });
+            return;
+          }
+        }
+        onContextMenuRef.current?.({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat, type: 'empty' });
+        return;
+      }
+
+      // Edit mode
+      if (editingZoneIdRef.current) {
+        e.preventDefault();
+        const nearestEdgeIdx = findNearestEditEdge(e.point, editingZoneVerticesRef.current, mapInstance, 10);
+        if (nearestEdgeIdx !== -1) {
+          onContextMenuRef.current?.({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat, type: 'edge', index: nearestEdgeIdx });
+          return;
+        }
+      }
+    };
+
+    mapInstance.on('contextmenu', onContextMenuEvent);
+    return () => {
+      mapInstance.off('contextmenu', onContextMenuEvent);
+    };
+  }, []);
+
   // ─── Vertex drag, midpoint click, and vertex double-click interactions ───
   useEffect(() => {
     if (!map.current) return;
     const mapInstance = map.current;
 
     const onMouseDown = (e) => {
-      if (!editingZoneIdRef.current) return;
+      // Edit mode takes priority
+      if (editingZoneIdRef.current) {
+        const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
+        if (features.length > 0) {
+          const idx = features[0].properties.index;
+          isDraggingVertex.current = true;
+          draggedVertexIndex.current = idx;
+          mapInstance.dragPan.disable();
+          mapInstance.getCanvas().style.cursor = 'grabbing';
+        }
+        return;
+      }
 
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
-      if (features.length > 0) {
-        const idx = features[0].properties.index;
-        isDraggingVertex.current = true;
-        draggedVertexIndex.current = idx;
-        mapInstance.dragPan.disable();
-        mapInstance.getCanvas().style.cursor = 'grabbing';
+      // Drawing mode vertex drag
+      if (mapModeRef.current === 'polygon') {
+        const nearestIdx = findNearestDrawVertex(e.point, drawVerticesRef.current, mapInstance, 12);
+        if (nearestIdx !== -1) {
+          isDraggingDrawVertex.current = true;
+          draggedDrawVertexIndex.current = nearestIdx;
+          didDragDrawVertex.current = false;
+          dragStartPixel.current = { x: e.point.x, y: e.point.y };
+          rubberBandCoords.current = null; // Hide rubber band during drag
+          mapInstance.dragPan.disable();
+          mapInstance.getCanvas().style.cursor = 'grabbing';
+        }
       }
     };
 
     const onMouseMove = (e) => {
-      if (!isDraggingVertex.current) return;
-      const idx = draggedVertexIndex.current;
-      if (idx !== null) {
-        onVertexDragRef.current?.(idx, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+      // Edit mode drag
+      if (isDraggingVertex.current) {
+        const idx = draggedVertexIndex.current;
+        if (idx !== null) {
+          onVertexDragRef.current?.(idx, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+        }
+        return;
+      }
+
+      // Drawing mode drag
+      if (isDraggingDrawVertex.current) {
+        const dx = e.point.x - dragStartPixel.current.x;
+        const dy = e.point.y - dragStartPixel.current.y;
+        if (!didDragDrawVertex.current && Math.sqrt(dx * dx + dy * dy) > 3) {
+          didDragDrawVertex.current = true;
+        }
+        if (didDragDrawVertex.current) {
+          const idx = draggedDrawVertexIndex.current;
+          if (idx !== null) {
+            onDrawVertexMoveRef.current?.(idx, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+          }
+        }
       }
     };
 
@@ -944,6 +1147,18 @@ export default function AdminMap({
         draggedVertexIndex.current = null;
         mapInstance.dragPan.enable();
         mapInstance.getCanvas().style.cursor = '';
+      }
+
+      if (isDraggingDrawVertex.current) {
+        const idx = draggedDrawVertexIndex.current;
+        const wasDrag = didDragDrawVertex.current;
+        isDraggingDrawVertex.current = false;
+        draggedDrawVertexIndex.current = null;
+        mapInstance.dragPan.enable();
+        mapInstance.getCanvas().style.cursor = '';
+        if (wasDrag && idx !== null) {
+          onDrawVertexDragEndRef.current?.(idx);
+        }
       }
     };
 
@@ -960,20 +1175,45 @@ export default function AdminMap({
     };
 
     const onMouseMoveCursor = (e) => {
-      if (!editingZoneIdRef.current) return;
-      if (isDraggingVertex.current) {
-        mapInstance.getCanvas().style.cursor = 'grabbing';
+      // Edit mode cursor
+      if (editingZoneIdRef.current) {
+        if (isDraggingVertex.current) {
+          mapInstance.getCanvas().style.cursor = 'grabbing';
+          return;
+        }
+
+        const vertexFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
+        if (vertexFeatures.length > 0) {
+          mapInstance.getCanvas().style.cursor = 'grab';
+          return;
+        }
+
+        const midpointFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-midpoints'] });
+        if (midpointFeatures.length > 0) {
+          mapInstance.getCanvas().style.cursor = 'crosshair';
+          return;
+        }
+
+        mapInstance.getCanvas().style.cursor = '';
         return;
       }
 
-      const vertexFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-vertices'] });
-      if (vertexFeatures.length > 0) {
-        mapInstance.getCanvas().style.cursor = 'grab';
-        return;
-      }
+      // Drawing mode cursor
+      if (mapModeRef.current === 'polygon') {
+        if (isDraggingDrawVertex.current) {
+          mapInstance.getCanvas().style.cursor = 'grabbing';
+          return;
+        }
 
-      const midpointFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['edit-midpoints'] });
-      if (midpointFeatures.length > 0) {
+        const nearestIdx = findNearestDrawVertex(e.point, drawVerticesRef.current, mapInstance, 12);
+        if (nearestIdx !== -1) {
+          setHoveredDrawVertexIndex(prev => prev !== nearestIdx ? nearestIdx : prev);
+          mapInstance.getCanvas().style.cursor = 'grab';
+          return;
+        } else {
+          setHoveredDrawVertexIndex(prev => prev !== null ? null : prev);
+        }
+
         mapInstance.getCanvas().style.cursor = 'crosshair';
         return;
       }

@@ -5472,3 +5472,102 @@ feat: SEO-friendly media filenames based on incident title; shared MediaGallery 
 ```
 
 *End of Module — SEO Media Naming & Cross-Frontend Gallery*
+
+---
+
+## 📅 2026-06-11 — Fix: Polygon Toolbar Overlap with Legend
+
+### Summary
+Moved the polygon drawing toolbar from bottom-left to top-right on the admin-web map to eliminate overlap with the Legend component. Top-right is the standard UX position for map drawing tools (Google Maps, Mapbox, ArcGIS pattern).
+
+### Modified Files
+
+| File | Changes |
+|:--|:--|
+| `src/admin-web/src/components/Map/DrawingToolbar.jsx` | Position changed from `bottom: 24px, left: 12px` → `top: 12px, right: 12px` |
+
+### Before vs After
+
+| | Before | After |
+|:---|:---|:---|
+| Polygon toolbar | `bottom-left` (overlaps Legend) | `top-right` (clean separation) |
+| Legend | `bottom-left` | `bottom-left` (unchanged) |
+
+### Git Commit
+
+```
+fix: move polygon drawing toolbar to top-right to avoid Legend overlap
+```
+
+*End of Fix — Polygon Toolbar Positioning*
+
+---
+
+## 📅 2026-06-11 — Feature: Interactive Polygon Vertex Editing (Drawing & Edit Mode)
+
+### Summary
+Implemented full interactive polygon editing across both Drawing Mode (pre-save) and Edit Mode (post-save). Replaced unreliable `queryRenderedFeatures` hit-testing with pixel-distance detection for precise vertex/edge interactions. Added drag-to-move, click-to-select, hover highlight, keyboard delete, undo stack, and smart right-click context menus. Fixed critical post-close interaction bugs where polygon modifications were blocked after closing.
+
+### Key Features
+
+| Feature | Drawing Mode | Edit Mode |
+|:--|:--|:--|
+| Click to select vertex | ✅ (non-first) | ✅ |
+| Drag to move vertex | ✅ (3px threshold) | ✅ |
+| Hover highlight | ✅ (radius 8→9→10) | ✅ |
+| Selected highlight | ✅ (amber #f59e0b, radius 10) | ✅ |
+| Right-click delete vertex | ✅ (after close only) | ✅ (double-click also) |
+| Right-click add vertex | ✅ (after close, nearest edge) | ✅ (nearest edge) |
+| Delete / Backspace key | ✅ | — |
+| Ctrl+Z undo | ✅ (50-step history) | — |
+| Midpoint click insert | — | ✅ |
+
+### Bug Fixes
+
+| # | Bug | Root Cause | Fix |
+|:--|:--|:--|:--|
+| 1 | Post-close: can't select/add/delete vertices | `if (isPolygonClosed) return;` blocked ALL interactions | Removed guards; `isPolygonClosed` now only blocks rubber-band and first-vertex-close logic |
+| 2 | Vertex selection unreliable | `queryRenderedFeatures` on 5px circles too hard to hit | Replaced with `map.project()` + screen-space pixel distance (12px tolerance) |
+| 3 | Edit mode edge insert wrong segment | `findNearestSegmentIndex` recomputed in lat/lng space (distorted vs screen) | Pass pre-computed `nearestEdgeIdx` from AdminMap (screen-space) directly to insert handler |
+| 4 | Missing ref update in AdminMap | `editingZoneVerticesRef.current = editingZoneVertices;` was never executed | Added the missing ref assignment line |
+| 5 | Drawing after-close append creates diagonal | `handleDrawVertexAdd` always appended; closed render connected newV→v0 | After close, compute nearest edge and `splice(idx+1, 0, coords)` instead of append |
+| 6 | Cursor wrong after close | `crosshair`/`grab` cursors were blocked by `isPolygonClosed` guard | Removed cursor override block |
+
+### Modified Files
+
+| File | Changes |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Pixel-distance vertex/edge detection (`findNearestDrawVertex`, `findNearestEditEdge`, `screenDistanceToSegment`); post-close interaction fixes; cursor fixes; drawing mode context menu gating (`isPolygonClosed`); missing `editingZoneVerticesRef.current` update |
+| `src/admin-web/src/components/Map/MapContextMenu.jsx` | Reusable dark dropdown for vertex delete / empty-map add / edge insert |
+| `src/admin-web/src/components/Map/DrawingToolbar.jsx` | Top-right positioning (avoid Legend overlap) |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Undo stack (`drawHistoryRef`, 50-step); `handleDrawVertexAdd` with optional `insertIndex`; `handleEditEdgeVertexInsert` with pre-computed segment index; history push on add/delete/drag-end; context menu wiring |
+
+### Interaction Matrix
+
+**Drawing Mode — Before Close:**
+- Click empty map → add vertex
+- Click first vertex (≥3 vertices) → close polygon
+- Drag vertex → move
+- Right-click → browser default menu
+
+**Drawing Mode — After Close:**
+- Right-click vertex → "Delete vertex"
+- Right-click empty map → "Add vertex here" (inserts on nearest edge)
+- Drag vertex → move
+- Delete/Backspace → delete selected vertex
+- Ctrl+Z → undo
+- Escape → cancel
+
+**Edit Mode:**
+- Click + drag vertex → move
+- Double-click vertex → delete
+- Click midpoint → insert vertex
+- Right-click edge → "Add vertex here" (inserts on nearest segment, 10px tolerance)
+
+### Git Commit
+
+```
+feat: interactive polygon vertex editing — pixel-distance hit test, drag, select, delete, undo, edge insert, post-close fixes
+```
+
+*End of Feature — Polygon Vertex Editing*
