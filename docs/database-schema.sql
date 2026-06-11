@@ -83,6 +83,7 @@ CREATE TABLE incidents (
     geom GEOMETRY(Geometry, 4326) NOT NULL,
     geometry_type VARCHAR(10) NOT NULL DEFAULT 'point' CHECK (geometry_type IN ('point', 'polygon')),
     category_id INTEGER REFERENCES categories(id),
+    zone_category_id INTEGER REFERENCES zone_categories(id) ON DELETE SET NULL,
     severity INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 5),
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'resolved', 'hidden')),
     start_date TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -218,6 +219,7 @@ CREATE INDEX idx_zone_categories_active ON zone_categories(is_active) WHERE is_a
 CREATE INDEX idx_incidents_dates ON incidents(start_date, end_date);
 CREATE INDEX idx_incidents_start_date ON incidents(start_date);
 CREATE INDEX idx_incidents_category_id ON incidents(category_id);
+CREATE INDEX idx_incidents_zone_category_id ON incidents(zone_category_id);
 CREATE INDEX idx_incidents_severity ON incidents(severity);
 CREATE INDEX idx_incidents_status ON incidents(status);
 CREATE INDEX idx_incidents_query ON incidents(status, start_date, end_date, category_id, severity);

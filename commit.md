@@ -5703,3 +5703,63 @@ feat(api): incident CRUD accepts polygon geometry; remove legacy zone endpoints
 ```
 
 *End of Phase 2 — Backend API & Validators*
+
+---
+
+## 📅 2026-06-11 — Phase 3: Zone Category Backend
+
+### Summary
+Built the complete backend CRUD for `zone_categories` and wired polygon incidents to reference them via `zone_category_id`. Added the `/api/v1/zone-categories` resource with public listing, superadmin management, and a failsafe delete that blocks when active zone incidents reference a category. Updated incident reads to join zone category metadata (name, color, icon) for polygon incidents.
+
+### Modified / Created Files
+
+| File | Changes |
+|:--|:--|
+| `docs/migrations/004_zone_category_foreign_key.sql` | **New** migration: adds `zone_category_id` to `incidents` with FK to `zone_categories(id) ON DELETE SET NULL` |
+| `docs/database-schema.sql` | `incidents` table now includes `zone_category_id` and index; FK uses `ON DELETE SET NULL` |
+| `src/backend/src/services/zone-category.service.js` | **New** service: list active/all, get by id, create, update, delete, usage count |
+| `src/backend/src/controllers/zone-category.controller.js` | **New** controller: public + superadmin endpoints, failsafe delete with usage check |
+| `src/backend/src/routes/zone-category.routes.js` | **New** routes: `GET /`, `GET /all`, `GET /:id`, `POST /`, `PATCH /:id`, `DELETE /:id` |
+| `src/backend/src/validators/zone-category.schema.js` | **New** Zod schemas for create/update zone category |
+| `src/backend/server.js` | Mounted `/api/v1/zone-categories` |
+| `src/backend/src/validators/incident.schema.js` | Added `zoneCategoryId` to create/update incident schemas |
+| `src/backend/src/services/incident.service.js` | `createIncident`/`updateIncident` accept `zoneCategoryId`; selects join `zone_categories` and return `zone_category_name`, `zone_category_color`, `zone_category_icon` |
+| `docs/api-spec.md` | Documented zone category endpoints and updated incident examples |
+
+### Endpoints
+
+| Method | Path | Access |
+|:---|:---|:---|
+| GET | `/api/v1/zone-categories` | Public |
+| GET | `/api/v1/zone-categories/all` | `super_admin` |
+| GET | `/api/v1/zone-categories/:id` | Public |
+| POST | `/api/v1/zone-categories` | `super_admin` |
+| PATCH | `/api/v1/zone-categories/:id` | `super_admin` |
+| DELETE | `/api/v1/zone-categories/:id` | `super_admin` (blocked if referenced by active zones) |
+
+### Verification
+
+```bash
+# Run migration
+echo "<sudo_password>" | sudo -S -u postgres psql -d geowatch_dev -f docs/migrations/004_zone_category_foreign_key.sql
+
+# Syntax check
+cd src/backend
+for f in server.js src/validators/incident.schema.js src/validators/zone-category.schema.js src/services/incident.service.js src/services/zone-category.service.js src/controllers/incident.controller.js src/controllers/zone-category.controller.js src/routes/zone-category.routes.js; do
+  node --check "$f" || exit 1
+done
+
+# Service tests
+DB_PASSWORD=... node test-zone-categories.mjs  # ✅ list/create/update/delete, zone incident join, failsafe block
+
+# Runtime check
+curl -s http://localhost:3000/api/v1/zone-categories  # ✅ returns 8 seeded categories
+```
+
+### Git Commit
+
+```
+feat(api): add zone category CRUD endpoints and zone_category_id FK for polygon incidents
+```
+
+*End of Phase 3 — Zone Category Backend*

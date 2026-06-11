@@ -33,6 +33,7 @@ export const createIncidentSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   categoryId: z.number().int().positive().optional(),
+  zoneCategoryId: z.number().int().positive().optional(),
   severity: z.number().int().min(1).max(5),
   startDate: z.string().datetime(),
   endDate: z.string().datetime().optional().nullable(),

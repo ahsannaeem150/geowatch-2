@@ -169,6 +169,7 @@ Body:
   "latitude": 31.5204,
   "longitude": 74.3587,
   "categoryId": 42,
+  "zoneCategoryId": null,
   "severity": 4,
   "startDate": "2024-01-15T10:00:00Z",
   "endDate": null,
@@ -299,7 +300,48 @@ Body: `{ displayOrder: number }`
 
 ---
 
-> **Zones are now Polygon Incidents.** The standalone `/zones` endpoints have been removed. Create or update zones via `POST /incidents` or `PATCH /incidents/:id` with `geometryType: 'polygon'` and a GeoJSON `geometry` object.
+> **Zones are now Polygon Incidents.** The standalone `/zones` endpoints have been removed. Create or update zones via `POST /incidents` or `PATCH /incidents/:id` with `geometryType: 'polygon'`, a GeoJSON `geometry` object, and `zoneCategoryId`.
+
+---
+
+## ZONE CATEGORY ENDPOINTS
+
+### GET /zone-categories
+Access: Public  
+Response: `{ data: { categories: [ { id, name, slug, description, color, icon, sortOrder, isActive } ] } }`  
+Note: Returns only active categories, sorted by `sort_order`.
+
+### GET /zone-categories/all
+Access: `super_admin` only  
+Response: `{ data: { categories: [ ... ] } }`  
+Note: Returns all categories including inactive.
+
+### GET /zone-categories/:id
+Access: Public  
+Response: `{ data: { category: { ... } } }`
+
+### POST /zone-categories
+Access: `super_admin` only  
+Body:
+```json
+{
+  "name": "NOTAM",
+  "slug": "notam",
+  "description": "Notice to Airmen",
+  "color": "#6366f1",
+  "icon": "plane",
+  "sortOrder": 10,
+  "isActive": true
+}
+```
+
+### PATCH /zone-categories/:id
+Access: `super_admin` only  
+Body: partial category fields
+
+### DELETE /zone-categories/:id
+Access: `super_admin` only  
+Note: Returns `409 CONFLICT` if any active or non-hidden zone incident references the category.
 
 ---
 

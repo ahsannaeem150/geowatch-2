@@ -7,9 +7,11 @@ const INCIDENT_COLUMNS = `
   i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
   i.location_context,
   i.category_id,
+  i.zone_category_id,
   i.verification_override,
   c.name AS category_name, c.slug AS category_slug,
   d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
+  zc.name AS zone_category_name, zc.color AS zone_category_color, zc.icon AS zone_category_icon,
   ST_AsGeoJSON(i.geom)::json AS geometry
 `;
 
@@ -17,6 +19,7 @@ const INCIDENT_FROM = `
   FROM incidents i
   LEFT JOIN categories c ON i.category_id = c.id
   LEFT JOIN domains d ON c.domain_id = d.id
+  LEFT JOIN zone_categories zc ON i.zone_category_id = zc.id
 `;
 
 // ─── Helpers ───
@@ -280,6 +283,7 @@ export async function createIncident(data, createdBy) {
     latitude,
     longitude,
     categoryId,
+    zoneCategoryId,
     severity,
     startDate,
     endDate,
@@ -301,23 +305,23 @@ export async function createIncident(data, createdBy) {
     sql = `
       INSERT INTO incidents (
         title, description, geometry_type, geom,
-        category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
-      ) VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), 4326), $5, $6, $7, $8, $9, $10, $11, $12)
+        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
+      ) VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), 4326), $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`;
     params = [
       title, description || null, geometryType, JSON.stringify(geometry),
-      categoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
+      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
     ];
   } else {
     sql = `
       INSERT INTO incidents (
         title, description, geometry_type, geom, latitude, longitude,
-        category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
-      ) VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
+      ) VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`;
     params = [
       title, description || null, geometryType, longitude, latitude, latitude, longitude,
-      categoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
+      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
     ];
   }
 
@@ -340,6 +344,7 @@ export async function updateIncident(id, data) {
   addField('title', data.title);
   addField('description', data.description);
   addField('category_id', data.categoryId);
+  addField('zone_category_id', data.zoneCategoryId);
   addField('severity', data.severity);
   addField('start_date', data.startDate);
   addField('end_date', data.endDate);
