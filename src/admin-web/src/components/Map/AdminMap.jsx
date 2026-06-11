@@ -154,6 +154,9 @@ export default function AdminMap({
   onEditCancelRef.current = onEditCancel;
   selectedEditVertexIndexRef.current = selectedEditVertexIndex;
 
+  const currentStyleUrlRef = useRef(null);
+  const [styleVersion, setStyleVersion] = useState(0);
+
   const [hoveredDrawVertexIndex, setHoveredDrawVertexIndex] = useState(null);
   const isDraggingDrawVertex = useRef(false);
   const draggedDrawVertexIndex = useRef(null);
@@ -183,6 +186,195 @@ export default function AdminMap({
     const styleUrl = document.documentElement.getAttribute('data-theme') === 'light'
       ? '/map-style-light.json'
       : '/map-style-dark.json';
+    currentStyleUrlRef.current = styleUrl;
+
+    const ensureLayers = (mapInstance) => {
+      if (!mapInstance || !mapInstance.getStyle()) return;
+
+      // Zone layers
+      if (!mapInstance.getSource('zones')) {
+        mapInstance.addSource('zones', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+          promoteId: 'id',
+        });
+      }
+      if (!mapInstance.getLayer('zone-fills')) {
+        mapInstance.addLayer({
+          id: 'zone-fills',
+          type: 'fill',
+          source: 'zones',
+          paint: {
+            'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false], 0.12,
+              ['boolean', ['feature-state', 'selected'], false], 0.10,
+              ['get', 'opacity'],
+            ],
+          },
+        });
+      }
+      if (!mapInstance.getLayer('zone-outlines')) {
+        mapInstance.addLayer({
+          id: 'zone-outlines',
+          type: 'line',
+          source: 'zones',
+          paint: {
+            'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
+            'line-width': ['get', 'strokeWidth'],
+            'line-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false], 0.8,
+              ['boolean', ['feature-state', 'selected'], false], 0.9,
+              0.6,
+            ],
+          },
+        });
+      }
+
+      // Drawing preview layers
+      if (!mapInstance.getSource('draw-preview')) {
+        mapInstance.addSource('draw-preview', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+      }
+      if (!mapInstance.getLayer('draw-preview-fill')) {
+        mapInstance.addLayer({
+          id: 'draw-preview-fill',
+          type: 'fill',
+          source: 'draw-preview',
+          paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.06 },
+        });
+      }
+      if (!mapInstance.getLayer('draw-preview-line')) {
+        mapInstance.addLayer({
+          id: 'draw-preview-line',
+          type: 'line',
+          source: 'draw-preview',
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 2,
+            'line-dasharray': [4, 3],
+            'line-opacity': 0.7,
+          },
+        });
+      }
+      if (!mapInstance.getLayer('draw-preview-vertices')) {
+        mapInstance.addLayer({
+          id: 'draw-preview-vertices',
+          type: 'circle',
+          source: 'draw-preview',
+          filter: ['==', ['get', 'isVertex'], true],
+          paint: {
+            'circle-radius': [
+              'case',
+              ['boolean', ['get', 'isSelected'], false], 10,
+              ['boolean', ['get', 'isHovered'], false], 9,
+              ['boolean', ['get', 'isFirst'], false], 9,
+              8,
+            ],
+            'circle-color': [
+              'case',
+              ['boolean', ['get', 'isSelected'], false], '#f59e0b',
+              ['boolean', ['get', 'isHovered'], false], '#fff',
+              ['boolean', ['get', 'isFirst'], false], '#3b82f6',
+              '#fff',
+            ],
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#3b82f6',
+          },
+        });
+      }
+      if (!mapInstance.getLayer('draw-preview-rubber')) {
+        mapInstance.addLayer({
+          id: 'draw-preview-rubber',
+          type: 'line',
+          source: 'draw-preview',
+          filter: ['==', ['get', 'isRubberBand'], true],
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 2,
+            'line-dasharray': [2, 2],
+            'line-opacity': 0.5,
+          },
+        });
+      }
+
+      // Zone edit layers
+      if (!mapInstance.getSource('edit-zone')) {
+        mapInstance.addSource('edit-zone', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+      }
+      if (!mapInstance.getLayer('edit-zone-fill')) {
+        mapInstance.addLayer({
+          id: 'edit-zone-fill',
+          type: 'fill',
+          source: 'edit-zone',
+          paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.12 },
+        });
+      }
+      if (!mapInstance.getLayer('edit-zone-outline')) {
+        mapInstance.addLayer({
+          id: 'edit-zone-outline',
+          type: 'line',
+          source: 'edit-zone',
+          paint: {
+            'line-color': '#f59e0b',
+            'line-width': 2,
+            'line-dasharray': [4, 3],
+            'line-opacity': 0.9,
+          },
+        });
+      }
+      if (!mapInstance.getLayer('edit-zone-hit-line')) {
+        mapInstance.addLayer({
+          id: 'edit-zone-hit-line',
+          type: 'line',
+          source: 'edit-zone',
+          paint: { 'line-width': 12, 'line-opacity': 0 },
+        });
+      }
+
+      if (!mapInstance.getSource('edit-vertices')) {
+        mapInstance.addSource('edit-vertices', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+      }
+      if (!mapInstance.getLayer('edit-vertices')) {
+        mapInstance.addLayer({
+          id: 'edit-vertices',
+          type: 'circle',
+          source: 'edit-vertices',
+          paint: {
+            'circle-radius': ['case', ['boolean', ['get', 'isSelected'], false], 9, 6],
+            'circle-color': ['case', ['boolean', ['get', 'isSelected'], false], '#f59e0b', '#fff'],
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#f59e0b',
+          },
+        });
+      }
+
+      if (!mapInstance.getSource('edit-midpoints')) {
+        mapInstance.addSource('edit-midpoints', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+      }
+      if (!mapInstance.getLayer('edit-midpoints')) {
+        mapInstance.addLayer({
+          id: 'edit-midpoints',
+          type: 'circle',
+          source: 'edit-midpoints',
+          paint: { 'circle-radius': 4, 'circle-color': 'rgba(245, 158, 11, 0.6)' },
+        });
+      }
+    };
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: styleUrl,
@@ -255,180 +447,8 @@ export default function AdminMap({
     // Report initial bounds once the map is loaded
     map.current.on('load', () => {
       if (!map.current) return;
-
-      // ─── Zone layers (added BEFORE markers so markers render on top) ───
-      map.current.addSource('zones', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-        promoteId: 'id',
-      });
-
-      map.current.addLayer({
-        id: 'zone-fills',
-        type: 'fill',
-        source: 'zones',
-        paint: {
-          'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false], 0.12,
-            ['boolean', ['feature-state', 'selected'], false], 0.10,
-            ['get', 'opacity'],
-          ],
-        },
-      });
-
-      map.current.addLayer({
-        id: 'zone-outlines',
-        type: 'line',
-        source: 'zones',
-        paint: {
-          'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
-          'line-width': ['get', 'strokeWidth'],
-          'line-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false], 0.8,
-            ['boolean', ['feature-state', 'selected'], false], 0.9,
-            0.6,
-          ],
-        },
-      });
-
-      // ─── Drawing preview layers ───
-      map.current.addSource('draw-preview', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-
-      map.current.addLayer({
-        id: 'draw-preview-fill',
-        type: 'fill',
-        source: 'draw-preview',
-        paint: {
-          'fill-color': '#3b82f6',
-          'fill-opacity': 0.06,
-        },
-      });
-
-      map.current.addLayer({
-        id: 'draw-preview-line',
-        type: 'line',
-        source: 'draw-preview',
-        paint: {
-          'line-color': '#3b82f6',
-          'line-width': 2,
-          'line-dasharray': [4, 3],
-          'line-opacity': 0.7,
-        },
-      });
-
-      map.current.addLayer({
-        id: 'draw-preview-vertices',
-        type: 'circle',
-        source: 'draw-preview',
-        filter: ['==', ['get', 'isVertex'], true],
-        paint: {
-          'circle-radius': [
-            'case',
-            ['boolean', ['get', 'isSelected'], false], 10,
-            ['boolean', ['get', 'isHovered'], false], 9,
-            ['boolean', ['get', 'isFirst'], false], 9,
-            8,
-          ],
-          'circle-color': [
-            'case',
-            ['boolean', ['get', 'isSelected'], false], '#f59e0b',
-            ['boolean', ['get', 'isHovered'], false], '#fff',
-            ['boolean', ['get', 'isFirst'], false], '#3b82f6',
-            '#fff',
-          ],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#3b82f6',
-        },
-      });
-
-      map.current.addLayer({
-        id: 'draw-preview-rubber',
-        type: 'line',
-        source: 'draw-preview',
-        filter: ['==', ['get', 'isRubberBand'], true],
-        paint: {
-          'line-color': '#3b82f6',
-          'line-width': 2,
-          'line-dasharray': [2, 2],
-          'line-opacity': 0.5,
-        },
-      });
-
-      // ─── Zone edit layers ───
-      map.current.addSource('edit-zone', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-
-      map.current.addLayer({
-        id: 'edit-zone-fill',
-        type: 'fill',
-        source: 'edit-zone',
-        paint: {
-          'fill-color': '#f59e0b',
-          'fill-opacity': 0.12,
-        },
-      });
-
-      map.current.addLayer({
-        id: 'edit-zone-outline',
-        type: 'line',
-        source: 'edit-zone',
-        paint: {
-          'line-color': '#f59e0b',
-          'line-width': 2,
-          'line-dasharray': [4, 3],
-          'line-opacity': 0.9,
-        },
-      });
-
-      map.current.addLayer({
-        id: 'edit-zone-hit-line',
-        type: 'line',
-        source: 'edit-zone',
-        paint: {
-          'line-width': 12,
-          'line-opacity': 0,
-        },
-      });
-
-      map.current.addSource('edit-vertices', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-
-      map.current.addLayer({
-        id: 'edit-vertices',
-        type: 'circle',
-        source: 'edit-vertices',
-        paint: {
-          'circle-radius': ['case', ['boolean', ['get', 'isSelected'], false], 9, 6],
-          'circle-color': ['case', ['boolean', ['get', 'isSelected'], false], '#f59e0b', '#fff'],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#f59e0b',
-        },
-      });
-
-      map.current.addSource('edit-midpoints', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-
-      map.current.addLayer({
-        id: 'edit-midpoints',
-        type: 'circle',
-        source: 'edit-midpoints',
-        paint: {
-          'circle-radius': 4,
-          'circle-color': 'rgba(245, 158, 11, 0.6)',
-        },
-      });
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
 
       const bounds = map.current.getBounds();
       const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
@@ -436,6 +456,13 @@ export default function AdminMap({
       // Set initial maxZoom based on starting center
       const center = map.current.getCenter();
       map.current.setMaxZoom(getMaxZoomForCenter(center.lng, center.lat));
+    });
+
+    // Re-add custom layers after a style change
+    map.current.on('style.load', () => {
+      if (!map.current) return;
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
     });
 
     // During active pan, update maxZoom and clamp immediately if over-zoomed.
@@ -492,6 +519,8 @@ export default function AdminMap({
   useEffect(() => {
     if (!map.current) return;
     const newStyle = theme === 'light' ? '/map-style-light.json' : '/map-style-dark.json';
+    if (newStyle === currentStyleUrlRef.current) return;
+    currentStyleUrlRef.current = newStyle;
     map.current.setStyle(newStyle);
   }, [theme]);
 
@@ -727,7 +756,7 @@ export default function AdminMap({
       : [];
 
     source.setData({ type: 'FeatureCollection', features });
-  }, [zones, editingZoneId, showZones]);
+  }, [zones, editingZoneId, showZones, styleVersion]);
 
   // ─── Zone hover / click interaction ───
   useEffect(() => {
@@ -740,26 +769,41 @@ export default function AdminMap({
       // Skip zone hover when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) {
         if (hoveredZoneId !== null) {
-          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          try {
+            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          } catch {}
           hoveredZoneId = null;
         }
         return;
       }
 
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      let features = [];
+      try {
+        features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      } catch {
+        // layers not ready yet
+        return;
+      }
+
       if (features.length > 0) {
         const featureId = String(features[0].id);
         if (hoveredZoneId !== featureId) {
           if (hoveredZoneId !== null) {
-            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+            try {
+              mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+            } catch {}
           }
           hoveredZoneId = featureId;
-          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
+          try {
+            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
+          } catch {}
           mapInstance.getCanvas().style.cursor = 'pointer';
         }
       } else {
         if (hoveredZoneId !== null) {
-          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          try {
+            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          } catch {}
           hoveredZoneId = null;
         }
         mapInstance.getCanvas().style.cursor = '';
@@ -769,7 +813,12 @@ export default function AdminMap({
     const onClick = (e) => {
       // Skip zone clicks when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) return;
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      let features = [];
+      try {
+        features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      } catch {
+        return;
+      }
       if (features.length > 0) {
         const zoneId = Number(features[0].id);
         onZoneClick?.(zoneId);
@@ -798,7 +847,7 @@ export default function AdminMap({
         { selected: String(zone.id) === String(selectedZoneId) }
       );
     });
-  }, [selectedZoneId, zones, editingZoneId]);
+  }, [selectedZoneId, zones, editingZoneId, styleVersion]);
 
   // ─── Update edit zone sources when editing ───
   useEffect(() => {
@@ -851,7 +900,7 @@ export default function AdminMap({
       vertexSource.setData({ type: 'FeatureCollection', features: [] });
       midpointSource.setData({ type: 'FeatureCollection', features: [] });
     }
-  }, [editingZoneId, editingZoneVertices, selectedEditVertexIndex]);
+  }, [editingZoneId, editingZoneVertices, selectedEditVertexIndex, styleVersion]);
 
   // ─── Drawing preview data update ───
   useEffect(() => {
@@ -920,7 +969,7 @@ export default function AdminMap({
     }
 
     source.setData({ type: 'FeatureCollection', features });
-  }, [mapMode, drawVertices, isPolygonClosed, hoveredDrawVertexIndex, selectedDrawVertexIndex]);
+  }, [mapMode, drawVertices, isPolygonClosed, hoveredDrawVertexIndex, selectedDrawVertexIndex, styleVersion]);
 
   // ─── Drawing click handler ───
   useEffect(() => {
@@ -1125,7 +1174,7 @@ export default function AdminMap({
       rubberBandCoords.current = null;
       source.setData({ type: 'FeatureCollection', features: [] });
     }
-  }, [mapMode]);
+  }, [mapMode, styleVersion]);
 
   // ─── Right-click context menu for drawing mode ───
   useEffect(() => {

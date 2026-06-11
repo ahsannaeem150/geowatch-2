@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE } from '@shared/constants.js';
@@ -47,6 +47,13 @@ export default function UserMap({
   const onViewportChangeRef = useRef(onViewportChange);
   onViewportChangeRef.current = onViewportChange;
 
+  const currentStyleUrlRef = useRef(null);
+  const zonesRef = useRef(zones);
+  zonesRef.current = zones;
+  const showZonesRef = useRef(showZones);
+  showZonesRef.current = showZones;
+  const [styleVersion, setStyleVersion] = useState(0);
+
   // Initialize map once
   useEffect(() => {
     if (map.current) return;
@@ -54,6 +61,55 @@ export default function UserMap({
     const styleUrl = document.documentElement.getAttribute('data-theme') === 'light'
       ? '/map-style-light.json'
       : '/map-style-dark.json';
+    currentStyleUrlRef.current = styleUrl;
+
+    const ensureLayers = (mapInstance) => {
+      if (!mapInstance || !mapInstance.getStyle()) return;
+
+      if (!mapInstance.getSource('zones')) {
+        mapInstance.addSource('zones', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+          promoteId: 'id',
+        });
+      }
+
+      if (!mapInstance.getLayer('zone-fills')) {
+        mapInstance.addLayer({
+          id: 'zone-fills',
+          type: 'fill',
+          source: 'zones',
+          paint: {
+            'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false], 0.12,
+              ['boolean', ['feature-state', 'selected'], false], 0.10,
+              ['get', 'opacity'],
+            ],
+          },
+        });
+      }
+
+      if (!mapInstance.getLayer('zone-outlines')) {
+        mapInstance.addLayer({
+          id: 'zone-outlines',
+          type: 'line',
+          source: 'zones',
+          paint: {
+            'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
+            'line-width': ['get', 'strokeWidth'],
+            'line-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false], 0.8,
+              ['boolean', ['feature-state', 'selected'], false], 0.9,
+              0.6,
+            ],
+          },
+        });
+      }
+    };
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: styleUrl,
@@ -68,44 +124,8 @@ export default function UserMap({
     // Report initial bounds once the map is loaded
     map.current.on('load', () => {
       if (!map.current) return;
-
-      // ─── Zone layers (added BEFORE markers so markers render on top) ───
-      map.current.addSource('zones', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-        promoteId: 'id',
-      });
-
-      map.current.addLayer({
-        id: 'zone-fills',
-        type: 'fill',
-        source: 'zones',
-        paint: {
-          'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false], 0.12,
-            ['boolean', ['feature-state', 'selected'], false], 0.10,
-            ['get', 'opacity'],
-          ],
-        },
-      });
-
-      map.current.addLayer({
-        id: 'zone-outlines',
-        type: 'line',
-        source: 'zones',
-        paint: {
-          'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
-          'line-width': ['get', 'strokeWidth'],
-          'line-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false], 0.8,
-            ['boolean', ['feature-state', 'selected'], false], 0.9,
-            0.6,
-          ],
-        },
-      });
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
 
       const bounds = map.current.getBounds();
       const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
@@ -132,6 +152,13 @@ export default function UserMap({
           isClamping.current = false;
         }, 0);
       }
+    });
+
+    // Re-add custom layers after a style change
+    map.current.on('style.load', () => {
+      if (!map.current) return;
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
     });
 
     // Report viewport bounds on user-initiated map moves
@@ -222,7 +249,7 @@ export default function UserMap({
       : [];
 
     source.setData({ type: 'FeatureCollection', features });
-  }, [zones, showZones]);
+  }, [zones, showZones, styleVersion]);
 
   // Zone hover and click interactions
   useEffect(() => {
@@ -232,20 +259,33 @@ export default function UserMap({
     let hoveredZoneId = null;
 
     const onMouseMove = (e) => {
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      let features = [];
+      try {
+        features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      } catch {
+        // layers not ready yet
+        return;
+      }
+
       if (features.length > 0) {
         const featureId = String(features[0].id);
         if (hoveredZoneId !== featureId) {
           if (hoveredZoneId !== null) {
-            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+            try {
+              mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+            } catch {}
           }
           hoveredZoneId = featureId;
-          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
+          try {
+            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
+          } catch {}
           mapInstance.getCanvas().style.cursor = 'pointer';
         }
       } else {
         if (hoveredZoneId !== null) {
-          mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          try {
+            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
+          } catch {}
           hoveredZoneId = null;
         }
         mapInstance.getCanvas().style.cursor = '';
@@ -253,7 +293,12 @@ export default function UserMap({
     };
 
     const onClick = (e) => {
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      let features = [];
+      try {
+        features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+      } catch {
+        return;
+      }
       if (features.length > 0) {
         const numericId = Number(features[0].id);
         const zone = zones.find((z) => z.id === numericId);
@@ -282,12 +327,14 @@ export default function UserMap({
         { selected: String(zone.id) === String(selectedZoneId) }
       );
     });
-  }, [selectedZoneId, zones]);
+  }, [selectedZoneId, zones, styleVersion]);
 
   // Switch map style when theme changes
   useEffect(() => {
     if (!map.current) return;
     const newStyle = theme === 'light' ? '/map-style-light.json' : '/map-style-dark.json';
+    if (newStyle === currentStyleUrlRef.current) return;
+    currentStyleUrlRef.current = newStyle;
     map.current.setStyle(newStyle);
   }, [theme]);
 
