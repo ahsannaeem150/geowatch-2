@@ -923,29 +923,6 @@ export default function DashboardLayout() {
     setSelectedEditVertexIndex(null);
   }, [pushToEditHistory]);
 
-  const handleZoneEditSave = useCallback(async (data) => {
-    const id = editingZoneIdRef.current;
-    if (!id) return;
-    const vertices = editingZoneVerticesRef.current;
-    const closedRing = [...vertices, vertices[0]];
-    try {
-      await api.updateZone(id, {
-        ...data,
-        geometry: { type: 'Polygon', coordinates: [closedRing] },
-      });
-      setEditingZoneId(null);
-      setEditingZoneVertices([]);
-      setOriginalZoneVertices([]);
-      setSelectedEditVertexIndex(null);
-      editHistoryRef.current = [];
-      editHistoryIndexRef.current = -1;
-      setRefreshKey((k) => k + 1);
-      setToast({ message: 'Zone updated successfully', type: 'success' });
-    } catch (err) {
-      alert(err.message || 'Failed to update zone');
-    }
-  }, []);
-
   const handleZoneEditCancel = useCallback(() => {
     setEditingZoneId(null);
     setEditingZoneVertices([]);
@@ -953,22 +930,6 @@ export default function DashboardLayout() {
     setSelectedEditVertexIndex(null);
     editHistoryRef.current = [];
     editHistoryIndexRef.current = -1;
-  }, []);
-
-  const handleZoneDelete = useCallback(async () => {
-    const id = editingZoneIdRef.current;
-    if (!id) return;
-    try {
-      await api.deleteZone(id);
-      setEditingZoneId(null);
-      setEditingZoneVertices([]);
-      setOriginalZoneVertices([]);
-      setSelectedZoneId(null);
-      setRefreshKey((k) => k + 1);
-      setToast({ message: 'Zone deleted successfully', type: 'info' });
-    } catch (err) {
-      alert(err.message || 'Failed to delete zone');
-    }
   }, []);
 
   const handleSearchSelect = useCallback((incident) => {

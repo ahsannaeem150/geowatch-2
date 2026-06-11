@@ -7,7 +7,7 @@
 
 ## What Is This?
 
-The Superadmin Console is the mission-control panel for GeoWatch. It lets you manage the entire platform: users, audit logs, incident taxonomy (domains & categories), and system health. Only users with the `super_admin` role can access it.
+The Superadmin Console is the mission-control panel for GeoWatch. It lets you manage the entire platform: users, audit logs, incident taxonomy (domains & categories), zone taxonomy, and system health. Only users with the `super_admin` role can access it.
 
 ---
 
@@ -140,6 +140,27 @@ A **category** lives inside a domain (e.g., "Air Strike" under "Conflict"). Each
 5. Click **+ New Domain** at the top right to create a new domain
 
 > ⚠️ You cannot delete a domain that still has categories. Move or delete the categories first.
+
+---
+
+## Zone Categories Page
+
+Zones are **polygon incidents** (e.g., No-Fly Zones, Curfews, Maritime Exclusion Zones). This page manages their taxonomy separately from marker domains/categories.
+
+### Zone Category Fields
+- **Name & slug** — displayed label and URL-friendly identifier
+- **Color** — hex code for polygon fill/outline and UI badges
+- **Icon** — Lucide icon name (searchable picker)
+- **Description** — optional context
+- **Sort order** — controls display sequence
+- **Active** — inactive categories are hidden from admin/user dropdowns
+
+### How to Use
+1. Click **+ New Zone Category** to create a category
+2. Click the **pencil** icon to edit
+3. Click the **trash** icon to delete (blocked if any zone incident references it)
+
+> ⚠️ Deleting a zone category that is in use will fail with a conflict error. Reassign or delete those zones first.
 
 ---
 
