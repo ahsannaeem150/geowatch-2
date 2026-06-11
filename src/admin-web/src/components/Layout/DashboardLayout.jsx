@@ -8,7 +8,7 @@ import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
 import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
-import ZoneCreatePanel from '../Zones/ZoneCreatePanel.jsx';
+import ZoneForm from '../ZoneForm/ZoneForm.jsx';
 import ZoneEditPanel from '../Zones/ZoneEditPanel.jsx';
 import ZoneManagementPanel from '../Zones/ZoneManagementPanel.jsx';
 import ZoneDetailPanel from '../Zones/ZoneDetailPanel.jsx';
@@ -742,13 +742,24 @@ export default function DashboardLayout() {
     setContextMenu(null);
   }, []);
 
-  const handleZoneCreateSubmit = useCallback(() => {
-    setMapMode('pan');
-    setDrawVertices([]);
-    setIsPolygonClosed(false);
-    setShowZoneCreatePanel(false);
-    setSelectedDrawVertexIndex(null);
-    setRefreshKey((k) => k + 1);
+  const handleZoneCreateSubmit = useCallback(async (payload) => {
+    setSubmitting(true);
+    try {
+      await api.createIncident(payload);
+      setToast({ message: 'Zone created successfully' });
+      setMapMode('pan');
+      setDrawVertices([]);
+      setIsPolygonClosed(false);
+      setShowZoneCreatePanel(false);
+      setSelectedDrawVertexIndex(null);
+      drawHistoryRef.current = [{ vertices: [], isClosed: false }];
+      historyIndexRef.current = 0;
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to create zone' });
+    } finally {
+      setSubmitting(false);
+    }
   }, []);
 
   const handleEditZone = useCallback(() => {
@@ -1188,11 +1199,11 @@ export default function DashboardLayout() {
 
     if (showZoneCreatePanel) {
       return (
-        <ZoneCreatePanel
+        <ZoneForm
           geometry={{ type: 'Polygon', coordinates: [drawVertices] }}
-          vertexCount={drawVertices.length}
           onSubmit={handleZoneCreateSubmit}
           onCancel={handleDrawCancel}
+          submitting={submitting}
         />
       );
     }

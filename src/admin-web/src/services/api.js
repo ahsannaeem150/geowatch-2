@@ -69,6 +69,7 @@ export const api = {
   // Categories
   getCategories: () => request('/categories'),
   getDomains: () => request('/categories/domains'),
+  getZoneCategories: () => request('/zone-categories'),
 
   // Events (public)
   getIncidents: (params = {}) => {

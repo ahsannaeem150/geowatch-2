@@ -5842,3 +5842,45 @@ feat(admin): add Add Zone button to top bar that enters polygon drawing mode
 ```
 
 *End of Phase 5 — Admin Top Bar Add Zone Button*
+
+---
+
+## 📅 2026-06-11 — Phase 6: Admin Zone Form
+
+### Summary
+Created a dedicated `ZoneForm` component for polygon incidents and wired it into the admin dashboard's drawing flow. When an admin draws and closes a polygon, the new ZoneForm now appears instead of the legacy `ZoneCreatePanel`. The form submits a polygon incident to `/api/v1/incidents` with `geometryType: 'polygon'` and `zoneCategoryId`. Added a shared `useZoneCategories` hook and wired the admin API to the public `/zone-categories` endpoint.
+
+### Modified / Created Files
+
+| File | Changes |
+|:--|:--|
+| `src/admin-web/src/components/ZoneForm/ZoneForm.jsx` | **New** zone form with title, zone category, severity, status, start/end dates, description, sources, and polygon vertex/area stats |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Replaced `ZoneCreatePanel` with `ZoneForm`; `handleZoneCreateSubmit` now calls `api.createIncident` and shows toast feedback |
+| `src/shared/hooks/useZoneCategories.js` | **New** shared hook for fetching active zone categories |
+| `src/admin-web/src/services/api.js` | Added `getZoneCategories` helper |
+
+### Zone Form Fields
+
+- Zone Title
+- Description
+- Zone Category (dropdown from `zone_categories`)
+- Severity (1–5)
+- Status (Active / Resolved)
+- Start Date / End Date
+- Sources (same pattern as incident form)
+- Polygon stats (vertex count + approximate area)
+
+### Verification
+
+```bash
+npm run build:admin-web
+# Result: ✅ built in 2.25s, no errors
+```
+
+### Git Commit
+
+```
+feat(admin): add dedicated ZoneForm for creating polygon incidents
+```
+
+*End of Phase 6 — Admin Zone Form*
