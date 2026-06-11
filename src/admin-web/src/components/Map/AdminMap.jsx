@@ -465,6 +465,12 @@ export default function AdminMap({
       setStyleVersion((v) => v + 1);
     });
 
+    // If the map is already loaded (cached style), add layers now
+    if (map.current.loaded()) {
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
+    }
+
     // During active pan, update maxZoom and clamp immediately if over-zoomed.
     // jumpTo is used instead of flyTo so we don't fight the user's gesture;
     // it snaps the zoom instantly before the viewport can drift into no-tile land.
@@ -745,6 +751,7 @@ export default function AdminMap({
               id: String(zone.id),
               geometry: zone.geometry,
               properties: {
+                id: zone.id,
                 name: zone.title || zone.name,
                 fillColor: color,
                 strokeColor: color,
@@ -765,6 +772,9 @@ export default function AdminMap({
     const zoneLayers = ['zone-fills', 'zone-outlines'];
     let hoveredZoneId = null;
 
+    const layersReady = () =>
+      mapInstance.getLayer('zone-fills') && mapInstance.getLayer('zone-outlines');
+
     const onMouseMove = (e) => {
       // Skip zone hover when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) {
@@ -776,6 +786,8 @@ export default function AdminMap({
         }
         return;
       }
+
+      if (!layersReady()) return;
 
       let features = [];
       try {
@@ -813,6 +825,7 @@ export default function AdminMap({
     const onClick = (e) => {
       // Skip zone clicks when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) return;
+      if (!layersReady()) return;
       let features = [];
       try {
         features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
@@ -820,8 +833,10 @@ export default function AdminMap({
         return;
       }
       if (features.length > 0) {
-        const zoneId = Number(features[0].id);
-        onZoneClick?.(zoneId);
+        const zoneId = String(features[0].id || features[0].properties?.id);
+        if (zoneId && zoneId !== 'undefined') {
+          onZoneClick?.(zoneId);
+        }
       }
     };
 
@@ -1383,7 +1398,8 @@ export default function AdminMap({
         return;
       }
 
-      mapInstance.getCanvas().style.cursor = '';
+      // In normal pan mode let the dedicated zone hover handler manage the cursor.
+      return;
     };
 
     mapInstance.on('mousedown', onMouseDown);

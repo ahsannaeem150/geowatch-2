@@ -161,6 +161,12 @@ export default function UserMap({
       setStyleVersion((v) => v + 1);
     });
 
+    // If the map is already loaded (cached style), add layers now
+    if (map.current.loaded()) {
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
+    }
+
     // Report viewport bounds on user-initiated map moves
     map.current.on('moveend', () => {
       if (isProgrammaticMove.current) {
@@ -238,6 +244,7 @@ export default function UserMap({
             id: String(zone.id),
             geometry: zone.geometry,
             properties: {
+              id: zone.id,
               name: zone.title || zone.name,
               fillColor: color,
               strokeColor: color,
@@ -258,7 +265,11 @@ export default function UserMap({
     const zoneLayers = ['zone-fills', 'zone-outlines'];
     let hoveredZoneId = null;
 
+    const layersReady = () =>
+      mapInstance.getLayer('zone-fills') && mapInstance.getLayer('zone-outlines');
+
     const onMouseMove = (e) => {
+      if (!layersReady()) return;
       let features = [];
       try {
         features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
@@ -293,6 +304,7 @@ export default function UserMap({
     };
 
     const onClick = (e) => {
+      if (!layersReady()) return;
       let features = [];
       try {
         features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
@@ -300,8 +312,8 @@ export default function UserMap({
         return;
       }
       if (features.length > 0) {
-        const numericId = Number(features[0].id);
-        const zone = zones.find((z) => z.id === numericId);
+        const zoneId = String(features[0].id || features[0].properties?.id);
+        const zone = zones.find((z) => String(z.id) === zoneId);
         if (zone) onZoneClickRef.current?.(zone);
       }
     };

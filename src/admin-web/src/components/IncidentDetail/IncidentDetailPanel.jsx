@@ -114,7 +114,8 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/dashboard?incident=${incidentId}`;
+    const param = isPolygon ? 'zone' : 'incident';
+    const url = `${window.location.origin}/dashboard?${param}=${incidentId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -174,16 +175,17 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
     const graceEnd = new Date(resolvedAt.getTime() + 24 * 60 * 60 * 1000);
     const hoursRemaining = Math.max(0, Math.ceil((graceEnd - now) / (1000 * 60 * 60)));
 
+    const noun = isPolygon ? 'Zone' : 'Marker';
     if (hoursRemaining <= 0) {
-      return { text: 'Marker will disappear from the map.', highlight: null };
+      return { text: `${noun} will disappear from the map.`, highlight: null };
     }
 
     const isNearCurrent = Math.abs(now - resolvedAt) < 5 * 60 * 1000;
     if (isNearCurrent) {
-      return { text: 'Marker will be removed from the map after ', highlight: '24 hours' };
+      return { text: `${noun} will be removed from the map after `, highlight: '24 hours' };
     }
 
-    return { text: 'Marker will disappear in ', highlight: `${hoursRemaining} hours` };
+    return { text: `${noun} will disappear in `, highlight: `${hoursRemaining} hours` };
   };
 
   // Open resolve modal when triggered from TopBar
@@ -307,6 +309,7 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
 
   const { incident, sources, timeline } = data;
   const catColor = incident.domain_color;
+  const isPolygon = incident.geometry_type === 'polygon';
 
   const sectionTitle = (text) => (
     <h4
@@ -405,9 +408,15 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
         <h2 style={{ fontSize: 'var(--text-h3)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', lineHeight: 1.2 }}>
           {incident.title}
         </h2>
-        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-          {parseFloat(incident.latitude ?? 0).toFixed(4)}, {parseFloat(incident.longitude ?? 0).toFixed(4)}
-        </p>
+        {isPolygon ? (
+          <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)' }}>
+            ⬡ {incident.zone_category_name || 'Zone'} · Polygon
+          </p>
+        ) : (
+          <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+            {parseFloat(incident.latitude ?? 0).toFixed(4)}, {parseFloat(incident.longitude ?? 0).toFixed(4)}
+          </p>
+        )}
       </div>
 
       {/* Meta */}
@@ -850,9 +859,11 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
             Resolve
           </Button>
         )}
-        <Button variant="primary" onClick={() => onEdit?.(incident)}>
-          Edit Incident
-        </Button>
+        {!isPolygon && (
+          <Button variant="primary" onClick={() => onEdit?.(incident)}>
+            Edit Incident
+          </Button>
+        )}
         <Button variant="ghost" style={{ color: 'var(--danger)' }} onClick={openDeleteModal}>
           Delete
         </Button>

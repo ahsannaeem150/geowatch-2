@@ -370,8 +370,13 @@ export default function DashboardLayout() {
     if (focusZoneFromState) {
       const zone = focusZoneFromState;
       setSelectedZoneId(zone.id);
-      setSelectedIncident(null);
-      setPanelMode('empty');
+      setSelectedIncident(zone);
+      setIsEditing(false);
+      setPanelMode('detail');
+      // Clear any existing editing/drawing state
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
       if (zone.geometry?.coordinates?.[0]) {
         const coords = zone.geometry.coordinates[0];
         let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
@@ -383,6 +388,13 @@ export default function DashboardLayout() {
         });
         setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
       }
+      // Clear any stale incident/zone URL params so they don't fight this selection
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('incident');
+        next.delete('zone');
+        return next;
+      });
       navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
       return;
     }
@@ -415,8 +427,8 @@ export default function DashboardLayout() {
     const zone = polygonIncidents.find((z) => z.id === zoneIdFromUrl);
     if (zone) {
       setSelectedZoneId(zone.id);
-      setSelectedIncident(null);
-      setPanelMode('empty');
+      setSelectedIncident(zone);
+      setPanelMode('detail');
       if (zone.geometry?.coordinates?.[0]) {
         const coords = zone.geometry.coordinates[0];
         let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
@@ -670,6 +682,7 @@ export default function DashboardLayout() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('incident');
+      next.delete('zone');
       return next;
     });
 
@@ -704,8 +717,8 @@ export default function DashboardLayout() {
     const zone = polygonIncidents.find((z) => z.id === zoneId);
     if (!zone) return;
     setSelectedZoneId(zoneId);
-    // Clear incident selection when a zone is selected
-    setSelectedIncident(null);
+    setSelectedIncident(zone);
+    setPanelMode('detail');
     // Clear editing state when selecting a different zone
     setEditingZoneId(null);
     setEditingZoneVertices([]);
@@ -722,7 +735,13 @@ export default function DashboardLayout() {
       });
       setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
     }
-  }, [polygonIncidents]);
+    // Update URL to make zone shareable
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('zone', zone.id);
+      return next;
+    });
+  }, [polygonIncidents, setSearchParams]);
 
   // ─── Drawing handlers ───
   const handleSetMode = useCallback((mode) => {
@@ -984,7 +1003,14 @@ export default function DashboardLayout() {
     // Reset drawing history
     drawHistoryRef.current = [{ vertices: [], isClosed: false }];
     historyIndexRef.current = 0;
-  }, []);
+    // Clear any selected incident/zone from URL
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('incident');
+      next.delete('zone');
+      return next;
+    });
+  }, [setSearchParams]);
 
   const handleResetToToday = () => {
     setDateRange({ from: today, to: today });
@@ -1005,10 +1031,11 @@ export default function DashboardLayout() {
     setOriginalZoneVertices([]);
     setSelectedZoneId(null);
     setFitBounds(null);
-    // Clear incident from URL while preserving other params
+    // Clear selected incident/zone from URL while preserving other params
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('incident');
+      next.delete('zone');
       return next;
     });
   };
