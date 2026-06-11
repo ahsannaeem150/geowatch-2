@@ -713,7 +713,7 @@ export default function AdminMap({
             const color = zone.zone_category_color || '#6366f1';
             return {
               type: 'Feature',
-              id: zone.id,
+              id: String(zone.id),
               geometry: zone.geometry,
               properties: {
                 name: zone.title || zone.name,
@@ -729,10 +729,11 @@ export default function AdminMap({
     source.setData({ type: 'FeatureCollection', features });
   }, [zones, editingZoneId, showZones]);
 
-  // ─── Zone hover interaction ───
+  // ─── Zone hover / click interaction ───
   useEffect(() => {
     if (!map.current) return;
     const mapInstance = map.current;
+    const zoneLayers = ['zone-fills', 'zone-outlines'];
     let hoveredZoneId = null;
 
     const onMouseMove = (e) => {
@@ -745,14 +746,14 @@ export default function AdminMap({
         return;
       }
 
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
       if (features.length > 0) {
-        const feature = features[0];
-        if (hoveredZoneId !== feature.id) {
+        const featureId = String(features[0].id);
+        if (hoveredZoneId !== featureId) {
           if (hoveredZoneId !== null) {
             mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
           }
-          hoveredZoneId = feature.id;
+          hoveredZoneId = featureId;
           mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
           mapInstance.getCanvas().style.cursor = 'pointer';
         }
@@ -768,9 +769,9 @@ export default function AdminMap({
     const onClick = (e) => {
       // Skip zone clicks when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) return;
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
       if (features.length > 0) {
-        const zoneId = features[0].id;
+        const zoneId = Number(features[0].id);
         onZoneClick?.(zoneId);
       }
     };
@@ -791,10 +792,10 @@ export default function AdminMap({
     if (!source) return;
 
     zones.forEach((zone) => {
-      if (zone.id === editingZoneId) return;
+      if (String(zone.id) === String(editingZoneId)) return;
       map.current.setFeatureState(
-        { source: 'zones', id: zone.id },
-        { selected: zone.id === selectedZoneId }
+        { source: 'zones', id: String(zone.id) },
+        { selected: String(zone.id) === String(selectedZoneId) }
       );
     });
   }, [selectedZoneId, zones, editingZoneId]);

@@ -208,7 +208,7 @@ export default function UserMap({
           const color = zone.zone_category_color || '#6366f1';
           return {
             type: 'Feature',
-            id: zone.id,
+            id: String(zone.id),
             geometry: zone.geometry,
             properties: {
               name: zone.title || zone.name,
@@ -228,17 +228,18 @@ export default function UserMap({
   useEffect(() => {
     if (!map.current) return;
     const mapInstance = map.current;
+    const zoneLayers = ['zone-fills', 'zone-outlines'];
     let hoveredZoneId = null;
 
     const onMouseMove = (e) => {
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
       if (features.length > 0) {
-        const feature = features[0];
-        if (hoveredZoneId !== feature.id) {
+        const featureId = String(features[0].id);
+        if (hoveredZoneId !== featureId) {
           if (hoveredZoneId !== null) {
             mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
           }
-          hoveredZoneId = feature.id;
+          hoveredZoneId = featureId;
           mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
           mapInstance.getCanvas().style.cursor = 'pointer';
         }
@@ -252,9 +253,10 @@ export default function UserMap({
     };
 
     const onClick = (e) => {
-      const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['zone-fills'] });
+      const features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
       if (features.length > 0) {
-        const zone = zones.find((z) => z.id === features[0].id);
+        const numericId = Number(features[0].id);
+        const zone = zones.find((z) => z.id === numericId);
         if (zone) onZoneClickRef.current?.(zone);
       }
     };
@@ -276,8 +278,8 @@ export default function UserMap({
 
     zones.forEach((zone) => {
       map.current.setFeatureState(
-        { source: 'zones', id: zone.id },
-        { selected: zone.id === selectedZoneId }
+        { source: 'zones', id: String(zone.id) },
+        { selected: String(zone.id) === String(selectedZoneId) }
       );
     });
   }, [selectedZoneId, zones]);
