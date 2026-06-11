@@ -221,6 +221,7 @@ export default function DashboardLayout() {
 
   // ─── Domain Filters ───
   const [activeDomainFilter, setActiveDomainFilter] = useState(null);
+  const [showZones, setShowZones] = useState(true);
 
   // Compute domain filter badges from current incidents
   const domainFilters = useMemo(() => {
@@ -470,6 +471,10 @@ export default function DashboardLayout() {
   const handleHideAllDomains = useCallback(() => {
     setActiveDomainFilters(new Set(domains.map((d) => d.slug)));
   }, [domains]);
+
+  const handleToggleZones = useCallback(() => {
+    setShowZones((prev) => !prev);
+  }, []);
 
   // Handle viewport bounds changes from the map
   const handleViewportChange = useCallback((bounds) => {
@@ -1306,6 +1311,7 @@ export default function DashboardLayout() {
           <AdminMap
             incidents={filteredIncidents}
             zones={polygonIncidents}
+            showZones={showZones}
             selectedEventId={selectedIncident?.id}
             selectedZoneId={selectedZoneId}
             onEventClick={handleEventClick}
@@ -1394,6 +1400,8 @@ export default function DashboardLayout() {
             onToggleDomain={handleToggleDomain}
             onShowAll={handleShowAllDomains}
             onHideAll={handleHideAllDomains}
+            showZones={showZones}
+            onToggleZones={handleToggleZones}
           />
 
           {/* Ghost incident banner */}

@@ -102,6 +102,7 @@ export default function AdminMap({
   onEditVertexDelete,
   onEditUndo,
   onEditCancel,
+  showZones = true,
 }) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -696,23 +697,28 @@ export default function AdminMap({
     const source = map.current.getSource('zones');
     if (!source) return;
 
-    const features = zones
-      .filter((zone) => zone.id !== editingZoneId)
-      .map((zone) => ({
-        type: 'Feature',
-        id: zone.id,
-        geometry: zone.geometry,
-        properties: {
-          name: zone.name,
-          fillColor: zone.fill_color || '#9f1239',
-          strokeColor: zone.stroke_color || '#9f1239',
-          strokeWidth: zone.stroke_width ?? 2,
-          opacity: parseFloat(zone.opacity ?? 0.08),
-        },
-      }));
+    const features = showZones
+      ? zones
+          .filter((zone) => zone.id !== editingZoneId)
+          .map((zone) => {
+            const color = zone.zone_category_color || '#6366f1';
+            return {
+              type: 'Feature',
+              id: zone.id,
+              geometry: zone.geometry,
+              properties: {
+                name: zone.title || zone.name,
+                fillColor: color,
+                strokeColor: color,
+                strokeWidth: 2,
+                opacity: 0.08,
+              },
+            };
+          })
+      : [];
 
     source.setData({ type: 'FeatureCollection', features });
-  }, [zones, editingZoneId]);
+  }, [zones, editingZoneId, showZones]);
 
   // ─── Zone hover interaction ───
   useEffect(() => {

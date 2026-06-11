@@ -5931,3 +5931,43 @@ feat(admin): add dedicated Zones list page with filters and map deep-linking
 ```
 
 *End of Phase 7 — Admin Zone List Page*
+
+---
+
+## 📅 2026-06-11 — Phase 8: Admin Map Rendering for Zones
+
+### Summary
+Updated the admin map to render polygon incidents using their zone-category colors, with translucent fills and outlines, hover/select highlights, and a legend toggle to show/hide zones. The zone layers already render beneath marker layers, and zone clicks continue to fly the map to the selected polygon.
+
+### Modified Files
+
+| File | Changes |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Zone features now derive `fillColor`, `strokeColor`, opacity, and stroke width from `zone_category_color`; added `showZones` prop to hide the zone source when false |
+| `src/shared/components/MapLegend.jsx` | Added optional `showZones`/`onToggleZones` props and a **Zones** row with an eye toggle |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `showZones` state; passed it to `AdminMap` and `MapLegend`; wired `handleToggleZones` |
+
+### Zone Styling
+
+- Fill: category color at 8% opacity (12% on hover, 10% when selected)
+- Outline: category color, 2px width, 60% opacity (80% hover, 90% selected)
+- Selected/hover highlight uses an amber outline fallback
+- Zones render before markers so markers stay on top
+
+### Verification
+
+```bash
+npm run build:admin-web
+# Result: ✅ built in 2.19s, zero errors
+
+npm run build:user-web
+# Result: ✅ built in 2.42s, zero errors
+```
+
+### Git Commit
+
+```
+feat(admin): render polygon zones on map with category colors and legend toggle
+```
+
+*End of Phase 8 — Admin Map Rendering for Zones*

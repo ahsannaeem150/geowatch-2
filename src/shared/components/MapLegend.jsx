@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronUp, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { ChevronUp, ChevronDown, Eye, EyeOff, Hexagon } from 'lucide-react';
 import { getMarkerIcon } from '../marker-icons.js';
 
 const LS_KEY = 'geowatch_legend_collapsed';
@@ -11,6 +11,8 @@ export default function MapLegend({
   onShowAll,
   onHideAll,
   position = 'bottom-left',
+  showZones = true,
+  onToggleZones,
 }) {
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -103,6 +105,58 @@ export default function MapLegend({
             backdropFilter: 'blur(8px)',
           }}
         >
+          {/* Zones toggle (only when wired) */}
+          {onToggleZones && (
+            <button
+              onClick={() => onToggleZones?.()}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '6px 12px 10px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid var(--border-subtle)',
+                color: showZones ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                textAlign: 'left',
+                opacity: showZones ? 1 : 0.5,
+                transition: 'opacity 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--bg-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '4px',
+                  background: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Hexagon size={12} color="#fff" />
+              </span>
+              <span style={{ flex: 1 }}>Zones</span>
+              {showZones ? (
+                <Eye size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              ) : (
+                <EyeOff size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              )}
+            </button>
+          )}
+
           {/* Bulk actions */}
           <div
             style={{
