@@ -5763,3 +5763,44 @@ feat(api): add zone category CRUD endpoints and zone_category_id FK for polygon 
 ```
 
 *End of Phase 3 — Zone Category Backend*
+
+---
+
+## 📅 2026-06-11 — Phase 4: Superadmin Zone Categories Page
+
+### Summary
+Built the superadmin UI for managing zone categories. The page mirrors the existing Domains & Categories management pattern: a flat list of categories with color swatch and icon, create/edit modals with slug auto-generation, and a delete confirmation. Added sidebar navigation and wired the frontend to the new `/api/v1/zone-categories` endpoints.
+
+### Modified / Created Files
+
+| File | Changes |
+|:--|:--|
+| `src/superadmin-web/src/services/api.js` | Added `listZoneCategories`, `createZoneCategory`, `updateZoneCategory`, `deleteZoneCategory` |
+| `src/superadmin-web/src/components/ZoneCategories/ZoneCategoryModal.jsx` | **New** create/edit modal with name, auto-slug, description, color picker, sort order, icon picker, and active toggle |
+| `src/superadmin-web/src/pages/ZoneCategoriesPage.jsx` | **New** page listing all zone categories with edit/delete actions and empty state |
+| `src/superadmin-web/src/App.jsx` | Added `/superadmin/zone-categories` route |
+| `src/superadmin-web/src/components/Layout/Sidebar.jsx` | Added "Zone Categories" nav item with `Hexagon` icon |
+
+### Features
+
+- Flat list of zone categories (no nesting, unlike domains/categories)
+- Color swatch + Lucide icon preview
+- Create/edit modal reuses the existing `IconPicker` component
+- Slug auto-generated from name on create; locked on edit
+- Active/inactive toggle
+- Delete confirmation with dependency warning
+
+### Verification
+
+```bash
+npm run build:superadmin-web
+# Result: ✅ built in 2.69s, no errors
+```
+
+### Git Commit
+
+```
+feat(superadmin): add Zone Categories management page with CRUD modal and sidebar nav
+```
+
+*End of Phase 4 — Superadmin Zone Categories Page*

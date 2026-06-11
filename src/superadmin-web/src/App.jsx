@@ -10,6 +10,7 @@ import MapPage from './pages/MapPage.jsx';
 import SystemActivityPage from './pages/SystemActivityPage.jsx';
 import PublicActivityPage from './pages/PublicActivityPage.jsx';
 import DomainsPage from './pages/DomainsPage.jsx';
+import ZoneCategoriesPage from './pages/ZoneCategoriesPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import RecycleBinPage from './pages/RecycleBinPage.jsx';
@@ -124,6 +125,7 @@ function AppRoutes() {
           <Route path="/superadmin/audit" element={<SystemActivityPage />} />
           <Route path="/superadmin/public-activity" element={<PublicActivityPage />} />
           <Route path="/superadmin/domains" element={<DomainsPage />} />
+          <Route path="/superadmin/zone-categories" element={<ZoneCategoriesPage />} />
           <Route path="/superadmin/system" element={<SystemPage />} />
           <Route path="/superadmin/export" element={<ExportPage />} />
           <Route path="/superadmin/recycle-bin" element={<RecycleBinPage />} />

@@ -239,3 +239,28 @@ export function resolveIncident(id, body = {}) {
     body: JSON.stringify(body),
   });
 }
+
+// ─── Zone Categories ───
+
+export async function listZoneCategories() {
+  const res = await request('/zone-categories/all');
+  return res.categories || [];
+}
+
+export function createZoneCategory(body) {
+  return request('/zone-categories', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateZoneCategory(id, body) {
+  return request(`/zone-categories/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteZoneCategory(id) {
+  return request(`/zone-categories/${id}`, { method: 'DELETE' });
+}

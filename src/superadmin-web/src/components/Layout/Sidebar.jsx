@@ -7,6 +7,7 @@ import {
   Map,
   ClipboardList,
   Tags,
+  Hexagon,
   Activity,
   Download,
   Trash2,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { path: '/superadmin/public-activity', label: 'Public Activity', icon: Eye },
   { path: '/superadmin/recycle-bin', label: 'Recycle Bin', icon: Trash2 },
   { path: '/superadmin/domains', label: 'Domains', icon: Tags },
+  { path: '/superadmin/zone-categories', label: 'Zone Categories', icon: Hexagon },
   { path: '/superadmin/system', label: 'System', icon: Activity },
   { path: '/superadmin/export', label: 'Export', icon: Download },
 ];
