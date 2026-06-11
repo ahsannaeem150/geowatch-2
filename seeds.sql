@@ -141,3 +141,24 @@ VALUES
     ('b3eebc99-9c0b-4ef8-bb6d-6bb9bd380aaa', 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'Protest organizers announce 48-hour demonstration plan.', '2024-05-03T10:00:00Z', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'),
     ('b4eebc99-9c0b-4ef8-bb6d-6bb9bd380abb', 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Landfall expected within 24 hours. Emergency shelters activated.', '2024-05-03T18:00:00Z', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
+-- DEFAULT ZONE CATEGORIES (Polygon taxonomy)
+-- ============================================
+INSERT INTO zone_categories (name, slug, description, color, icon, sort_order, is_active)
+VALUES
+    ('NOTAM', 'notam', 'Notice to Airmen — temporary or permanent airspace restriction.', '#f97316', 'plane', 10, true),
+    ('NOTMAR', 'notmar', 'Notice to Mariners — maritime hazard or restricted area.', '#0ea5e9', 'anchor', 20, true),
+    ('Curfew', 'curfew', 'Movement restriction during specified hours.', '#7c3aed', 'lock', 30, true),
+    ('No-Fly Zone', 'no-fly-zone', 'Prohibited airspace for all or selected aircraft.', '#ef4444', 'alert-triangle', 40, true),
+    ('Maritime Exclusion Zone', 'maritime-exclusion-zone', 'Area off-limits to maritime traffic.', '#06b6d4', 'ship', 50, true),
+    ('Protest Area', 'protest-area', 'Designated or observed public assembly area.', '#eab308', 'megaphone', 60, true),
+    ('Evacuation Zone', 'evacuation-zone', 'Area from which people should evacuate.', '#22c55e', 'flag', 70, true),
+    ('Shelter-in-Place', 'shelter-in-place', 'Area where people should remain indoors.', '#3b82f6', 'home', 80, true)
+ON CONFLICT (slug) DO UPDATE
+    SET name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        color = EXCLUDED.color,
+        icon = EXCLUDED.icon,
+        sort_order = EXCLUDED.sort_order,
+        is_active = EXCLUDED.is_active;

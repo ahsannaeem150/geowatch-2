@@ -78,9 +78,10 @@ CREATE TABLE incidents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(500) NOT NULL,
     description TEXT,
-    latitude DECIMAL(10, 8) NOT NULL,
-    longitude DECIMAL(11, 8) NOT NULL,
-    geom GEOMETRY(Point, 4326) NOT NULL,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    geom GEOMETRY(Geometry, 4326) NOT NULL,
+    geometry_type VARCHAR(10) NOT NULL DEFAULT 'point' CHECK (geometry_type IN ('point', 'polygon')),
     category_id INTEGER REFERENCES categories(id),
     severity INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 5),
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'resolved', 'hidden')),
@@ -150,20 +151,17 @@ CREATE TABLE incident_media (
 );
 
 -- ============================================
--- ZONES / POLYGONS
+-- ZONE CATEGORIES (Polygon taxonomy)
 -- ============================================
-CREATE TABLE zones (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
+CREATE TABLE zone_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
-    geom GEOMETRY(Polygon, 4326) NOT NULL,
-    fill_color VARCHAR(7) NOT NULL DEFAULT '#9f1239',
-    stroke_color VARCHAR(7) NOT NULL DEFAULT '#9f1239',
-    stroke_width INTEGER NOT NULL DEFAULT 2,
-    opacity DECIMAL(3, 2) NOT NULL DEFAULT 0.08,
-    category VARCHAR(50),
+    color VARCHAR(7) NOT NULL DEFAULT '#9f1239',
+    icon VARCHAR(50) DEFAULT 'shield',
+    sort_order INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -216,7 +214,7 @@ CREATE TABLE deleted_incidents_log (
 -- INDEXES
 -- ============================================
 CREATE INDEX idx_incidents_geom ON incidents USING GIST(geom);
-CREATE INDEX idx_zones_geom ON zones USING GIST(geom);
+CREATE INDEX idx_zone_categories_active ON zone_categories(is_active) WHERE is_active = true;
 CREATE INDEX idx_incidents_dates ON incidents(start_date, end_date);
 CREATE INDEX idx_incidents_start_date ON incidents(start_date);
 CREATE INDEX idx_incidents_category_id ON incidents(category_id);
@@ -267,7 +265,7 @@ CREATE TRIGGER update_public_users_updated_at BEFORE UPDATE ON public_users
 CREATE TRIGGER update_incidents_updated_at BEFORE UPDATE ON incidents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_zones_updated_at BEFORE UPDATE ON zones
+CREATE TRIGGER update_zone_categories_updated_at BEFORE UPDATE ON zone_categories
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_incident_media_updated_at BEFORE UPDATE ON incident_media

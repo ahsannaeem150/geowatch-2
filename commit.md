@@ -5571,3 +5571,59 @@ feat: interactive polygon vertex editing — pixel-distance hit test, drag, sele
 ```
 
 *End of Feature — Polygon Vertex Editing*
+
+---
+
+## 📅 2026-06-11 — Phase 1: Backend Database & Schema (Polygon Zones)
+
+### Summary
+Executed Phase 1 of Polygon Plan Two. Converted the incidents table to support polymorphic geometry (point or polygon), introduced the `zone_categories` taxonomy table, and removed the legacy standalone `zones` table. All existing incidents were backfilled as `geometry_type = 'point'`. The migration was run successfully against `geowatch_dev` and the backend syntax check passed with zero errors.
+
+### Modified / Created Files
+
+| File | Changes |
+|:--|:--|
+| `docs/database-schema.sql` | Incidents table now has `geometry_type` (`point`\|`polygon`) and `geom GEOMETRY(Geometry, 4326)`; `latitude`/`longitude` are nullable; replaced `zones` table with `zone_categories` table; updated indexes/triggers |
+| `docs/migrations/003_polygon_zones.sql` | New migration: alter incidents, create `zone_categories`, seed 8 default categories, drop legacy `zones` table, grants, verify queries |
+| `seeds.sql` | Added default `zone_categories` seed data for fresh databases |
+
+### Schema Changes
+
+**incidents**
+- Added `geometry_type VARCHAR(10) NOT NULL CHECK (geometry_type IN ('point', 'polygon'))` (default `point`)
+- Changed `geom` from `GEOMETRY(Point, 4326)` to `GEOMETRY(Geometry, 4326)`
+- `latitude` and `longitude` are now nullable
+
+**zone_categories**
+- New table: `id`, `name`, `slug`, `description`, `color`, `icon`, `sort_order`, `is_active`, `created_at`, `updated_at`
+- Seeded 8 categories: NOTAM, NOTMAR, Curfew, No-Fly Zone, Maritime Exclusion Zone, Protest Area, Evacuation Zone, Shelter-in-Place
+
+**Removed**
+- Legacy `zones` table (data intentionally discarded)
+
+### Verification
+
+```bash
+# Run migration as postgres superuser
+sudo -u postgres psql -d geowatch_dev -f docs/migrations/003_polygon_zones.sql
+```
+
+Migration output confirmed:
+- 40 incidents backfilled with `geometry_type = 'point'`
+- 8 zone categories inserted
+- `latitude`/`longitude` now nullable
+- Legacy `zones` table dropped
+
+```bash
+# Backend syntax check
+cd src/backend && node --check server.js
+# Result: no errors
+```
+
+### Git Commit
+
+```
+feat(schema): add geometry_type and polymorphic geom to incidents; create zone_categories; drop legacy zones table
+```
+
+*End of Phase 1 — Backend Database & Schema*
