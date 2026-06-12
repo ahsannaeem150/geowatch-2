@@ -72,8 +72,16 @@ export async function getPublicUserActivityController(req, res) {
     return res.apiError('Public user not found', 'NOT_FOUND', 404);
   }
 
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+
+  const auditFilters = { userId: id, realm: 'user', page, limit };
+  if (req.query.dateFrom) auditFilters.dateFrom = req.query.dateFrom;
+  if (req.query.dateTo) auditFilters.dateTo = req.query.dateTo;
+  if (req.query.action) auditFilters.action = req.query.action;
+
   const [logsResult, actionCounts, lastActiveResult] = await Promise.all([
-    listAuditLogs({ userId: id, realm: 'user', page: 1, limit: 50 }),
+    listAuditLogs(auditFilters),
     query(
       `SELECT action, COUNT(*) as c FROM audit_logs WHERE user_id = $1 AND realm = 'user' GROUP BY action`,
       [id]

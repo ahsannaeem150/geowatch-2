@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getIncidents, getIncident, createIncident, updateIncident, deleteIncident, resolveIncident, getDomains, listAllCategories } from '../services/api.js';
+import { PanelLeftOpen } from 'lucide-react';
+import {
+  getIncidents,
+  getIncident,
+  createIncident,
+  updateIncident,
+  deleteIncident,
+  resolveIncident,
+  getDomains,
+  listAllCategories,
+} from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
 import MapControls from '../components/Map/MapControls.jsx';
@@ -13,6 +23,7 @@ import MapContextMenu from '@shared/components/MapContextMenu.jsx';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
 import IncidentForm from '../components/IncidentForm/IncidentForm.jsx';
+import ActivityInspectorSidebar from '../components/Audit/ActivityInspectorSidebar.jsx';
 
 function pointToSegmentDistance(p, a, b) {
   const dx = b[0] - a[0];
@@ -55,6 +66,8 @@ export default function MapPage() {
   const refParam = searchParams.get('ref');
   const actorParam = searchParams.get('actor');
   const returnToParam = searchParams.get('returnTo');
+  const staffUserId = searchParams.get('staffUserId');
+  const publicUserId = searchParams.get('publicUserId');
 
   // ─── Date & filters ───
   const now = new Date();
@@ -140,8 +153,13 @@ export default function MapPage() {
   // ─── Categories for edit form ───
   const [categories, setCategories] = useState([]);
 
+  // ─── Activity inspector sidebar ───
+  const [activitySidebarOpen, setActivitySidebarOpen] = useState(true);
+  const isActivityMode = refParam === 'activity' && (staffUserId || publicUserId);
+
   // Ghost fetch tracking
   const ghostFetchAttempted = useRef(false);
+  const lastIncidentIdRef = useRef(null);
 
   // Sync categoryId filter from URL params
   useEffect(() => {
@@ -212,42 +230,6 @@ export default function MapPage() {
     };
   }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, refreshKey]);
 
-  // ─── Handle incident ID from URL — deep-linking with ghost support ───
-  useEffect(() => {
-    if (!incidentIdFromUrl) {
-      ghostFetchAttempted.current = false;
-      return;
-    }
-
-    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
-    if (inList) {
-      handleSelectIncident(inList);
-      ghostFetchAttempted.current = true;
-      return;
-    }
-
-    if (incidents.length > 0 && !ghostFetchAttempted.current) {
-      ghostFetchAttempted.current = true;
-      getIncident(incidentIdFromUrl)
-        .then((res) => {
-          if (res?.incident) {
-            setSelectedIncident(res.incident);
-            setFlyToCoords({
-              lat: parseFloat(res.incident.latitude),
-              lng: parseFloat(res.incident.longitude),
-              zoom: 10,
-            });
-          }
-        })
-        .catch(() => {
-          setSearchParams((prev) => {
-            const next = new URLSearchParams(prev);
-            next.delete('incident');
-            return next;
-          });
-        });
-    }
-  }, [incidentIdFromUrl, incidents.length]);
 
   // Filtered incidents (must be declared before any effect/callback that depends on polygonIncidents)
   const filteredIncidents = useMemo(() => {
@@ -438,15 +420,38 @@ export default function MapPage() {
   // Select incident
   const handleSelectIncident = useCallback((incident) => {
     setSelectedIncident(incident);
-    setSelectedZoneId(null);
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
-    setFlyToCoords({
-      lat: parseFloat(incident.latitude),
-      lng: parseFloat(incident.longitude),
-      zoom: 10,
-    });
+
+    if (incident?.geometry_type === 'polygon') {
+      setSelectedZoneId(incident.id);
+      setFlyToCoords(null);
+      if (incident.geometry?.coordinates?.[0]) {
+        const coords = incident.geometry.coordinates[0];
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        });
+        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      } else {
+        setFitBounds(null);
+      }
+    } else {
+      setSelectedZoneId(null);
+      setFitBounds(null);
+      const lat = parseFloat(incident?.latitude);
+      const lng = parseFloat(incident?.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        setFlyToCoords({ lat, lng, zoom: 10 });
+      } else {
+        setFlyToCoords(null);
+      }
+    }
+
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('incident', incident.id);
@@ -471,6 +476,78 @@ export default function MapPage() {
       return next;
     });
   }, [setSearchParams]);
+
+  const handleActivityIncidentClick = useCallback(
+    (log) => {
+      if (!log.target_id || log.target_type !== 'incident') return;
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('incident', log.target_id);
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+
+  const handleToggleActivitySidebar = useCallback(() => {
+    setActivitySidebarOpen((prev) => !prev);
+  }, []);
+
+  const handleCloseActivitySidebar = useCallback(() => {
+    if (returnToParam) {
+      navigate(returnToParam);
+    } else {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('ref');
+        next.delete('actor');
+        next.delete('returnTo');
+        next.delete('staffUserId');
+        next.delete('publicUserId');
+        return next;
+      });
+    }
+  }, [returnToParam, navigate, setSearchParams]);
+
+
+  // ─── Handle incident ID from URL — deep-linking with ghost support ───
+  useEffect(() => {
+    if (!incidentIdFromUrl) {
+      ghostFetchAttempted.current = false;
+      lastIncidentIdRef.current = null;
+      return;
+    }
+
+    // Reset ghost-fetch tracking when the requested incident changes
+    if (lastIncidentIdRef.current !== incidentIdFromUrl) {
+      ghostFetchAttempted.current = false;
+      lastIncidentIdRef.current = incidentIdFromUrl;
+    }
+
+    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
+    if (inList) {
+      handleSelectIncident(inList);
+      ghostFetchAttempted.current = true;
+      return;
+    }
+
+    if (incidents.length > 0 && !ghostFetchAttempted.current) {
+      ghostFetchAttempted.current = true;
+      getIncident(incidentIdFromUrl)
+        .then((res) => {
+          if (res?.incident) {
+            handleSelectIncident(res.incident);
+          }
+        })
+        .catch(() => {
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('incident');
+            return next;
+          });
+        });
+    }
+  }, [incidentIdFromUrl, incidents.length, handleSelectIncident]);
 
   // ─── Zone selection ───
   const handleZoneClick = useCallback((zoneId) => {
@@ -1146,6 +1223,53 @@ export default function MapPage() {
         </div>
       )}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {isActivityMode && activitySidebarOpen && (
+          <ActivityInspectorSidebar
+            actorName={actorParam}
+            staffUserId={staffUserId}
+            publicUserId={publicUserId}
+            selectedIncidentId={incidentIdFromUrl}
+            onIncidentClick={handleActivityIncidentClick}
+            onToggleCollapse={handleToggleActivitySidebar}
+            onClose={handleCloseActivitySidebar}
+          />
+        )}
+        {isActivityMode && !activitySidebarOpen && (
+          <div
+            style={{
+              width: '44px',
+              minWidth: '44px',
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              paddingTop: '12px',
+              background: 'var(--bg-surface)',
+              borderRight: '1px solid var(--border-subtle)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleToggleActivitySidebar}
+              title="Show activity sidebar"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              <PanelLeftOpen size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Center — Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <SuperadminMap

@@ -908,6 +908,24 @@ export default function DashboardLayout() {
     }
   }, [closeMapMenu]);
 
+  const handleClosePanel = () => {
+    setPanelMode('empty');
+    setSelectedIncident(null);
+    setMarkerCoords(null);
+    setIsEditing(false);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    setSelectedZoneId(null);
+    setFitBounds(null);
+    // Clear selected incident/zone from URL while preserving other params
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('incident');
+      next.delete('zone');
+      return next;
+    });
+  };
   const handleDeleteIncident = useCallback(async (id) => {
     try {
       await api.deleteIncident(id);
@@ -987,18 +1005,6 @@ export default function DashboardLayout() {
       { label: 'Copy Link', onClick: () => copyLink('incident', incident.id) },
     ];
   }, [handleEventClick, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
-
-  const buildZoneMenuItems = useCallback((zone) => {
-    if (!zone) return [];
-    return [
-      { label: 'View Zone Details', onClick: () => { handleZoneClick(zone.id); closeMapMenu(); } },
-      { label: 'Edit Zone Shape', onClick: () => { handleEditZone(zone); closeMapMenu(); } },
-      { label: 'Edit Zone Info', onClick: () => { handleZoneInfoEdit(zone); closeMapMenu(); } },
-      { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: zone.id, title: 'Resolve zone?', message: 'Mark this zone as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(zone.id) }) },
-      { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: zone.id, title: 'Delete zone?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(zone.id) }) },
-      { label: 'Copy Link', onClick: () => copyLink('zone', zone.id) },
-    ];
-  }, [handleZoneClick, handleEditZone, handleZoneInfoEdit, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
 
   const handleZoneCreateSubmit = useCallback(async (payload) => {
     setSubmitting(true);
@@ -1095,6 +1101,17 @@ export default function DashboardLayout() {
     setPanelMode('zone-edit');
   }, [selectedIncident]);
 
+  const buildZoneMenuItems = useCallback((zone) => {
+    if (!zone) return [];
+    return [
+      { label: 'View Zone Details', onClick: () => { handleZoneClick(zone.id); closeMapMenu(); } },
+      { label: 'Edit Zone Shape', onClick: () => { handleEditZone(zone); closeMapMenu(); } },
+      { label: 'Edit Zone Info', onClick: () => { handleZoneInfoEdit(zone); closeMapMenu(); } },
+      { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: zone.id, title: 'Resolve zone?', message: 'Mark this zone as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(zone.id) }) },
+      { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: zone.id, title: 'Delete zone?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(zone.id) }) },
+      { label: 'Copy Link', onClick: () => copyLink('zone', zone.id) },
+    ];
+  }, [handleZoneClick, handleEditZone, handleZoneInfoEdit, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
   const handleZoneInfoSubmit = useCallback(
     async (payload) => {
       if (!selectedIncident) return;
@@ -1271,25 +1288,6 @@ export default function DashboardLayout() {
   const handleEditFromDetail = (incident) => {
     setIsEditing(true);
     setPanelMode('form');
-  };
-
-  const handleClosePanel = () => {
-    setPanelMode('empty');
-    setSelectedIncident(null);
-    setMarkerCoords(null);
-    setIsEditing(false);
-    setEditingZoneId(null);
-    setEditingZoneVertices([]);
-    setOriginalZoneVertices([]);
-    setSelectedZoneId(null);
-    setFitBounds(null);
-    // Clear selected incident/zone from URL while preserving other params
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('incident');
-      next.delete('zone');
-      return next;
-    });
   };
 
   const handleSwitchToIncidentDate = (incident) => {

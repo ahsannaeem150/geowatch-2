@@ -561,6 +561,27 @@ export default function MapPage() {
     closeMapMenu();
   }, [closeMapMenu]);
 
+  const handleSaveChange = useCallback(async (incidentId, isSaved) => {
+    // Optimistic update for instant UI feedback
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.add(incidentId);
+      else next.delete(incidentId);
+      return next;
+    });
+    if (isSaved) {
+      setSavedIncidents((prev) => {
+        if (prev.some((i) => i.id === incidentId)) return prev;
+        const incident = incidents.find((i) => i.id === incidentId);
+        if (incident) return [incident, ...prev];
+        return prev;
+      });
+    } else {
+      setSavedIncidents((prev) => prev.filter((i) => i.id !== incidentId));
+    }
+    // Refetch to ensure consistency (notes, saved_at, ghost incidents)
+    await refreshSaves();
+  }, [incidents, refreshSaves]);
   const handleToggleSave = useCallback(async (incidentId) => {
     const isSaved = savedIds.has(incidentId);
     await handleSaveChange(incidentId, !isSaved);
@@ -654,28 +675,6 @@ export default function MapPage() {
     }
     return result;
   }, [savedIncidents, filters.verifiedOnly, activeDomainFilters]);
-
-  const handleSaveChange = useCallback(async (incidentId, isSaved) => {
-    // Optimistic update for instant UI feedback
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (isSaved) next.add(incidentId);
-      else next.delete(incidentId);
-      return next;
-    });
-    if (isSaved) {
-      setSavedIncidents((prev) => {
-        if (prev.some((i) => i.id === incidentId)) return prev;
-        const incident = incidents.find((i) => i.id === incidentId);
-        if (incident) return [incident, ...prev];
-        return prev;
-      });
-    } else {
-      setSavedIncidents((prev) => prev.filter((i) => i.id !== incidentId));
-    }
-    // Refetch to ensure consistency (notes, saved_at, ghost incidents)
-    await refreshSaves();
-  }, [incidents, refreshSaves]);
 
   // Determine if selected incident is a "ghost" (outside current date range)
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)

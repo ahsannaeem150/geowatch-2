@@ -107,7 +107,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   onEditCancel,
   showZones = true,
   adminMode = false,
-}) {
+}, ref) {
   const { theme } = useTheme();
   const [showDebug, setShowDebug] = useState(false);
   const mapContainer = useRef(null);
@@ -584,7 +584,12 @@ const SuperadminMap = forwardRef(function SuperadminMap({
 
   // Fly to coordinates
   useEffect(() => {
-    if (flyToCoords && map.current) {
+    if (
+      flyToCoords &&
+      map.current &&
+      Number.isFinite(flyToCoords.lng) &&
+      Number.isFinite(flyToCoords.lat)
+    ) {
       isProgrammaticMove.current = true;
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],

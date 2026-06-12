@@ -78,8 +78,9 @@ export function resetUserPassword(id) {
   return request(`/users/${id}/reset-password`, { method: 'POST' });
 }
 
-export function getUserActivity(id) {
-  return request(`/users/${id}/activity`);
+export function getUserActivity(id, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/users/${id}/activity${qs ? `?${qs}` : ''}`);
 }
 
 // ─── Public Users ───
@@ -100,8 +101,9 @@ export function updatePublicUser(id, body) {
   });
 }
 
-export function getPublicUserActivity(id) {
-  return request(`/public-users/${id}/activity`);
+export function getPublicUserActivity(id, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/public-users/${id}/activity${qs ? `?${qs}` : ''}`);
 }
 
 // ─── Audit ───

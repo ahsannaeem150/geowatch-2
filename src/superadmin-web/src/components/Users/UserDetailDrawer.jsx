@@ -383,6 +383,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
                     emptyMessage="No activity recorded yet"
                     actorName={user?.full_name}
                     returnPath="/superadmin/users"
+                    staffUserId={user?.id}
                   />
                 </>
               )}

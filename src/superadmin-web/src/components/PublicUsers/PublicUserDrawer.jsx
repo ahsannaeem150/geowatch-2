@@ -253,6 +253,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
                     emptyMessage="No activity recorded yet"
                     actorName={user?.full_name}
                     returnPath="/superadmin/public-users"
+                    publicUserId={user?.id}
                   />
                 </>
               )}

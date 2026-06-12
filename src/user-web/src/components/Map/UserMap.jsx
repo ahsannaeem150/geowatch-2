@@ -35,7 +35,7 @@ const UserMap = forwardRef(function UserMap({
   onMarkerContextMenu,
   onZoneContextMenu,
   onMapContextMenu,
-}) {
+}, ref) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -293,7 +293,14 @@ const UserMap = forwardRef(function UserMap({
 
   // Fly to coordinates
   useEffect(() => {
-    if (!map.current || !flyToCoords) return;
+    if (
+      !map.current ||
+      !flyToCoords ||
+      !Number.isFinite(flyToCoords.lng) ||
+      !Number.isFinite(flyToCoords.lat)
+    ) {
+      return;
+    }
     isProgrammaticMove.current = true;
     map.current.flyTo({
       center: [flyToCoords.lng, flyToCoords.lat],

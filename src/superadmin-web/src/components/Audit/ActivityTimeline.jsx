@@ -81,17 +81,29 @@ function getActivityDescription(log) {
   return label;
 }
 
-function buildIncidentLink(log, actorName, returnPath) {
+function buildIncidentLink(log, actorName, returnPath, staffUserId, publicUserId) {
   if (!log.target_id || log.target_type !== 'incident') return null;
   const params = new URLSearchParams();
   params.set('incident', log.target_id);
   params.set('ref', 'activity');
   if (actorName) params.set('actor', actorName);
   if (returnPath) params.set('returnTo', returnPath);
+  if (staffUserId) params.set('staffUserId', staffUserId);
+  if (publicUserId) params.set('publicUserId', publicUserId);
   return `/superadmin/map?${params.toString()}`;
 }
 
-export default function ActivityTimeline({ logs, loading, emptyMessage = 'No activity yet', actorName, returnPath }) {
+export default function ActivityTimeline({
+  logs,
+  loading,
+  emptyMessage = 'No activity yet',
+  actorName,
+  returnPath,
+  staffUserId,
+  publicUserId,
+  onIncidentClick,
+  selectedIncidentId,
+}) {
   if (loading) {
     return (
       <div
@@ -131,9 +143,11 @@ export default function ActivityTimeline({ logs, loading, emptyMessage = 'No act
         const Icon = ACTION_ICONS[log.action] || Activity;
         const color = getAuditActionColor(log.action);
         const isLast = index === logs.length - 1;
+        const incidentLink = buildIncidentLink(log, actorName, returnPath, staffUserId, publicUserId);
+        const isSelected = selectedIncidentId && log.target_id === selectedIncidentId;
 
         return (
-          <div key={log.id} style={{ display: 'flex', gap: 12 }}>
+          <div key={log.id} style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
             {/* Timeline pillar: dot + line */}
             <div
               style={{
@@ -173,12 +187,22 @@ export default function ActivityTimeline({ logs, loading, emptyMessage = 'No act
             </div>
 
             {/* Content */}
-            <TimelineItemContent
-              log={log}
-              isLast={isLast}
-              actorName={actorName}
-              returnPath={returnPath}
-            />
+            <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? 0 : 16 }}>
+              {incidentLink ? (
+                <ClickableItem
+                  link={incidentLink}
+                  log={log}
+                  isSelected={isSelected}
+                  onIncidentClick={onIncidentClick}
+                >
+                  <TimelineItemContent log={log} />
+                </ClickableItem>
+              ) : (
+                <div style={{ padding: 8 }}>
+                  <TimelineItemContent log={log} />
+                </div>
+              )}
+            </div>
           </div>
         );
       })}
@@ -186,10 +210,57 @@ export default function ActivityTimeline({ logs, loading, emptyMessage = 'No act
   );
 }
 
-function TimelineItemContent({ log, isLast, actorName, returnPath }) {
-  const incidentLink = buildIncidentLink(log, actorName, returnPath);
+function ClickableItem({ link, log, isSelected, onIncidentClick, children }) {
+  const baseStyle = {
+    display: 'block',
+    width: '100%',
+    padding: 8,
+    borderRadius: 'var(--radius-sm)',
+    textDecoration: 'none',
+    border: 'none',
+    background: isSelected ? 'var(--bg-hover)' : 'transparent',
+    textAlign: 'left',
+    fontFamily: 'inherit',
+    color: 'inherit',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease',
+  };
 
-  const inner = (
+  const handleMouseEnter = (e) => {
+    if (!isSelected) e.currentTarget.style.background = 'var(--bg-hover)';
+  };
+  const handleMouseLeave = (e) => {
+    e.currentTarget.style.background = isSelected ? 'var(--bg-hover)' : 'transparent';
+  };
+
+  if (onIncidentClick) {
+    return (
+      <button
+        type="button"
+        onClick={() => onIncidentClick(log)}
+        style={baseStyle}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <RouterLink
+      to={link}
+      style={baseStyle}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+    </RouterLink>
+  );
+}
+
+function TimelineItemContent({ log }) {
+  return (
     <>
       <div
         style={{
@@ -218,38 +289,5 @@ function TimelineItemContent({ log, isLast, actorName, returnPath }) {
         </div>
       )}
     </>
-  );
-
-  if (incidentLink) {
-    return (
-      <RouterLink
-        to={incidentLink}
-        style={{
-          flex: 1,
-          paddingBottom: isLast ? 0 : 18,
-          minWidth: 0,
-          textDecoration: 'none',
-          borderRadius: 'var(--radius-sm)',
-          padding: '6px 8px',
-          margin: '-6px -8px',
-          transition: 'background 0.15s ease',
-          cursor: 'pointer',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'var(--bg-hover)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-        }}
-      >
-        {inner}
-      </RouterLink>
-    );
-  }
-
-  return (
-    <div style={{ flex: 1, paddingBottom: isLast ? 0 : 18, minWidth: 0 }}>
-      {inner}
-    </div>
   );
 }

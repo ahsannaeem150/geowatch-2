@@ -106,7 +106,7 @@ const AdminMap = forwardRef(function AdminMap({
   onEditUndo,
   onEditCancel,
   showZones = true,
-}) {
+}, ref) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -582,7 +582,12 @@ const AdminMap = forwardRef(function AdminMap({
 
   // Fly to coordinates
   useEffect(() => {
-    if (flyToCoords && map.current) {
+    if (
+      flyToCoords &&
+      map.current &&
+      Number.isFinite(flyToCoords.lng) &&
+      Number.isFinite(flyToCoords.lat)
+    ) {
       isProgrammaticMove.current = true;
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],

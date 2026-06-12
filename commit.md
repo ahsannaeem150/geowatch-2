@@ -6210,3 +6210,265 @@ feat: add read-only right-click/long-press context menu to user-web map
 ```
 
 *End of Phase 4 — User Web Context Menu*
+
+---
+
+## 🐛 2026-06-12 — Bugfix: Fix blank maps caused by lexical TDZ errors in context menu integration
+
+### Problem
+After integrating the shared context menu, all three frontend maps rendered blank. The browser console showed:
+
+```
+Uncaught ReferenceError: can't access lexical declaration 'handleClosePanel' before initialization
+    DashboardLayout.jsx:925
+```
+
+### Root Cause
+`useCallback` / `useEffect` dependency arrays are evaluated at render time. Several dependency arrays referenced handler functions declared *later* in the component with `const`, putting those identifiers in the Temporal Dead Zone (TDZ) during the first hook call.
+
+### Affected Files & Fixes
+
+| File | Fix |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Moved `handleClosePanel` above `handleDeleteIncident`. Moved `buildZoneMenuItems` below `handleEditZone` / `handleZoneInfoEdit` so all its dependencies are initialized first. |
+| `src/user-web/src/pages/MapPage.jsx` | Moved `handleSaveChange` above `handleToggleSave` so the Save/Unsave toggle callback no longer references a not-yet-initialized function. |
+
+### Verification
+
+- Ran a project-wide TDZ check on all JSX/JS files — only the two false-positive local `let zoneFeatures` declarations inside map `useEffect` callbacks remain (they are local to the effect body, not component-level hooks).
+- All three production builds pass:
+
+```bash
+npm run build:admin-web       # ✅
+npm run build:user-web        # ✅
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix: resolve lexical TDZ errors from context menu callback dependencies
+```
+
+*End of bugfix — maps should render after a hard refresh.*
+
+---
+
+## 🐛 2026-06-12 — Bugfix: Fix `forwardRef` missing `ref` parameter in map components
+
+### Problem
+User-web map went completely black after the context-menu work. Console showed:
+
+```
+Warning: forwardRef render functions accept exactly two parameters: props and ref.
+Uncaught ReferenceError: ref is not defined
+    UserMap2 UserMap.jsx:62
+```
+
+### Root Cause
+When the three map components were wrapped with `forwardRef`, the inner render function signature only destructured `props` and omitted the second `ref` argument. `useImperativeHandle(ref, ...)` then referenced an undefined `ref` variable, crashing the component before the map could initialize.
+
+### Affected Files & Fixes
+
+| File | Fix |
+|:--|:--|
+| `src/user-web/src/components/Map/UserMap.jsx` | Added `ref` as the second parameter of the `forwardRef` render function. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `ref` as the second parameter of the `forwardRef` render function. |
+| `src/superadmin-web/src/components/Map/SuperadminMap.jsx` | Added `ref` as the second parameter of the `forwardRef` render function. |
+
+### Verification
+
+All three production builds pass:
+
+```bash
+npm run build:admin-web       # ✅
+npm run build:user-web        # ✅
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix: add missing ref parameter to forwardRef map components
+```
+
+*End of forwardRef bugfix.*
+
+---
+
+## 🐛 2026-06-12 — Bugfix: Fix blank superadmin map when opening polygon incidents from staff activity
+
+### Problem
+From the superadmin staff-activity panel, clicking an incident a staff member saved or created caused a blank screen and console error:
+
+```
+Uncaught Error: Invalid LngLat object: (NaN, NaN)
+    SuperadminMap.jsx:589
+```
+
+### Root Cause
+The staff-activity link opens `/superadmin/map?incident=<id>`. The deep-link handler and `handleSelectIncident` always built `flyToCoords` from `incident.latitude` / `incident.longitude`. For polygon zones those fields are undefined, so `parseFloat(undefined)` produced `NaN`, which `maplibre-gl` rejected and crashed the map.
+
+### Affected Files & Fixes
+
+| File | Fix |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | `handleSelectIncident` now checks `geometry_type`: polygons set `selectedZoneId` and `fitBounds` from geometry coordinates; points set `flyToCoords` only when lat/lng are finite. Ghost-fetch deep-link now reuses `handleSelectIncident`. |
+| `src/superadmin-web/src/components/Map/SuperadminMap.jsx` | Added finite-number guards to the fly-to effect so invalid `flyToCoords` never reach MapLibre. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added the same finite-number guards to the fly-to effect. |
+| `src/user-web/src/components/Map/UserMap.jsx` | Added the same finite-number guards to the fly-to effect. |
+
+### Verification
+
+All three production builds pass:
+
+```bash
+npm run build:admin-web       # ✅
+npm run build:user-web        # ✅
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix: handle polygon incidents opened from activity links and guard flyTo against NaN
+```
+
+*End of polygon deep-link bugfix.*
+
+---
+
+## 🐛 2026-06-12 — Bugfix follow-up: Resolve TDZ in superadmin polygon deep-link fix
+
+### Problem
+After the polygon-incident fix, opening a staff-activity incident link still crashed with:
+
+```
+Uncaught ReferenceError: can't access lexical declaration 'handleSelectIncident' before initialization
+    MapPage MapPage.jsx:245
+```
+
+### Root Cause
+The ghost-fetch `useEffect` referenced `handleSelectIncident` in both its body and its dependency array, but the effect was declared **before** `handleSelectIncident` was initialized. Dependency arrays are evaluated at render time, so the forward reference caused a TDZ crash.
+
+### Fix
+Moved the incident deep-link `useEffect` block in `src/superadmin-web/src/pages/MapPage.jsx` to **after** `handleSelectIncident` is declared. The dependency array now correctly includes `handleSelectIncident` without causing TDZ.
+
+### Verification
+
+- Project-wide TDZ check passes (only false-positive local `zoneFeatures` variables remain inside map effect callbacks).
+- All three production builds pass:
+
+```bash
+npm run build:admin-web       # ✅
+npm run build:user-web        # ✅
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix: move incident deep-link effect after handleSelectIncident to avoid TDZ
+```
+
+*End of follow-up.*
+
+---
+
+## ✨ 2026-06-12 — Feature: Activity inspector sidebar on superadmin map
+
+### Summary
+Added a collapsible activity-inspector sidebar to the superadmin map so that, when viewing a staff or public user’s activity, clicking an incident no longer navigates away from the activity list. The list stays visible on the left, the map updates in the center, and the incident/zone detail panel remains on the right.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Added `staffUserId`, `publicUserId`, `onIncidentClick`, and `selectedIncidentId` props. Incident links now carry the user-id params; in sidebar mode incidents render as buttons with selection highlight. |
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | New component: header with actor name + event count, collapse/close buttons, and scrollable `ActivityTimeline`. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Reads `staffUserId`/`publicUserId` from URL; fetches activity logs; renders the inspector sidebar (or a collapse toggle strip); handles incident clicks by updating the `incident` URL param; deep-link effect now resets ghost-fetch tracking when the requested incident changes. |
+| `src/superadmin-web/src/components/Layout/Sidebar.jsx` | Auto-collapses the global navigation sidebar on initial load when the map is in activity-inspection mode. |
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | Passes `staffUserId={user?.id}` to `ActivityTimeline` so incident links open the map with the inspector sidebar. |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Passes `publicUserId={user?.id}` to `ActivityTimeline` so incident links open the map with the inspector sidebar. |
+
+### Behavior
+
+- From a user profile, clicking any incident in the activity timeline opens `/superadmin/map?incident=<id>&ref=activity&actor=<name>&returnTo=...&staffUserId=<id>` (or `publicUserId=<id>`).
+- The map page detects the activity-inspection mode, fetches that user’s activity logs, and shows the sidebar.
+- Clicking another incident in the sidebar updates the `incident` param and the map/detail panel update in place.
+- The sidebar can be collapsed to a narrow toggle strip, giving the map more room.
+- Closing the sidebar navigates back to `returnTo` if present, otherwise clears the activity params and stays on the map.
+
+### Verification
+
+- Project-wide TDZ check passes.
+- All three production builds pass:
+
+```bash
+npm run build:admin-web       # ✅
+npm run build:user-web        # ✅
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+feat: add collapsible activity inspector sidebar to superadmin map
+```
+
+*End of activity-inspector feature.*
+
+---
+
+## ✨ 2026-06-12 — Feature follow-up: Fix activity inspector usability and add pagination/date filtering
+
+### Issues Addressed
+
+1. **Clicking an incident in the activity sidebar did nothing**
+   - Root cause: when switching to a different incident that was not already loaded in the current map view, the ghost-fetch guard (`ghostFetchAttempted`) prevented the new incident from being fetched.
+   - Fix: added `lastIncidentIdRef` in `MapPage.jsx` so the ghost-fetch tracker resets whenever the requested `incident` URL param changes.
+
+2. **Activity list items overlapped vertically**
+   - Root cause: the `ActivityTimeline` clickable items used a `padding` shorthand that overrode the intended bottom padding, and negative margins pulled items together.
+   - Fix: rewrote the item layout in `ActivityTimeline.jsx` with a clean row structure (pillar + content), proper vertical spacing, and `display: block` buttons/links.
+
+3. **No pagination or date filtering for users with hundreds of events**
+   - Backend user-activity controllers were hardcoded to `page: 1, limit: 50`.
+   - Fix: `getUserActivityController` and `getPublicUserActivityController` now accept `page`, `limit`, `dateFrom`, `dateTo`, and `action` query params and pass them to `listAuditLogs`.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Clean row layout with correct vertical spacing; buttons are `display: block` and fill the content area; selection highlight preserved. |
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | Now self-contained: fetches activity logs, adds date-range inputs, action dropdown, page-size selector, and prev/next pagination controls. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Removed activity-fetch logic (sidebar handles it); added `lastIncidentIdRef` so ghost-fetch resets on incident change; fixed deep-link effect dependency ordering. |
+| `src/superadmin-web/src/services/api.js` | `getUserActivity` and `getPublicUserActivity` now accept optional query params and append them to the request URL. |
+| `src/backend/src/controllers/user.controller.js` | Reads `page`/`limit`/`dateFrom`/`dateTo`/`action` from query and passes them to `listAuditLogs`. |
+| `src/backend/src/controllers/public-user.controller.js` | Same pagination/filter support for public-user activity. |
+
+### Behavior
+
+- Clicking any incident in the activity sidebar updates the `incident` URL param, which triggers the existing deep-link flow (in-list selection or ghost fetch) and updates the map + detail panel.
+- Activity list items no longer overlap.
+- The sidebar shows date-range and action filters; changing them resets to page 1 and refetches.
+- Pagination controls appear when there is more than one page; page size can be switched between 25/50/100.
+- Backend syntax checked and all three frontend production builds pass.
+
+### Verification
+
+```bash
+node --check src/backend/src/controllers/user.controller.js          # ✅
+node --check src/backend/src/controllers/public-user.controller.js   # ✅
+npm run build:admin-web       # ✅
+npm run build:user-web        # ✅
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+feat: fix activity sidebar clicks/overlap and add pagination + date filtering
+```
+
+*End of activity-inspector follow-up.*
