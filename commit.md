@@ -6174,3 +6174,39 @@ feat: implement full right-click/long-press context menu in superadmin-web map
 ```
 
 *End of Phase 3 — Superadmin Web Context Menu*
+
+---
+
+## 📅 2026-06-12 — Phase 4: User Web — Read-Only Context Menu
+
+### Summary
+Implemented the read-only right-click / long-press context menu for the user-web map. `UserMap` now forwards marker and zone events to `MapPage`, which builds a simplified menu for public users: empty-map utilities, incident view/save/share, and zone view/share. Save/Unsave is hidden for anonymous users. No destructive actions are exposed.
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/components/Map/UserMap.jsx` | Wrapped with `forwardRef`; exposed `centerAt`/`resetView`; added `onMarkerContextMenu`, `onZoneContextMenu`, `onMapContextMenu` props; attached marker right-click/long-press handlers; added zone/empty-area detection in the map `contextmenu` event. |
+| `src/user-web/src/pages/MapPage.jsx` | Imported `MapContextMenu` and `useMapContextMenu`; added `mapRef` and context-menu state; built read-only menu item arrays; wired save/unsave using existing `handleSaveChange`; rendered `MapContextMenu` over the map. |
+
+### Menu Options Added
+
+- **Empty map:** Center Map Here, Copy Coordinates, Reset Map View.
+- **Incident marker:** View Details, Save Incident / Unsave Incident (authenticated only), Share Incident.
+- **Polygon zone:** View Zone Details, Share Zone.
+
+### Verification
+
+```bash
+npm run build:admin-web       # ✅ 2.33s, zero errors
+npm run build:superadmin-web  # ✅ 2.69s, zero errors
+npm run build:user-web        # ✅ 2.53s, zero errors
+```
+
+### Git Commit
+
+```
+feat: add read-only right-click/long-press context menu to user-web map
+```
+
+*End of Phase 4 — User Web Context Menu*

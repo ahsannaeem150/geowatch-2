@@ -10,6 +10,8 @@ import LiveActivityFeed from '../components/LiveActivity/LiveActivityFeed.jsx';
 import TickerBar from '../components/Ticker/TickerBar.jsx';
 import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
+import MapContextMenu from '@shared/components/MapContextMenu.jsx';
+import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 
 const LS_KEY = 'geowatch_last_seen';
@@ -67,6 +69,17 @@ export default function MapPage() {
   const { isAuthenticated } = usePublicAuth();
   const [savedIncidents, setSavedIncidents] = useState([]);
   const [savedIds, setSavedIds] = useState(new Set());
+
+  // ─── Map context menu ───
+  const mapRef = useRef(null);
+  const {
+    isOpen: mapMenuOpen,
+    position: mapMenuPosition,
+    feature: mapMenuFeature,
+    open: openMapMenu,
+    close: closeMapMenu,
+  } = useMapContextMenu();
+
   const [sidebarTab, setSidebarTab] = useState('events'); // 'events' | 'saved'
 
   // ─── Live Activity ───
@@ -149,7 +162,7 @@ export default function MapPage() {
     return () => {
       cancelled = true;
     };
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu]);
 
   // ─── Handle incident ID from URL — robust deep-linking with ghost support ───
   useEffect(() => {
@@ -253,6 +266,7 @@ export default function MapPage() {
 
   // ─── Handle viewport bounds changes from the map ───
   const handleViewportChange = useCallback((bounds) => {
+    closeMapMenu();
     viewportBoundsRef.current = bounds;
 
     // If viewport filtering is already active, re-fetch points and zones with new bounds
@@ -502,6 +516,87 @@ export default function MapPage() {
     setDateRange({ from: today, to: today });
   }, [today]);
 
+  // ─── General map context menu handlers ───
+  const handleMarkerContextMenu = useCallback((incident, point) => {
+    openMapMenu(point, { type: 'incident', incident });
+  }, [openMapMenu]);
+
+  const handleZoneContextMenu = useCallback((feature, point, latLng) => {
+    const zoneId = feature?.properties?.id || feature?.id;
+    const zone = polygonIncidents.find((z) => String(z.id) === String(zoneId));
+    if (zone) {
+      openMapMenu(point, { type: 'zone', zone, latLng });
+    } else {
+      openMapMenu(point, { type: 'empty', latLng });
+    }
+  }, [openMapMenu, polygonIncidents]);
+
+  const handleMapContextMenu = useCallback((point, latLng) => {
+    openMapMenu(point, { type: 'empty', latLng });
+  }, [openMapMenu]);
+
+  const copyCoordinates = useCallback(async (lat, lng) => {
+    try {
+      await navigator.clipboard.writeText(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+    } catch {}
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const copyLink = useCallback(async (key, id) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set(key, id);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+    } catch {}
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const handleCenterMapHere = useCallback((lng, lat) => {
+    mapRef.current?.centerAt(lng, lat);
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const handleResetMapView = useCallback(() => {
+    mapRef.current?.resetView();
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const handleToggleSave = useCallback(async (incidentId) => {
+    const isSaved = savedIds.has(incidentId);
+    await handleSaveChange(incidentId, !isSaved);
+    closeMapMenu();
+  }, [savedIds, handleSaveChange, closeMapMenu]);
+
+  const buildEmptyMenuItems = useCallback((latLng) => {
+    if (!latLng) return [];
+    const { lat, lng } = latLng;
+    return [
+      { label: 'Center Map Here', onClick: () => handleCenterMapHere(lng, lat) },
+      { label: 'Copy Coordinates', onClick: () => copyCoordinates(lat, lng) },
+      { label: 'Reset Map View', onClick: handleResetMapView },
+    ];
+  }, [handleCenterMapHere, copyCoordinates, handleResetMapView]);
+
+  const buildIncidentMenuItems = useCallback((incident) => {
+    if (!incident) return [];
+    const isSaved = savedIds.has(incident.id);
+    return [
+      { label: 'View Details', onClick: () => { handleSelectIncident(incident); closeMapMenu(); } },
+      ...(isAuthenticated
+        ? [{ label: isSaved ? 'Unsave Incident' : 'Save Incident', onClick: () => handleToggleSave(incident.id) }]
+        : []),
+      { label: 'Share Incident', onClick: () => copyLink('incident', incident.id) },
+    ];
+  }, [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu]);
+
+  const buildZoneMenuItems = useCallback((zone) => {
+    if (!zone) return [];
+    return [
+      { label: 'View Zone Details', onClick: () => { handleSelectIncident(zone); closeMapMenu(); } },
+      { label: 'Share Zone', onClick: () => copyLink('zone', zone.id) },
+    ];
+  }, [handleSelectIncident, copyLink, closeMapMenu]);
+
   const handleLocationSelect = useCallback((result) => {
     const zoom = getZoomForLocation(result.type, result.class);
     setFlyToCoords({
@@ -604,6 +699,7 @@ export default function MapPage() {
         {/* Center — Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <UserMap
+            ref={mapRef}
             incidents={visibleIncidents}
             zones={polygonIncidents}
             selectedEventId={selectedIncident?.geometry_type !== 'polygon' ? selectedIncident?.id : null}
@@ -615,7 +711,24 @@ export default function MapPage() {
             fitBounds={fitBounds}
             ghostIncident={ghostIncident}
             showZones={showZones}
+            onMarkerContextMenu={handleMarkerContextMenu}
+            onZoneContextMenu={handleZoneContextMenu}
+            onMapContextMenu={handleMapContextMenu}
           />
+
+          {mapMenuOpen && (
+            <MapContextMenu
+              position={mapMenuPosition}
+              items={
+                mapMenuFeature?.type === 'incident'
+                  ? buildIncidentMenuItems(mapMenuFeature.incident)
+                  : mapMenuFeature?.type === 'zone'
+                  ? buildZoneMenuItems(mapMenuFeature.zone)
+                  : buildEmptyMenuItems(mapMenuFeature?.latLng)
+              }
+              onClose={closeMapMenu}
+            />
+          )}
 
           <MapLegend
             domains={domains}
