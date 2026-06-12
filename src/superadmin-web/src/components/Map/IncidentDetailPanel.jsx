@@ -4,7 +4,7 @@ import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function IncidentDetailPanel({ incident, onBack, adminMode = false, onRefresh, categories = [] }) {
+export default function IncidentDetailPanel({ incident, onBack, adminMode = false, onRefresh, categories = [], onEditZone, onEditZoneInfo }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -164,6 +164,8 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
     ? window.location.origin.replace(':5175', ':5174')
     : 'http://localhost:5174';
 
+  const isPolygon = inc.geometry_type === 'polygon' || inc.geometry?.type === 'Polygon';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', overflowY: 'auto', height: '100%' }}>
       {/* Back + Admin link */}
@@ -229,22 +231,60 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
           {/* Admin Actions */}
           {adminMode && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                onClick={enterEditMode}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--navy-500)',
-                  background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                Edit Incident
-              </button>
+              {!isPolygon && (
+                <button
+                  onClick={enterEditMode}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--navy-500)',
+                    background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Edit Incident
+                </button>
+              )}
+              {isPolygon && onEditZone && (
+                <button
+                  onClick={onEditZone}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--navy-500)',
+                    background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Edit Zone
+                </button>
+              )}
+              {isPolygon && onEditZoneInfo && (
+                <button
+                  onClick={onEditZoneInfo}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--navy-500)',
+                    background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Edit Zone Info
+                </button>
+              )}
               {inc.status === 'active' && (
                 <button
                   onClick={() => setShowResolveConfirm(true)}
@@ -351,7 +391,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
 
           {/* Meta */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            <div>📍 {inc.location_context || `${parseFloat(inc.latitude).toFixed(4)}, ${parseFloat(inc.longitude).toFixed(4)}`}</div>
+            <div>📍 {isPolygon ? `⬡ ${inc.zone_category_name || 'Zone'} · Polygon` : (inc.location_context || `${parseFloat(inc.latitude).toFixed(4)}, ${parseFloat(inc.longitude).toFixed(4)}`)}</div>
             <div>📅 {dateStr}</div>
             {inc.end_date && (
               <div>🏁 Ends: {format(new Date(inc.end_date), 'MMM d, yyyy · h:mm a')}</div>

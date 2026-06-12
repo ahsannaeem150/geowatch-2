@@ -40,7 +40,15 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g., curl, server-to-server)
+      if (!origin) return callback(null, true);
+      // In development, accept any origin so localhost, 127.0.0.1, and LAN IPs all work
+      if (process.env.NODE_ENV === 'development' || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
     credentials: true,
   })
 );

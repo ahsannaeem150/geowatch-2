@@ -6058,3 +6058,41 @@ feat(cleanup): remove legacy zone components and verify all builds
 ```
 
 *End of Phase 11 — Cleanup, Build Verification & Documentation*
+
+---
+
+## 📅 2026-06-12 — Phase 1: Shared Map Context Menu Primitives
+
+### Summary
+Built the reusable foundation for the right-click / long-press map context menu planned in `contextMenuPlan.md`. Created a shared `MapContextMenu` component, a `useMapContextMenu` hook, a `useLongPress` hook for touch, and a styled `ConfirmDialog` for destructive actions. Replaced the admin-web local `MapContextMenu` with the shared version, preserving its existing prop interface. All three frontends still build cleanly.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/shared/components/MapContextMenu.jsx` | Styled context menu UI with viewport-bound positioning, separators, disabled/danger states, click-outside, and Escape-to-close. Renders via React portal to `document.body`. |
+| `src/shared/hooks/useMapContextMenu.js` | Manages menu open/close state, position, and attached feature object. |
+| `src/shared/hooks/useLongPress.js` | Touch long-press detection with configurable duration and movement threshold. |
+| `src/shared/components/ConfirmDialog.jsx` | Reusable styled confirmation modal for Resolve/Delete actions. |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/MapContextMenu.jsx` | Re-exported the shared component so existing callers continue to work. |
+
+### Verification
+
+```bash
+npm run build:admin-web       # ✅ 2.30s, zero errors
+npm run build:superadmin-web  # ✅ 2.75s, zero errors
+npm run build:user-web        # ✅ 2.57s, zero errors
+```
+
+### Git Commit
+
+```
+feat: add shared map context menu primitives (MapContextMenu, useMapContextMenu, useLongPress, ConfirmDialog)
+```
+
+*End of Phase 1 — Shared Context Menu Primitives*

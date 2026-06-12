@@ -10,7 +10,7 @@ import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
-export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolve, resolveTrigger }) {
+export default function EventDetailPanel({ incidentId, onEdit, onEditZone, onEditZoneInfo, onClose, onResolve, resolveTrigger, refreshTrigger = 0 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,6 +64,12 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
   useEffect(() => {
     fetchData();
   }, [incidentId]);
+
+  // Refetch when the parent signals an external update (e.g., zone geometry edited)
+  useEffect(() => {
+    if (incidentId) fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   // Fetch media when incident loads
   useEffect(() => {
@@ -859,7 +865,20 @@ export default function EventDetailPanel({ incidentId, onEdit, onClose, onResolv
             Resolve
           </Button>
         )}
-        {!isPolygon && (
+        {isPolygon ? (
+          <>
+            {onEditZone && (
+              <Button variant="primary" onClick={() => onEditZone?.()}>
+                Edit Zone
+              </Button>
+            )}
+            {onEditZoneInfo && (
+              <Button variant="primary" onClick={() => onEditZoneInfo?.()}>
+                Edit Zone Info
+              </Button>
+            )}
+          </>
+        ) : (
           <Button variant="primary" onClick={() => onEdit?.(incident)}>
             Edit Incident
           </Button>

@@ -122,7 +122,7 @@ export default function IconPicker({ value, onChange }) {
     );
   }, [query]);
 
-  const selectedIcon = ICON_MAP[value];
+  const SelectedIcon = ICON_MAP[value];
 
   return (
     <div style={{ position: 'relative' }}>
@@ -145,8 +145,8 @@ export default function IconPicker({ value, onChange }) {
           textAlign: 'left',
         }}
       >
-        {selectedIcon ? (
-          <selectedIcon size={18} style={{ color: 'var(--navy-400)' }} />
+        {SelectedIcon ? (
+          <SelectedIcon size={18} style={{ color: 'var(--navy-400)' }} />
         ) : (
           <div style={{ width: 18, height: 18, borderRadius: 4, background: 'var(--border-default)' }} />
         )}

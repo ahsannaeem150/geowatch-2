@@ -22,7 +22,6 @@ const router = Router();
 
 // Public / admin routes
 router.get('/', asyncHandler(getZoneCategoriesController));
-router.get('/:id', asyncHandler(getZoneCategoryController));
 
 // Superadmin routes
 router.get(
@@ -31,6 +30,8 @@ router.get(
   requireRole(['super_admin']),
   asyncHandler(getAllZoneCategoriesController)
 );
+
+router.get('/:id', asyncHandler(getZoneCategoryController));
 
 router.post(
   '/',

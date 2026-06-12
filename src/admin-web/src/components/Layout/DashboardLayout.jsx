@@ -88,6 +88,8 @@ export default function DashboardLayout() {
   const [incidents, setEvents] = useState([]);
   const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form' | 'zones' | 'zone-detail'
   const [selectedIncident, setSelectedIncident] = useState(null);
+  const selectedIncidentRef = useRef(selectedIncident);
+  selectedIncidentRef.current = selectedIncident;
   const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(null);
@@ -610,6 +612,25 @@ export default function DashboardLayout() {
           // Handle deletions
           if (payload.type === 'incident_deleted') {
             setEvents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
+
+            // If the deleted incident/zone is currently selected, close its panel
+            setSelectedIncident((prev) => (prev?.id === payload.incidentId ? null : prev));
+            setSelectedZoneId((prev) => (prev === payload.incidentId ? null : prev));
+            setPanelMode((prev) => {
+              if (selectedIncidentRef.current?.id === payload.incidentId) {
+                return 'empty';
+              }
+              return prev;
+            });
+            setFitBounds((prev) => (selectedIncidentRef.current?.id === payload.incidentId ? null : prev));
+            if (selectedIncidentRef.current?.id === payload.incidentId) {
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete('incident');
+                next.delete('zone');
+                return next;
+              });
+            }
           }
         } catch (err) {
           console.warn('[SSE] Failed to parse message:', err);
@@ -846,7 +867,8 @@ export default function DashboardLayout() {
   const handleZoneCreateSubmit = useCallback(async (payload) => {
     setSubmitting(true);
     try {
-      await api.createIncident(payload);
+      const res = await api.createIncident(payload);
+      const newZone = res.data?.incident;
       setToast({ message: 'Zone created successfully' });
       setMapMode('pan');
       setDrawVertices([]);
@@ -855,6 +877,31 @@ export default function DashboardLayout() {
       setSelectedDrawVertexIndex(null);
       drawHistoryRef.current = [{ vertices: [], isClosed: false }];
       historyIndexRef.current = 0;
+
+      if (newZone) {
+        // Select the newly created zone and fly the map to it
+        setSelectedIncident(newZone);
+        setSelectedZoneId(newZone.id);
+        setPanelMode('detail');
+        setMarkerCoords(null);
+        setFlyToCoords(null);
+        setEditingZoneId(null);
+        setEditingZoneVertices([]);
+        setOriginalZoneVertices([]);
+
+        if (newZone.geometry?.coordinates?.[0]) {
+          const coords = newZone.geometry.coordinates[0];
+          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+          coords.forEach(([lng, lat]) => {
+            minLng = Math.min(minLng, lng);
+            minLat = Math.min(minLat, lat);
+            maxLng = Math.max(maxLng, lng);
+            maxLat = Math.max(maxLat, lat);
+          });
+          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        }
+      }
+
       setRefreshKey((k) => k + 1);
     } catch (err) {
       setToast({ message: err.message || 'Failed to create zone' });
@@ -890,6 +937,40 @@ export default function DashboardLayout() {
     editHistoryRef.current = [coords.map((v) => [...v])];
     editHistoryIndexRef.current = 0;
   }, [selectedZoneId, polygonIncidents]);
+
+  const handleZoneInfoEdit = useCallback(() => {
+    if (!selectedIncident || selectedIncident.geometry_type !== 'polygon') return;
+
+    // Clear any active geometry drawing/editing state
+    setMapMode('pan');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    setSelectedEditVertexIndex(null);
+
+    setPanelMode('zone-edit');
+  }, [selectedIncident]);
+
+  const handleZoneInfoSubmit = useCallback(
+    async (payload) => {
+      if (!selectedIncident) return;
+      setSubmitting(true);
+      try {
+        await api.updateIncident(selectedIncident.id, payload);
+        setPanelMode('detail');
+        setToast({ message: 'Zone updated successfully', type: 'success' });
+        setRefreshKey((k) => k + 1);
+      } catch (err) {
+        setToast({ message: err.message || 'Failed to update zone', type: 'error' });
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [selectedIncident]
+  );
 
   const handleVertexDrag = useCallback((index, { lng, lat }) => {
     setEditingZoneVertices((prev) => {
@@ -956,6 +1037,36 @@ export default function DashboardLayout() {
     editHistoryRef.current = [];
     editHistoryIndexRef.current = -1;
   }, []);
+
+  const handleZoneEditSubmit = useCallback(async () => {
+    if (!editingZoneId || editingZoneVertices.length < 3) {
+      setToast({ message: 'A zone must have at least 3 vertices', type: 'error' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const closedRing = [...editingZoneVertices, editingZoneVertices[0]];
+      await api.updateIncident(editingZoneId, {
+        geometryType: 'polygon',
+        geometry: { type: 'Polygon', coordinates: [closedRing] },
+      });
+
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
+      setSelectedEditVertexIndex(null);
+      editHistoryRef.current = [];
+      editHistoryIndexRef.current = -1;
+
+      setToast({ message: 'Zone updated successfully', type: 'success' });
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to update zone', type: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [editingZoneId, editingZoneVertices]);
 
   const handleSearchSelect = useCallback((incident) => {
     setSelectedIncident(incident);
@@ -1188,17 +1299,32 @@ export default function DashboardLayout() {
       );
     }
 
+    if (panelMode === 'zone-edit' && selectedIncident) {
+      return (
+        <ZoneForm
+          geometry={selectedIncident.geometry}
+          initialData={selectedIncident}
+          onSubmit={handleZoneInfoSubmit}
+          onCancel={() => setPanelMode('detail')}
+          submitting={submitting}
+        />
+      );
+    }
+
     if (panelMode === 'detail' && selectedIncident) {
       return (
         <IncidentDetailPanel
           incidentId={selectedIncident.id}
           onEdit={handleEditFromDetail}
+          onEditZone={selectedIncident?.geometry_type === 'polygon' ? handleEditZone : null}
+          onEditZoneInfo={selectedIncident?.geometry_type === 'polygon' ? handleZoneInfoEdit : null}
           onClose={handleClosePanel}
           onResolve={(id) => {
             setRefreshKey((k) => k + 1);
             // Keep panel open but refresh data
           }}
           resolveTrigger={resolveTrigger}
+          refreshTrigger={refreshKey}
         />
       );
     }
@@ -1344,7 +1470,74 @@ export default function DashboardLayout() {
             onEditCancel={handleZoneEditCancel}
           />
 
-          {!editingZoneId && (
+          {editingZoneId ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                zIndex: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px',
+                background: 'var(--bg-surface)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleZoneEditSubmit}
+                disabled={submitting}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  letterSpacing: '0.3px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--success, #22c55e)',
+                  background: 'var(--success-bg, rgba(34,197,94,0.15))',
+                  color: 'var(--success, #22c55e)',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.6 : 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>✓</span>
+                <span>{submitting ? 'Saving…' : 'Save Changes'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleZoneEditCancel}
+                disabled={submitting}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  letterSpacing: '0.3px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(239,68,68,0.4)',
+                  background: 'transparent',
+                  color: 'var(--danger, #ef4444)',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.6 : 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>✕</span>
+                <span>Cancel</span>
+              </button>
+            </div>
+          ) : (
             <DrawingToolbar
               mode={mapMode}
               hasClosedPolygon={isPolygonClosed}
@@ -1352,7 +1545,7 @@ export default function DashboardLayout() {
               onSetMode={handleSetMode}
               onSave={() => setShowZoneCreatePanel(true)}
               onCancel={handleDrawCancel}
-              onEditZone={null}
+              onEditZone={handleEditZone}
             />
           )}
 

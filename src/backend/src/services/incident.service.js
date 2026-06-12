@@ -362,7 +362,8 @@ export async function updateIncident(id, data) {
   }
 
   // Geometry updates
-  if (data.geometryType !== undefined) {
+  // Only set geometry_type explicitly if no geometry object is being sent; the geometry block below handles its own geometry_type assignment
+  if (data.geometryType !== undefined && data.geometry === undefined) {
     addField('geometry_type', data.geometryType);
   }
 

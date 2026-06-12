@@ -132,6 +132,20 @@ export function getIncident(id) {
   return request(`/incidents/${id}`);
 }
 
+export function createIncident(body) {
+  return request('/incidents', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateIncident(id, body) {
+  return request(`/incidents/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
 export function getDomains() {
   return request('/categories/domains');
 }
@@ -216,15 +230,6 @@ export function deleteCategory(id) {
 export function reorderCategories(body) {
   return request('/categories/reorder', {
     method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
-
-// ─── Incident Mutations ───
-
-export function updateIncident(id, body) {
-  return request(`/incidents/${id}`, {
-    method: 'PATCH',
     body: JSON.stringify(body),
   });
 }

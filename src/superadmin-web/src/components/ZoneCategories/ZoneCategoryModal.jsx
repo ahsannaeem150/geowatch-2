@@ -151,7 +151,7 @@ export default function ZoneCategoryModal({ category, onClose, onSaved }) {
             value={form.slug}
             onChange={(v) => setForm({ ...form, slug: v })}
             required
-            pattern="^[a-z0-9-]+$"
+            pattern="^[a-z0-9\\-]+$"
             disabled={isEdit}
           />
 

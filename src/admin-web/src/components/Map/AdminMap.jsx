@@ -711,6 +711,12 @@ export default function AdminMap({
     if (ghostIncident) {
       const lat = parseFloat(ghostIncident.latitude);
       const lng = parseFloat(ghostIncident.longitude);
+
+      // Polygon incidents and rows with invalid coordinates cannot be shown as markers
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        return;
+      }
+
       const size = 10;
 
       const el = buildMarkerElement(ghostIncident, { size, isGhost: true });

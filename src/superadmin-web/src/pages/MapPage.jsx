@@ -1,17 +1,45 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getIncidents, getIncident, getDomains, listAllCategories } from '../services/api.js';
+import { getIncidents, getIncident, createIncident, updateIncident, getDomains, listAllCategories } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
 import MapControls from '../components/Map/MapControls.jsx';
+import DrawingToolbar from '../components/Map/DrawingToolbar.jsx';
+import ZoneForm from '../components/ZoneForm/ZoneForm.jsx';
 import LocationSearch from '../components/LocationSearch/LocationSearch.jsx';
 import IncidentDetailPanel from '../components/Map/IncidentDetailPanel.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
+
+function pointToSegmentDistance(p, a, b) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  if (dx === 0 && dy === 0) return Math.sqrt((p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2);
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)));
+  const projX = a[0] + t * dx;
+  const projY = a[1] + t * dy;
+  return Math.sqrt((p[0] - projX) ** 2 + (p[1] - projY) ** 2);
+}
+
+function findNearestSegmentIndex(point, vertices) {
+  let minIdx = -1;
+  let minDist = Infinity;
+  for (let i = 0; i < vertices.length; i++) {
+    const a = vertices[i];
+    const b = vertices[(i + 1) % vertices.length];
+    const dist = pointToSegmentDistance(point, a, b);
+    if (dist < minDist) {
+      minDist = dist;
+      minIdx = i;
+    }
+  }
+  return minIdx;
+}
 
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const incidentIdFromUrl = searchParams.get('incident');
+  const zoneIdFromUrl = searchParams.get('zone');
 
   // ─── Deep-link params ───
   const dateParam = searchParams.get('date');
@@ -45,6 +73,42 @@ export default function MapPage() {
     verifiedOnly: false,
     status: searchParams.get('status') || 'active',
   });
+
+  // ─── Zones (polygon incidents) ───
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
+  const [fitBounds, setFitBounds] = useState(null);
+  const [showZones, setShowZones] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // ─── Zone Drawing ───
+  const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
+  const [drawVertices, setDrawVertices] = useState([]);
+  const [isPolygonClosed, setIsPolygonClosed] = useState(false);
+  const isPolygonClosedRef = useRef(isPolygonClosed);
+  const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
+  const [zoneInfoEditMode, setZoneInfoEditMode] = useState(false);
+  const [selectedDrawVertexIndex, setSelectedDrawVertexIndex] = useState(null);
+
+  // ─── Zone Editing ───
+  const [editingZoneId, setEditingZoneId] = useState(null);
+  const [editingZoneVertices, setEditingZoneVertices] = useState([]);
+  const [originalZoneVertices, setOriginalZoneVertices] = useState([]);
+  const [selectedEditVertexIndex, setSelectedEditVertexIndex] = useState(null);
+  const editingZoneIdRef = useRef(editingZoneId);
+  const editingZoneVerticesRef = useRef(editingZoneVertices);
+  const drawVerticesRef = useRef(drawVertices);
+  isPolygonClosedRef.current = isPolygonClosed;
+  editingZoneIdRef.current = editingZoneId;
+  editingZoneVerticesRef.current = editingZoneVertices;
+  drawVerticesRef.current = drawVertices;
+
+  // ─── Drawing Undo History ───
+  const drawHistoryRef = useRef([{ vertices: [], isClosed: false }]);
+  const historyIndexRef = useRef(0);
+
+  // ─── Edit Mode Undo History ───
+  const editHistoryRef = useRef([]);
+  const editHistoryIndexRef = useRef(-1);
 
   // Show contextual banner when coming from activity timeline with an incident
   const showContextBanner = refParam === 'activity' && incidentIdFromUrl;
@@ -165,6 +229,65 @@ export default function MapPage() {
     }
   }, [incidentIdFromUrl, incidents.length]);
 
+  // Filtered incidents (must be declared before any effect/callback that depends on polygonIncidents)
+  const filteredIncidents = useMemo(() => {
+    let result = incidents;
+    if (filters.verifiedOnly) {
+      result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
+    }
+    if (activeDomainFilters.size > 0) {
+      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
+    }
+    return result;
+  }, [incidents, filters.verifiedOnly, activeDomainFilters]);
+
+  // Point incidents are rendered as markers; polygons are rendered via the zones source
+  const polygonIncidents = useMemo(
+    () => filteredIncidents.filter((i) => i.geometry_type === 'polygon'),
+    [filteredIncidents]
+  );
+  const pointIncidents = useMemo(
+    () => filteredIncidents.filter((i) => i.geometry_type !== 'polygon'),
+    [filteredIncidents]
+  );
+
+  // ─── Handle zone ID from URL — deep-linking ───
+  const zoneDeepLinkProcessed = useRef(false);
+  useEffect(() => {
+    if (!zoneIdFromUrl) {
+      zoneDeepLinkProcessed.current = false;
+      return;
+    }
+
+    const zone = polygonIncidents.find((z) => z.id === zoneIdFromUrl);
+    if (zone) {
+      setSelectedZoneId(zone.id);
+      setSelectedIncident(zone);
+      if (zone.geometry?.coordinates?.[0]) {
+        const coords = zone.geometry.coordinates[0];
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        });
+        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      }
+      zoneDeepLinkProcessed.current = true;
+      return;
+    }
+
+    if (polygonIncidents.length > 0 && !zoneDeepLinkProcessed.current) {
+      zoneDeepLinkProcessed.current = true;
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('zone');
+        return next;
+      });
+    }
+  }, [zoneIdFromUrl, polygonIncidents, setSearchParams]);
+
   // Fetch domains for legend
   useEffect(() => {
     getDomains()
@@ -247,18 +370,6 @@ export default function MapPage() {
     };
   }, [selectedIncident?.id]);
 
-  // Filtered incidents
-  const filteredIncidents = useMemo(() => {
-    let result = incidents;
-    if (filters.verifiedOnly) {
-      result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
-    }
-    if (activeDomainFilters.size > 0) {
-      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
-    }
-    return result;
-  }, [incidents, filters.verifiedOnly, activeDomainFilters]);
-
   // Legend handlers
   const handleToggleDomain = useCallback((slug) => {
     setActiveDomainFilters((prev) => {
@@ -306,6 +417,10 @@ export default function MapPage() {
   // Select incident
   const handleSelectIncident = useCallback((incident) => {
     setSelectedIncident(incident);
+    setSelectedZoneId(null);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
     setFlyToCoords({
       lat: parseFloat(incident.latitude),
       lng: parseFloat(incident.longitude),
@@ -314,18 +429,407 @@ export default function MapPage() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('incident', incident.id);
+      next.delete('zone');
       return next;
     });
   }, [setSearchParams]);
 
   const handleBack = useCallback(() => {
     setSelectedIncident(null);
+    setSelectedZoneId(null);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    setShowZoneCreatePanel(false);
+    setZoneInfoEditMode(false);
+    setFitBounds(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('incident');
+      next.delete('zone');
       return next;
     });
   }, [setSearchParams]);
+
+  // ─── Zone selection ───
+  const handleZoneClick = useCallback((zoneId) => {
+    const zone = polygonIncidents.find((z) => z.id === zoneId);
+    if (!zone) return;
+    setSelectedZoneId(zoneId);
+    setSelectedIncident(zone);
+    // Clear editing state when selecting a different zone
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    // Compute bounds from polygon and fly map there
+    if (zone.geometry?.coordinates?.[0]) {
+      const coords = zone.geometry.coordinates[0];
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+      coords.forEach(([lng, lat]) => {
+        minLng = Math.min(minLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLng = Math.max(maxLng, lng);
+        maxLat = Math.max(maxLat, lat);
+      });
+      setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+    }
+    // Update URL to make zone shareable
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('zone', zone.id);
+      next.delete('incident');
+      return next;
+    });
+  }, [polygonIncidents, setSearchParams]);
+
+  // ─── Drawing history helpers ───
+  const pushToHistory = useCallback((vertices, isClosed) => {
+    drawHistoryRef.current = drawHistoryRef.current.slice(0, historyIndexRef.current + 1);
+    drawHistoryRef.current.push({ vertices: vertices.map((v) => [...v]), isClosed });
+    historyIndexRef.current += 1;
+    if (drawHistoryRef.current.length > 50) {
+      drawHistoryRef.current.shift();
+      historyIndexRef.current -= 1;
+    }
+  }, []);
+
+  const handleDrawUndo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
+    const prev = drawHistoryRef.current[historyIndexRef.current];
+    setDrawVertices(prev.vertices.map((v) => [...v]));
+    setIsPolygonClosed(prev.isClosed);
+    setSelectedDrawVertexIndex(null);
+  }, []);
+
+  const handleDrawRedo = useCallback(() => {
+    if (historyIndexRef.current >= drawHistoryRef.current.length - 1) return;
+    historyIndexRef.current += 1;
+    const next = drawHistoryRef.current[historyIndexRef.current];
+    setDrawVertices(next.vertices.map((v) => [...v]));
+    setIsPolygonClosed(next.isClosed);
+    setSelectedDrawVertexIndex(null);
+  }, []);
+
+  const pushToEditHistory = useCallback((vertices) => {
+    editHistoryRef.current = editHistoryRef.current.slice(0, editHistoryIndexRef.current + 1);
+    editHistoryRef.current.push(vertices.map((v) => [...v]));
+    editHistoryIndexRef.current += 1;
+    if (editHistoryRef.current.length > 50) {
+      editHistoryRef.current.shift();
+      editHistoryIndexRef.current -= 1;
+    }
+  }, []);
+
+  const handleEditUndo = useCallback(() => {
+    if (editHistoryIndexRef.current <= 0) return;
+    editHistoryIndexRef.current -= 1;
+    const prev = editHistoryRef.current[editHistoryIndexRef.current];
+    setEditingZoneVertices(prev.map((v) => [...v]));
+    setSelectedEditVertexIndex(null);
+  }, []);
+
+  // Clean up edit selection/history whenever edit mode is exited
+  useEffect(() => {
+    if (!editingZoneId) {
+      setSelectedEditVertexIndex(null);
+      editHistoryRef.current = [];
+      editHistoryIndexRef.current = -1;
+    }
+  }, [editingZoneId]);
+
+  // ─── Drawing handlers ───
+  const handleSetMode = useCallback((mode) => {
+    setMapMode(mode);
+    if (mode === 'polygon') {
+      setDrawVertices([]);
+      setIsPolygonClosed(false);
+      setShowZoneCreatePanel(false);
+      setZoneInfoEditMode(false);
+      setSelectedDrawVertexIndex(null);
+      drawHistoryRef.current = [{ vertices: [], isClosed: false }];
+      historyIndexRef.current = 0;
+      // Clear editing state when entering drawing mode
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
+      setSelectedEditVertexIndex(null);
+      editHistoryRef.current = [];
+      editHistoryIndexRef.current = -1;
+    }
+  }, []);
+
+  const handleDrawVertexAdd = useCallback(({ lat, lng, insertIndex }) => {
+    const prev = drawVerticesRef.current;
+    const next = [...prev];
+    if (insertIndex !== undefined && insertIndex !== null && insertIndex >= 0 && insertIndex < prev.length) {
+      next.splice(insertIndex + 1, 0, [lng, lat]);
+    } else {
+      next.push([lng, lat]);
+    }
+    setDrawVertices(next);
+    setSelectedDrawVertexIndex(null);
+    pushToHistory(next, isPolygonClosedRef.current);
+  }, [pushToHistory]);
+
+  const handleDrawClose = useCallback(() => {
+    setIsPolygonClosed(true);
+    setShowZoneCreatePanel(true);
+    setSelectedDrawVertexIndex(null);
+    pushToHistory(drawVerticesRef.current, true);
+  }, [pushToHistory]);
+
+  const handleDrawCancel = useCallback(() => {
+    setMapMode('pan');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+    setSelectedDrawVertexIndex(null);
+    drawHistoryRef.current = [{ vertices: [], isClosed: false }];
+    historyIndexRef.current = 0;
+  }, []);
+
+  const handleDrawVertexSelect = useCallback((index) => {
+    setSelectedDrawVertexIndex(index);
+  }, []);
+
+  const handleDrawVertexMove = useCallback((index, { lng, lat }) => {
+    setDrawVertices((prev) => {
+      const next = [...prev];
+      next[index] = [lng, lat];
+      return next;
+    });
+  }, []);
+
+  const handleDrawVertexDragEnd = useCallback((index) => {
+    pushToHistory(drawVerticesRef.current, isPolygonClosedRef.current);
+  }, [pushToHistory]);
+
+  const handleDrawVertexDelete = useCallback((index) => {
+    if (drawVerticesRef.current.length <= 3) {
+      console.warn('Cannot delete vertex: polygon must have at least 3 vertices');
+      return;
+    }
+    const next = [...drawVerticesRef.current];
+    next.splice(index, 1);
+    setDrawVertices(next);
+    setSelectedDrawVertexIndex(null);
+    pushToHistory(next, isPolygonClosedRef.current);
+  }, [pushToHistory]);
+
+  const handleZoneCreateSubmit = useCallback(async (payload) => {
+    setSubmitting(true);
+    try {
+      const res = await createIncident(payload);
+      const newZone = res?.incident;
+      setMapMode('pan');
+      setDrawVertices([]);
+      setIsPolygonClosed(false);
+      setShowZoneCreatePanel(false);
+      setSelectedDrawVertexIndex(null);
+      drawHistoryRef.current = [{ vertices: [], isClosed: false }];
+      historyIndexRef.current = 0;
+
+      if (newZone) {
+        // Select the newly created zone and fly the map to it
+        setSelectedIncident(newZone);
+        setSelectedZoneId(newZone.id);
+        setEditingZoneId(null);
+        setEditingZoneVertices([]);
+        setOriginalZoneVertices([]);
+
+        if (newZone.geometry?.coordinates?.[0]) {
+          const coords = newZone.geometry.coordinates[0];
+          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+          coords.forEach(([lng, lat]) => {
+            minLng = Math.min(minLng, lng);
+            minLat = Math.min(minLat, lat);
+            maxLng = Math.max(maxLng, lng);
+            maxLat = Math.max(maxLat, lat);
+          });
+          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        }
+
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('zone', newZone.id);
+          next.delete('incident');
+          return next;
+        });
+      }
+
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      alert(err.message || 'Failed to create zone');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [setSearchParams]);
+
+  const handleEditZone = useCallback(() => {
+    const zone = polygonIncidents.find((z) => z.id === selectedZoneId);
+    if (!zone || !zone.geometry?.coordinates?.[0]) return;
+
+    // Clear drawing state and info-edit mode
+    setMapMode('pan');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+    setZoneInfoEditMode(false);
+
+    const coords = [...zone.geometry.coordinates[0]];
+    // Remove closing duplicate vertex if present
+    if (coords.length > 1) {
+      const first = coords[0];
+      const last = coords[coords.length - 1];
+      if (first[0] === last[0] && first[1] === last[1]) {
+        coords.pop();
+      }
+    }
+
+    setEditingZoneId(zone.id);
+    setEditingZoneVertices(coords);
+    setOriginalZoneVertices(JSON.parse(JSON.stringify(coords)));
+    setSelectedEditVertexIndex(null);
+    editHistoryRef.current = [coords.map((v) => [...v])];
+    editHistoryIndexRef.current = 0;
+  }, [selectedZoneId, polygonIncidents]);
+
+  const handleVertexDrag = useCallback((index, { lng, lat }) => {
+    setEditingZoneVertices((prev) => {
+      const next = [...prev];
+      next[index] = [lng, lat];
+      return next;
+    });
+  }, []);
+
+  const handleVertexDragEnd = useCallback(() => {
+    pushToEditHistory(editingZoneVerticesRef.current);
+  }, [pushToEditHistory]);
+
+  const handleMidpointClick = useCallback((edgeIndex) => {
+    setEditingZoneVertices((prev) => {
+      const a = prev[edgeIndex];
+      const b = prev[(edgeIndex + 1) % prev.length];
+      const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const next = [...prev];
+      next.splice(edgeIndex + 1, 0, midpoint);
+      pushToEditHistory(next);
+      return next;
+    });
+    setSelectedEditVertexIndex(null);
+  }, [pushToEditHistory]);
+
+  const handleVertexDoubleClick = useCallback((index) => {
+    setEditingZoneVertices((prev) => {
+      if (prev.length <= 3) {
+        console.warn('Cannot delete vertex: polygon must have at least 3 vertices');
+        return prev;
+      }
+      const next = [...prev];
+      next.splice(index, 1);
+      pushToEditHistory(next);
+      return next;
+    });
+    setSelectedEditVertexIndex(null);
+  }, [pushToEditHistory]);
+
+  const handleEditVertexSelect = useCallback((index) => {
+    setSelectedEditVertexIndex(index);
+  }, []);
+
+  const handleEditVertexDelete = useCallback((index) => {
+    setEditingZoneVertices((prev) => {
+      if (prev.length <= 3) {
+        console.warn('Cannot delete vertex: polygon must have at least 3 vertices');
+        return prev;
+      }
+      const next = [...prev];
+      next.splice(index, 1);
+      pushToEditHistory(next);
+      return next;
+    });
+    setSelectedEditVertexIndex(null);
+  }, [pushToEditHistory]);
+
+  const handleZoneEditCancel = useCallback(() => {
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    setSelectedEditVertexIndex(null);
+    editHistoryRef.current = [];
+    editHistoryIndexRef.current = -1;
+  }, []);
+
+  const handleZoneGeometrySave = useCallback(async () => {
+    if (!editingZoneId || editingZoneVertices.length < 3) {
+      alert('A zone must have at least 3 vertices');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const closedRing = [...editingZoneVertices, editingZoneVertices[0]];
+      await updateIncident(editingZoneId, {
+        geometryType: 'polygon',
+        geometry: { type: 'Polygon', coordinates: [closedRing] },
+      });
+
+      setEditingZoneId(null);
+      setEditingZoneVertices([]);
+      setOriginalZoneVertices([]);
+      setSelectedEditVertexIndex(null);
+      editHistoryRef.current = [];
+      editHistoryIndexRef.current = -1;
+
+      setRefreshKey((k) => k + 1);
+      // Refetch the selected incident so the detail panel shows the new geometry
+      const updated = await getIncident(editingZoneId);
+      if (updated?.incident) {
+        setSelectedIncident(updated.incident);
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to update zone geometry');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [editingZoneId, editingZoneVertices]);
+
+  const handleZoneInfoEdit = useCallback(() => {
+    if (!selectedIncident || selectedIncident.geometry_type !== 'polygon') return;
+
+    // Clear any active geometry editing/drawing state
+    setMapMode('pan');
+    setDrawVertices([]);
+    setIsPolygonClosed(false);
+    setShowZoneCreatePanel(false);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    setSelectedEditVertexIndex(null);
+
+    setZoneInfoEditMode(true);
+  }, [selectedIncident]);
+
+  const handleZoneInfoSubmit = useCallback(
+    async (payload) => {
+      if (!selectedIncident) return;
+      setSubmitting(true);
+      try {
+        await updateIncident(selectedIncident.id, payload);
+        const updated = await getIncident(selectedIncident.id);
+        if (updated?.incident) {
+          setSelectedIncident(updated.incident);
+        }
+        setZoneInfoEditMode(false);
+        setRefreshKey((k) => k + 1);
+      } catch (err) {
+        alert(err.message || 'Failed to update zone info');
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [selectedIncident]
+  );
 
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });
@@ -449,12 +953,41 @@ export default function MapPage() {
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <SuperadminMap
             incidents={filteredIncidents}
+            zones={polygonIncidents}
+            showZones={showZones}
+            onZoneClick={handleZoneClick}
             selectedEventId={selectedIncident?.id}
+            selectedZoneId={selectedZoneId}
             onEventClick={handleSelectIncident}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
+            fitBounds={fitBounds}
             ghostIncident={ghostIncident}
             adminMode={true}
+            mapMode={mapMode}
+            drawVertices={drawVertices}
+            isPolygonClosed={isPolygonClosed}
+            onDrawVertexAdd={handleDrawVertexAdd}
+            onDrawClose={handleDrawClose}
+            onDrawCancel={handleDrawCancel}
+            onDrawUndo={handleDrawUndo}
+            onDrawRedo={handleDrawRedo}
+            onDrawVertexSelect={handleDrawVertexSelect}
+            onDrawVertexMove={handleDrawVertexMove}
+            onDrawVertexDragEnd={handleDrawVertexDragEnd}
+            onDrawVertexDelete={handleDrawVertexDelete}
+            selectedDrawVertexIndex={selectedDrawVertexIndex}
+            editingZoneId={editingZoneId}
+            editingZoneVertices={editingZoneVertices}
+            selectedEditVertexIndex={selectedEditVertexIndex}
+            onVertexDrag={handleVertexDrag}
+            onVertexDragEnd={handleVertexDragEnd}
+            onMidpointClick={handleMidpointClick}
+            onVertexDoubleClick={handleVertexDoubleClick}
+            onEditVertexSelect={handleEditVertexSelect}
+            onEditVertexDelete={handleEditVertexDelete}
+            onEditUndo={handleEditUndo}
+            onEditCancel={handleZoneEditCancel}
           />
 
           <MapLegend
@@ -464,6 +997,91 @@ export default function MapPage() {
             onShowAll={handleShowAllDomains}
             onHideAll={handleHideAllDomains}
           />
+
+          {/* Drawing / edit toolbar overlay — below the top-center controls to avoid overlap */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '80px',
+              right: '12px',
+              zIndex: 20,
+            }}
+          >
+            {editingZoneId ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px',
+                  background: 'var(--bg-surface)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-lg)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleZoneGeometrySave}
+                  disabled={submitting}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    letterSpacing: '0.3px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--success, #22c55e)',
+                    background: 'var(--success-bg, rgba(34,197,94,0.15))',
+                    color: 'var(--success, #22c55e)',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>✓</span>
+                  <span>{submitting ? 'Saving…' : 'Save Changes'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleZoneEditCancel}
+                  disabled={submitting}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    letterSpacing: '0.3px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(239,68,68,0.4)',
+                    background: 'transparent',
+                    color: 'var(--danger, #ef4444)',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>✕</span>
+                  <span>Cancel</span>
+                </button>
+              </div>
+            ) : (
+              <DrawingToolbar
+                mode={mapMode}
+                hasClosedPolygon={isPolygonClosed && drawVertices.length >= 3}
+                selectedZoneId={selectedZoneId}
+                onSetMode={handleSetMode}
+                onSave={handleDrawClose}
+                onCancel={handleDrawCancel}
+                onEditZone={handleEditZone}
+              />
+            )}
+          </div>
 
           {/* Map controls overlay — top center */}
           <div
@@ -608,18 +1226,44 @@ export default function MapPage() {
           )}
         </div>
 
-        {/* Right — Incident detail panel */}
-        {selectedIncident && (
+        {/* Right — Incident detail or zone creation panel */}
+        {(selectedIncident || showZoneCreatePanel) && (
           <div style={{ width: '480px', flexShrink: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <IncidentDetailPanel
-              incident={selectedIncident}
-              onBack={handleBack}
-              adminMode={true}
-              onRefresh={() => {
-                setRefreshKey((k) => k + 1);
-              }}
-              categories={categories}
-            />
+            {zoneInfoEditMode && selectedIncident ? (
+              <div style={{ padding: '20px', overflowY: 'auto', height: '100%' }}>
+                <ZoneForm
+                  geometry={selectedIncident.geometry}
+                  initialData={selectedIncident}
+                  onSubmit={handleZoneInfoSubmit}
+                  onCancel={() => setZoneInfoEditMode(false)}
+                  submitting={submitting}
+                />
+              </div>
+            ) : selectedIncident ? (
+              <IncidentDetailPanel
+                incident={selectedIncident}
+                onBack={handleBack}
+                adminMode={true}
+                onRefresh={() => {
+                  setRefreshKey((k) => k + 1);
+                }}
+                categories={categories}
+                onEditZone={handleEditZone}
+                onEditZoneInfo={handleZoneInfoEdit}
+              />
+            ) : (
+              <div style={{ padding: '20px', overflowY: 'auto', height: '100%' }}>
+                <ZoneForm
+                  geometry={{
+                    type: 'Polygon',
+                    coordinates: [drawVertices.length >= 3 ? [...drawVertices, drawVertices[0]] : drawVertices],
+                  }}
+                  onSubmit={handleZoneCreateSubmit}
+                  onCancel={handleDrawCancel}
+                  submitting={submitting}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
