@@ -6132,3 +6132,45 @@ feat: implement full right-click/long-press context menu in admin-web map
 ```
 
 *End of Phase 2 — Admin Web Context Menu*
+
+---
+
+## 📅 2026-06-12 — Phase 3: Superadmin Web — Full Map Context Menu
+
+### Summary
+Implemented the full right-click / long-press context menu for the superadmin-web map. `SuperadminMap` now forwards marker and zone events to `MapPage`, which builds the same admin-style menus for empty areas, incident markers, and polygon zones. Resolve/Delete use the shared `ConfirmDialog`. Added a lightweight `IncidentForm` component so superadmins can create or edit point incidents directly from the map context menu. Existing drawing/edit vertex context menus remain intact.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/superadmin-web/src/components/IncidentForm/IncidentForm.jsx` | Simple point-incident create/edit form with title, description, coordinates, category, severity, status, dates, and location context. |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Map/SuperadminMap.jsx` | Wrapped with `forwardRef`; exposed `centerAt`/`resetView`; added `onMarkerContextMenu`, `onZoneContextMenu`, `onMapContextMenu` props; attached marker right-click/long-press handlers; added zone/empty-area detection in the map `contextmenu` event. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Imported shared menu primitives and `IncidentForm`; added `mapRef`, context-menu state, confirmation modal state, and point-form state; built menu item arrays; wired Resolve/Delete; rendered `MapContextMenu`, `ConfirmDialog`, and `IncidentForm` in the right panel. |
+
+### Menu Options Added
+
+- **Empty map:** Create Zone Here, Create Incident Here, Center Map Here, Copy Coordinates, Reset Map View.
+- **Incident marker:** View Details, Edit Incident, Resolve, Delete, Copy Link.
+- **Polygon zone:** View Zone Details, Edit Zone Shape, Edit Zone Info, Resolve, Delete, Copy Link.
+
+### Verification
+
+```bash
+npm run build:admin-web       # ✅ 2.33s, zero errors
+npm run build:superadmin-web  # ✅ 2.72s, zero errors
+npm run build:user-web        # ✅ 2.54s, zero errors
+```
+
+### Git Commit
+
+```
+feat: implement full right-click/long-press context menu in superadmin-web map
+```
+
+*End of Phase 3 — Superadmin Web Context Menu*

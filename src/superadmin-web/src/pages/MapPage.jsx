@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getIncidents, getIncident, createIncident, updateIncident, getDomains, listAllCategories } from '../services/api.js';
+import { getIncidents, getIncident, createIncident, updateIncident, deleteIncident, resolveIncident, getDomains, listAllCategories } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
 import MapControls from '../components/Map/MapControls.jsx';
@@ -9,6 +9,10 @@ import ZoneForm from '../components/ZoneForm/ZoneForm.jsx';
 import LocationSearch from '../components/LocationSearch/LocationSearch.jsx';
 import IncidentDetailPanel from '../components/Map/IncidentDetailPanel.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
+import MapContextMenu from '@shared/components/MapContextMenu.jsx';
+import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
+import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
+import IncidentForm from '../components/IncidentForm/IncidentForm.jsx';
 
 function pointToSegmentDistance(p, a, b) {
   const dx = b[0] - a[0];
@@ -94,6 +98,22 @@ export default function MapPage() {
   const [editingZoneVertices, setEditingZoneVertices] = useState([]);
   const [originalZoneVertices, setOriginalZoneVertices] = useState([]);
   const [selectedEditVertexIndex, setSelectedEditVertexIndex] = useState(null);
+
+  // ─── Map context menu ───
+  const mapRef = useRef(null);
+  const {
+    isOpen: mapMenuOpen,
+    position: mapMenuPosition,
+    feature: mapMenuFeature,
+    open: openMapMenu,
+    close: closeMapMenu,
+  } = useMapContextMenu();
+  const [confirmDialog, setConfirmDialog] = useState(null);
+
+  // ─── Point incident create/edit form ───
+  const [pointFormMode, setPointFormMode] = useState(null); // null | 'create' | 'edit'
+  const [pointFormCoords, setPointFormCoords] = useState(null);
+
   const editingZoneIdRef = useRef(editingZoneId);
   const editingZoneVerticesRef = useRef(editingZoneVertices);
   const drawVerticesRef = useRef(drawVertices);
@@ -393,6 +413,7 @@ export default function MapPage() {
 
   // Viewport change handler
   const handleViewportChange = useCallback((bounds) => {
+    closeMapMenu();
     viewportBoundsRef.current = bounds;
 
     if (viewportFilteringRef.current === true) {
@@ -412,7 +433,7 @@ export default function MapPage() {
         })
         .catch(() => setIncidents([]));
     }
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, closeMapMenu]);
 
   // Select incident
   const handleSelectIncident = useCallback((incident) => {
@@ -666,8 +687,8 @@ export default function MapPage() {
     }
   }, [setSearchParams]);
 
-  const handleEditZone = useCallback(() => {
-    const zone = polygonIncidents.find((z) => z.id === selectedZoneId);
+  const handleEditZone = useCallback((explicitZone) => {
+    const zone = explicitZone || polygonIncidents.find((z) => z.id === selectedZoneId);
     if (!zone || !zone.geometry?.coordinates?.[0]) return;
 
     // Clear drawing state and info-edit mode
@@ -687,6 +708,8 @@ export default function MapPage() {
       }
     }
 
+    setSelectedZoneId(zone.id);
+    setSelectedIncident(zone);
     setEditingZoneId(zone.id);
     setEditingZoneVertices(coords);
     setOriginalZoneVertices(JSON.parse(JSON.stringify(coords)));
@@ -794,8 +817,9 @@ export default function MapPage() {
     }
   }, [editingZoneId, editingZoneVertices]);
 
-  const handleZoneInfoEdit = useCallback(() => {
-    if (!selectedIncident || selectedIncident.geometry_type !== 'polygon') return;
+  const handleZoneInfoEdit = useCallback((explicitZone) => {
+    const zone = explicitZone || selectedIncident;
+    if (!zone || zone.geometry_type !== 'polygon') return;
 
     // Clear any active geometry editing/drawing state
     setMapMode('pan');
@@ -807,6 +831,8 @@ export default function MapPage() {
     setOriginalZoneVertices([]);
     setSelectedEditVertexIndex(null);
 
+    setSelectedIncident(zone);
+    setSelectedZoneId(zone.id);
     setZoneInfoEditMode(true);
   }, [selectedIncident]);
 
@@ -830,6 +856,177 @@ export default function MapPage() {
     },
     [selectedIncident]
   );
+
+  // ─── General map context menu handlers ───
+  const handleMarkerContextMenu = useCallback((incident, point) => {
+    openMapMenu(point, { type: 'incident', incident });
+  }, [openMapMenu]);
+
+  const handleZoneContextMenu = useCallback((feature, point, latLng) => {
+    const zoneId = feature?.properties?.id || feature?.id;
+    const zone = polygonIncidents.find((z) => String(z.id) === String(zoneId));
+    if (zone) {
+      openMapMenu(point, { type: 'zone', zone, latLng });
+    } else {
+      openMapMenu(point, { type: 'empty', latLng });
+    }
+  }, [openMapMenu, polygonIncidents]);
+
+  const handleMapContextMenu = useCallback((point, latLng) => {
+    openMapMenu(point, { type: 'empty', latLng });
+  }, [openMapMenu]);
+
+  const handleResolveIncident = useCallback(async (id) => {
+    try {
+      await resolveIncident(id);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      alert(err.message || 'Failed to resolve incident');
+    } finally {
+      setConfirmDialog(null);
+      closeMapMenu();
+    }
+  }, [closeMapMenu]);
+
+  const handleDeleteIncident = useCallback(async (id) => {
+    try {
+      await deleteIncident(id);
+      if (selectedIncident?.id === id) {
+        setSelectedIncident(null);
+        setSelectedZoneId(null);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('incident');
+          next.delete('zone');
+          return next;
+        });
+      }
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      alert(err.message || 'Failed to delete incident');
+    } finally {
+      setConfirmDialog(null);
+      closeMapMenu();
+    }
+  }, [selectedIncident, setSearchParams, closeMapMenu]);
+
+  const copyCoordinates = useCallback(async (lat, lng) => {
+    try {
+      await navigator.clipboard.writeText(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+    } catch {}
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const copyLink = useCallback(async (key, id) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set(key, id);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+    } catch {}
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const handleCreateZoneHere = useCallback((lat, lng) => {
+    setPointFormMode(null);
+    setShowZoneCreatePanel(false);
+    setZoneInfoEditMode(false);
+    setSelectedIncident(null);
+    setMapMode('polygon');
+    setTimeout(() => {
+      handleDrawVertexAdd({ lat, lng });
+    }, 0);
+    closeMapMenu();
+  }, [handleDrawVertexAdd, closeMapMenu]);
+
+  const handleCreateIncidentHere = useCallback((lat, lng) => {
+    setMapMode('pan');
+    setShowZoneCreatePanel(false);
+    setZoneInfoEditMode(false);
+    setSelectedIncident(null);
+    setSelectedZoneId(null);
+    setPointFormCoords({ lat, lng });
+    setPointFormMode('create');
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const handleCenterMapHere = useCallback((lng, lat) => {
+    mapRef.current?.centerAt(lng, lat);
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const handleResetMapView = useCallback(() => {
+    mapRef.current?.resetView();
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const buildEmptyMenuItems = useCallback((latLng) => {
+    if (!latLng) return [];
+    const { lat, lng } = latLng;
+    return [
+      { label: 'Create Zone Here', onClick: () => handleCreateZoneHere(lat, lng) },
+      { label: 'Create Incident Here', onClick: () => handleCreateIncidentHere(lat, lng) },
+      { label: 'Center Map Here', onClick: () => handleCenterMapHere(lng, lat) },
+      { label: 'Copy Coordinates', onClick: () => copyCoordinates(lat, lng) },
+      { label: 'Reset Map View', onClick: handleResetMapView },
+    ];
+  }, [handleCreateZoneHere, handleCreateIncidentHere, handleCenterMapHere, copyCoordinates, handleResetMapView]);
+
+  const buildIncidentMenuItems = useCallback((incident) => {
+    if (!incident) return [];
+    return [
+      { label: 'View Details', onClick: () => { handleSelectIncident(incident); closeMapMenu(); } },
+      { label: 'Edit Incident', onClick: () => { setSelectedIncident(incident); setPointFormMode('edit'); closeMapMenu(); } },
+      { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: incident.id, title: 'Resolve incident?', message: 'Mark this incident as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(incident.id) }) },
+      { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: incident.id, title: 'Delete incident?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(incident.id) }) },
+      { label: 'Copy Link', onClick: () => copyLink('incident', incident.id) },
+    ];
+  }, [handleSelectIncident, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
+
+  const buildZoneMenuItems = useCallback((zone) => {
+    if (!zone) return [];
+    return [
+      { label: 'View Zone Details', onClick: () => { handleZoneClick(zone.id); closeMapMenu(); } },
+      { label: 'Edit Zone Shape', onClick: () => { handleEditZone(zone); closeMapMenu(); } },
+      { label: 'Edit Zone Info', onClick: () => { handleZoneInfoEdit(zone); closeMapMenu(); } },
+      { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: zone.id, title: 'Resolve zone?', message: 'Mark this zone as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(zone.id) }) },
+      { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: zone.id, title: 'Delete zone?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(zone.id) }) },
+      { label: 'Copy Link', onClick: () => copyLink('zone', zone.id) },
+    ];
+  }, [handleZoneClick, handleEditZone, handleZoneInfoEdit, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
+
+  const handlePointFormSubmit = useCallback(async (payload) => {
+    setSubmitting(true);
+    try {
+      if (pointFormMode === 'edit' && selectedIncident) {
+        await updateIncident(selectedIncident.id, payload);
+        const updated = await getIncident(selectedIncident.id);
+        if (updated?.incident) setSelectedIncident(updated.incident);
+      } else {
+        const res = await createIncident(payload);
+        if (res?.incident) {
+          setSelectedIncident(res.incident);
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('incident', res.incident.id);
+            next.delete('zone');
+            return next;
+          });
+        }
+      }
+      setPointFormMode(null);
+      setPointFormCoords(null);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      alert(err.message || 'Failed to save incident');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [pointFormMode, selectedIncident, setSearchParams]);
+
+  const handlePointFormCancel = useCallback(() => {
+    setPointFormMode(null);
+    setPointFormCoords(null);
+  }, []);
 
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });
@@ -952,6 +1149,7 @@ export default function MapPage() {
         {/* Center — Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <SuperadminMap
+            ref={mapRef}
             incidents={filteredIncidents}
             zones={polygonIncidents}
             showZones={showZones}
@@ -988,6 +1186,33 @@ export default function MapPage() {
             onEditVertexDelete={handleEditVertexDelete}
             onEditUndo={handleEditUndo}
             onEditCancel={handleZoneEditCancel}
+            onMarkerContextMenu={handleMarkerContextMenu}
+            onZoneContextMenu={handleZoneContextMenu}
+            onMapContextMenu={handleMapContextMenu}
+          />
+
+          {mapMenuOpen && (
+            <MapContextMenu
+              position={mapMenuPosition}
+              items={
+                mapMenuFeature?.type === 'incident'
+                  ? buildIncidentMenuItems(mapMenuFeature.incident)
+                  : mapMenuFeature?.type === 'zone'
+                  ? buildZoneMenuItems(mapMenuFeature.zone)
+                  : buildEmptyMenuItems(mapMenuFeature?.latLng)
+              }
+              onClose={closeMapMenu}
+            />
+          )}
+
+          <ConfirmDialog
+            isOpen={!!confirmDialog}
+            title={confirmDialog?.title || ''}
+            message={confirmDialog?.message || ''}
+            confirmText={confirmDialog?.confirmText || 'Confirm'}
+            danger={confirmDialog?.danger || false}
+            onConfirm={() => confirmDialog?.onConfirm?.()}
+            onCancel={() => setConfirmDialog(null)}
           />
 
           <MapLegend
@@ -1227,9 +1452,18 @@ export default function MapPage() {
         </div>
 
         {/* Right — Incident detail or zone creation panel */}
-        {(selectedIncident || showZoneCreatePanel) && (
+        {(selectedIncident || showZoneCreatePanel || pointFormMode) && (
           <div style={{ width: '480px', flexShrink: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {zoneInfoEditMode && selectedIncident ? (
+            {pointFormMode ? (
+              <IncidentForm
+                initialData={pointFormMode === 'edit' ? selectedIncident : null}
+                initialCoords={pointFormMode === 'create' ? pointFormCoords : null}
+                categories={categories}
+                onSubmit={handlePointFormSubmit}
+                onCancel={handlePointFormCancel}
+                submitting={submitting}
+              />
+            ) : zoneInfoEditMode && selectedIncident ? (
               <div style={{ padding: '20px', overflowY: 'auto', height: '100%' }}>
                 <ZoneForm
                   geometry={selectedIncident.geometry}

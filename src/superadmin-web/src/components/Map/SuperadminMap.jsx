@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE } from '@shared/constants.js';
@@ -63,7 +63,7 @@ function getMaxZoomForCenter(lng, lat) {
   return inside ? 14 : 10;
 }
 
-export default function SuperadminMap({
+const SuperadminMap = forwardRef(function SuperadminMap({
   incidents = [],
   zones = [],
   selectedEventId,
@@ -88,6 +88,9 @@ export default function SuperadminMap({
   onDrawVertexMove,
   onDrawVertexDragEnd,
   onContextMenu,
+  onMarkerContextMenu,
+  onZoneContextMenu,
+  onMapContextMenu,
   onDrawVertexDelete,
   onDrawUndo,
   onDrawRedo,
@@ -168,6 +171,9 @@ export default function SuperadminMap({
   const onDrawVertexMoveRef = useRef(onDrawVertexMove);
   const onDrawVertexDragEndRef = useRef(onDrawVertexDragEnd);
   const onContextMenuRef = useRef(onContextMenu);
+  const onMarkerContextMenuRef = useRef(onMarkerContextMenu);
+  const onZoneContextMenuRef = useRef(onZoneContextMenu);
+  const onMapContextMenuRef = useRef(onMapContextMenu);
   const onDrawVertexDeleteRef = useRef(onDrawVertexDelete);
   const onDrawUndoRef = useRef(onDrawUndo);
   const onDrawRedoRef = useRef(onDrawRedo);
@@ -177,11 +183,87 @@ export default function SuperadminMap({
   onDrawVertexMoveRef.current = onDrawVertexMove;
   onDrawVertexDragEndRef.current = onDrawVertexDragEnd;
   onContextMenuRef.current = onContextMenu;
+  onMarkerContextMenuRef.current = onMarkerContextMenu;
+  onZoneContextMenuRef.current = onZoneContextMenu;
+  onMapContextMenuRef.current = onMapContextMenu;
   onDrawVertexDeleteRef.current = onDrawVertexDelete;
   onDrawUndoRef.current = onDrawUndo;
   onDrawRedoRef.current = onDrawRedo;
   selectedDrawVertexIndexRef.current = selectedDrawVertexIndex;
   hoveredDrawVertexIndexRef.current = hoveredDrawVertexIndex;
+
+  // Expose imperative map actions to the parent for context-menu commands
+  useImperativeHandle(ref, () => ({
+    getMap: () => map.current,
+    centerAt: (lng, lat) => {
+      if (!map.current) return;
+      map.current.easeTo({ center: [lng, lat], duration: 300 });
+    },
+    resetView: () => {
+      if (!map.current) return;
+      map.current.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+    },
+  }));
+
+  // Attach right-click + long-press handlers to a marker element
+  const attachMarkerMenu = (element, incidentData) => {
+    const fireMenu = (clientX, clientY) => {
+      onMarkerContextMenuRef.current?.(incidentData, { x: clientX, y: clientY });
+    };
+
+    const onContextMenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fireMenu(e.clientX, e.clientY);
+    };
+
+    // Long-press for touch devices
+    let longPressTimer = null;
+    let touchStartPos = null;
+    const onTouchStart = (e) => {
+      const touch = e.touches?.[0];
+      if (!touch) return;
+      touchStartPos = { x: touch.clientX, y: touch.clientY };
+      longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        touchStartPos = null;
+        fireMenu(touch.clientX, touch.clientY);
+      }, 500);
+    };
+    const onTouchMove = (e) => {
+      if (!longPressTimer || !touchStartPos) return;
+      const touch = e.touches?.[0];
+      if (!touch) return;
+      const dx = touch.clientX - touchStartPos.x;
+      const dy = touch.clientY - touchStartPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 10) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+        touchStartPos = null;
+      }
+    };
+    const onTouchEnd = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      touchStartPos = null;
+    };
+
+    element.addEventListener('contextmenu', onContextMenu);
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: true });
+    element.addEventListener('touchend', onTouchEnd);
+    element.addEventListener('touchcancel', onTouchEnd);
+
+    return () => {
+      element.removeEventListener('contextmenu', onContextMenu);
+      element.removeEventListener('touchstart', onTouchStart);
+      element.removeEventListener('touchmove', onTouchMove);
+      element.removeEventListener('touchend', onTouchEnd);
+      element.removeEventListener('touchcancel', onTouchEnd);
+    };
+  };
 
   // Initialize map once
   useEffect(() => {
@@ -636,6 +718,9 @@ export default function SuperadminMap({
         onEventClick?.(incident);
       });
 
+      // Right-click / long-press context menu
+      attachMarkerMenu(el, incident);
+
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([lng, lat])
         .addTo(map.current);
@@ -736,6 +821,8 @@ export default function SuperadminMap({
       el.addEventListener('click', () => {
         onEventClick?.(ghostIncident);
       });
+
+      attachMarkerMenu(el, ghostIncident);
 
       ghostMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([lng, lat])
@@ -1237,6 +1324,27 @@ export default function SuperadminMap({
           return;
         }
       }
+
+      // Normal mode — zones or empty map
+      e.preventDefault();
+      const clientX = e.originalEvent?.clientX ?? e.point?.x;
+      const clientY = e.originalEvent?.clientY ?? e.point?.y;
+      const point = e.point;
+      const box = [
+        [point.x - 5, point.y - 5],
+        [point.x + 5, point.y + 5],
+      ];
+      let zoneFeatures = [];
+      try {
+        zoneFeatures = mapInstance.queryRenderedFeatures(box, { layers: ['zone-fills'] });
+      } catch {
+        zoneFeatures = [];
+      }
+      if (zoneFeatures.length > 0) {
+        onZoneContextMenuRef.current?.(zoneFeatures[0], { x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+      } else {
+        onMapContextMenuRef.current?.({ x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+      }
     };
 
     mapInstance.on('contextmenu', onContextMenuEvent);
@@ -1575,7 +1683,9 @@ export default function SuperadminMap({
       `}</style>
     </div>
   );
-}
+});
+
+export default SuperadminMap;
 
 function buildPopupHTML(incident, isAdmin) {
   const vCfg = incident.verification_status ? VERIFICATION_CONFIG[incident.verification_status] : null;
