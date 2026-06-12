@@ -6096,3 +6096,39 @@ feat: add shared map context menu primitives (MapContextMenu, useMapContextMenu,
 ```
 
 *End of Phase 1 — Shared Context Menu Primitives*
+
+---
+
+## 📅 2026-06-12 — Phase 2: Admin Web — Full Map Context Menu
+
+### Summary
+Implemented the full right-click / long-press context menu for the admin-web map. `AdminMap` now forwards marker and zone context-menu events to `DashboardLayout`, which builds role-specific menus for empty map areas, incident markers, and polygon zones. Added imperative map handles (`centerAt`, `resetView`) via `forwardRef` so the layout can execute map commands. Resolve/Delete actions use the shared `ConfirmDialog`. Existing drawing/edit vertex context menus remain intact.
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Wrapped with `forwardRef`; exposed `centerAt`/`resetView`; added `onMarkerContextMenu`, `onZoneContextMenu`, `onMapContextMenu` props; attached marker right-click/long-press handlers; added zone/empty-area detection in the map `contextmenu` event. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Imported `useMapContextMenu` and `ConfirmDialog`; added `mapRef`; built menu item arrays for empty map, incident markers, and zones; wired Resolve/Delete with confirmation modal; preserved existing draw/edit vertex menus under renamed `drawContextMenu` state. |
+
+### Menu Options Added
+
+- **Empty map:** Create Zone Here, Create Incident Here, Center Map Here, Copy Coordinates, Reset Map View.
+- **Incident marker:** View Details, Edit Incident, Resolve, Delete, Copy Link.
+- **Polygon zone:** View Zone Details, Edit Zone Shape, Edit Zone Info, Resolve, Delete, Copy Link.
+
+### Verification
+
+```bash
+npm run build:admin-web       # ✅ 2.36s, zero errors
+npm run build:superadmin-web  # ✅ 2.71s, zero errors
+npm run build:user-web        # ✅ 2.54s, zero errors
+```
+
+### Git Commit
+
+```
+feat: implement full right-click/long-press context menu in admin-web map
+```
+
+*End of Phase 2 — Admin Web Context Menu*

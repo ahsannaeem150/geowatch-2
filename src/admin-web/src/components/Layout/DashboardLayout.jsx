@@ -10,6 +10,8 @@ import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
 import ZoneForm from '../ZoneForm/ZoneForm.jsx';
 import MapContextMenu from '../Map/MapContextMenu.jsx';
+import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
+import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api } from '../../services/api.js';
@@ -112,7 +114,16 @@ export default function DashboardLayout() {
   const isPolygonClosedRef = useRef(isPolygonClosed);
   const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
   const [selectedDrawVertexIndex, setSelectedDrawVertexIndex] = useState(null);
-  const [contextMenu, setContextMenu] = useState(null); // { x, y, type, index }
+  const [drawContextMenu, setDrawContextMenu] = useState(null); // { x, y, type, index }
+  const mapRef = useRef(null);
+  const {
+    isOpen: mapMenuOpen,
+    position: mapMenuPosition,
+    feature: mapMenuFeature,
+    open: openMapMenu,
+    close: closeMapMenu,
+  } = useMapContextMenu();
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   // ─── Zone Editing ───
   const [editingZoneId, setEditingZoneId] = useState(null);
@@ -459,7 +470,7 @@ export default function DashboardLayout() {
 
   // Clear context menu when switching modes
   useEffect(() => {
-    setContextMenu(null);
+    setDrawContextMenu(null);
   }, [mapMode, editingZoneId]);
 
   // Fetch domains for legend
@@ -498,6 +509,7 @@ export default function DashboardLayout() {
 
   // Handle viewport bounds changes from the map
   const handleViewportChange = useCallback((bounds) => {
+    closeMapMenu();
     viewportBoundsRef.current = bounds;
 
     if (viewportFilteringRef.current === true) {
@@ -513,7 +525,7 @@ export default function DashboardLayout() {
         })
         .catch(() => setEvents([]));
     }
-  }, [dateRange.from, dateRange.to]);
+  }, [dateRange.from, dateRange.to, closeMapMenu]);
 
   // ─── SSE Connection ───
   useEffect(() => {
@@ -809,7 +821,7 @@ export default function DashboardLayout() {
     setIsPolygonClosed(false);
     setShowZoneCreatePanel(false);
     setSelectedDrawVertexIndex(null);
-    setContextMenu(null);
+    setDrawContextMenu(null);
     drawHistoryRef.current = [{ vertices: [], isClosed: false }];
     historyIndexRef.current = 0;
   }, []);
@@ -840,7 +852,7 @@ export default function DashboardLayout() {
       return next;
     });
     setSelectedEditVertexIndex(null);
-    setContextMenu(null);
+    setDrawContextMenu(null);
   }, [pushToEditHistory]);
 
   const handleDrawVertexDelete = useCallback((index) => {
@@ -852,17 +864,141 @@ export default function DashboardLayout() {
     next.splice(index, 1);
     setDrawVertices(next);
     setSelectedDrawVertexIndex(null);
-    setContextMenu(null);
+    setDrawContextMenu(null);
     pushToHistory(next, isPolygonClosedRef.current);
   }, [pushToHistory]);
 
-  const handleContextMenu = useCallback((data) => {
-    setContextMenu(data);
+  const handleDrawContextMenu = useCallback((data) => {
+    setDrawContextMenu(data);
   }, []);
 
-  const handleContextMenuClose = useCallback(() => {
-    setContextMenu(null);
+  const handleDrawContextMenuClose = useCallback(() => {
+    setDrawContextMenu(null);
   }, []);
+
+  // ─── General map context menu handlers ───
+  const handleMarkerContextMenu = useCallback((incident, point) => {
+    openMapMenu(point, { type: 'incident', incident });
+  }, [openMapMenu]);
+
+  const handleZoneContextMenu = useCallback((feature, point, latLng) => {
+    const zoneId = feature?.properties?.id || feature?.id;
+    const zone = polygonIncidents.find((z) => String(z.id) === String(zoneId));
+    if (zone) {
+      openMapMenu(point, { type: 'zone', zone, latLng });
+    } else {
+      openMapMenu(point, { type: 'empty', latLng });
+    }
+  }, [openMapMenu, polygonIncidents]);
+
+  const handleMapContextMenu = useCallback((point, latLng) => {
+    openMapMenu(point, { type: 'empty', latLng });
+  }, [openMapMenu]);
+
+  const handleResolveIncident = useCallback(async (id) => {
+    try {
+      await api.resolveIncident(id);
+      setToast({ message: 'Incident resolved', type: 'success' });
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to resolve incident', type: 'error' });
+    } finally {
+      setConfirmDialog(null);
+      closeMapMenu();
+    }
+  }, [closeMapMenu]);
+
+  const handleDeleteIncident = useCallback(async (id) => {
+    try {
+      await api.deleteIncident(id);
+      setToast({ message: 'Incident deleted', type: 'success' });
+      if (selectedIncident?.id === id) {
+        handleClosePanel();
+      }
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to delete incident', type: 'error' });
+    } finally {
+      setConfirmDialog(null);
+      closeMapMenu();
+    }
+  }, [selectedIncident, handleClosePanel, closeMapMenu]);
+
+  const copyCoordinates = useCallback(async (lat, lng) => {
+    try {
+      await navigator.clipboard.writeText(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      setToast({ message: 'Coordinates copied to clipboard', type: 'success' });
+    } catch {
+      setToast({ message: 'Failed to copy coordinates', type: 'error' });
+    }
+    closeMapMenu();
+  }, []);
+
+  const copyLink = useCallback(async (key, id) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set(key, id);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setToast({ message: 'Link copied to clipboard', type: 'success' });
+    } catch {
+      setToast({ message: 'Failed to copy link', type: 'error' });
+    }
+    closeMapMenu();
+  }, []);
+
+  const handleCreateZoneHere = useCallback((lat, lng) => {
+    handleSetMode('polygon');
+    // Let handleSetMode reset state before adding the first vertex
+    setTimeout(() => {
+      handleDrawVertexAdd({ lat, lng });
+    }, 0);
+    closeMapMenu();
+  }, [handleSetMode, handleDrawVertexAdd, closeMapMenu]);
+
+  const handleCenterMapHere = useCallback((lng, lat) => {
+    mapRef.current?.centerAt(lng, lat);
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const handleResetMapView = useCallback(() => {
+    mapRef.current?.resetView();
+    closeMapMenu();
+  }, [closeMapMenu]);
+
+  const buildEmptyMenuItems = useCallback((latLng) => {
+    if (!latLng) return [];
+    const { lat, lng } = latLng;
+    return [
+      { label: 'Create Zone Here', onClick: () => handleCreateZoneHere(lat, lng) },
+      { label: 'Create Incident Here', onClick: () => { handleMapDblClick({ lat, lng }); closeMapMenu(); } },
+      { label: 'Center Map Here', onClick: () => handleCenterMapHere(lng, lat) },
+      { label: 'Copy Coordinates', onClick: () => copyCoordinates(lat, lng) },
+      { label: 'Reset Map View', onClick: handleResetMapView },
+    ];
+  }, [handleCreateZoneHere, handleMapDblClick, handleCenterMapHere, copyCoordinates, handleResetMapView, closeMapMenu]);
+
+  const buildIncidentMenuItems = useCallback((incident) => {
+    if (!incident) return [];
+    return [
+      { label: 'View Details', onClick: () => { handleEventClick(incident); closeMapMenu(); } },
+      { label: 'Edit Incident', onClick: () => { setSelectedIncident(incident); setIsEditing(true); setPanelMode('form'); setMarkerCoords(null); closeMapMenu(); } },
+      { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: incident.id, title: 'Resolve incident?', message: 'Mark this incident as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(incident.id) }) },
+      { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: incident.id, title: 'Delete incident?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(incident.id) }) },
+      { label: 'Copy Link', onClick: () => copyLink('incident', incident.id) },
+    ];
+  }, [handleEventClick, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
+
+  const buildZoneMenuItems = useCallback((zone) => {
+    if (!zone) return [];
+    return [
+      { label: 'View Zone Details', onClick: () => { handleZoneClick(zone.id); closeMapMenu(); } },
+      { label: 'Edit Zone Shape', onClick: () => { handleEditZone(zone); closeMapMenu(); } },
+      { label: 'Edit Zone Info', onClick: () => { handleZoneInfoEdit(zone); closeMapMenu(); } },
+      { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: zone.id, title: 'Resolve zone?', message: 'Mark this zone as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(zone.id) }) },
+      { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: zone.id, title: 'Delete zone?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(zone.id) }) },
+      { label: 'Copy Link', onClick: () => copyLink('zone', zone.id) },
+    ];
+  }, [handleZoneClick, handleEditZone, handleZoneInfoEdit, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
 
   const handleZoneCreateSubmit = useCallback(async (payload) => {
     setSubmitting(true);
@@ -910,8 +1046,8 @@ export default function DashboardLayout() {
     }
   }, []);
 
-  const handleEditZone = useCallback(() => {
-    const zone = polygonIncidents.find((z) => z.id === selectedZoneId);
+  const handleEditZone = useCallback((explicitZone) => {
+    const zone = explicitZone || polygonIncidents.find((z) => z.id === selectedZoneId);
     if (!zone || !zone.geometry?.coordinates?.[0]) return;
 
     // Clear drawing state
@@ -930,6 +1066,8 @@ export default function DashboardLayout() {
       }
     }
 
+    setSelectedZoneId(zone.id);
+    setSelectedIncident(zone);
     setEditingZoneId(zone.id);
     setEditingZoneVertices(coords);
     setOriginalZoneVertices(JSON.parse(JSON.stringify(coords)));
@@ -938,8 +1076,9 @@ export default function DashboardLayout() {
     editHistoryIndexRef.current = 0;
   }, [selectedZoneId, polygonIncidents]);
 
-  const handleZoneInfoEdit = useCallback(() => {
-    if (!selectedIncident || selectedIncident.geometry_type !== 'polygon') return;
+  const handleZoneInfoEdit = useCallback((explicitZone) => {
+    const zone = explicitZone || selectedIncident;
+    if (!zone || zone.geometry_type !== 'polygon') return;
 
     // Clear any active geometry drawing/editing state
     setMapMode('pan');
@@ -951,6 +1090,8 @@ export default function DashboardLayout() {
     setOriginalZoneVertices([]);
     setSelectedEditVertexIndex(null);
 
+    setSelectedIncident(zone);
+    setSelectedZoneId(zone.id);
     setPanelMode('zone-edit');
   }, [selectedIncident]);
 
@@ -1429,6 +1570,7 @@ export default function DashboardLayout() {
           }}
         >
           <AdminMap
+            ref={mapRef}
             incidents={pointIncidents}
             zones={polygonIncidents}
             showZones={showZones}
@@ -1453,7 +1595,10 @@ export default function DashboardLayout() {
             onDrawVertexSelect={handleDrawVertexSelect}
             onDrawVertexMove={handleDrawVertexMove}
             onDrawVertexDragEnd={handleDrawVertexDragEnd}
-            onContextMenu={handleContextMenu}
+            onContextMenu={handleDrawContextMenu}
+            onMarkerContextMenu={handleMarkerContextMenu}
+            onZoneContextMenu={handleZoneContextMenu}
+            onMapContextMenu={handleMapContextMenu}
             onDrawVertexDelete={handleDrawVertexDelete}
             onDrawUndo={handleDrawUndo}
             onDrawRedo={handleDrawRedo}
@@ -1549,37 +1694,61 @@ export default function DashboardLayout() {
             />
           )}
 
-          {contextMenu && (
+          {drawContextMenu && (
             <MapContextMenu
-              position={{ x: contextMenu.x, y: contextMenu.y }}
+              position={{ x: drawContextMenu.x, y: drawContextMenu.y }}
               items={
-                contextMenu.type === 'vertex'
+                drawContextMenu.type === 'vertex'
                   ? [
                       {
                         label: 'Delete vertex',
                         danger: true,
-                        onClick: () => handleDrawVertexDelete(contextMenu.index),
+                        onClick: () => handleDrawVertexDelete(drawContextMenu.index),
                       },
                     ]
-                  : contextMenu.type === 'empty'
+                  : drawContextMenu.type === 'empty'
                   ? [
                       {
                         label: 'Add vertex here',
-                        onClick: () => handleDrawVertexAdd({ lat: contextMenu.lat, lng: contextMenu.lng, insertIndex: contextMenu.insertIndex }),
+                        onClick: () => handleDrawVertexAdd({ lat: drawContextMenu.lat, lng: drawContextMenu.lng, insertIndex: drawContextMenu.insertIndex }),
                       },
                     ]
-                  : contextMenu.type === 'edge'
+                  : drawContextMenu.type === 'edge'
                   ? [
                       {
                         label: 'Add vertex here',
-                        onClick: () => handleEditEdgeVertexInsert([contextMenu.lng, contextMenu.lat], contextMenu.index),
+                        onClick: () => handleEditEdgeVertexInsert([drawContextMenu.lng, drawContextMenu.lat], drawContextMenu.index),
                       },
                     ]
                   : []
               }
-              onClose={handleContextMenuClose}
+              onClose={handleDrawContextMenuClose}
             />
           )}
+
+          {mapMenuOpen && (
+            <MapContextMenu
+              position={mapMenuPosition}
+              items={
+                mapMenuFeature?.type === 'incident'
+                  ? buildIncidentMenuItems(mapMenuFeature.incident)
+                  : mapMenuFeature?.type === 'zone'
+                  ? buildZoneMenuItems(mapMenuFeature.zone)
+                  : buildEmptyMenuItems(mapMenuFeature?.latLng)
+              }
+              onClose={closeMapMenu}
+            />
+          )}
+
+          <ConfirmDialog
+            isOpen={!!confirmDialog}
+            title={confirmDialog?.title || ''}
+            message={confirmDialog?.message || ''}
+            confirmText={confirmDialog?.confirmText || 'Confirm'}
+            danger={confirmDialog?.danger || false}
+            onConfirm={() => confirmDialog?.onConfirm?.()}
+            onCancel={() => setConfirmDialog(null)}
+          />
 
           <MapLegend
             domains={domains}
