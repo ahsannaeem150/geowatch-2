@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Loader2, AlertCircle, Check, KeyRound, UserX, UserCheck, Trash2, Edit3, Save, XCircle } from 'lucide-react';
 import { getUser, updateUser, resetUserPassword, deleteUser, getUserActivity } from '../../services/api.js';
 import ActivityTimeline from '../Audit/ActivityTimeline.jsx';
@@ -14,13 +14,14 @@ const TABS = [
   { key: 'activity', label: 'Activity' },
 ];
 
-export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }) {
+export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, initialTab, initialScroll }) {
   const [data, setData] = useState(null);
   const [activityData, setActivityData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+  const contentRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -55,6 +56,18 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Restore scroll position when returning from activity map view
+  useEffect(() => {
+    if (!loading && activeTab === (initialTab || 'overview') && initialScroll && contentRef.current) {
+      // Defer so the DOM has settled and content height is final
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = initialScroll;
+        }
+      });
+    }
+  }, [loading, activeTab, initialTab, initialScroll]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -166,7 +179,10 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        <div
+          ref={contentRef}
+          style={{ flex: 1, overflowY: 'auto', padding: '20px' }}
+        >
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12, color: 'var(--text-muted)' }}>
               <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
@@ -382,7 +398,10 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete }
                     loading={activityLoading}
                     emptyMessage="No activity recorded yet"
                     actorName={user?.full_name}
-                    returnPath="/superadmin/users"
+                    getReturnTo={() => {
+                      const scrollTop = contentRef.current?.scrollTop || 0;
+                      return `/superadmin/users?drawer=${userId}&tab=${activeTab}&scroll=${scrollTop}`;
+                    }}
                     staffUserId={user?.id}
                   />
                 </>

@@ -4,6 +4,7 @@ import { PanelLeftOpen } from 'lucide-react';
 import {
   getIncidents,
   getIncident,
+  getDeletedIncident,
   createIncident,
   updateIncident,
   deleteIncident,
@@ -510,7 +511,7 @@ export default function MapPage() {
   }, [returnToParam, navigate, setSearchParams]);
 
 
-  // ─── Handle incident ID from URL — deep-linking with ghost support ───
+  // ─── Handle incident ID from URL — deep-linking with ghost + deleted support ───
   useEffect(() => {
     if (!incidentIdFromUrl) {
       ghostFetchAttempted.current = false;
@@ -539,15 +540,39 @@ export default function MapPage() {
             handleSelectIncident(res.incident);
           }
         })
-        .catch(() => {
-          setSearchParams((prev) => {
-            const next = new URLSearchParams(prev);
-            next.delete('incident');
-            return next;
-          });
+        .catch((err) => {
+          // Incident may have been soft-deleted. Try to load it from the recycle bin
+          // so the user still sees a meaningful panel instead of a flash + empty state.
+          if (err?.status === 404 || err?.code === 'NOT_FOUND') {
+            getDeletedIncident(incidentIdFromUrl)
+              .then((res) => {
+                if (res?.incident) {
+                  setSelectedIncident({ ...res.incident, isDeleted: true });
+                } else {
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.delete('incident');
+                    return next;
+                  });
+                }
+              })
+              .catch(() => {
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete('incident');
+                  return next;
+                });
+              });
+          } else {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('incident');
+              return next;
+            });
+          }
         });
     }
-  }, [incidentIdFromUrl, incidents.length, handleSelectIncident]);
+  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, setSearchParams]);
 
   // ─── Zone selection ───
   const handleZoneClick = useCallback((zoneId) => {
@@ -1232,6 +1257,7 @@ export default function MapPage() {
             onIncidentClick={handleActivityIncidentClick}
             onToggleCollapse={handleToggleActivitySidebar}
             onClose={handleCloseActivitySidebar}
+            onBackToProfile={handleBackToProfile}
           />
         )}
         {isActivityMode && !activitySidebarOpen && (

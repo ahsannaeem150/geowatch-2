@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getIncident, updateIncident, deleteIncident, resolveIncident } from '../../services/api.js';
+import { getIncident, updateIncident, deleteIncident, resolveIncident, restoreIncident } from '../../services/api.js';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
@@ -40,6 +40,14 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
     // If the incident already has sources and timeline, use it directly
     if (incident.sources && incident.timeline) {
       setData({ incident, sources: incident.sources, timeline: incident.timeline });
+      setLoading(false);
+      return;
+    }
+
+    // Deleted incidents cannot be re-fetched from the live endpoint.
+    // Render them directly from the recycle-bin payload.
+    if (incident.isDeleted || incident.status === 'hidden') {
+      setData({ incident, sources: [], timeline: [] });
       setLoading(false);
       return;
     }
@@ -153,6 +161,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
   if (!data) return null;
 
   const { incident: inc, sources = [], timeline = [] } = data;
+  const isDeleted = inc.isDeleted || inc.status === 'hidden';
   const catColor = inc.domain_color || '#6b7280';
   const vCfg = inc.verification_status ? VERIFICATION_CONFIG[inc.verification_status] : null;
 
@@ -160,9 +169,10 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
     ? format(new Date(inc.start_date), 'MMM d, yyyy · h:mm a')
     : 'Unknown';
 
-  const adminUrl = typeof window !== 'undefined'
+  const adminBaseUrl = typeof window !== 'undefined'
     ? window.location.origin.replace(':5175', ':5174')
     : 'http://localhost:5174';
+  const adminUrl = `${adminBaseUrl}?incident=${inc.id}`;
 
   const isPolygon = inc.geometry_type === 'polygon' || inc.geometry?.type === 'Polygon';
 
@@ -216,6 +226,87 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
         </div>
       )}
 
+      {/* Deleted incident banner */}
+      {isDeleted && (
+        <div
+          style={{
+            padding: '12px 14px',
+            background: 'var(--alert-error-bg)',
+            border: '1px solid var(--alert-error-border)',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--danger)' }}>
+            This incident has been moved to the Recycle Bin.
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            {inc.deleted_at && (
+              <div>Deleted {format(new Date(inc.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
+            )}
+            {inc.deleted_by_name && <div>Deleted by {inc.deleted_by_name}</div>}
+            {inc.original_status && <div>Original status: {inc.original_status}</div>}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <a
+              href="#/superadmin/recycle-bin"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.hash = '#/superadmin/recycle-bin';
+              }}
+              style={{
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: 700,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              View in Recycle Bin
+            </a>
+            <button
+              onClick={async () => {
+                setActionLoading(true);
+                setActionError('');
+                try {
+                  await restoreIncident(inc.id);
+                  setActionSuccess('Incident restored successfully');
+                  const res = await getIncident(inc.id);
+                  if (res?.incident) {
+                    setData(res);
+                  }
+                  onRefresh?.();
+                } catch (err) {
+                  setActionError(err.message || 'Failed to restore incident');
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+              disabled={actionLoading}
+              style={{
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: 700,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--success)',
+                background: 'var(--alert-success-bg)',
+                color: 'var(--success)',
+                cursor: actionLoading ? 'not-allowed' : 'pointer',
+                opacity: actionLoading ? 0.6 : 1,
+              }}
+            >
+              {actionLoading ? 'Restoring…' : 'Restore Incident'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {mode === 'edit' ? (
         /* ─── Edit Form ─── */
         <EditForm
@@ -229,7 +320,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
       ) : (
         <>
           {/* Admin Actions */}
-          {adminMode && (
+          {adminMode && !isDeleted && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {!isPolygon && (
                 <button
@@ -372,15 +463,15 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
               style={{
                 fontSize: '10px',
                 fontWeight: 700,
-                color: inc.status === 'active' ? '#22c55e' : 'var(--text-muted)',
-                background: inc.status === 'active' ? 'var(--alert-success-bg)' : 'rgba(107, 114, 128, 0.1)',
+                color: isDeleted ? 'var(--danger)' : inc.status === 'active' ? '#22c55e' : 'var(--text-muted)',
+                background: isDeleted ? 'var(--alert-error-bg)' : inc.status === 'active' ? 'var(--alert-success-bg)' : 'rgba(107, 114, 128, 0.1)',
                 padding: '3px 10px',
                   borderRadius: 'var(--radius-sm)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
               }}
             >
-              {inc.status}
+              {isDeleted ? 'Deleted' : inc.status}
             </span>
           </div>
 

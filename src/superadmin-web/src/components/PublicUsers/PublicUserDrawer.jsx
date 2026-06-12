@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Loader2, AlertCircle, UserX, UserCheck, Bookmark } from 'lucide-react';
 import { getPublicUser, updatePublicUser, getPublicUserActivity } from '../../services/api.js';
 import ActivityTimeline from '../Audit/ActivityTimeline.jsx';
@@ -10,13 +10,14 @@ const TABS = [
   { key: 'saved', label: 'Saved Incidents' },
 ];
 
-export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
+export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab, initialScroll }) {
   const [data, setData] = useState(null);
   const [activityData, setActivityData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+  const contentRef = useRef(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -41,6 +42,17 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Restore scroll position when returning from activity map view
+  useEffect(() => {
+    if (!loading && activeTab === (initialTab || 'overview') && initialScroll && contentRef.current) {
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = initialScroll;
+        }
+      });
+    }
+  }, [loading, activeTab, initialTab, initialScroll]);
 
   const handleToggleActive = async () => {
     if (!data?.user) return;
@@ -118,7 +130,10 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        <div
+          ref={contentRef}
+          style={{ flex: 1, overflowY: 'auto', padding: '20px' }}
+        >
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12, color: 'var(--text-muted)' }}>
               <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
@@ -252,7 +267,10 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate }) {
                     loading={activityLoading}
                     emptyMessage="No activity recorded yet"
                     actorName={user?.full_name}
-                    returnPath="/superadmin/public-users"
+                    getReturnTo={() => {
+                      const scrollTop = contentRef.current?.scrollTop || 0;
+                      return `/superadmin/public-users?drawer=${userId}&tab=${activeTab}&scroll=${scrollTop}`;
+                    }}
                     publicUserId={user?.id}
                   />
                 </>

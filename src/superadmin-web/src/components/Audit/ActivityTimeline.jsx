@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
   LogIn,
@@ -69,7 +69,16 @@ const ACTION_ICONS = {
 
 function getActivityDescription(log) {
   const label = getAuditActionShortLabel(log.action);
-  const details = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {});
+  let details = {};
+  if (typeof log.details === 'string') {
+    try {
+      details = JSON.parse(log.details);
+    } catch {
+      details = {};
+    }
+  } else if (log.details && typeof log.details === 'object') {
+    details = log.details;
+  }
   const targetTitle = details.title || details.fullName || details.email || '';
 
   if (targetTitle) {
@@ -81,13 +90,13 @@ function getActivityDescription(log) {
   return label;
 }
 
-function buildIncidentLink(log, actorName, returnPath, staffUserId, publicUserId) {
+function buildIncidentLink(log, actorName, returnToValue, staffUserId, publicUserId) {
   if (!log.target_id || log.target_type !== 'incident') return null;
   const params = new URLSearchParams();
   params.set('incident', log.target_id);
   params.set('ref', 'activity');
   if (actorName) params.set('actor', actorName);
-  if (returnPath) params.set('returnTo', returnPath);
+  if (returnToValue) params.set('returnTo', returnToValue);
   if (staffUserId) params.set('staffUserId', staffUserId);
   if (publicUserId) params.set('publicUserId', publicUserId);
   return `/superadmin/map?${params.toString()}`;
@@ -99,6 +108,7 @@ export default function ActivityTimeline({
   emptyMessage = 'No activity yet',
   actorName,
   returnPath,
+  getReturnTo,
   staffUserId,
   publicUserId,
   onIncidentClick,
@@ -192,6 +202,11 @@ export default function ActivityTimeline({
                 <ClickableItem
                   link={incidentLink}
                   log={log}
+                  actorName={actorName}
+                  staffUserId={staffUserId}
+                  publicUserId={publicUserId}
+                  returnPath={returnPath}
+                  getReturnTo={getReturnTo}
                   isSelected={isSelected}
                   onIncidentClick={onIncidentClick}
                 >
@@ -210,7 +225,8 @@ export default function ActivityTimeline({
   );
 }
 
-function ClickableItem({ link, log, isSelected, onIncidentClick, children }) {
+function ClickableItem({ link, log, actorName, staffUserId, publicUserId, returnPath, getReturnTo, isSelected, onIncidentClick, children }) {
+  const navigate = useNavigate();
   const baseStyle = {
     display: 'block',
     width: '100%',
@@ -238,6 +254,23 @@ function ClickableItem({ link, log, isSelected, onIncidentClick, children }) {
       <button
         type="button"
         onClick={() => onIncidentClick(log)}
+        style={baseStyle}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  if (getReturnTo) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          const returnToValue = getReturnTo();
+          navigate(buildIncidentLink(log, actorName, returnToValue, staffUserId, publicUserId));
+        }}
         style={baseStyle}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}

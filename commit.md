@@ -6472,3 +6472,51 @@ feat: fix activity sidebar clicks/overlap and add pagination + date filtering
 ```
 
 *End of activity-inspector follow-up.*
+
+---
+
+## ✨ 2026-06-13 — Feature follow-up: Graceful deleted-incident handling + Back to Profile restoration
+
+### Issues Addressed
+
+1. **Clicking a deleted incident in the activity sidebar caused a glitch/flash**
+   - Root cause: the map page tried to fetch the live incident, got a 404, and immediately removed the `incident` URL param, producing a brief selection flash followed by an empty panel.
+   - Fix: when `getIncident` returns 404, the map now attempts to load the soft-deleted incident from the recycle bin via `GET /api/v1/incidents/deleted/:id`. If found, it renders a read-only "Deleted incident" panel instead of failing.
+
+2. **No way to return from activity map to the exact profile location**
+   - Fix: added a "Back to Profile" button to the activity sidebar header. The button navigates to the originating profile page and restores the exact drawer tab and scroll position captured when the incident was clicked.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/services/api.js` | Added `getDeletedIncident(id)` helper that calls `/incidents/deleted/:id`. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Deep-link effect now tries the recycle-bin endpoint on 404; added `onBackToProfile` prop wiring to the activity sidebar. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Added deleted-incident banner with deletion metadata, "View in Recycle Bin" link, and "Restore Incident" action; disabled edit/resolve/delete for deleted incidents; fixed "Open in Admin" link to include the incident id. |
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | Added `onBackToProfile` prop and a "Back to Profile" button in the sidebar header. |
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Added optional `getReturnTo` callback for dynamic return-URL generation (captures live scroll position); added safe `JSON.parse` guard for audit `details`. |
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | Added `initialTab`/`initialScroll` props and `contentRef`; restores scroll position when returning; passes `getReturnTo` to `ActivityTimeline`. |
+| `src/superadmin-web/src/pages/UsersPage.jsx` | Reads `drawer`/`tab`/`scroll` query params, opens the drawer with restored state, and clears the params after consumption. |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Same drawer restoration support as staff user drawer. |
+| `src/superadmin-web/src/pages/PublicUsersPage.jsx` | Same URL restoration support as staff users page. |
+
+### Behavior
+
+- Deleted incidents clicked in the activity sidebar now open a dedicated panel showing the incident title, deletion date, deleter, original status, and restore/recycle-bin actions. No map flash occurs.
+- Live incidents continue to open normally in the map detail panel.
+- The "Back to Profile" button returns to `/superadmin/users` or `/superadmin/public-users`, re-opens the correct user's drawer, activates the Activity tab, and scrolls to the exact previous position.
+- Activity timeline JSON parsing no longer crashes on malformed `details` strings.
+
+### Verification
+
+```bash
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+feat: handle deleted incidents in activity sidebar and restore exact profile position on back
+```
+
+*End of activity-inspector deleted-incident + back-to-profile follow-up.*

@@ -158,6 +158,10 @@ export function listDeletedIncidents() {
   return request('/incidents/deleted');
 }
 
+export function getDeletedIncident(id) {
+  return request(`/incidents/deleted/${id}`);
+}
+
 export function restoreIncident(id) {
   return request(`/incidents/${id}/restore`, { method: 'POST' });
 }

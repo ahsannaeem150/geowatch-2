@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PanelLeftClose, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PanelLeftClose, X, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import ActivityTimeline from './ActivityTimeline.jsx';
 import { getUserActivity, getPublicUserActivity } from '../../services/api.js';
 
@@ -37,6 +37,7 @@ export default function ActivityInspectorSidebar({
   onIncidentClick,
   onToggleCollapse,
   onClose,
+  onBackToProfile,
 }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -165,6 +166,31 @@ export default function ActivityInspectorSidebar({
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
             {pagination ? `${pagination.total} events` : `${logs.length} events`}
           </div>
+          {onBackToProfile && (
+            <button
+              type="button"
+              onClick={onBackToProfile}
+              title="Back to profile"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                marginTop: 8,
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--navy-500)',
+                background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+                color: '#fff',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <ArrowLeft size={12} />
+              Back to Profile
+            </button>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <button

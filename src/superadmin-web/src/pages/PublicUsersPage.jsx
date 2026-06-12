@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Loader2, AlertTriangle } from 'lucide-react';
 import { listPublicUsers, updatePublicUser } from '../services/api.js';
 import { useEventSource } from '../hooks/useEventSource.js';
@@ -6,13 +7,33 @@ import PublicUserTable from '../components/PublicUsers/PublicUserTable.jsx';
 import PublicUserDrawer from '../components/PublicUsers/PublicUserDrawer.jsx';
 
 export default function PublicUsersPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Capture restoration params once so they stay stable after the URL is cleaned.
+  const [restoration] = useState(() => ({
+    drawer: searchParams.get('drawer'),
+    tab: searchParams.get('tab') || 'overview',
+    scroll: parseInt(searchParams.get('scroll') || '0', 10) || 0,
+  }));
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
   const [filters, setFilters] = useState({ search: '', isActive: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [detailUserId, setDetailUserId] = useState(null);
+  const [detailUserId, setDetailUserId] = useState(restoration.drawer);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Clear restoration params from URL once the drawer has consumed them
+  useEffect(() => {
+    if (searchParams.has('drawer') || searchParams.has('tab') || searchParams.has('scroll')) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('drawer');
+        next.delete('tab');
+        next.delete('scroll');
+        return next;
+      });
+    }
+  }, [searchParams, setSearchParams]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -213,6 +234,8 @@ export default function PublicUsersPage() {
           userId={detailUserId}
           onClose={() => setDetailUserId(null)}
           onUpdate={() => fetchUsers()}
+          initialTab={restoration.tab}
+          initialScroll={restoration.scroll}
         />
       )}
 
