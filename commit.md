@@ -6747,3 +6747,57 @@ feat: highlight and scroll to incident when opening recycle bin from detail pane
 ```
 
 *End of recycle-bin highlight feature.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Recycle Bin Map view
+
+### Issue
+- Recycle-bin rows were not clickable from the map, and deleted incidents had no dedicated map-browsing experience.
+- Superadmins needed to see deleted incidents on `/superadmin/map` with the same filtering/pagination affordances as the activity inspector.
+
+### Fix
+- **Backend** `listDeletedIncidents` already supports server-side pagination, date-range filtering, and text search; response shape now includes `pagination`.
+- **API client** `listDeletedIncidents(params)` now forwards query params.
+- **New component** `RecycleBinSidebar` lists deleted incidents with:
+  - Search by title / description / location / category / domain
+  - Date-deleted range filter
+  - Per-page selector (10 / 25 / 50 / 100)
+  - Previous / next pagination
+  - Clicking an incident opens it on the map as a ghost marker/zone with the read-only deleted panel
+  - Back to Recycle Bin button
+  - Collapse / close controls that stay on the map
+- **MapPage** integration:
+  - New `?ref=recyclebin` mode renders `RecycleBinSidebar`.
+  - Selecting a deleted incident from the sidebar sets `?incident=<id>` and reuses the existing deep-link ghost/deleted flow.
+  - Contextual banner adapts to Recycle Bin: "Showing incident from Recycle Bin" with "Back to Recycle Bin".
+  - Ghost incident banner now distinguishes deleted/purged incidents from out-of-date-range ghosts.
+- **RecycleBinPage** integration:
+  - New "View on Map" header button navigates to `/superadmin/map?ref=recyclebin`.
+  - Rows are now clickable and navigate to `/superadmin/map?ref=recyclebin&incident=<id>`.
+  - Restore / purge action buttons stop propagation so they still work inside clickable rows.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Map/RecycleBinSidebar.jsx` | New recycle-bin sidebar component with search, date filters, pagination, and per-page selector. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Added `?ref=recyclebin` mode, sidebar wiring, deleted-ghost banner variant, and Back to Recycle Bin navigation. |
+| `src/superadmin-web/src/pages/RecycleBinPage.jsx` | Added "View on Map" button, clickable rows, and row-level navigation to the map. |
+| `src/superadmin-web/src/services/api.js` | `listDeletedIncidents` now accepts and serializes query params. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/incidents/deleted?page=1&limit=2"  # ✅ returns paginated deleted incidents
+```
+
+### Git Commit
+
+```
+feat: add Recycle Bin map view with searchable, paginated sidebar
+```
+
+*End of Recycle Bin Map view feature.*

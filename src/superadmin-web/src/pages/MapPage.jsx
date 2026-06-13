@@ -25,6 +25,7 @@ import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
 import IncidentForm from '../components/IncidentForm/IncidentForm.jsx';
 import ActivityInspectorSidebar from '../components/Audit/ActivityInspectorSidebar.jsx';
+import RecycleBinSidebar from '../components/Map/RecycleBinSidebar.jsx';
 
 function pointToSegmentDistance(p, a, b) {
   const dx = b[0] - a[0];
@@ -145,7 +146,7 @@ export default function MapPage() {
   const editHistoryIndexRef = useRef(-1);
 
   // Show contextual banner when coming from activity timeline with an incident
-  const showContextBanner = refParam === 'activity' && incidentIdFromUrl;
+  const showContextBanner = (refParam === 'activity' && incidentIdFromUrl) || (refParam === 'recyclebin' && incidentIdFromUrl);
 
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
@@ -157,6 +158,10 @@ export default function MapPage() {
   // ─── Activity inspector sidebar ───
   const [activitySidebarOpen, setActivitySidebarOpen] = useState(true);
   const isActivityMode = refParam === 'activity' && (staffUserId || publicUserId);
+
+  // ─── Recycle Bin sidebar ───
+  const [recycleBinSidebarOpen, setRecycleBinSidebarOpen] = useState(true);
+  const isRecycleBinMode = refParam === 'recyclebin';
 
   // Ghost zone for recycle-bin incidents
   const [ghostZone, setGhostZone] = useState(null);
@@ -545,6 +550,33 @@ export default function MapPage() {
       return next;
     });
   }, [setSearchParams]);
+
+  const handleToggleRecycleBinSidebar = useCallback(() => {
+    setRecycleBinSidebarOpen((prev) => !prev);
+  }, []);
+
+  const handleCloseRecycleBinSidebar = useCallback(() => {
+    // Close the recycle bin sidebar and stay on the map.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('ref');
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const handleRecycleBinIncidentClick = useCallback((incident) => {
+    // Selecting a deleted incident from the recycle-bin sidebar navigates via URL
+    // so the deep-link effect loads the ghost marker/zone and read-only panel.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('incident', incident.id);
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const handleBackToRecycleBin = useCallback(() => {
+    navigate('/superadmin/recycle-bin');
+  }, [navigate]);
 
 
   // ─── Handle incident ID from URL — deep-linking with ghost + deleted support ───
@@ -1206,8 +1238,6 @@ export default function MapPage() {
   }, []);
 
   const handleDismissContext = useCallback(() => {
-    setSelectedIncident(null);
-    setGhostZone(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('ref');
@@ -1267,15 +1297,21 @@ export default function MapPage() {
               }}
             />
             <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
-              Showing incident from{' '}
+              {refParam === 'recyclebin'
+                ? 'Showing incident from '
+                : 'Showing incident from '}
               <span style={{ fontWeight: 700 }}>
-                {actorParam ? `${actorParam}'s activity` : 'activity timeline'}
+                {refParam === 'recyclebin'
+                  ? 'Recycle Bin'
+                  : actorParam
+                  ? `${actorParam}'s activity`
+                  : 'activity timeline'}
               </span>
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             <button
-              onClick={handleBackToProfile}
+              onClick={refParam === 'recyclebin' ? handleBackToRecycleBin : handleBackToProfile}
               style={{
                 padding: '5px 12px',
                 fontSize: '12px',
@@ -1289,7 +1325,7 @@ export default function MapPage() {
                 transition: 'all 0.2s ease',
               }}
             >
-              ← Back to profile
+              ← {refParam === 'recyclebin' ? 'Back to Recycle Bin' : 'Back to profile'}
             </button>
             <button
               onClick={handleDismissContext}
@@ -1324,6 +1360,15 @@ export default function MapPage() {
             onBackToProfile={handleBackToProfile}
           />
         )}
+        {isRecycleBinMode && recycleBinSidebarOpen && (
+          <RecycleBinSidebar
+            selectedIncidentId={incidentIdFromUrl}
+            onIncidentClick={handleRecycleBinIncidentClick}
+            onToggleCollapse={handleToggleRecycleBinSidebar}
+            onClose={handleCloseRecycleBinSidebar}
+            onBackToRecycleBin={handleBackToRecycleBin}
+          />
+        )}
         {isActivityMode && !activitySidebarOpen && (
           <div
             style={{
@@ -1342,6 +1387,41 @@ export default function MapPage() {
               type="button"
               onClick={handleToggleActivitySidebar}
               title="Show activity sidebar"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              <PanelLeftOpen size={16} />
+            </button>
+          </div>
+        )}
+        {isRecycleBinMode && !recycleBinSidebarOpen && (
+          <div
+            style={{
+              width: '44px',
+              minWidth: '44px',
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              paddingTop: '12px',
+              background: 'var(--bg-surface)',
+              borderRight: '1px solid var(--border-subtle)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleToggleRecycleBinSidebar}
+              title="Show recycle bin sidebar"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1619,8 +1699,8 @@ export default function MapPage() {
                   width: '10px',
                   height: '10px',
                   borderRadius: '50%',
-                  background: 'var(--text-muted)',
-                  border: '2px dashed var(--text-muted)',
+                  background: ghostIncident.isDeleted || ghostIncident.isPurged ? 'var(--danger)' : 'var(--text-muted)',
+                  border: ghostIncident.isDeleted || ghostIncident.isPurged ? '2px solid var(--danger)' : '2px dashed var(--text-muted)',
                   flexShrink: 0,
                 }}
               />
@@ -1628,40 +1708,71 @@ export default function MapPage() {
                 <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4 }}>
                   <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
                     {ghostIncident.title}
-                  </span>{' '}
-                  occurred on{' '}
-                  <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
-                    {ghostIncident.start_date
-                      ? new Date(ghostIncident.start_date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : 'unknown date'}
                   </span>
-                  {' — outside your current date range'}
+                  {ghostIncident.isDeleted || ghostIncident.isPurged ? (
+                    <span style={{ color: 'var(--danger)', fontWeight: 500 }}>
+                      {' — deleted incident (read-only)'}
+                    </span>
+                  ) : (
+                    <>
+                      {' occurred on '}
+                      <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
+                        {ghostIncident.start_date
+                          ? new Date(ghostIncident.start_date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })
+                          : 'unknown date'}
+                      </span>
+                      {' — outside your current date range'}
+                    </>
+                  )}
                 </p>
               </div>
-              <button
-                onClick={() => handleSwitchToIncidentDate(ghostIncident)}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--accent-light)',
-                  background: 'var(--alert-error-bg)',
-                  color: 'var(--accent-light)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-              >
-                Switch to this date
-              </button>
+              {ghostIncident.isDeleted || ghostIncident.isPurged ? (
+                <button
+                  onClick={() => navigate('/superadmin/recycle-bin')}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--danger)',
+                    background: 'var(--alert-error-bg)',
+                    color: 'var(--danger)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  Open Recycle Bin
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleSwitchToIncidentDate(ghostIncident)}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--accent-light)',
+                    background: 'var(--alert-error-bg)',
+                    color: 'var(--accent-light)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  Switch to this date
+                </button>
+              )}
             </div>
           )}
         </div>

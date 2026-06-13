@@ -197,8 +197,15 @@ export async function purgeIncidentController(req, res) {
 }
 
 export async function listDeletedIncidentsController(req, res) {
-  const incidents = await listDeletedIncidents();
-  res.apiSuccess({ incidents, count: incidents.length });
+  const filters = {
+    page: req.query.page,
+    limit: req.query.limit,
+    dateFrom: req.query.dateFrom,
+    dateTo: req.query.dateTo,
+    search: req.query.search,
+  };
+  const result = await listDeletedIncidents(filters);
+  res.apiSuccess(result);
 }
 
 export async function getDeletedIncidentController(req, res) {

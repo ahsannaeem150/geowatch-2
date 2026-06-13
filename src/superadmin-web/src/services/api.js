@@ -154,8 +154,9 @@ export function getDomains() {
 
 // ─── Recycle Bin ───
 
-export function listDeletedIncidents() {
-  return request('/incidents/deleted');
+export function listDeletedIncidents(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/incidents/deleted${qs ? `?${qs}` : ''}`);
 }
 
 export function getDeletedIncident(id) {

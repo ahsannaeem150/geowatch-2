@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Trash2,
   RotateCcw,
@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Search,
   Shield,
+  Map,
 } from 'lucide-react';
 import { listDeletedIncidents, restoreIncident, purgeIncident } from '../services/api.js';
 import { useEventSource } from '../hooks/useEventSource.js';
@@ -29,6 +30,7 @@ function daysRemaining(deletedAt) {
 }
 
 export default function RecycleBinPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightId = searchParams.get('highlight');
   const [incidents, setIncidents] = useState([]);
@@ -44,7 +46,7 @@ export default function RecycleBinPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await listDeletedIncidents();
+      const data = await listDeletedIncidents({ limit: 100 });
       setIncidents(data?.incidents || []);
     } catch (err) {
       setError(err.message || 'Failed to load recycle bin');
@@ -166,30 +168,52 @@ export default function RecycleBinPage() {
             Deleted incidents are retained for 30 days before permanent removal
           </p>
         </div>
-        <button
-          onClick={fetchDeleted}
-          disabled={loading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 14px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-default)',
-            background: 'var(--bg-elevated)',
-            color: 'var(--text-secondary)',
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            fontFamily: 'var(--font-sans)',
-            opacity: loading ? 0.6 : 1,
-          }}
-          onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-        >
-          <RefreshCw size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
-          Refresh
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => navigate('/superadmin/map?ref=recyclebin')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--navy-500)',
+              background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            <Map size={14} />
+            View on Map
+          </button>
+          <button
+            onClick={fetchDeleted}
+            disabled={loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-default)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-sans)',
+              opacity: loading ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          >
+            <RefreshCw size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Error */}
@@ -334,7 +358,9 @@ export default function RecycleBinPage() {
                         transition: 'background var(--transition-fast), box-shadow var(--transition-fast)',
                         background: isHighlighted ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
                         boxShadow: isHighlighted ? 'inset 3px 0 0 0 var(--warning)' : 'none',
+                        cursor: 'pointer',
                       }}
+                      onClick={() => navigate(`/superadmin/map?ref=recyclebin&incident=${incident.id}`)}
                       onMouseEnter={(e) => {
                         if (!isHighlighted) e.currentTarget.style.background = 'var(--bg-hover)';
                       }}
@@ -420,7 +446,10 @@ export default function RecycleBinPage() {
                         </span>
                       </td>
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <div
+                          style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             onClick={() => handleRestore(incident.id)}
                             disabled={!!isActionLoading}

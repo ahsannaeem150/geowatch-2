@@ -476,30 +476,80 @@ export async function purgeIncident(id, purgedBy) {
   return result.rows[0];
 }
 
-export async function listDeletedIncidents() {
+export async function listDeletedIncidents(filters = {}) {
+  const conditions = [
+    "i.status = 'hidden'",
+    'l.restored_at IS NULL',
+    'l.purged_at IS NULL',
+    "l.deleted_at > NOW() - INTERVAL '30 days'",
+  ];
+  const params = [];
+  let idx = 1;
+
+  if (filters.dateFrom) {
+    conditions.push(`l.deleted_at >= $${idx++}`);
+    params.push(filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    conditions.push(`l.deleted_at <= $${idx++}`);
+    params.push(filters.dateTo);
+  }
+  if (filters.search) {
+    conditions.push(`(
+      i.title ILIKE $${idx}
+      OR i.description ILIKE $${idx}
+      OR i.location_context ILIKE $${idx}
+      OR c.name ILIKE $${idx}
+      OR d.name ILIKE $${idx}
+    )`);
+    params.push(`%${filters.search}%`);
+    idx++;
+  }
+
+  const where = conditions.join(' AND ');
+  const limit = Math.min(100, Math.max(1, parseInt(filters.limit, 10) || 25));
+  const page = Math.max(1, parseInt(filters.page, 10) || 1);
+  const offset = (page - 1) * limit;
+
+  const countResult = await query(
+    `SELECT COUNT(*) as total
+     FROM incidents i
+     JOIN deleted_incidents_log l ON i.id = l.incident_id
+     LEFT JOIN categories c ON i.category_id = c.id
+     LEFT JOIN domains d ON c.domain_id = d.id
+     LEFT JOIN users u ON l.deleted_by = u.id
+     WHERE ${where}`,
+    params
+  );
+  const total = parseInt(countResult.rows[0].total, 10);
+
   const sql = `
     SELECT
       i.id, i.title, i.description, i.latitude, i.longitude,
+      i.geometry_type,
       i.severity, i.status, i.start_date, i.end_date,
       i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
       i.location_context, i.category_id, i.verification_override,
       c.name AS category_name, c.slug AS category_slug,
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
       l.deleted_at, l.deleted_by, l.original_status,
+      ST_AsGeoJSON(i.geom)::json AS geometry,
       u.email AS deleted_by_email, u.full_name AS deleted_by_name
     FROM incidents i
     JOIN deleted_incidents_log l ON i.id = l.incident_id
     LEFT JOIN categories c ON i.category_id = c.id
     LEFT JOIN domains d ON c.domain_id = d.id
     LEFT JOIN users u ON l.deleted_by = u.id
-    WHERE i.status = 'hidden'
-      AND l.restored_at IS NULL
-      AND l.purged_at IS NULL
-      AND l.deleted_at > NOW() - INTERVAL '30 days'
+    WHERE ${where}
     ORDER BY l.deleted_at DESC
+    LIMIT $${idx++} OFFSET $${idx++}
   `;
-  const result = await query(sql);
-  return result.rows;
+  const result = await query(sql, [...params, limit, offset]);
+
+  return {
+    incidents: result.rows,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
 }
 
 export async function getDeletedIncidentById(id) {
