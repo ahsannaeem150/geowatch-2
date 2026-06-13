@@ -282,7 +282,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
-              onClick={() => navigate('/superadmin/recycle-bin')}
+              onClick={() => navigate(`/superadmin/recycle-bin?highlight=${inc.id}`)}
               style={{
                 padding: '6px 14px',
                 fontSize: '12px',

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Trash2,
   RotateCcw,
@@ -28,12 +29,16 @@ function daysRemaining(deletedAt) {
 }
 
 export default function RecycleBinPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [actionLoading, setActionLoading] = useState({});
   const [liveFlash, setLiveFlash] = useState(false);
+  const [highlightedId, setHighlightedId] = useState(null);
+  const rowRefs = useRef({});
 
   const fetchDeleted = useCallback(async () => {
     setLoading(true);
@@ -51,6 +56,31 @@ export default function RecycleBinPage() {
   useEffect(() => {
     fetchDeleted();
   }, [fetchDeleted]);
+
+  // Highlight and scroll to an incident passed via ?highlight=<id>
+  useEffect(() => {
+    if (!highlightId || incidents.length === 0) return;
+
+    const match = incidents.find((i) => i.id === highlightId);
+    if (!match) return;
+
+    setHighlightedId(highlightId);
+    const rowEl = rowRefs.current[highlightId];
+    if (rowEl) {
+      rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Remove the highlight param from the URL once it has been consumed
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('highlight');
+      return next;
+    });
+
+    // Clear the visual highlight after a few seconds
+    const timer = setTimeout(() => setHighlightedId(null), 4000);
+    return () => clearTimeout(timer);
+  }, [highlightId, incidents, setSearchParams]);
 
   // Real-time SSE: refresh when incidents are deleted/restored
   const handleSseEvent = useCallback((event) => {
@@ -294,15 +324,23 @@ export default function RecycleBinPage() {
                 {filtered.map((incident) => {
                   const daysLeft = daysRemaining(incident.deleted_at);
                   const isActionLoading = actionLoading[incident.id];
+                  const isHighlighted = highlightedId === incident.id;
                   return (
                     <tr
                       key={incident.id}
+                      ref={(el) => { rowRefs.current[incident.id] = el; }}
                       style={{
                         borderBottom: '1px solid var(--border-subtle)',
-                        transition: 'background var(--transition-fast)',
+                        transition: 'background var(--transition-fast), box-shadow var(--transition-fast)',
+                        background: isHighlighted ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                        boxShadow: isHighlighted ? 'inset 3px 0 0 0 var(--warning)' : 'none',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      onMouseEnter={(e) => {
+                        if (!isHighlighted) e.currentTarget.style.background = 'var(--bg-hover)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = isHighlighted ? 'rgba(245, 158, 11, 0.12)' : 'transparent';
+                      }}
                     >
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{incident.title}</div>

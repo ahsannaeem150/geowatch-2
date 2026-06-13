@@ -6714,3 +6714,36 @@ fix: activity sidebar close button now stays on map instead of returning to prof
 ```
 
 *End of sidebar close-button fix.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Highlight incident in Recycle Bin when opened from detail panel
+
+### Issue
+- Clicking **View in Recycle Bin** on a deleted incident opened the Recycle Bin page but gave no visual indication of which incident was clicked.
+
+### Fix
+- **View in Recycle Bin** now navigates to `/superadmin/recycle-bin?highlight=<incidentId>`.
+- `RecycleBinPage` reads the `highlight` query param, scrolls the matching row into view, and applies an amber left-border + background highlight.
+- The highlight is removed from the URL once consumed and fades after 4 seconds.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | "View in Recycle Bin" now passes `?highlight=<id>` in the URL. |
+| `src/superadmin-web/src/pages/RecycleBinPage.jsx` | Reads `highlight`, scrolls to the row, applies temporary highlight style, and clears the param. |
+
+### Verification
+
+```bash
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+feat: highlight and scroll to incident when opening recycle bin from detail panel
+```
+
+*End of recycle-bin highlight feature.*
