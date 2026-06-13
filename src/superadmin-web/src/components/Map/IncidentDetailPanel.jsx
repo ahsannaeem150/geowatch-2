@@ -255,7 +255,8 @@ export default function IncidentDetailPanel({
     : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20, overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box', background: 'var(--bg-base)', position: 'relative' }}>
+    <div className="incident-detail-panel" style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: 20, paddingBottom: 28, boxSizing: 'border-box', background: 'var(--bg-base)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Back + Admin link */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
@@ -698,6 +699,8 @@ export default function IncidentDetailPanel({
           </div>
         </>
       )}
+
+      </div>
 
       {/* Resolve Confirm Modal */}
       {showResolveConfirm && (

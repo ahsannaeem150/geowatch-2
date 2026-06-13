@@ -1271,7 +1271,7 @@ export default function MapPage() {
     : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--topbar-height))' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--topbar-height))', overflow: 'hidden' }}>
       {/* Contextual banner */}
       {showContextBanner && (
         <div
@@ -1347,7 +1347,7 @@ export default function MapPage() {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, alignItems: 'stretch', minHeight: 0, overflow: 'hidden' }}>
         {isActivityMode && activitySidebarOpen && (
           <ActivityInspectorSidebar
             actorName={actorParam}
@@ -1779,7 +1779,7 @@ export default function MapPage() {
 
         {/* Right — Incident detail or zone creation panel */}
         {(selectedIncident || showZoneCreatePanel || pointFormMode) && (
-          <div style={{ width: '480px', flexShrink: 0, minHeight: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ width: '480px', flexShrink: 0, minHeight: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
             {pointFormMode ? (
               <IncidentForm
                 initialData={pointFormMode === 'edit' ? selectedIncident : null}

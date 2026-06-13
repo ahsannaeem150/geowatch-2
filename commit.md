@@ -7066,3 +7066,150 @@ fix: include sources, timeline, and media in incident status history; make Debug
 ```
 
 *End of status history and debug metadata follow-up fixes.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Debug Metadata hidden when incident has X embeds / images
+
+### Issue
+- Incidents with sources (X embeds, images) hid the Debug Metadata section; the panel could not be scrolled to the bottom.
+- Incidents without sources showed Debug Metadata and collapsed normally.
+
+### Root cause
+- The incident detail panel relied on flex shrink (`flex: 1`, `minHeight: 0`) to fit inside the right sidebar. Twitter/X embeds and large media made the panel’s intrinsic content height exceed the available space, and the flex item was not reliably shrinking, so the section was pushed below the visible area and clipped by the parent `overflow: hidden`.
+
+### Fix
+- Made the right sidebar wrapper `position: relative`.
+- Positioned `IncidentDetailPanel` absolutely (`inset: 0`) so it is strictly bound to the sidebar height regardless of content size.
+- Added `overflowY: 'auto'` / `overflowX: 'hidden'` directly on the panel root so it always scrolls when content overflows.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | Right sidebar wrapper is now `position: relative`. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Panel is absolutely positioned and scrolls independently of content height. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix: bind incident detail panel to sidebar bounds so Debug Metadata scrolls with X embeds
+```
+
+*End of Debug Metadata scroll fix.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Debug Metadata unreachable on incidents with sources
+
+### Issue
+- Incidents with sources/media pushed Debug Metadata below the visible area and the panel could not be scrolled to it.
+- The same panel scrolled fine for incidents without sources.
+
+### Root cause
+- The map page layout used nested flex rows to size the right sidebar. The right sidebar wrapper relied on flex stretching to fill the available height, but when its only child (`IncidentDetailPanel`) was absolutely positioned, the flex item’s height was not reliably resolved in every browser/render path. As a result the sidebar collapsed to the height of its siblings or content, clipping the bottom of the panel.
+
+### Fix
+- Converted the map page content area to CSS Grid (`gridTemplateRows: 'auto 1fr'`) so the bottom row always has a definite height.
+- Gave the flex content row `height: '100%'` and the right sidebar wrapper `height: '100%'`, so the sidebar height is explicit and no longer depends on flex stretching.
+- Kept `IncidentDetailPanel` absolutely positioned inside the sidebar with `overflowY: 'auto'`.
+- Added a thicker, visible custom scrollbar to the incident detail panel and extra bottom padding so the scrollbar and Debug Metadata are clearly reachable.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | Grid-based layout; explicit `height: 100%` on content row and right sidebar. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Added `incident-detail-panel` class and bottom padding. |
+| `src/superadmin-web/src/index.css` | Visible scrollbar styling for `.incident-detail-panel`. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix: lock right sidebar height with grid so Debug Metadata scrolls on all incidents
+```
+
+*End of Debug Metadata scroll fix.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Restore superadmin map after layout regression
+
+### Issue
+- The previous grid-based layout change caused the superadmin map page to render blank; the map container collapsed to zero height.
+
+### Fix
+- Reverted the map page to the original flex layout (the grid row height was not resolving correctly in this component tree).
+- Kept the robust panel styles: `boxSizing: 'border-box'`, `flex: '1 1 0px'`, `minHeight: 0`, `overflowY: 'auto'`, `overflowX: 'hidden'`, plus the visible custom scrollbar.
+- Removed the absolute positioning experiment so the panel participates normally in the sidebar flex column.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | Reverted to flex layout; sidebar wrapper `position: relative` retained. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Flex-based scrollable panel with visible scrollbar class. |
+| `src/superadmin-web/src/index.css` | `.incident-detail-panel` scrollbar styles retained. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix: restore superadmin map layout while keeping Debug Metadata scrollable
+```
+
+*End of map layout restore.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Treat incident detail panel as a normal scroll container
+
+### Issue
+- Debug Metadata remained out of bounds and unreachable on incidents with sources, while the rest of the app scrolled correctly.
+
+### Fix
+- Converted the panel root from a flex item into a normal block-level scroll container (`height: 100%`, `overflowY: 'auto'`).
+- Moved the flex layout (`gap`, `flexDirection`) into an inner wrapper that holds the actual content.
+- Debug Metadata now behaves like a normal block child inside a scrolling panel.
+- Kept the visible custom scrollbar and bottom padding.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Panel root is a block scroll container; content wrapped in inner flex container. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix: make incident detail panel a normal scroll container so Debug Metadata stays reachable
+```
+
+*End of panel scroll fix.*
