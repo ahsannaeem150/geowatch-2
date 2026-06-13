@@ -26,6 +26,8 @@ import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
 import IncidentForm from '../components/IncidentForm/IncidentForm.jsx';
 import ActivityInspectorSidebar from '../components/Audit/ActivityInspectorSidebar.jsx';
 import RecycleBinSidebar from '../components/Map/RecycleBinSidebar.jsx';
+import UserDetailDrawer from '../components/Users/UserDetailDrawer.jsx';
+import PublicUserDrawer from '../components/PublicUsers/PublicUserDrawer.jsx';
 
 function pointToSegmentDistance(p, a, b) {
   const dx = b[0] - a[0];
@@ -161,6 +163,9 @@ export default function MapPage() {
 
   // ─── Recycle Bin sidebar ───
   const [recycleBinSidebarOpen, setRecycleBinSidebarOpen] = useState(true);
+
+  // ─── Inline creator profile drawer ───
+  const [creatorDrawer, setCreatorDrawer] = useState({ userId: null, role: null });
   const isRecycleBinMode = refParam === 'recyclebin';
 
   // Ghost zone for recycle-bin incidents
@@ -1271,7 +1276,8 @@ export default function MapPage() {
     : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--topbar-height))', overflow: 'hidden' }}>
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--topbar-height))', overflow: 'hidden' }}>
       {/* Contextual banner */}
       {showContextBanner && (
         <div
@@ -1811,6 +1817,7 @@ export default function MapPage() {
                 categories={categories}
                 onEditZone={handleEditZone}
                 onEditZoneInfo={handleZoneInfoEdit}
+                onViewCreator={(userId, role) => setCreatorDrawer({ userId, role })}
               />
             ) : (
               <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
@@ -1829,6 +1836,21 @@ export default function MapPage() {
         )}
       </div>
     </div>
+
+      {/* Inline creator profile drawer */}
+      {creatorDrawer.userId && creatorDrawer.role === 'public_user' && (
+        <PublicUserDrawer
+          userId={creatorDrawer.userId}
+          onClose={() => setCreatorDrawer({ userId: null, role: null })}
+        />
+      )}
+      {creatorDrawer.userId && creatorDrawer.role !== 'public_user' && (
+        <UserDetailDrawer
+          userId={creatorDrawer.userId}
+          onClose={() => setCreatorDrawer({ userId: null, role: null })}
+        />
+      )}
+    </>
   );
 }
 

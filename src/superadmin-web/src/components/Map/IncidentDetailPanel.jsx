@@ -33,7 +33,6 @@ import {
   Video,
   StickyNote,
   User,
-  UserCircle,
   Tag,
   Box,
   Ruler,
@@ -53,6 +52,7 @@ export default function IncidentDetailPanel({
   categories = [],
   onEditZone,
   onEditZoneInfo,
+  onViewCreator,
 }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
@@ -472,6 +472,47 @@ export default function IncidentDetailPanel({
               </span>
             </MetaRow>
 
+            {/* Created by */}
+            {adminMode && inc.created_by && (
+              <MetaRow icon={User} label="Created by">
+                <button
+                  type="button"
+                  onClick={() => onViewCreator?.(inc.created_by, inc.created_by_role)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '4px 8px',
+                    margin: '-4px -8px',
+                    background: 'transparent',
+                    border: '1px solid transparent',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-base)';
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {inc.created_by_name || 'Unknown'}
+                    </span>
+                    {inc.created_by_email && (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{inc.created_by_email}</span>
+                    )}
+                  </div>
+                  <ExternalLink size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                </button>
+              </MetaRow>
+            )}
+
             {/* Geometry metrics */}
             {isPolygon && (
               <>
@@ -546,32 +587,6 @@ export default function IncidentDetailPanel({
                 ))}
               </div>
             </div>
-          )}
-
-          {/* Activity log link */}
-          {adminMode && inc.created_by && (
-            <button
-              onClick={() => navigate(`/superadmin/users?drawer=${inc.created_by}&tab=overview`)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                width: '100%',
-                padding: '10px 14px',
-                fontSize: 12,
-                fontWeight: 600,
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
-              <UserCircle size={14} />
-              View creator profile
-            </button>
           )}
 
           {/* Debug Metadata */}

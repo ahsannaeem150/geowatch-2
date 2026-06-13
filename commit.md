@@ -7213,3 +7213,40 @@ fix: make incident detail panel a normal scroll container so Debug Metadata stay
 ```
 
 *End of panel scroll fix.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Inline Created by profile viewer in superadmin incident panel
+
+### Issue
+- The superadmin incident detail panel showed a bottom **View creator profile** button that navigated away from the map, breaking context.
+- The frontend did not know whether an incident creator was a staff user or a public user, so it could not open the correct drawer.
+
+### Fix
+- Added `created_by_role` to the incident payload by joining `public_users` and coalescing `public_user` over `users.role`.
+- Added a **Created by** meta row in the main incident info card. Clicking it opens the matching profile drawer inline.
+- Removed the bottom **View creator profile** button.
+- Wired `UserDetailDrawer` and `PublicUserDrawer` into `MapPage` and controlled them from the panel via `onViewCreator`.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/incident.service.js` | Added `created_by_role` column and `public_users` join to incident queries (active, deleted, hidden). |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Added clickable **Created by** meta row; removed bottom profile button; added `onViewCreator` prop. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Imported drawers, added `creatorDrawer` state, passed `onViewCreator`, and rendered the correct drawer inline. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/src/services/incident.service.js  # ✅
+```
+
+### Git Commit
+
+```
+feat(superadmin): inline Created by profile viewer in incident detail panel
+```
+
+*End of inline creator profile viewer.*

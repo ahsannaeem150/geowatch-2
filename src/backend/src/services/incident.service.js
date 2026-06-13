@@ -13,6 +13,7 @@ const INCIDENT_COLUMNS = `
   d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
   zc.name AS zone_category_name, zc.color AS zone_category_color, zc.icon AS zone_category_icon,
   cb.full_name AS created_by_name, cb.email AS created_by_email,
+  COALESCE(CASE WHEN pu.id IS NOT NULL THEN 'public_user' END, cb.role) AS created_by_role,
   rb.full_name AS resolved_by_name, rb.email AS resolved_by_email,
   CASE WHEN i.geometry_type = 'polygon' THEN ROUND(ST_Area(i.geom::geography)::numeric, 2) END AS area_sq_m,
   CASE WHEN i.geometry_type = 'polygon' THEN ROUND(ST_Perimeter(i.geom::geography)::numeric, 2) END AS perimeter_m,
@@ -25,6 +26,7 @@ const INCIDENT_FROM = `
   LEFT JOIN domains d ON c.domain_id = d.id
   LEFT JOIN zone_categories zc ON i.zone_category_id = zc.id
   LEFT JOIN users cb ON i.created_by = cb.id
+  LEFT JOIN public_users pu ON i.created_by = pu.id
   LEFT JOIN users rb ON i.resolved_by = rb.id
 `;
 
@@ -542,6 +544,7 @@ export async function listDeletedIncidents(filters = {}) {
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
       l.deleted_at, l.deleted_by, l.original_status,
       cb.full_name AS created_by_name, cb.email AS created_by_email,
+      COALESCE(CASE WHEN pu.id IS NOT NULL THEN 'public_user' END, cb.role) AS created_by_role,
       rb.full_name AS resolved_by_name, rb.email AS resolved_by_email,
       CASE WHEN i.geometry_type = 'polygon' THEN ROUND(ST_Area(i.geom::geography)::numeric, 2) END AS area_sq_m,
       CASE WHEN i.geometry_type = 'polygon' THEN ROUND(ST_Perimeter(i.geom::geography)::numeric, 2) END AS perimeter_m,
@@ -553,6 +556,7 @@ export async function listDeletedIncidents(filters = {}) {
     LEFT JOIN domains d ON c.domain_id = d.id
     LEFT JOIN users u ON l.deleted_by = u.id
     LEFT JOIN users cb ON i.created_by = cb.id
+    LEFT JOIN public_users pu ON i.created_by = pu.id
     LEFT JOIN users rb ON i.resolved_by = rb.id
     WHERE ${where}
     ORDER BY l.deleted_at DESC
@@ -578,6 +582,7 @@ export async function getDeletedIncidentById(id) {
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
       l.deleted_at, l.deleted_by, l.original_status,
       cb.full_name AS created_by_name, cb.email AS created_by_email,
+      COALESCE(CASE WHEN pu.id IS NOT NULL THEN 'public_user' END, cb.role) AS created_by_role,
       rb.full_name AS resolved_by_name, rb.email AS resolved_by_email,
       CASE WHEN i.geometry_type = 'polygon' THEN ROUND(ST_Area(i.geom::geography)::numeric, 2) END AS area_sq_m,
       CASE WHEN i.geometry_type = 'polygon' THEN ROUND(ST_Perimeter(i.geom::geography)::numeric, 2) END AS perimeter_m,
@@ -589,6 +594,7 @@ export async function getDeletedIncidentById(id) {
     LEFT JOIN domains d ON c.domain_id = d.id
     LEFT JOIN users u ON l.deleted_by = u.id
     LEFT JOIN users cb ON i.created_by = cb.id
+    LEFT JOIN public_users pu ON i.created_by = pu.id
     LEFT JOIN users rb ON i.resolved_by = rb.id
     WHERE i.id = $1 AND i.status = 'hidden'
       AND l.restored_at IS NULL
