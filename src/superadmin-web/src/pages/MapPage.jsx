@@ -1302,10 +1302,22 @@ export default function MapPage() {
   const handleBackToProfile = useCallback(() => {
     if (returnToParam) {
       navigate(returnToParam);
-    } else {
-      handleDismissContext();
+      return;
     }
-  }, [returnToParam, navigate, handleDismissContext]);
+
+    // If we came from an inline creator profile drawer, reopen it and close
+    // the activity sidebar.
+    if (staffUserId || publicUserId) {
+      setCreatorDrawer({
+        userId: staffUserId || publicUserId,
+        role: publicUserId ? 'public_user' : 'admin',
+      });
+      handleDismissContext();
+      return;
+    }
+
+    handleDismissContext();
+  }, [returnToParam, navigate, staffUserId, publicUserId, setCreatorDrawer, handleDismissContext]);
 
   const handleSwitchToIncidentDate = (incident) => {
     const incidentDate = incident.start_date

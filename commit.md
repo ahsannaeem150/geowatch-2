@@ -7538,3 +7538,37 @@ fix(superadmin): keep activity sidebar open when selecting incident from creator
 ```
 
 *End of activity sidebar reopen fix.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Back to Profile reopens creator drawer and closes Activity sidebar
+
+### Issue
+- The **Back to Profile** button in the Activity sidebar dismissed the activity context but did not reopen the creator profile drawer on the right.
+
+### Fix
+- Updated `handleBackToProfile` in `MapPage` so that when `staffUserId` or `publicUserId` is present (inline profile flow), it:
+  1. Reopens the inline creator profile drawer for that user.
+  2. Calls `handleDismissContext` to close the Activity sidebar.
+- Kept the existing `returnTo` behavior for flows that originate from the Users/Public Users pages.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | `handleBackToProfile` now reopens the creator drawer when coming from inline profile activity view. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+feat(superadmin): Back to Profile reopens creator drawer and closes activity sidebar
+```
+
+*End of Back to Profile improvement.*
