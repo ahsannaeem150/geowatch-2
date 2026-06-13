@@ -109,6 +109,7 @@ export async function getUserActivityController(req, res) {
   if (req.query.dateFrom) auditFilters.dateFrom = req.query.dateFrom;
   if (req.query.dateTo) auditFilters.dateTo = req.query.dateTo;
   if (req.query.action) auditFilters.action = req.query.action;
+  if (req.query.search) auditFilters.search = req.query.search;
 
   const [logsResult, stats, lastActiveResult] = await Promise.all([
     listAuditLogs(auditFilters),

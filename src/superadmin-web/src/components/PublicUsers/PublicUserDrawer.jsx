@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Loader2, AlertCircle, UserX, UserCheck, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Loader2, AlertCircle, UserX, UserCheck, Bookmark, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { getPublicUser, updatePublicUser, getPublicUserActivity } from '../../services/api.js';
 import ActivityTimeline from '../Audit/ActivityTimeline.jsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -43,6 +43,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
   const [activityDateFrom, setActivityDateFrom] = useState('');
   const [activityDateTo, setActivityDateTo] = useState('');
   const [activityAction, setActivityAction] = useState('');
+  const [activitySearch, setActivitySearch] = useState('');
   const [activityPagination, setActivityPagination] = useState(null);
 
   const [actionLoading, setActionLoading] = useState(false);
@@ -56,6 +57,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
       if (dateFromIso) params.dateFrom = dateFromIso;
       if (dateToIso) params.dateTo = dateToIso;
       if (activityAction) params.action = activityAction;
+      if (activitySearch.trim()) params.search = activitySearch.trim();
 
       const actData = await getPublicUserActivity(userId, params);
       setActivityData(actData);
@@ -67,7 +69,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
     } finally {
       setActivityLoading(false);
     }
-  }, [userId, activityPage, activityLimit, activityDateFrom, activityDateTo, activityAction]);
+  }, [userId, activityPage, activityLimit, activityDateFrom, activityDateTo, activityAction, activitySearch]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -330,6 +332,29 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
                       borderRadius: 'var(--radius-sm)',
                     }}
                   >
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: 4 }}>Search</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          placeholder="Action, incident, detail..."
+                          value={activitySearch}
+                          onChange={(e) => { setActivityPage(1); setActivitySearch(e.target.value); }}
+                          style={{
+                            flex: 1,
+                            padding: '5px 8px',
+                            background: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: 'var(--radius-sm)',
+                            color: 'var(--text-primary)',
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 12,
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={{ display: 'block', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: 4 }}>Date range</label>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

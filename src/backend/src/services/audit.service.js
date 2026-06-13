@@ -45,6 +45,21 @@ function buildAuditWhereClause(filters) {
     params.push(filters.actorType);
   }
 
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    conditions.push(`(
+      al.action ILIKE $${idx}
+      OR al.target_type ILIKE $${idx}
+      OR al.target_id ILIKE $${idx}
+      OR al.user_email ILIKE $${idx}
+      OR al.ip_address::text ILIKE $${idx}
+      OR al.details::text ILIKE $${idx}
+      OR COALESCE(u.full_name, pu.full_name) ILIKE $${idx}
+    )`);
+    params.push(term);
+    idx++;
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   return { where, params, nextIndex: idx };
 }
@@ -55,7 +70,11 @@ export async function listAuditLogs(filters) {
   const offset = (filters.page - 1) * limit;
 
   const countResult = await query(
-    `SELECT COUNT(*) as total FROM audit_logs al ${where}`,
+    `SELECT COUNT(*) as total
+     FROM audit_logs al
+     LEFT JOIN users u ON al.user_id = u.id
+     LEFT JOIN public_users pu ON al.user_id = pu.id
+     ${where}`,
     params
   );
   const total = parseInt(countResult.rows[0].total, 10);

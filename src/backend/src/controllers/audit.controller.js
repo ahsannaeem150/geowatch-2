@@ -10,6 +10,7 @@ export async function listAuditController(req, res) {
     dateTo: req.query.dateTo,
     realm: req.query.realm,
     actorType: req.query.actorType,
+    search: req.query.search,
     page: req.query.page,
     limit: req.query.limit,
   };

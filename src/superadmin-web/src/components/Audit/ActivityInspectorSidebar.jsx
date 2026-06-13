@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PanelLeftClose, X, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { PanelLeftClose, X, ChevronLeft, ChevronRight, ArrowLeft, Search } from 'lucide-react';
 import ActivityTimeline from './ActivityTimeline.jsx';
 import { getUserActivity, getPublicUserActivity } from '../../services/api.js';
 
@@ -48,6 +48,7 @@ export default function ActivityInspectorSidebar({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [action, setAction] = useState('');
+  const [search, setSearch] = useState('');
 
   const isStaff = Boolean(staffUserId);
   const userId = staffUserId || publicUserId;
@@ -62,6 +63,7 @@ export default function ActivityInspectorSidebar({
     if (dateFromIso) params.dateFrom = dateFromIso;
     if (dateToIso) params.dateTo = dateToIso;
     if (action) params.action = action;
+    if (search.trim()) params.search = search.trim();
 
     try {
       const data = isStaff ? await getUserActivity(userId, params) : await getPublicUserActivity(userId, params);
@@ -74,7 +76,7 @@ export default function ActivityInspectorSidebar({
     } finally {
       setLoading(false);
     }
-  }, [userId, isStaff, page, limit, dateFrom, dateTo, action]);
+  }, [userId, isStaff, page, limit, dateFrom, dateTo, action, search]);
 
   useEffect(() => {
     fetchLogs();
@@ -93,6 +95,11 @@ export default function ActivityInspectorSidebar({
   const handleActionChange = (e) => {
     setPage(1);
     setAction(e.target.value);
+  };
+
+  const handleSearchChange = (e) => {
+    setPage(1);
+    setSearch(e.target.value);
   };
 
   const handleLimitChange = (e) => {
@@ -245,6 +252,20 @@ export default function ActivityInspectorSidebar({
           flexShrink: 0,
         }}
       >
+        <div>
+          <label style={labelStyle}>Search</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="Action, incident, detail..."
+              value={search}
+              onChange={handleSearchChange}
+              style={{ ...inputStyle, padding: '5px 8px' }}
+            />
+          </div>
+        </div>
+
         <div>
           <label style={labelStyle}>Date range</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

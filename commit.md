@@ -6801,3 +6801,48 @@ feat: add Recycle Bin map view with searchable, paginated sidebar
 ```
 
 *End of Recycle Bin Map view feature.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Search in activity timelines
+
+### Issue
+- Activity sidebars and user profile activity tabs lacked a search field, making it hard to find specific actions or incidents in long timelines.
+
+### Fix
+- **Backend** `audit.service.js` added `search` filter across action, target type/id, user email, IP address (cast to text), audit details JSON, and user full name. Count query now includes the same joins so filtered pagination is accurate.
+- **Backend controllers** `user.controller.js`, `public-user.controller.js`, and `audit.controller.js` now forward `req.query.search` to `listAuditLogs`.
+- **Frontend API** `getUserActivity`, `getPublicUserActivity`, and `listAuditLogs` already accept params and serialize them; no change required.
+- **ActivityInspectorSidebar** added a search input that filters the activity timeline.
+- **UserDetailDrawer** activity tab added a search input.
+- **PublicUserDrawer** activity tab added a search input.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/audit.service.js` | Added `search` filter to `buildAuditWhereClause`; updated count query to JOIN users/public_users. |
+| `src/backend/src/controllers/user.controller.js` | Forward `search` query param. |
+| `src/backend/src/controllers/public-user.controller.js` | Forward `search` query param. |
+| `src/backend/src/controllers/audit.controller.js` | Forward `search` query param. |
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | Added search state, handler, and input field. |
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | Added `activitySearch` state, handler, and input field. |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Added `activitySearch` state, handler, and input field. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/users/<id>/activity?limit=2&search=incident"   # ✅
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/public-users/<id>/activity?limit=2&search=view" # ✅
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/audit?limit=2&search=login"                  # ✅
+```
+
+### Git Commit
+
+```
+feat: add search filtering to activity timelines and inspector sidebar
+```
+
+*End of activity search feature.*
