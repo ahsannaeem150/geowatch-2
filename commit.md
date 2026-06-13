@@ -7345,3 +7345,38 @@ fix(superadmin): keep hooks before early returns in ActivityTimeline
 ```
 
 *End of ActivityTimeline hooks fix.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Activity sidebar now jumps to incidents on other pages
+
+### Issue
+- Clicking an incident in the creator profile drawer scrolled the left Activity sidebar only when the incident was on the currently loaded page. If the activity log was on another page, the sidebar stayed put and did not scroll.
+
+### Fix
+- Added `relatedIncidentId` support to the staff and public-user activity endpoints so the API can return only activity related to a specific incident (incident, source, timeline, and media logs).
+- In `ActivityInspectorSidebar`, selecting an incident now temporarily filters the activity list to that incident and resets to page 1, guaranteeing the selected item is rendered and can scroll into view.
+- Added a removable "Related to selected incident" chip in the sidebar header so users can switch back to the full activity list.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/controllers/user.controller.js` | Forward `relatedIncidentId` query param to audit filters. |
+| `src/backend/src/controllers/public-user.controller.js` | Forward `relatedIncidentId` query param to audit filters. |
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | Added `relatedIncidentId` state/effect, included it in fetch params, and added a clearable filter chip. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix(superadmin): jump activity sidebar to selected incident on any page
+```
+
+*End of activity sidebar page-jump fix.*

@@ -49,6 +49,7 @@ export default function ActivityInspectorSidebar({
   const [dateTo, setDateTo] = useState('');
   const [action, setAction] = useState('');
   const [search, setSearch] = useState('');
+  const [relatedIncidentId, setRelatedIncidentId] = useState(null);
 
   const isStaff = Boolean(staffUserId);
   const userId = staffUserId || publicUserId;
@@ -64,6 +65,7 @@ export default function ActivityInspectorSidebar({
     if (dateToIso) params.dateTo = dateToIso;
     if (action) params.action = action;
     if (search.trim()) params.search = search.trim();
+    if (relatedIncidentId) params.relatedIncidentId = relatedIncidentId;
 
     try {
       const data = isStaff ? await getUserActivity(userId, params) : await getPublicUserActivity(userId, params);
@@ -81,6 +83,18 @@ export default function ActivityInspectorSidebar({
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  // When an incident is selected from elsewhere (e.g. the creator profile
+  // drawer), narrow the activity list to that incident so the sidebar can
+  // scroll to it regardless of which page it lives on.
+  useEffect(() => {
+    if (selectedIncidentId) {
+      setRelatedIncidentId(selectedIncidentId);
+      setPage(1);
+    } else {
+      setRelatedIncidentId(null);
+    }
+  }, [selectedIncidentId]);
 
   const handleDateFromChange = (e) => {
     setPage(1);
@@ -173,6 +187,48 @@ export default function ActivityInspectorSidebar({
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
             {pagination ? `${pagination.total} events` : `${logs.length} events`}
           </div>
+          {relatedIncidentId && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                marginTop: 8,
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-hover)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: 11,
+                color: 'var(--text-secondary)',
+                maxWidth: '100%',
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Related to selected incident
+              </span>
+              <button
+                type="button"
+                onClick={() => setRelatedIncidentId(null)}
+                title="Show all activity"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'var(--border-subtle)',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                <X size={10} />
+              </button>
+            </div>
+          )}
           {onBackToProfile && (
             <button
               type="button"
