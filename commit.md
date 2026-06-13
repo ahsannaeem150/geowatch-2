@@ -7015,3 +7015,54 @@ fix: accurate status history, collapsible events, and always-visible debug metad
 ```
 
 *End of status history and debug metadata fixes.*
+
+---
+
+## 🐛✨ 2026-06-13 — Fix: Status History now includes sources/timeline/media; Debug Metadata collapses and scrolls
+
+### Issues
+1. **Status History missing non-incident events:** only `incident_created`, `incident_updated`, and deletion events appeared. Source additions/verifications, timeline updates, and media uploads were absent.
+2. **"Edited Verification Override" label:** source verification from the admin site was logged as `source_updated`, but the incident status history couldn't see it because it only queried `target_type='incident'`.
+3. **Debug Metadata overflow:** the section was always fully expanded and got pushed below the fold; the panel could not scroll to reveal it, and the section toggle only collapsed raw IDs instead of the whole block.
+
+### Fix
+- **Backend**
+  - `audit.service.js` now supports a `relatedIncidentId` filter that returns all audit logs for an incident, including related `source`, `timeline`, and `media` records.
+  - `audit.controller.js` and `audit.schema.js` expose `relatedIncidentId` through the `/api/v1/audit` endpoint.
+  - `incident.controller.js` now logs a `source_added` audit entry for every source created inline during incident creation.
+  - `media.controller.js` now logs `media_uploaded` and `media_deleted` entries.
+  - Added `MEDIA_UPLOADED` and `MEDIA_DELETED` to `AUDIT_ACTIONS` with labels and colors.
+- **Frontend (`IncidentDetailPanel`)**
+  - Audit-log fetch now uses `relatedIncidentId` instead of `targetType='incident'`.
+  - Added `media_uploaded` / `media_deleted` to the status history event map and improved source/timeline labels.
+  - `incident_updated` with only `verificationOverride` now renders as "Verification override updated".
+  - Debug Metadata is now a fully collapsible section (default collapsed) and the toggle controls the entire block, not just raw IDs.
+  - Added `boxSizing: 'border-box'` to the panel root to prevent flex clipping and restore scrolling.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/audit.service.js` | `relatedIncidentId` filter joins incident, source, timeline, and media logs. |
+| `src/backend/src/controllers/audit.controller.js` | Pass `relatedIncidentId` from query to service. |
+| `src/backend/src/validators/audit.schema.js` | Accept `relatedIncidentId` query param. |
+| `src/backend/src/controllers/incident.controller.js` | Audit `source_added` for inline sources during incident creation. |
+| `src/backend/src/controllers/media.controller.js` | Audit `media_uploaded` / `media_deleted`. |
+| `src/backend/src/utils/audit-actions.js` | New `MEDIA_UPLOADED` / `MEDIA_DELETED` actions. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Fetch related logs; media events; collapsible Debug Metadata; scroll fix. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+# DB test: listAuditLogs({ relatedIncidentId: '<uuid>', page: 1, limit: 100 }) returns incident + source + timeline events # ✅
+```
+
+### Git Commit
+
+```
+fix: include sources, timeline, and media in incident status history; make Debug Metadata collapsible
+```
+
+*End of status history and debug metadata follow-up fixes.*

@@ -50,6 +50,10 @@ export const AUDIT_ACTIONS = {
   TIMELINE_UPDATED: 'timeline_updated',
   TIMELINE_DELETED: 'timeline_deleted',
 
+  // Media operations
+  MEDIA_UPLOADED: 'media_uploaded',
+  MEDIA_DELETED: 'media_deleted',
+
   // Zone operations
   ZONE_CREATED: 'zone_created',
   ZONE_UPDATED: 'zone_updated',
@@ -101,6 +105,9 @@ export const AUDIT_ACTION_LABELS = {
   [AUDIT_ACTIONS.TIMELINE_UPDATED]: 'Timeline Entry Updated',
   [AUDIT_ACTIONS.TIMELINE_DELETED]: 'Timeline Entry Deleted',
 
+  [AUDIT_ACTIONS.MEDIA_UPLOADED]: 'Media Uploaded',
+  [AUDIT_ACTIONS.MEDIA_DELETED]: 'Media Deleted',
+
   [AUDIT_ACTIONS.ZONE_CREATED]: 'Zone Created',
   [AUDIT_ACTIONS.ZONE_UPDATED]: 'Zone Updated',
   [AUDIT_ACTIONS.ZONE_DELETED]: 'Zone Deleted',
@@ -147,6 +154,9 @@ export const AUDIT_ACTION_COLORS = {
   [AUDIT_ACTIONS.TIMELINE_ADDED]: '#22c55e',
   [AUDIT_ACTIONS.TIMELINE_UPDATED]: '#f59e0b',
   [AUDIT_ACTIONS.TIMELINE_DELETED]: '#ef4444',
+
+  [AUDIT_ACTIONS.MEDIA_UPLOADED]: '#22c55e',
+  [AUDIT_ACTIONS.MEDIA_DELETED]: '#ef4444',
 
   [AUDIT_ACTIONS.ZONE_CREATED]: '#22c55e',
   [AUDIT_ACTIONS.ZONE_UPDATED]: '#f59e0b',

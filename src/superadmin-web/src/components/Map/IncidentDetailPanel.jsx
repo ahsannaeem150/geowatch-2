@@ -59,7 +59,7 @@ export default function IncidentDetailPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedUpdateId, setExpandedUpdateId] = useState(null);
-  const [rawIdsOpen, setRawIdsOpen] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
 
@@ -89,7 +89,7 @@ export default function IncidentDetailPanel({
     setMode('view');
     setActionError('');
     setActionSuccess('');
-    setRawIdsOpen(false);
+    setDebugOpen(false);
 
     // If the incident already has sources and timeline, use it directly
     if (incident.sources && incident.timeline) {
@@ -119,7 +119,7 @@ export default function IncidentDetailPanel({
   useEffect(() => {
     if (!incident?.id) return;
     setAuditLoading(true);
-    listAuditLogs({ targetType: 'incident', targetId: incident.id, limit: 100 })
+    listAuditLogs({ relatedIncidentId: incident.id, limit: 100 })
       .then((res) => {
         setAuditLogs(res?.logs || []);
       })
@@ -255,7 +255,7 @@ export default function IncidentDetailPanel({
     : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20, overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box', background: 'var(--bg-base)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20, overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box', background: 'var(--bg-base)', position: 'relative' }}>
       {/* Back + Admin link */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
@@ -584,7 +584,7 @@ export default function IncidentDetailPanel({
           >
             <button
               type="button"
-              onClick={() => setRawIdsOpen(!rawIdsOpen)}
+              onClick={() => setDebugOpen(!debugOpen)}
               style={{
                 width: '100%',
                 display: 'flex',
@@ -601,71 +601,71 @@ export default function IncidentDetailPanel({
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Debug Metadata
               </span>
-              {rawIdsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {debugOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
 
-            <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {/* Human-readable fields always visible */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '10px 16px',
-                  fontSize: 12,
-                }}
-              >
-                <MetadataField label="Created by">
-                  {inc.created_by_name ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{inc.created_by_name}</span>
-                      {inc.created_by_email && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{inc.created_by_email}</span>}
-                    </div>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>{inc.created_by || '—'}</span>
+            {debugOpen && (
+              <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Human-readable fields */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '10px 16px',
+                    fontSize: 12,
+                  }}
+                >
+                  <MetadataField label="Created by">
+                    {inc.created_by_name ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{inc.created_by_name}</span>
+                        {inc.created_by_email && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{inc.created_by_email}</span>}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>{inc.created_by || '—'}</span>
+                    )}
+                  </MetadataField>
+
+                  <MetadataField label="Created at">
+                    {inc.created_at ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{formatDateSafe(inc.created_at)}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}><RelativeTime date={inc.created_at} /></span>
+                      </div>
+                    ) : (
+                      '—'
+                    )}
+                  </MetadataField>
+
+                  <MetadataField label="Updated at">
+                    {formatDateSafe(inc.updated_at)}
+                  </MetadataField>
+
+                  {inc.resolved_by && (
+                    <MetadataField label="Resolved by">
+                      {inc.resolved_by_name || inc.resolved_by}
+                    </MetadataField>
                   )}
-                </MetadataField>
-
-                <MetadataField label="Created at">
-                  {inc.created_at ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>{formatDateSafe(inc.created_at)}</span>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}><RelativeTime date={inc.created_at} /></span>
-                    </div>
-                  ) : (
-                    '—'
+                  {inc.resolved_at && (
+                    <MetadataField label="Resolved at">
+                      {formatDateSafe(inc.resolved_at)}
+                    </MetadataField>
                   )}
-                </MetadataField>
 
-                <MetadataField label="Updated at">
-                  {formatDateSafe(inc.updated_at)}
-                </MetadataField>
-
-                {inc.resolved_by && (
-                  <MetadataField label="Resolved by">
-                    {inc.resolved_by_name || inc.resolved_by}
+                  {inc.category_name && (
+                    <MetadataField label="Category">
+                      <span style={{ color: catColor, fontWeight: 500 }}>{inc.category_name}</span>
+                      {' · '}
+                      {inc.domain_name}
                   </MetadataField>
-                )}
-                {inc.resolved_at && (
-                  <MetadataField label="Resolved at">
-                    {formatDateSafe(inc.resolved_at)}
+                  )}
+
+                  <MetadataField label="Geometry">
+                    {isPolygon ? 'Polygon' : 'Point'}
                   </MetadataField>
-                )}
+                </div>
 
-                {inc.category_name && (
-                  <MetadataField label="Category">
-                    <span style={{ color: catColor, fontWeight: 500 }}>{inc.category_name}</span>
-                    {' · '}
-                    {inc.domain_name}
-                  </MetadataField>
-                )}
-
-                <MetadataField label="Geometry">
-                  {isPolygon ? 'Polygon' : 'Point'}
-                </MetadataField>
-              </div>
-
-              {/* Raw IDs - collapsible */}
-              {rawIdsOpen && (
+                {/* Raw IDs */}
                 <div
                   style={{
                     marginTop: 8,
@@ -693,8 +693,8 @@ export default function IncidentDetailPanel({
                     </>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -1017,6 +1017,8 @@ const ACTION_EVENT_MAP = {
   timeline_added: { label: 'Update added', icon: MessageSquare, color: '#06b6d4' },
   timeline_updated: { label: 'Update edited', icon: MessageSquare, color: '#06b6d4' },
   timeline_deleted: { label: 'Update removed', icon: MessageSquare, color: '#ef4444' },
+  media_uploaded: { label: 'Media uploaded', icon: ImageIcon, color: '#22c55e' },
+  media_deleted: { label: 'Media removed', icon: ImageIcon, color: '#ef4444' },
 };
 
 function getEventLabel(log) {
@@ -1024,16 +1026,29 @@ function getEventLabel(log) {
   const details = parseAuditDetails(log.details);
 
   if (log.action === 'incident_updated' && details?.changedFields?.length > 0) {
-    const fields = details.changedFields.map((f) => String(f).replace(/_/g, ' ')).join(', ');
-    return `Edited · ${fields}`;
+    const fields = details.changedFields;
+    if (fields.length === 1 && fields[0] === 'verificationOverride') {
+      return 'Verification override updated';
+    }
+    const fieldStr = fields.map((f) => String(f).replace(/_/g, ' ')).join(', ');
+    return `Edited · ${fieldStr}`;
   }
 
   if ((log.action === 'source_added' || log.action === 'source_updated') && details?.sourceType) {
-    return `${cfg?.label || log.action} · ${details.sourceType.replace(/_/g, ' ')}`;
+    const label = cfg?.label || log.action.replace(/_/g, ' ');
+    const typeLabel = details.sourceType.replace(/_/g, ' ');
+    if (details?.verificationStatus) {
+      return `${label} · ${typeLabel} · ${details.verificationStatus}`;
+    }
+    return `${label} · ${typeLabel}`;
   }
 
   if ((log.action === 'timeline_added' || log.action === 'timeline_updated') && details?.title) {
     return `${cfg?.label || log.action} · ${details.title}`;
+  }
+
+  if ((log.action === 'media_uploaded' || log.action === 'media_deleted') && details?.fileType) {
+    return `${cfg?.label || log.action} · ${details.fileType}`;
   }
 
   return cfg?.label || log.action.replace(/_/g, ' ');

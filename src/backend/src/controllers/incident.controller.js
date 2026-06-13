@@ -88,7 +88,7 @@ export async function createIncidentController(req, res) {
   // Create sources if provided
   if (Array.isArray(sources) && sources.length > 0) {
     for (const src of sources) {
-      await createEventSource(
+      const source = await createEventSource(
         incident.id,
         {
           sourceType: src.sourceType,
@@ -99,6 +99,12 @@ export async function createIncidentController(req, res) {
         },
         req.user.id
       );
+
+      await auditLog(req, AUDIT_ACTIONS.SOURCE_ADDED, 'source', source.id, {
+        incidentId: incident.id,
+        sourceType: source.source_type,
+        verificationStatus: source.verification_status,
+      });
     }
   }
 

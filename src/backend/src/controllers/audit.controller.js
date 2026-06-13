@@ -6,6 +6,7 @@ export async function listAuditController(req, res) {
     userId: req.query.userId,
     targetType: req.query.targetType,
     targetId: req.query.targetId,
+    relatedIncidentId: req.query.relatedIncidentId,
     dateFrom: req.query.dateFrom,
     dateTo: req.query.dateTo,
     realm: req.query.realm,

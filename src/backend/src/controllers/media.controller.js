@@ -5,6 +5,8 @@ import { processVideo } from '../utils/video-processor.js';
 import { generateMediaFilename, generateThumbFilename } from '../utils/slugify.js';
 import { getIncidentTitle } from '../services/incident.service.js';
 import * as mediaService from '../services/media.service.js';
+import { auditLog } from '../utils/audit-log.js';
+import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
 const storage = getStorageEngine();
 
@@ -81,6 +83,12 @@ export async function uploadMedia(req, res) {
     });
     console.log('[MediaUpload] DB record created — id:', record.id);
 
+    await auditLog(req, AUDIT_ACTIONS.MEDIA_UPLOADED, 'media', record.id, {
+      incidentId,
+      fileType,
+      originalName: originalname,
+    });
+
     res.apiSuccess({ media: record }, 'File uploaded successfully');
   } catch (err) {
     console.error('[MediaUpload] Processing error:', err.message, err.stack);
@@ -112,6 +120,13 @@ export async function deleteMedia(req, res) {
   }
 
   await mediaService.deleteMediaRecord(req.params.mediaId);
+
+  await auditLog(req, AUDIT_ACTIONS.MEDIA_DELETED, 'media', req.params.mediaId, {
+    incidentId: record.incident_id,
+    fileType: record.file_type,
+    originalName: record.original_name,
+  });
+
   res.apiSuccess({ deleted: true });
 }
 

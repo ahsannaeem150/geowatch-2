@@ -5,6 +5,7 @@ export const listAuditQuerySchema = z.object({
   userId: z.string().uuid().optional(),
   targetType: z.string().optional(),
   targetId: z.string().optional(),
+  relatedIncidentId: z.string().uuid().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   realm: z.enum(['system', 'user']).optional(),

@@ -4,6 +4,7 @@ function buildAuditWhereClause(filters) {
   const conditions = [];
   const params = [];
   let idx = 1;
+  let relatedIncidentIdIndex = null;
 
   if (filters.action) {
     conditions.push(`al.action = $${idx++}`);
@@ -23,6 +24,18 @@ function buildAuditWhereClause(filters) {
   if (filters.targetId) {
     conditions.push(`al.target_id = $${idx++}`);
     params.push(filters.targetId);
+  }
+
+  if (filters.relatedIncidentId) {
+    relatedIncidentIdIndex = idx;
+    conditions.push(`(
+      (al.target_type = 'incident' AND al.target_id::uuid = $${idx}::uuid)
+      OR (al.target_type = 'source' AND al.target_id::uuid IN (SELECT id FROM incident_sources WHERE incident_id = $${idx}::uuid))
+      OR (al.target_type = 'timeline' AND al.target_id::uuid IN (SELECT id FROM incident_updates WHERE incident_id = $${idx}::uuid))
+      OR (al.target_type = 'media' AND al.target_id::uuid IN (SELECT id FROM incident_media WHERE incident_id = $${idx}::uuid))
+    )`);
+    params.push(filters.relatedIncidentId);
+    idx++;
   }
 
   if (filters.dateFrom) {
@@ -61,13 +74,17 @@ function buildAuditWhereClause(filters) {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  return { where, params, nextIndex: idx };
+  return { where, params, nextIndex: idx, relatedIncidentIdIndex };
 }
 
 export async function listAuditLogs(filters) {
-  const { where, params } = buildAuditWhereClause(filters);
+  const { where, params, relatedIncidentIdIndex } = buildAuditWhereClause(filters);
   const limit = filters.limit;
   const offset = (filters.page - 1) * limit;
+
+  const incidentJoin = relatedIncidentIdIndex
+    ? `LEFT JOIN incidents inc ON inc.id = $${relatedIncidentIdIndex}::uuid`
+    : `LEFT JOIN incidents inc ON al.target_type = 'incident' AND inc.id::text = al.target_id`;
 
   const countResult = await query(
     `SELECT COUNT(*) as total
@@ -88,7 +105,7 @@ export async function listAuditLogs(filters) {
      FROM audit_logs al
      LEFT JOIN users u ON al.user_id = u.id
      LEFT JOIN public_users pu ON al.user_id = pu.id
-     LEFT JOIN incidents inc ON al.target_type = 'incident' AND inc.id::text = al.target_id
+     ${incidentJoin}
      ${where}
      ORDER BY al.created_at DESC
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
