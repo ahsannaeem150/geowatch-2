@@ -436,7 +436,7 @@ export default function IncidentDetailPanel({
             {/* Date */}
             <MetaRow icon={Calendar} label="Started">
               <span style={{ color: 'var(--text-secondary)' }}>
-                {inc.start_date ? format(new Date(inc.start_date), 'MMM d, yyyy · h:mm a') : 'Unknown'}
+                {formatDateSafe(inc.start_date, 'Unknown')}
               </span>
               {inc.start_date && (
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -448,7 +448,7 @@ export default function IncidentDetailPanel({
             {inc.end_date && (
               <MetaRow icon={Clock} label="Ended">
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {format(new Date(inc.end_date), 'MMM d, yyyy · h:mm a')}
+                  {formatDateSafe(inc.end_date)}
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                   <RelativeTime date={inc.end_date} />
@@ -574,129 +574,128 @@ export default function IncidentDetailPanel({
           )}
 
           {/* Debug Metadata */}
-          {adminMode && (
-            <div
+          <div
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px dashed var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setRawIdsOpen(!rawIdsOpen)}
               style={{
-                background: 'var(--bg-surface)',
-                border: '1px dashed var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                overflow: 'hidden',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
               }}
             >
-              <button
-                onClick={() => setRawIdsOpen(!rawIdsOpen)}
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Debug Metadata
+              </span>
+              {rawIdsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Human-readable fields always visible */}
+              <div
                 style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 14px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '10px 16px',
+                  fontSize: 12,
                 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Debug Metadata
-                </span>
-                {rawIdsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
+                <MetadataField label="Created by">
+                  {inc.created_by_name ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{inc.created_by_name}</span>
+                      {inc.created_by_email && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{inc.created_by_email}</span>}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>{inc.created_by || '—'}</span>
+                  )}
+                </MetadataField>
 
-              <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* Human-readable fields always visible */}
+                <MetadataField label="Created at">
+                  {inc.created_at ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>{formatDateSafe(inc.created_at)}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}><RelativeTime date={inc.created_at} /></span>
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </MetadataField>
+
+                <MetadataField label="Updated at">
+                  {formatDateSafe(inc.updated_at)}
+                </MetadataField>
+
+                {inc.resolved_by && (
+                  <MetadataField label="Resolved by">
+                    {inc.resolved_by_name || inc.resolved_by}
+                  </MetadataField>
+                )}
+                {inc.resolved_at && (
+                  <MetadataField label="Resolved at">
+                    {formatDateSafe(inc.resolved_at)}
+                  </MetadataField>
+                )}
+
+                {inc.category_name && (
+                  <MetadataField label="Category">
+                    <span style={{ color: catColor, fontWeight: 500 }}>{inc.category_name}</span>
+                    {' · '}
+                    {inc.domain_name}
+                  </MetadataField>
+                )}
+
+                <MetadataField label="Geometry">
+                  {isPolygon ? 'Polygon' : 'Point'}
+                </MetadataField>
+              </div>
+
+              {/* Raw IDs - collapsible */}
+              {rawIdsOpen && (
                 <div
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '10px 16px',
-                    fontSize: 12,
+                    marginTop: 8,
+                    padding: 12,
+                    background: 'var(--bg-elevated)',
+                    borderRadius: 'var(--radius-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    fontSize: 11,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-muted)',
                   }}
                 >
-                  <MetadataField label="Created by">
-                    {inc.created_by_name ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{inc.created_by_name}</span>
-                        {inc.created_by_email && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{inc.created_by_email}</span>}
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>{inc.created_by || '—'}</span>
-                    )}
-                  </MetadataField>
-
-                  <MetadataField label="Created at">
-                    {inc.created_at ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>{format(new Date(inc.created_at), 'MMM d, yyyy · h:mm a')}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}><RelativeTime date={inc.created_at} /></span>
-                      </div>
-                    ) : (
-                      '—'
-                    )}
-                  </MetadataField>
-
-                  <MetadataField label="Updated at">
-                    {inc.updated_at ? format(new Date(inc.updated_at), 'MMM d, yyyy · h:mm a') : '—'}
-                  </MetadataField>
-
-                  {inc.resolved_by && (
-                    <MetadataField label="Resolved by">
-                      {inc.resolved_by_name || inc.resolved_by}
-                    </MetadataField>
+                  <RawIdRow label="Incident ID" value={inc.id} />
+                  <RawIdRow label="Created by ID" value={inc.created_by} />
+                  {inc.resolved_by && <RawIdRow label="Resolved by ID" value={inc.resolved_by} />}
+                  <RawIdRow label="Category ID" value={inc.category_id} />
+                  <RawIdRow label="Zone category ID" value={inc.zone_category_id || '—'} />
+                  <RawIdRow label="Verification override" value={inc.verification_override || 'none'} />
+                  {isDeleted && (
+                    <>
+                      <RawIdRow label="Deleted by ID" value={inc.deleted_by} />
+                      <RawIdRow label="Original status" value={inc.original_status} />
+                    </>
                   )}
-                  {inc.resolved_at && (
-                    <MetadataField label="Resolved at">
-                      {format(new Date(inc.resolved_at), 'MMM d, yyyy · h:mm a')}
-                    </MetadataField>
-                  )}
-
-                  {inc.category_name && (
-                    <MetadataField label="Category">
-                      <span style={{ color: catColor, fontWeight: 500 }}>{inc.category_name}</span>
-                      {' · '}
-                      {inc.domain_name}
-                    </MetadataField>
-                  )}
-
-                  <MetadataField label="Geometry">
-                    {isPolygon ? 'Polygon' : 'Point'}
-                  </MetadataField>
                 </div>
-
-                {/* Raw IDs - collapsible */}
-                {rawIdsOpen && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      padding: 12,
-                      background: 'var(--bg-elevated)',
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                      fontSize: 11,
-                      fontFamily: 'var(--font-mono)',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    <RawIdRow label="Incident ID" value={inc.id} />
-                    <RawIdRow label="Created by ID" value={inc.created_by} />
-                    {inc.resolved_by && <RawIdRow label="Resolved by ID" value={inc.resolved_by} />}
-                    <RawIdRow label="Category ID" value={inc.category_id} />
-                    <RawIdRow label="Zone category ID" value={inc.zone_category_id || '—'} />
-                    <RawIdRow label="Verification override" value={inc.verification_override || 'none'} />
-                    {isDeleted && (
-                      <>
-                        <RawIdRow label="Deleted by ID" value={inc.deleted_by} />
-                        <RawIdRow label="Original status" value={inc.original_status} />
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </>
       )}
 
@@ -963,11 +962,19 @@ function CopyButton({ text, compact }) {
 function RelativeTime({ date }) {
   if (!date) return null;
   const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
   return (
     <span title={format(d, 'MMM d, yyyy · h:mm a')}>
       {formatDistanceToNow(d, { addSuffix: true })}
     </span>
   );
+}
+
+function formatDateSafe(date, fallback = '—') {
+  if (!date) return fallback;
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return fallback;
+  return format(d, 'MMM d, yyyy · h:mm a');
 }
 
 function formatArea(sqM) {
@@ -1033,6 +1040,8 @@ function getEventLabel(log) {
 }
 
 function StatusHistory({ incident, auditLogs, auditLoading, isPurged, isDeleted }) {
+  const [open, setOpen] = useState(false);
+
   const auditEvents = auditLogs
     .filter((log) => ACTION_EVENT_MAP[log.action])
     .map((log) => {
@@ -1084,25 +1093,60 @@ function StatusHistory({ incident, auditLogs, auditLoading, isPurged, isDeleted 
   return (
     <div
       style={{
-        padding: 14,
+        padding: open ? 14 : '10px 14px',
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-md)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-          Status History
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          fontFamily: 'var(--font-sans)',
+          color: 'inherit',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+            Status History
+          </div>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              background: 'var(--bg-elevated)',
+              padding: '2px 6px',
+              borderRadius: 'var(--radius-sm)',
+            }}
+          >
+            {events.length}
+          </span>
         </div>
-        {auditLoading && (
-          <div style={{ width: 14, height: 14, border: '2px solid var(--border-subtle)', borderTopColor: 'var(--navy-400)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        )}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {events.map((evt, idx) => (
-          <HistoryStep key={idx} event={evt} isLast={idx === events.length - 1} />
-        ))}
-      </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {auditLoading && (
+            <div style={{ width: 14, height: 14, border: '2px solid var(--border-subtle)', borderTopColor: 'var(--navy-400)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          )}
+          {open ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+        </div>
+      </button>
+
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 12 }}>
+          {events.map((evt, idx) => (
+            <HistoryStep key={idx} event={evt} isLast={idx === events.length - 1} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1142,7 +1186,7 @@ function HistoryStep({ event, isLast }) {
         </div>
         {event.date && (
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-            {format(new Date(event.date), 'MMM d, yyyy · h:mm a')}
+            {formatDateSafe(event.date)}
           </div>
         )}
         {event.actor && (
@@ -1173,10 +1217,10 @@ function PurgedBanner({ incident }) {
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         {incident.deleted_at && (
-          <div>Moved to Recycle Bin {format(new Date(incident.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
+          <div>Moved to Recycle Bin {formatDateSafe(incident.deleted_at)}</div>
         )}
         {incident.purged_at && (
-          <div>Permanently deleted {format(new Date(incident.purged_at), 'MMM d, yyyy · h:mm a')}</div>
+          <div>Permanently deleted {formatDateSafe(incident.purged_at)}</div>
         )}
         {incident.original_status && <div>Original status: {incident.original_status}</div>}
       </div>
@@ -1203,7 +1247,7 @@ function DeletedBanner({ incident, actionLoading, setActionLoading, setActionSuc
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         {incident.deleted_at && (
-          <div>Deleted {format(new Date(incident.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
+          <div>Deleted {formatDateSafe(incident.deleted_at)}</div>
         )}
         {incident.deleted_by_name && <div>Deleted by {incident.deleted_by_name}</div>}
         {incident.original_status && <div>Original status: {incident.original_status}</div>}

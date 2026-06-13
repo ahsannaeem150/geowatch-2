@@ -6974,3 +6974,44 @@ fix: add missing VERIFICATION_CONFIG and useRef imports
 ```
 
 *End of hotfix.*
+
+---
+
+## 🐛✨ 2026-06-13 — Fix: accurate status history, collapsible UI, and debug metadata visibility
+
+### Issues
+1. **Status History accuracy:** `incident_updated` audit logs recorded every field present in `req.body` as changed, so unchanged fields appeared in the history.
+2. **Status History UX:** the section always expanded and consumed too much vertical space.
+3. **Debug Metadata missing:** the section was gated behind the `adminMode` prop and could fail to render for some incidents; invalid dates also risked runtime crashes.
+
+### Fix
+- **Backend**
+  - `updateIncidentController` now fetches the original incident before updating and diffs it against `req.body`.
+  - Added type-aware comparison for dates (timestamp), numbers/IDs, strings (trim), and GeoJSON objects.
+  - Falls back to `Object.keys(req.body)` only when the original incident cannot be loaded.
+- **Frontend (`IncidentDetailPanel`)**
+  - `StatusHistory` is now collapsible and collapsed by default; the header shows the event count and a chevron toggle.
+  - Removed the `adminMode` guard around **Debug Metadata** so it always renders in the superadmin panel.
+  - Replaced raw `format(new Date(...))` calls with a defensive `formatDateSafe` helper and hardened `RelativeTime` against invalid dates.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/controllers/incident.controller.js` | Accurate `changedFields` diff in `updateIncidentController`; added `toDateMs`/`toNumber` helpers. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Collapsible `StatusHistory`; always-visible Debug Metadata; safe date formatting. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix: accurate status history, collapsible events, and always-visible debug metadata
+```
+
+*End of status history and debug metadata fixes.*

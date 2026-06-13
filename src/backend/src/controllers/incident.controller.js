@@ -118,7 +118,78 @@ export async function createIncidentController(req, res) {
   res.apiSuccess({ incident: enriched?.incident || incident }, 'Incident created successfully');
 }
 
+function toDateMs(v) {
+  if (v === undefined || v === null || v === '') return null;
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.getTime();
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.getTime();
+}
+
+function toNumber(v) {
+  if (v === undefined || v === null || v === '') return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function computeChangedFields(original, body) {
+  if (!original) {
+    // Fallback when the original incident could not be fetched (e.g. hidden status).
+    return Object.keys(body);
+  }
+
+  const fieldMap = {
+    title: 'title',
+    description: 'description',
+    categoryId: 'category_id',
+    zoneCategoryId: 'zone_category_id',
+    severity: 'severity',
+    startDate: 'start_date',
+    endDate: 'end_date',
+    locationContext: 'location_context',
+    verificationOverride: 'verification_override',
+    latitude: 'latitude',
+    longitude: 'longitude',
+    geometryType: 'geometry_type',
+    geometry: 'geometry',
+  };
+
+  const changed = [];
+  for (const [bodyKey, dbKey] of Object.entries(fieldMap)) {
+    if (!(bodyKey in body)) continue;
+
+    let newVal = body[bodyKey];
+    let oldVal = original[dbKey];
+
+    if (bodyKey === 'startDate' || bodyKey === 'endDate') {
+      newVal = toDateMs(newVal);
+      oldVal = toDateMs(oldVal);
+    } else if (['severity', 'categoryId', 'zoneCategoryId', 'latitude', 'longitude'].includes(bodyKey)) {
+      newVal = toNumber(newVal);
+      oldVal = toNumber(oldVal);
+    } else if (typeof newVal === 'string') {
+      newVal = newVal.trim();
+    }
+
+    if (typeof oldVal === 'string') {
+      oldVal = oldVal.trim();
+    }
+
+    // Treat null / undefined / empty string as equivalent for non-geometry fields
+    if (bodyKey !== 'geometry') {
+      const isEmpty = (v) => v === null || v === undefined || v === '';
+      if (isEmpty(newVal) && isEmpty(oldVal)) continue;
+    }
+
+    if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+      changed.push(bodyKey);
+    }
+  }
+  return changed;
+}
+
 export async function updateIncidentController(req, res) {
+  const originalEvent = await getEventById(req.params.id);
   const incident = await updateIncident(req.params.id, req.body);
   if (!incident) {
     return res.apiError('Incident not found', 'NOT_FOUND', 404);
@@ -128,9 +199,10 @@ export async function updateIncidentController(req, res) {
   const enriched = await getEventById(req.params.id);
   broadcastEvent({ type: 'incident_updated', incident: enriched?.incident || incident });
 
+  const changedFields = computeChangedFields(originalEvent?.incident, req.body);
   await auditLog(req, AUDIT_ACTIONS.INCIDENT_UPDATED, 'incident', req.params.id, {
     title: incident.title,
-    changedFields: Object.keys(req.body),
+    changedFields: changedFields.length > 0 ? changedFields : ['updated'],
   });
 
   res.apiSuccess({ incident: enriched?.incident || incident }, 'Incident updated successfully');
