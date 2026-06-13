@@ -44,7 +44,7 @@ export default function ActivityInspectorSidebar({
   const [pagination, setPagination] = useState(null);
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(10);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [action, setAction] = useState('');
@@ -354,6 +354,7 @@ export default function ActivityInspectorSidebar({
             onChange={handleLimitChange}
             style={{ ...inputStyle, width: 'auto', minWidth: '70px' }}
           >
+            <option value={10}>10 / page</option>
             <option value={25}>25 / page</option>
             <option value={50}>50 / page</option>
             <option value={100}>100 / page</option>

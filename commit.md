@@ -6614,3 +6614,27 @@ feat: add pagination and date/action filters to user profile activity tabs
 ```
 
 *End of profile activity pagination follow-up.*
+
+---
+
+## ✨ 2026-06-13 — Tweak: Default activity page size to 10
+
+### Change
+- Added **10** to the per-page selector and made it the default across all activity views:
+  - `UserDetailDrawer`
+  - `PublicUserDrawer`
+  - `ActivityInspectorSidebar`
+
+### Verification
+
+```bash
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+feat: default activity per-page to 10 and add 10-item option
+```
+
+*End of per-page default tweak.*

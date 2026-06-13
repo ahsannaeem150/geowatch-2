@@ -39,7 +39,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
 
   // Activity filters / pagination
   const [activityPage, setActivityPage] = useState(1);
-  const [activityLimit, setActivityLimit] = useState(25);
+  const [activityLimit, setActivityLimit] = useState(10);
   const [activityDateFrom, setActivityDateFrom] = useState('');
   const [activityDateTo, setActivityDateTo] = useState('');
   const [activityAction, setActivityAction] = useState('');
@@ -407,6 +407,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
                           outline: 'none',
                         }}
                       >
+                        <option value={10}>10</option>
                         <option value={25}>25</option>
                         <option value={50}>50</option>
                         <option value={100}>100</option>
