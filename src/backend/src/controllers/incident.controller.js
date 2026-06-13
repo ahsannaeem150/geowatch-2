@@ -168,6 +168,8 @@ export async function restoreIncidentController(req, res) {
 }
 
 export async function purgeIncidentController(req, res) {
+  // Capture as much metadata as possible before the row is permanently deleted.
+  const snapshot = await getDeletedIncidentById(req.params.id);
   const result = await purgeIncident(req.params.id, req.user.id);
   if (!result) {
     return res.apiError('Incident not found', 'NOT_FOUND', 404);
@@ -175,6 +177,19 @@ export async function purgeIncidentController(req, res) {
   broadcastEvent({ type: 'incident_deleted', incidentId: req.params.id });
 
   await auditLog(req, AUDIT_ACTIONS.INCIDENT_PURGED, 'incident', req.params.id, {
+    title: snapshot?.title || req.params.id,
+    description: snapshot?.description || '',
+    severity: snapshot?.severity,
+    status: snapshot?.status,
+    startDate: snapshot?.start_date,
+    endDate: snapshot?.end_date,
+    geometryType: snapshot?.geometry_type,
+    categoryName: snapshot?.category_name,
+    domainName: snapshot?.domain_name,
+    domainColor: snapshot?.domain_color,
+    locationContext: snapshot?.location_context,
+    originalStatus: snapshot?.original_status,
+    deletedAt: snapshot?.deleted_at,
     purgedAt: new Date().toISOString(),
   });
 

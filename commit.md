@@ -6638,3 +6638,48 @@ feat: default activity per-page to 10 and add 10-item option
 ```
 
 *End of per-page default tweak.*
+
+---
+
+## ✨ 2026-06-13 — Bug fixes: Recycle Bin link + purged incident panel
+
+### Issues Addressed
+
+1. **"View in Recycle Bin" button did nothing**
+   - Root cause: the button used hash-based navigation (`window.location.hash`) which does not work with the app's Browser Router.
+   - Fix: `IncidentDetailPanel` now uses React Router's `useNavigate` and calls `navigate('/superadmin/recycle-bin')`.
+
+2. **Fully deleted (purged) incidents showed "Incident not found"**
+   - Root cause: `IncidentDetailPanel` tried to refetch purged incidents from the live endpoint because it only skipped the fetch for `isDeleted` / `status === 'hidden'`, not for `isPurged`.
+   - Fix: added `incident.isPurged` to the skip-fetch condition so the synthetic purged-incident payload renders directly.
+
+3. **Purge audit logs captured almost no metadata**
+   - Fix: `purgeIncidentController` now fetches the deleted-incident snapshot before purging and records title, description, severity, dates, geometry type, category/domain, original status, deletedAt, and purgedAt in the audit log. This gives future purged incidents a readable panel.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Imported `useNavigate`; fixed "View in Recycle Bin" to navigate via React Router; added `isPurged` to the no-refetch condition. |
+| `src/backend/src/controllers/incident.controller.js` | `purgeIncidentController` captures a snapshot before deletion and writes richer audit-log details. |
+
+### Behavior
+
+- Clicking **View in Recycle Bin** on a deleted incident now correctly navigates to `/superadmin/recycle-bin`.
+- Clicking a fully purged incident in the activity sidebar now shows the purged panel with whatever metadata is available in the audit log.
+- Newly purged incidents will retain title, severity, dates, category/domain, and deletion history in their audit log.
+
+### Verification
+
+```bash
+node --check src/backend/src/controllers/incident.controller.js  # ✅
+npm run build:superadmin-web                                     # ✅
+```
+
+### Git Commit
+
+```
+fix: make recycle-bin link work and render purged incidents without refetch error
+```
+
+*End of recycle-bin / purged incident fixes.*

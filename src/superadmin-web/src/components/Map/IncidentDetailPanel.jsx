@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getIncident, updateIncident, deleteIncident, resolveIncident, restoreIncident } from '../../services/api.js';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
 import { format } from 'date-fns';
 
 export default function IncidentDetailPanel({ incident, onBack, adminMode = false, onRefresh, categories = [], onEditZone, onEditZoneInfo }) {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,9 +46,9 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
       return;
     }
 
-    // Deleted incidents cannot be re-fetched from the live endpoint.
-    // Render them directly from the recycle-bin payload.
-    if (incident.isDeleted || incident.status === 'hidden') {
+    // Deleted / purged incidents cannot be re-fetched from the live endpoint.
+    // Render them directly from the payload we already have.
+    if (incident.isPurged || incident.isDeleted || incident.status === 'hidden') {
       setData({ incident, sources: [], timeline: [] });
       setLoading(false);
       return;
@@ -279,12 +281,8 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
             {inc.original_status && <div>Original status: {inc.original_status}</div>}
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <a
-              href="#/superadmin/recycle-bin"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.hash = '#/superadmin/recycle-bin';
-              }}
+            <button
+              onClick={() => navigate('/superadmin/recycle-bin')}
               style={{
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -293,12 +291,11 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
                 border: '1px solid var(--border-subtle)',
                 background: 'transparent',
                 color: 'var(--text-secondary)',
-                textDecoration: 'none',
                 cursor: 'pointer',
               }}
             >
               View in Recycle Bin
-            </a>
+            </button>
             <button
               onClick={async () => {
                 setActionLoading(true);
