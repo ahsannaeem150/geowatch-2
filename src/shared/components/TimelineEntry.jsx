@@ -1,5 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
+
+function isTwitterUrl(url) {
+  if (!url) return false;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com';
+  } catch {
+    return false;
+  }
+}
+
+function darkThemeTwitterHtml(html) {
+  if (!html) return html;
+  return html.replace(/class="twitter-tweet"/g, 'class="twitter-tweet" data-theme="dark"');
+}
 
 export default function TimelineEntry({
   update,
@@ -11,8 +26,11 @@ export default function TimelineEntry({
   onDelete,
   isFirst,
   isLast,
+  fetchOEmbed,
 }) {
   const embedRef = useRef(null);
+  const [fetchedHtml, setFetchedHtml] = useState('');
+  const [embedLoading, setEmbedLoading] = useState(false);
   const date = new Date(update.update_date);
 
   let dateLabel;
@@ -31,10 +49,9 @@ export default function TimelineEntry({
 
   // Force dark theme on Twitter embeds
   const darkEmbedHtml = update.embed_html
-    ? update.embed_html.replace(
-        /class="twitter-tweet"/g,
-        'class="twitter-tweet" data-theme="dark"'
-      )
+    ? darkThemeTwitterHtml(update.embed_html)
+    : fetchedHtml
+    ? darkThemeTwitterHtml(fetchedHtml)
     : null;
 
   useEffect(() => {
@@ -42,6 +59,28 @@ export default function TimelineEntry({
       window.twttr.widgets.load(embedRef.current);
     }
   }, [isExpanded, darkEmbedHtml]);
+
+  // Lazy-load oEmbed for Twitter/X URLs when expanded
+  useEffect(() => {
+    if (!isExpanded || update.embed_html || fetchedHtml || !fetchOEmbed || !update.source_url) return;
+    if (!isTwitterUrl(update.source_url)) return;
+
+    let cancelled = false;
+    setEmbedLoading(true);
+    fetchOEmbed(update.source_url)
+      .then((res) => {
+        if (cancelled) return;
+        setFetchedHtml(res?.html || '');
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setEmbedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isExpanded, update.embed_html, update.source_url, fetchOEmbed, fetchedHtml]);
 
   return (
     <div style={{ display: 'flex', position: 'relative' }}>
@@ -220,6 +259,11 @@ export default function TimelineEntry({
               )}
 
               {/* Embedded tweet */}
+              {embedLoading && (
+                <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 12, marginBottom: 12 }}>
+                  Loading embed…
+                </div>
+              )}
               {darkEmbedHtml && (
                 <div
                   ref={embedRef}

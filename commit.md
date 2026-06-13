@@ -6888,3 +6888,89 @@ feat: redesign incident detail panel with status history, rich sources, and read
 ```
 
 *End of incident detail panel redesign.*
+
+---
+
+## 🐛✨ 2026-06-13 — Fix: Incident detail panel issues (status history, coords, X embeds, scroll, profile link)
+
+### Issues
+1. Status History derived events from current incident state, so edits and resolves were missing or mis-dated.
+2. The copy-coordinates button sat next to the location name and looked like it copied the name.
+3. X posts only showed a link, not the embedded tweet.
+4. Timeline updates with X posts also lacked embeds.
+5. Bottom link said “View creator activity log” instead of linking to the profile Overview.
+6. Debug Metadata section was cut off and not scrollable in long panels.
+
+### Fix
+- **Backend**
+  - `incident.service.js` already returns creator/resolver names and polygon metrics.
+  - New `GET /api/v1/system/oembed?url=...` endpoint returns a Twitter/X embed blockquote for X/Twitter URLs.
+- **Frontend**
+  - `IncidentDetailPanel` now fetches real audit logs for the incident and builds Status History from them: Created, Edited, Source added/updated, Update added/edited, Resolved, Deleted, Restored, Purged.
+  - Added a dedicated **Coordinates** row with explicit lat/lng and a copy button.
+  - Added `OEmbedRenderer` component; SourceCard renders embedded X posts.
+  - Updated shared `TimelineEntry` to accept an optional `fetchOEmbed` prop and lazy-load X embeds when expanded.
+  - Changed bottom link to “View creator profile” and redirects to the Overview tab.
+  - Fixed scroll layout: `IncidentDetailPanel` root uses `flex: 1, minHeight: 0` and the MapPage right-panel wrapper uses `minHeight: 0`.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/controllers/system.controller.js` | Added `getOEmbedController` with Twitter/X URL detection and embed blockquote generation. |
+| `src/backend/src/routes/system.routes.js` | Added authenticated `/oembed` route. |
+| `src/superadmin-web/src/services/api.js` | Added `getOEmbed` helper. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Audit-log-driven status history, coordinates row, X embeds, creator profile link, scroll fix. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Right panel wrapper `minHeight: 0`, content children use `flex: 1`. |
+| `src/shared/components/TimelineEntry.jsx` | Optional `fetchOEmbed` prop for lazy X embed loading. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/system/oembed?url=https://x.com/elonmusk/status/1898351426158055527"  # ✅ returns embed html
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/audit?targetType=incident&targetId=<id>&limit=10"                  # ✅ returns audit logs
+```
+
+### Git Commit
+
+```
+fix: improve incident detail panel history, coordinates, X embeds, and scroll
+```
+
+*End of incident detail panel fixes.*
+
+---
+
+## 🐛 2026-06-13 — Hotfix: Missing imports caused map blanking and detail panel crash
+
+### Issue
+- Clicking a map event caused a blank map and console errors:
+  - `VERIFICATION_CONFIG is not defined` in `SuperadminMap.jsx`.
+  - `useRef is not defined` in `IncidentDetailPanel.jsx` (`OEmbedRenderer`).
+
+### Fix
+- Added `VERIFICATION_CONFIG` to the `SuperadminMap.jsx` import from `@shared/constants.js`.
+- Added `useRef` to the React imports in `IncidentDetailPanel.jsx`.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Map/SuperadminMap.jsx` | Imported `VERIFICATION_CONFIG`. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Imported `useRef`. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix: add missing VERIFICATION_CONFIG and useRef imports
+```
+
+*End of hotfix.*

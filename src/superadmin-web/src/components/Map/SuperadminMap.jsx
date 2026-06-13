@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { useTheme } from '@shared/useTheme.js';
 import { format } from 'date-fns';

@@ -1779,7 +1779,7 @@ export default function MapPage() {
 
         {/* Right — Incident detail or zone creation panel */}
         {(selectedIncident || showZoneCreatePanel || pointFormMode) && (
-          <div style={{ width: '480px', flexShrink: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ width: '480px', flexShrink: 0, minHeight: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {pointFormMode ? (
               <IncidentForm
                 initialData={pointFormMode === 'edit' ? selectedIncident : null}
@@ -1790,7 +1790,7 @@ export default function MapPage() {
                 submitting={submitting}
               />
             ) : zoneInfoEditMode && selectedIncident ? (
-              <div style={{ padding: '20px', overflowY: 'auto', height: '100%' }}>
+              <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
                 <ZoneForm
                   geometry={selectedIncident.geometry}
                   initialData={selectedIncident}
@@ -1813,7 +1813,7 @@ export default function MapPage() {
                 onEditZoneInfo={handleZoneInfoEdit}
               />
             ) : (
-              <div style={{ padding: '20px', overflowY: 'auto', height: '100%' }}>
+              <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
                 <ZoneForm
                   geometry={{
                     type: 'Polygon',

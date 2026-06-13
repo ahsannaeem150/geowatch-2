@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getIncident,
@@ -6,6 +6,8 @@ import {
   deleteIncident,
   resolveIncident,
   restoreIncident,
+  listAuditLogs,
+  getOEmbed,
 } from '../../services/api.js';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import {
@@ -30,8 +32,8 @@ import {
   Image as ImageIcon,
   Video,
   StickyNote,
-  Activity,
   User,
+  UserCircle,
   Tag,
   Box,
   Ruler,
@@ -58,6 +60,8 @@ export default function IncidentDetailPanel({
   const [error, setError] = useState('');
   const [expandedUpdateId, setExpandedUpdateId] = useState(null);
   const [rawIdsOpen, setRawIdsOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   // Admin action states
   const [mode, setMode] = useState('view'); // 'view' | 'edit'
@@ -109,6 +113,21 @@ export default function IncidentDetailPanel({
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  }, [incident?.id]);
+
+  // Fetch audit logs to build an accurate status history
+  useEffect(() => {
+    if (!incident?.id) return;
+    setAuditLoading(true);
+    listAuditLogs({ targetType: 'incident', targetId: incident.id, limit: 100 })
+      .then((res) => {
+        setAuditLogs(res?.logs || []);
+      })
+      .catch((err) => {
+        console.error('Failed to load audit logs:', err);
+        setAuditLogs([]);
+      })
+      .finally(() => setAuditLoading(false));
   }, [incident?.id]);
 
   const enterEditMode = useCallback(() => {
@@ -218,7 +237,6 @@ export default function IncidentDetailPanel({
     ? window.location.origin.replace(':5175', ':5174')
     : 'http://localhost:5174';
   const adminUrl = `${adminBaseUrl}?incident=${inc.id}`;
-  const activityUrl = `/superadmin/users?drawer=${inc.created_by}&tab=activity`;
 
   const isPurged = inc.isPurged;
   const isDeleted = !isPurged && (inc.isDeleted || inc.status === 'hidden');
@@ -237,7 +255,7 @@ export default function IncidentDetailPanel({
     : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20, overflowY: 'auto', height: '100%', background: 'var(--bg-base)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20, overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box', background: 'var(--bg-base)' }}>
       {/* Back + Admin link */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
@@ -293,7 +311,7 @@ export default function IncidentDetailPanel({
       )}
 
       {/* Status history */}
-      <StatusHistory incident={inc} isPurged={isPurged} isDeleted={isDeleted} />
+      <StatusHistory incident={inc} auditLogs={auditLogs} auditLoading={auditLoading} isPurged={isPurged} isDeleted={isDeleted} />
 
       {/* Purged / Deleted banners */}
       {isPurged && <PurgedBanner incident={inc} />}
@@ -401,12 +419,19 @@ export default function IncidentDetailPanel({
                   ? (inc.location_context || 'Location no longer available')
                   : isPolygon
                   ? `⬡ ${inc.zone_category_name || 'Zone'} · Polygon`
-                  : (inc.location_context || (coordinates ? `${coordinates.lat.toFixed(4)}, ${coordinates.lng.toFixed(4)}` : 'Location unknown'))}
+                  : (inc.location_context || 'Location unknown')}
               </span>
-              {coordinates && (
-                <CopyButton text={`${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)}`} />
-              )}
             </MetaRow>
+
+            {/* Coordinates */}
+            {coordinates && (
+              <MetaRow icon={Globe} label="Coordinates">
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                </span>
+                <CopyButton text={`${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)}`} />
+              </MetaRow>
+            )}
 
             {/* Date */}
             <MetaRow icon={Calendar} label="Started">
@@ -515,6 +540,7 @@ export default function IncidentDetailPanel({
                     update={update}
                     isExpanded={expandedUpdateId === update.id}
                     onToggle={() => setExpandedUpdateId(expandedUpdateId === update.id ? null : update.id)}
+                    fetchOEmbed={getOEmbed}
                   />
                 ))}
               </div>
@@ -524,7 +550,7 @@ export default function IncidentDetailPanel({
           {/* Activity log link */}
           {adminMode && inc.created_by && (
             <button
-              onClick={() => navigate(activityUrl)}
+              onClick={() => navigate(`/superadmin/users?drawer=${inc.created_by}&tab=overview`)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -542,8 +568,8 @@ export default function IncidentDetailPanel({
                 fontFamily: 'var(--font-sans)',
               }}
             >
-              <Activity size={14} />
-              View creator activity log
+              <UserCircle size={14} />
+              View creator profile
             </button>
           )}
 
@@ -959,41 +985,82 @@ function formatLength(m) {
   return `${n.toFixed(2)} m`;
 }
 
-function StatusHistory({ incident, isPurged, isDeleted }) {
-  const events = [];
+function parseAuditDetails(details) {
+  if (!details) return {};
+  if (typeof details === 'string') {
+    try {
+      return JSON.parse(details);
+    } catch {
+      return {};
+    }
+  }
+  return details;
+}
 
-  events.push({
-    label: 'Created',
-    date: incident.created_at,
-    actor: incident.created_by_name || incident.created_by_email,
-    actorId: incident.created_by,
-    icon: User,
-    color: '#6366f1',
-  });
+const ACTION_EVENT_MAP = {
+  incident_created: { label: 'Created', icon: User, color: '#6366f1' },
+  incident_updated: { label: 'Edited', icon: History, color: '#3b82f6' },
+  incident_resolved: { label: 'Resolved', icon: Check, color: '#eab308' },
+  incident_deleted: { label: 'Moved to Recycle Bin', icon: null, color: '#f43f5e' },
+  incident_restored: { label: 'Restored', icon: null, color: '#22c55e' },
+  incident_purged: { label: 'Permanently deleted', icon: null, color: '#6b7280' },
+  source_added: { label: 'Source added', icon: Layers, color: '#a855f7' },
+  source_updated: { label: 'Source updated', icon: Layers, color: '#a855f7' },
+  source_deleted: { label: 'Source removed', icon: Layers, color: '#ef4444' },
+  timeline_added: { label: 'Update added', icon: MessageSquare, color: '#06b6d4' },
+  timeline_updated: { label: 'Update edited', icon: MessageSquare, color: '#06b6d4' },
+  timeline_deleted: { label: 'Update removed', icon: MessageSquare, color: '#ef4444' },
+};
 
-  if (incident.verification_status && incident.verification_status !== 'unverified') {
-    const vCfg = VERIFICATION_CONFIG[incident.verification_status];
-    events.push({
-      label: vCfg?.label || incident.verification_status,
-      date: incident.updated_at,
-      icon: Check,
-      color: vCfg?.color || '#22c55e',
-    });
+function getEventLabel(log) {
+  const cfg = ACTION_EVENT_MAP[log.action];
+  const details = parseAuditDetails(log.details);
+
+  if (log.action === 'incident_updated' && details?.changedFields?.length > 0) {
+    const fields = details.changedFields.map((f) => String(f).replace(/_/g, ' ')).join(', ');
+    return `Edited · ${fields}`;
   }
 
-  if (incident.status === 'resolved' && incident.resolved_at) {
-    events.push({
-      label: 'Resolved',
-      date: incident.resolved_at,
-      actor: incident.resolved_by_name || incident.resolved_by_email,
-      actorId: incident.resolved_by,
-      icon: Check,
-      color: '#eab308',
-    });
+  if ((log.action === 'source_added' || log.action === 'source_updated') && details?.sourceType) {
+    return `${cfg?.label || log.action} · ${details.sourceType.replace(/_/g, ' ')}`;
   }
 
+  if ((log.action === 'timeline_added' || log.action === 'timeline_updated') && details?.title) {
+    return `${cfg?.label || log.action} · ${details.title}`;
+  }
+
+  return cfg?.label || log.action.replace(/_/g, ' ');
+}
+
+function StatusHistory({ incident, auditLogs, auditLoading, isPurged, isDeleted }) {
+  const auditEvents = auditLogs
+    .filter((log) => ACTION_EVENT_MAP[log.action])
+    .map((log) => {
+      const cfg = ACTION_EVENT_MAP[log.action];
+      return {
+        label: getEventLabel(log),
+        date: log.created_at,
+        actor: log.user_full_name || log.user_email,
+        actorId: log.user_id,
+        icon: cfg.icon,
+        color: cfg.color,
+      };
+    })
+    .reverse();
+
+  const fallbackEvents = [];
+  if (incident.created_at) {
+    fallbackEvents.push({
+      label: 'Created',
+      date: incident.created_at,
+      actor: incident.created_by_name || incident.created_by_email,
+      actorId: incident.created_by,
+      icon: User,
+      color: '#6366f1',
+    });
+  }
   if (isDeleted && incident.deleted_at) {
-    events.push({
+    fallbackEvents.push({
       label: 'Moved to Recycle Bin',
       date: incident.deleted_at,
       actor: incident.deleted_by_name,
@@ -1001,9 +1068,8 @@ function StatusHistory({ incident, isPurged, isDeleted }) {
       color: '#f43f5e',
     });
   }
-
   if (isPurged && incident.purged_at) {
-    events.push({
+    fallbackEvents.push({
       label: 'Permanently deleted',
       date: incident.purged_at,
       icon: null,
@@ -1011,7 +1077,9 @@ function StatusHistory({ incident, isPurged, isDeleted }) {
     });
   }
 
-  if (events.length <= 1) return null;
+  const events = auditEvents.length > 0 ? auditEvents : fallbackEvents;
+
+  if (events.length === 0) return null;
 
   return (
     <div
@@ -1022,8 +1090,13 @@ function StatusHistory({ incident, isPurged, isDeleted }) {
         borderRadius: 'var(--radius-md)',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>
-        Status History
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+          Status History
+        </div>
+        {auditLoading && (
+          <div style={{ width: 14, height: 14, border: '2px solid var(--border-subtle)', borderTopColor: 'var(--navy-400)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {events.map((evt, idx) => (
@@ -1359,14 +1432,112 @@ function SourceCard({ source }) {
           </a>
         )}
 
-        {/* Embed HTML */}
-        {source.embed_html && (
-          <div
-            style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}
-            dangerouslySetInnerHTML={{ __html: source.embed_html }}
-          />
+        {/* Embed HTML / oEmbed */}
+        {(source.embed_html || isTwitterUrl(source.source_url)) && (
+          <OEmbedRenderer url={source.source_url} html={source.embed_html} />
         )}
       </div>
+    </div>
+  );
+}
+
+function isTwitterUrl(url) {
+  if (!url) return false;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com';
+  } catch {
+    return false;
+  }
+}
+
+function darkThemeTwitterHtml(html) {
+  if (!html) return html;
+  return html.replace(/class="twitter-tweet"/g, 'class="twitter-tweet" data-theme="dark"');
+}
+
+function loadTwitterWidgets() {
+  if (typeof window === 'undefined') return;
+  if (window.twttr?.widgets?.load) {
+    window.twttr.widgets.load();
+  } else if (!document.getElementById('twitter-widgets-script')) {
+    const script = document.createElement('script');
+    script.id = 'twitter-widgets-script';
+    script.src = 'https://platform.twitter.com/widgets.js';
+    script.async = true;
+    script.charset = 'utf-8';
+    document.body.appendChild(script);
+    script.onload = () => {
+      window.twttr?.widgets?.load();
+    };
+  }
+}
+
+/* ─── oEmbed renderer ─── */
+function OEmbedRenderer({ url, html: initialHtml, style }) {
+  const [html, setHtml] = useState(initialHtml || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (initialHtml) {
+      setHtml(initialHtml);
+      return;
+    }
+    if (!url || !isTwitterUrl(url)) {
+      setHtml('');
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    getOEmbed(url)
+      .then((res) => {
+        if (cancelled) return;
+        setHtml(res?.html || '');
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err.message || 'Failed to load embed');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url, initialHtml]);
+
+  useEffect(() => {
+    if (html && containerRef.current) {
+      loadTwitterWidgets();
+    }
+  }, [html]);
+
+  if (!html && !loading && !error) return null;
+
+  return (
+    <div style={{ ...style, position: 'relative' }}>
+      {loading && (
+        <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 14, height: 14, border: '2px solid var(--border-subtle)', borderTopColor: 'var(--navy-400)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          Loading embed…
+        </div>
+      )}
+      {error && (
+        <div style={{ padding: 10, color: 'var(--danger)', fontSize: 12, background: 'var(--alert-error-bg)', borderRadius: 'var(--radius-sm)' }}>
+          {error}
+        </div>
+      )}
+      {html && (
+        <div
+          ref={containerRef}
+          style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}
+          dangerouslySetInnerHTML={{ __html: darkThemeTwitterHtml(html) }}
+        />
+      )}
     </div>
   );
 }

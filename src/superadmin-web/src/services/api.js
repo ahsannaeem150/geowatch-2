@@ -123,6 +123,11 @@ export function getSystemHealth() {
   return request('/system/health');
 }
 
+export function getOEmbed(url) {
+  const qs = new URLSearchParams({ url }).toString();
+  return request(`/system/oembed?${qs}`);
+}
+
 // ─── Incidents ───
 
 export function getIncidents(params = {}) {
