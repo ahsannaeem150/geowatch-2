@@ -166,6 +166,10 @@ export default function MapPage() {
 
   // ─── Inline creator profile drawer ───
   const [creatorDrawer, setCreatorDrawer] = useState({ userId: null, role: null });
+
+  // Bumps whenever an incident is selected from the creator drawer so the
+  // Activity sidebar re-jumps/scrolls even if the incident id is unchanged.
+  const [activitySelectionKey, setActivitySelectionKey] = useState(0);
   const isRecycleBinMode = refParam === 'recyclebin';
 
   // Close the creator drawer when the user selects a different incident
@@ -546,6 +550,39 @@ export default function MapPage() {
       setFitBounds(null);
     },
     [setSearchParams]
+  );
+
+  // When an incident is clicked inside the inline creator profile drawer,
+  // close the drawer and navigate to the map with the activity sidebar open
+  // for the drawer user so the left sidebar can jump to the incident's page.
+  const handleCreatorDrawerIncidentClick = useCallback(
+    (log) => {
+      const userId = creatorDrawer.userId;
+      const role = creatorDrawer.role;
+
+      setCreatorDrawer({ userId: null, role: null });
+
+      if (!log.target_id || log.target_type !== 'incident' || !userId) return;
+
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('incident', log.target_id);
+        next.set('ref', 'activity');
+        if (role === 'public_user') {
+          next.set('publicUserId', userId);
+          next.delete('staffUserId');
+        } else {
+          next.set('staffUserId', userId);
+          next.delete('publicUserId');
+        }
+        return next;
+      });
+
+      // Force the Activity sidebar to re-evaluate jump/scroll even if the
+      // incident id is the same as the one already selected on the map.
+      setActivitySelectionKey((k) => k + 1);
+    },
+    [creatorDrawer.userId, creatorDrawer.role, setSearchParams]
   );
 
   const handleToggleActivitySidebar = useCallback(() => {
@@ -1370,6 +1407,7 @@ export default function MapPage() {
             staffUserId={staffUserId}
             publicUserId={publicUserId}
             selectedIncidentId={incidentIdFromUrl}
+            selectionKey={activitySelectionKey}
             onIncidentClick={handleActivityIncidentClick}
             onToggleCollapse={handleToggleActivitySidebar}
             onClose={handleCloseActivitySidebar}
@@ -1852,12 +1890,14 @@ export default function MapPage() {
         <PublicUserDrawer
           userId={creatorDrawer.userId}
           onClose={() => setCreatorDrawer({ userId: null, role: null })}
+          onIncidentClick={handleCreatorDrawerIncidentClick}
         />
       )}
       {creatorDrawer.userId && creatorDrawer.role !== 'public_user' && (
         <UserDetailDrawer
           userId={creatorDrawer.userId}
           onClose={() => setCreatorDrawer({ userId: null, role: null })}
+          onIncidentClick={handleCreatorDrawerIncidentClick}
         />
       )}
     </>

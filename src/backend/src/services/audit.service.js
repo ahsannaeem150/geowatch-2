@@ -123,6 +123,36 @@ export async function listAuditLogs(filters) {
   };
 }
 
+/**
+ * Returns the 1-based page number that contains the first audit log for the
+ * given incident (target_type = 'incident', target_id = incidentId) within a
+ * user's activity timeline. Respects the same filters as listAuditLogs.
+ */
+export async function findAuditLogPageForIncident(filters) {
+  const { where, params, nextIndex } = buildAuditWhereClause(filters);
+  const incidentId = filters.incidentId;
+  const limit = Math.min(100, Math.max(1, parseInt(filters.limit, 10) || 10));
+
+  const result = await query(
+    `WITH ranked AS (
+       SELECT al.id, al.target_type, al.target_id,
+         ROW_NUMBER() OVER (ORDER BY al.created_at DESC) as row_num
+       FROM audit_logs al
+       LEFT JOIN users u ON al.user_id = u.id
+       LEFT JOIN public_users pu ON al.user_id = pu.id
+       ${where}
+     )
+     SELECT row_num FROM ranked
+     WHERE target_type = $${nextIndex} AND target_id = $${nextIndex + 1}
+     LIMIT 1`,
+    [...params, 'incident', incidentId]
+  );
+
+  const rowNum = result.rows[0]?.row_num;
+  if (!rowNum) return null;
+  return Math.ceil(rowNum / limit);
+}
+
 export async function getAuditSummary(filters = {}) {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);

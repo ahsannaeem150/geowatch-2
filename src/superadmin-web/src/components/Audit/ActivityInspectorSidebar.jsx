@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PanelLeftClose, X, ChevronLeft, ChevronRight, ArrowLeft, Search } from 'lucide-react';
 import ActivityTimeline from './ActivityTimeline.jsx';
-import { getUserActivity, getPublicUserActivity } from '../../services/api.js';
+import {
+  getUserActivity,
+  getPublicUserActivity,
+  getUserActivityPageForIncident,
+  getPublicUserActivityPageForIncident,
+} from '../../services/api.js';
 
 const ACTION_OPTIONS = [
   { value: '', label: 'All actions' },
@@ -34,6 +39,7 @@ export default function ActivityInspectorSidebar({
   publicUserId,
   actorName,
   selectedIncidentId,
+  selectionKey = 0,
   onIncidentClick,
   onToggleCollapse,
   onClose,
@@ -49,7 +55,6 @@ export default function ActivityInspectorSidebar({
   const [dateTo, setDateTo] = useState('');
   const [action, setAction] = useState('');
   const [search, setSearch] = useState('');
-  const [relatedIncidentId, setRelatedIncidentId] = useState(null);
 
   const isStaff = Boolean(staffUserId);
   const userId = staffUserId || publicUserId;
@@ -65,7 +70,6 @@ export default function ActivityInspectorSidebar({
     if (dateToIso) params.dateTo = dateToIso;
     if (action) params.action = action;
     if (search.trim()) params.search = search.trim();
-    if (relatedIncidentId) params.relatedIncidentId = relatedIncidentId;
 
     try {
       const data = isStaff ? await getUserActivity(userId, params) : await getPublicUserActivity(userId, params);
@@ -85,16 +89,40 @@ export default function ActivityInspectorSidebar({
   }, [fetchLogs]);
 
   // When an incident is selected from elsewhere (e.g. the creator profile
-  // drawer), narrow the activity list to that incident so the sidebar can
-  // scroll to it regardless of which page it lives on.
+  // drawer), figure out which page it lives on, clear filters so it is
+  // guaranteed to appear, jump to that page, and let ActivityTimeline scroll
+  // to it once the logs load.
   useEffect(() => {
-    if (selectedIncidentId) {
-      setRelatedIncidentId(selectedIncidentId);
-      setPage(1);
-    } else {
-      setRelatedIncidentId(null);
-    }
-  }, [selectedIncidentId]);
+    if (!selectedIncidentId || !userId) return;
+
+    // If the incident is already on the current page, ActivityTimeline will
+    // scroll to it; no need to clear filters or jump pages.
+    const isAlreadyVisible = logs.some((log) => log.target_id === selectedIncidentId);
+    if (isAlreadyVisible) return;
+
+    // Clear filters so the incident is not hidden by a previous filter, then
+    // ask the backend which page it lives on.
+    setDateFrom('');
+    setDateTo('');
+    setAction('');
+    setSearch('');
+
+    const findPage = async () => {
+      try {
+        const params = { incidentId: selectedIncidentId, limit };
+        const data = isStaff
+          ? await getUserActivityPageForIncident(userId, params)
+          : await getPublicUserActivityPageForIncident(userId, params);
+        if (data?.page) {
+          setPage(data.page);
+        }
+      } catch (err) {
+        console.error('Failed to find activity page for incident:', err);
+      }
+    };
+
+    findPage();
+  }, [selectedIncidentId, selectionKey, userId, isStaff, limit]);
 
   const handleDateFromChange = (e) => {
     setPage(1);
@@ -187,48 +215,6 @@ export default function ActivityInspectorSidebar({
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
             {pagination ? `${pagination.total} events` : `${logs.length} events`}
           </div>
-          {relatedIncidentId && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                marginTop: 8,
-                padding: '4px 8px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-hover)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: 11,
-                color: 'var(--text-secondary)',
-                maxWidth: '100%',
-              }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                Related to selected incident
-              </span>
-              <button
-                type="button"
-                onClick={() => setRelatedIncidentId(null)}
-                title="Show all activity"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'var(--border-subtle)',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                <X size={10} />
-              </button>
-            </div>
-          )}
           {onBackToProfile && (
             <button
               type="button"

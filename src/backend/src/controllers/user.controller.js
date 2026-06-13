@@ -8,7 +8,7 @@ import {
   generateTempPassword,
   resetUserPassword,
 } from '../services/user.service.js';
-import { listAuditLogs } from '../services/audit.service.js';
+import { listAuditLogs, findAuditLogPageForIncident } from '../services/audit.service.js';
 import { query } from '../config/database.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
@@ -132,6 +132,32 @@ export async function getUserActivityController(req, res) {
     },
     pagination: logsResult.pagination,
   });
+}
+
+export async function getUserActivityPageForIncidentController(req, res) {
+  const userId = req.params.id;
+
+  const user = await getUserById(userId);
+  if (!user) {
+    return res.apiError('User not found', 'NOT_FOUND', 404);
+  }
+
+  const incidentId = req.query.incidentId;
+  if (!incidentId) {
+    return res.apiError('incidentId is required', 'VALIDATION_ERROR', 400);
+  }
+
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
+
+  const auditFilters = { userId, realm: 'system', incidentId, limit };
+  if (req.query.dateFrom) auditFilters.dateFrom = req.query.dateFrom;
+  if (req.query.dateTo) auditFilters.dateTo = req.query.dateTo;
+  if (req.query.action) auditFilters.action = req.query.action;
+  if (req.query.search) auditFilters.search = req.query.search;
+
+  const page = await findAuditLogPageForIncident(auditFilters);
+
+  res.apiSuccess({ page });
 }
 
 export async function resetPasswordController(req, res) {

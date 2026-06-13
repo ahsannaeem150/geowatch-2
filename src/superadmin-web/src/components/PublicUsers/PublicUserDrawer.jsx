@@ -28,7 +28,7 @@ function toEndOfDayIso(date) {
   return new Date(`${date}T23:59:59.999Z`).toISOString();
 }
 
-export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab, initialScroll }) {
+export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab, initialScroll, onIncidentClick }) {
   const [data, setData] = useState(null);
   const [activityData, setActivityData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -450,6 +450,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
                       return `/superadmin/public-users?drawer=${userId}&tab=${activeTab}&scroll=${scrollTop}`;
                     }}
                     publicUserId={user?.id}
+                    onIncidentClick={onIncidentClick}
                   />
 
                   {/* Activity pagination */}

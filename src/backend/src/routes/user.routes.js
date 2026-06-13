@@ -11,6 +11,7 @@ import {
   deleteUserController,
   resetPasswordController,
   getUserActivityController,
+  getUserActivityPageForIncidentController,
 } from '../controllers/user.controller.js';
 
 const router = Router();
@@ -57,6 +58,13 @@ router.get(
   authenticate,
   requireRole('super_admin'),
   asyncHandler(getUserActivityController)
+);
+
+router.get(
+  '/:id/activity/page-for-incident',
+  authenticate,
+  requireRole('super_admin'),
+  asyncHandler(getUserActivityPageForIncidentController)
 );
 
 export default router;

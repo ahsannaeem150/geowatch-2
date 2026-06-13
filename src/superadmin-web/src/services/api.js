@@ -83,6 +83,11 @@ export function getUserActivity(id, params = {}) {
   return request(`/users/${id}/activity${qs ? `?${qs}` : ''}`);
 }
 
+export function getUserActivityPageForIncident(id, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/users/${id}/activity/page-for-incident${qs ? `?${qs}` : ''}`);
+}
+
 // ─── Public Users ───
 
 export function listPublicUsers(params = {}) {
@@ -104,6 +109,11 @@ export function updatePublicUser(id, body) {
 export function getPublicUserActivity(id, params = {}) {
   const qs = new URLSearchParams(params).toString();
   return request(`/public-users/${id}/activity${qs ? `?${qs}` : ''}`);
+}
+
+export function getPublicUserActivityPageForIncident(id, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/public-users/${id}/activity/page-for-incident${qs ? `?${qs}` : ''}`);
 }
 
 // ─── Audit ───

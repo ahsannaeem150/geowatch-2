@@ -5,7 +5,7 @@ import {
   countPublicUserSavedIncidents,
 } from '../services/public-auth.service.js';
 import { listSavedIncidents } from '../services/saved-incident.service.js';
-import { listAuditLogs } from '../services/audit.service.js';
+import { listAuditLogs, findAuditLogPageForIncident } from '../services/audit.service.js';
 import { query } from '../config/database.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
@@ -110,6 +110,32 @@ export async function getPublicUserActivityController(req, res) {
     },
     pagination: logsResult.pagination,
   });
+}
+
+export async function getPublicUserActivityPageForIncidentController(req, res) {
+  const { id } = req.params;
+
+  const user = await findPublicUserById(id);
+  if (!user) {
+    return res.apiError('Public user not found', 'NOT_FOUND', 404);
+  }
+
+  const incidentId = req.query.incidentId;
+  if (!incidentId) {
+    return res.apiError('incidentId is required', 'VALIDATION_ERROR', 400);
+  }
+
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
+
+  const auditFilters = { userId: id, realm: 'user', incidentId, limit };
+  if (req.query.dateFrom) auditFilters.dateFrom = req.query.dateFrom;
+  if (req.query.dateTo) auditFilters.dateTo = req.query.dateTo;
+  if (req.query.action) auditFilters.action = req.query.action;
+  if (req.query.search) auditFilters.search = req.query.search;
+
+  const page = await findAuditLogPageForIncident(auditFilters);
+
+  res.apiSuccess({ page });
 }
 
 /**

@@ -7380,3 +7380,161 @@ fix(superadmin): jump activity sidebar to selected incident on any page
 ```
 
 *End of activity sidebar page-jump fix.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Include relatedIncidentId in Activity sidebar fetch deps
+
+### Issue
+- The Activity sidebar still did not jump/scroll to incidents selected from the creator profile drawer, even after adding the `relatedIncidentId` filter logic.
+
+### Root cause
+- `relatedIncidentId` was not included in the `fetchLogs` `useCallback` dependency array, so the API call never re-ran with the new filter. The sidebar stayed on the original unfiltered page.
+
+### Fix
+- Added `relatedIncidentId` to the `fetchLogs` dependency array so selecting an incident immediately refetches activity filtered to that incident.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | Added `relatedIncidentId` to `fetchLogs` dependency array. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix(superadmin): include relatedIncidentId in activity sidebar fetch deps
+```
+
+*End of relatedIncidentId dependency fix.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Jump Activity sidebar to the correct page for selected incident
+
+### Issue
+- Filtering the Activity sidebar to only the selected incident’s related logs changed the list and felt unnatural.
+- The desired behavior is to keep the full activity timeline intact, but when an incident is selected from the creator profile drawer, the sidebar should jump to the page that contains that incident and smoothly scroll to it.
+
+### Fix
+- Added backend endpoints:
+  - `GET /api/v1/users/:id/activity/page-for-incident?incidentId=...&limit=...`
+  - `GET /api/v1/public-users/:id/activity/page-for-incident?incidentId=...&limit=...`
+- Added `findAuditLogPageForIncident` in `audit.service.js` to compute the 1-based page of the first audit log for the given incident using `ROW_NUMBER()` over the same ordered/filtered activity list.
+- Removed the `relatedIncidentId` filtering logic from `ActivityInspectorSidebar`.
+- Added an effect in `ActivityInspectorSidebar` that, when an incident is selected:
+  - Checks if it is already visible on the current page (if so, lets the existing smooth scroll handle it).
+  - Clears filters to guarantee the incident is present.
+  - Calls the new page-for-incident endpoint.
+  - Sets the sidebar page so the incident renders.
+  - `ActivityTimeline` then smoothly scrolls the item into view.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/audit.service.js` | Added `findAuditLogPageForIncident` helper using `ROW_NUMBER()`. |
+| `src/backend/src/controllers/user.controller.js` | Added `getUserActivityPageForIncidentController`. |
+| `src/backend/src/controllers/public-user.controller.js` | Added `getPublicUserActivityPageForIncidentController`. |
+| `src/backend/src/routes/user.routes.js` | Registered `GET /:id/activity/page-for-incident`. |
+| `src/backend/src/routes/public-user.routes.js` | Registered `GET /:id/activity/page-for-incident`. |
+| `src/superadmin-web/src/services/api.js` | Added `getUserActivityPageForIncident` and `getPublicUserActivityPageForIncident` clients. |
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | Removed `relatedIncidentId` filtering; added page-jump effect with filter clearing and visibility check. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+feat(superadmin): jump activity sidebar to the correct page for selected incident
+```
+
+*End of activity sidebar page-jump feature.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Creator drawer incident click now closes drawer and sidebar jumps to correct page
+
+### Issue
+- Clicking an incident from page 2+ of the inline creator profile drawer did not close the right drawer, and the left Activity sidebar stayed on page 1.
+
+### Root causes
+1. The drawer used its own internal navigation (`getReturnTo`); MapPage only closed the drawer when the URL `incident` param changed. If the selected incident was already the current map selection, the URL did not change and the drawer remained open.
+2. The `findAuditLogPageForIncident` SQL ranked only rows matching the target incident, so it always returned page 1 instead of the incident’s real page within the full timeline.
+
+### Fix
+- Passed an `onIncidentClick` callback from `MapPage` into `UserDetailDrawer` and `PublicUserDrawer`. The callback explicitly closes the creator drawer and then handles the incident selection, so the drawer always dismisses on click.
+- Fixed `findAuditLogPageForIncident` to rank the entire filtered activity list in the CTE and then select the row number of the incident log in the outer query.
+- Added an `activitySelectionKey` in `MapPage` and passed it to `ActivityInspectorSidebar` so the sidebar re-jumps/scrolls even when the same incident id is selected again.
+- Added `selectionKey` support to `ActivityInspectorSidebar` page-jump effect.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/audit.service.js` | Fixed `findAuditLogPageForIncident` CTE to rank all activity, filtering to the incident only in the outer query. |
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | Accept and forward `onIncidentClick` to `ActivityTimeline`. |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Accept and forward `onIncidentClick` to `ActivityTimeline`. |
+| `src/superadmin-web/src/components/Audit/ActivityInspectorSidebar.jsx` | Accept `selectionKey` and include it in page-jump effect deps. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Added `activitySelectionKey`, `handleCreatorDrawerIncidentClick`, and passed props to drawer and sidebar. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix(superadmin): close creator drawer and correctly jump activity page on incident click
+```
+
+*End of creator drawer / activity page jump fix.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Activity sidebar reopens when selecting an incident from creator drawer
+
+### Issue
+- After the previous fix, clicking an incident in the creator profile drawer closed the drawer but the left Activity sidebar no longer opened.
+
+### Root cause
+- `handleCreatorDrawerIncidentClick` was delegating to `handleActivityIncidentClick`, which only sets the `incident` URL param. The Activity sidebar needs `ref=activity` plus `staffUserId` or `publicUserId` to render, so it stayed hidden.
+
+### Fix
+- Rewrote `handleCreatorDrawerIncidentClick` in `MapPage` to explicitly set `incident`, `ref=activity`, and the correct user id param when navigating from the creator drawer.
+- The drawer still closes immediately, and the Activity sidebar now opens and jumps to the incident’s page as before.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | `handleCreatorDrawerIncidentClick` now builds the full activity deep-link URL. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+```
+
+### Git Commit
+
+```
+fix(superadmin): keep activity sidebar open when selecting incident from creator drawer
+```
+
+*End of activity sidebar reopen fix.*
