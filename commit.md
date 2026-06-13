@@ -6846,3 +6846,45 @@ feat: add search filtering to activity timelines and inspector sidebar
 ```
 
 *End of activity search feature.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Redesigned incident detail panel
+
+### Issue
+- The incident/zone detail panel exposed raw IDs and debug-looking metadata, making it hard for admins to scan. Sources, images, and embeds were not presented in a visually appealing way.
+
+### Fix
+- **Backend** `incident.service.js` added human-readable creator/resolver names (`created_by_name`, `created_by_email`, `resolved_by_name`, `resolved_by_email`) and polygon metrics (`area_sq_m`, `perimeter_m`) to incident queries, including deleted-incident queries.
+- **Incident detail panel** completely redesigned:
+  - New **Status History** timeline showing Created → Verified/Resolved → Deleted/Purged with actors and relative timestamps.
+  - Cleaner top badges; verification/override removed from metadata since they already appear as badges.
+  - Quick-stat tiles for Sources, Timeline Updates, and X Posts.
+  - **Metadata card** with location, dates, category, and polygon area/perimeter.
+  - **Copy coordinates** button for point incidents.
+  - Rich **source cards** with type-specific icons, image/video thumbnails, link previews, and embedded content.
+  - **View creator activity log** button linking to the staff user’s activity timeline.
+  - **Debug Metadata** retained but reorganized: human-readable fields always visible, raw IDs moved into a collapsible panel.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/incident.service.js` | Added creator/resolver name joins and polygon area/perimeter calculations to incident and deleted-incident queries. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Full redesign with status history, metadata card, rich source cards, copy coordinates, activity-log link, and collapsible raw IDs. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+node --check src/backend/server.js   # ✅
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/incidents/<id>"  # ✅ returns created_by_name, area_sq_m, etc.
+```
+
+### Git Commit
+
+```
+feat: redesign incident detail panel with status history, rich sources, and readable metadata
+```
+
+*End of incident detail panel redesign.*

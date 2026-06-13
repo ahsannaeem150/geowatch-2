@@ -1,16 +1,63 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getIncident, updateIncident, deleteIncident, resolveIncident, restoreIncident } from '../../services/api.js';
+import {
+  getIncident,
+  updateIncident,
+  deleteIncident,
+  resolveIncident,
+  restoreIncident,
+} from '../../services/api.js';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
-import { SEVERITY_SCALE, VERIFICATION_CONFIG, SOURCE_VERIFICATION_CONFIG } from '@shared/constants.js';
-import { format } from 'date-fns';
+import {
+  SEVERITY_SCALE,
+  VERIFICATION_CONFIG,
+  SOURCE_VERIFICATION_CONFIG,
+  SOURCE_TYPES,
+} from '@shared/constants.js';
+import { format, formatDistanceToNow } from 'date-fns';
+import {
+  ArrowLeft,
+  ExternalLink,
+  MapPin,
+  Calendar,
+  Clock,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Link as LinkIcon,
+  FileText,
+  Image as ImageIcon,
+  Video,
+  StickyNote,
+  Activity,
+  User,
+  Tag,
+  Box,
+  Ruler,
+  History,
+  Globe,
+  Layers,
+  MessageSquare,
+  Eye,
+  Bookmark,
+} from 'lucide-react';
 
-export default function IncidentDetailPanel({ incident, onBack, adminMode = false, onRefresh, categories = [], onEditZone, onEditZoneInfo }) {
+export default function IncidentDetailPanel({
+  incident,
+  onBack,
+  adminMode = false,
+  onRefresh,
+  categories = [],
+  onEditZone,
+  onEditZoneInfo,
+}) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedUpdateId, setExpandedUpdateId] = useState(null);
+  const [rawIdsOpen, setRawIdsOpen] = useState(false);
 
   // Admin action states
   const [mode, setMode] = useState('view'); // 'view' | 'edit'
@@ -38,6 +85,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
     setMode('view');
     setActionError('');
     setActionSuccess('');
+    setRawIdsOpen(false);
 
     // If the incident already has sources and timeline, use it directly
     if (incident.sources && incident.timeline) {
@@ -97,7 +145,6 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
       await updateIncident(incident.id, payload);
       setMode('view');
       setActionSuccess('Incident updated successfully');
-      // Refresh data
       const res = await getIncident(incident.id);
       setData(res);
       onRefresh?.();
@@ -131,7 +178,6 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
     try {
       await deleteIncident(incident.id);
       setShowDeleteConfirm(false);
-      // Notify parent and global listeners (same pattern as admin-web)
       window.dispatchEvent(
         new CustomEvent('incident-deleted', { detail: { incidentId: incident.id, incidentTitle: incident.title } })
       );
@@ -148,15 +194,16 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
 
   if (loading) {
     return (
-      <div style={{ padding: '24px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-        Loading incident details...
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12, color: 'var(--text-muted)', fontSize: 13 }}>
+        <div style={{ width: 24, height: 24, border: '2px solid var(--border-subtle)', borderTopColor: 'var(--navy-400)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        Loading incident details…
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: '24px', color: 'var(--danger)', fontSize: '13px' }}>{error}</div>
+      <div style={{ padding: 24, color: 'var(--danger)', fontSize: 13 }}>{error}</div>
     );
   }
 
@@ -165,22 +212,32 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
   const { incident: inc, sources = [], timeline = [] } = data;
   const catColor = inc.domain_color || '#6b7280';
   const vCfg = inc.verification_status ? VERIFICATION_CONFIG[inc.verification_status] : null;
-
-  const dateStr = inc.start_date
-    ? format(new Date(inc.start_date), 'MMM d, yyyy · h:mm a')
-    : 'Unknown';
+  const sev = SEVERITY_SCALE.find((s) => s.value === inc.severity) || SEVERITY_SCALE[2];
 
   const adminBaseUrl = typeof window !== 'undefined'
     ? window.location.origin.replace(':5175', ':5174')
     : 'http://localhost:5174';
   const adminUrl = `${adminBaseUrl}?incident=${inc.id}`;
+  const activityUrl = `/superadmin/users?drawer=${inc.created_by}&tab=activity`;
 
   const isPurged = inc.isPurged;
   const isDeleted = !isPurged && (inc.isDeleted || inc.status === 'hidden');
   const isPolygon = inc.geometry_type === 'polygon' || inc.geometry?.type === 'Polygon';
 
+  const sourceCounts = sources.reduce((acc, s) => {
+    const type = s.source_type || 'unknown';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  const coordinates = isPolygon
+    ? null
+    : Number.isFinite(parseFloat(inc.latitude)) && Number.isFinite(parseFloat(inc.longitude))
+    ? { lat: parseFloat(inc.latitude), lng: parseFloat(inc.longitude) }
+    : null;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', overflowY: 'auto', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20, overflowY: 'auto', height: '100%', background: 'var(--bg-base)' }}>
       {/* Back + Admin link */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
@@ -188,17 +245,19 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
+            gap: 6,
+            fontSize: 13,
             fontWeight: 600,
             color: 'var(--text-secondary)',
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            padding: '0',
+            padding: 0,
+            fontFamily: 'var(--font-sans)',
           }}
         >
-          ← Back to results
+          <ArrowLeft size={14} />
+          Back to results
         </button>
         {adminMode && mode === 'view' && (
           <a
@@ -206,135 +265,51 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              fontSize: '11px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 11,
               fontWeight: 700,
               color: 'var(--navy-400)',
               textDecoration: 'none',
             }}
           >
-            Open in Admin →
+            Open in Admin
+            <ExternalLink size={11} />
           </a>
         )}
       </div>
 
       {/* Action messages */}
       {actionError && (
-        <div style={{ padding: '10px 14px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: '12px', fontWeight: 500 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--alert-error-bg)', border: '1px solid var(--alert-error-border)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 12, fontWeight: 500 }}>
           {actionError}
         </div>
       )}
       {actionSuccess && (
-        <div style={{ padding: '10px 14px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: 'var(--radius-sm)', color: 'var(--success)', fontSize: '12px', fontWeight: 500 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: 'var(--radius-sm)', color: 'var(--success)', fontSize: 12, fontWeight: 500 }}>
           {actionSuccess}
         </div>
       )}
 
-      {/* Purged incident banner */}
-      {isPurged && (
-        <div
-          style={{
-            padding: '12px 14px',
-            background: 'rgba(107, 114, 128, 0.12)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>
-            This incident has been permanently deleted.
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            {inc.deleted_at && (
-              <div>Moved to Recycle Bin {format(new Date(inc.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
-            )}
-            {inc.purged_at && (
-              <div>Permanently deleted {format(new Date(inc.purged_at), 'MMM d, yyyy · h:mm a')}</div>
-            )}
-            {inc.original_status && <div>Original status: {inc.original_status}</div>}
-          </div>
-        </div>
-      )}
+      {/* Status history */}
+      <StatusHistory incident={inc} isPurged={isPurged} isDeleted={isDeleted} />
 
-      {/* Deleted incident banner */}
+      {/* Purged / Deleted banners */}
+      {isPurged && <PurgedBanner incident={inc} />}
       {isDeleted && (
-        <div
-          style={{
-            padding: '12px 14px',
-            background: 'var(--alert-error-bg)',
-            border: '1px solid var(--alert-error-border)',
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--danger)' }}>
-            This incident has been moved to the Recycle Bin.
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            {inc.deleted_at && (
-              <div>Deleted {format(new Date(inc.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
-            )}
-            {inc.deleted_by_name && <div>Deleted by {inc.deleted_by_name}</div>}
-            {inc.original_status && <div>Original status: {inc.original_status}</div>}
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => navigate(`/superadmin/recycle-bin?highlight=${inc.id}`)}
-              style={{
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 700,
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
-            >
-              View in Recycle Bin
-            </button>
-            <button
-              onClick={async () => {
-                setActionLoading(true);
-                setActionError('');
-                try {
-                  await restoreIncident(inc.id);
-                  setActionSuccess('Incident restored successfully');
-                  const res = await getIncident(inc.id);
-                  if (res?.incident) {
-                    setData(res);
-                  }
-                  onRefresh?.();
-                } catch (err) {
-                  setActionError(err.message || 'Failed to restore incident');
-                } finally {
-                  setActionLoading(false);
-                }
-              }}
-              disabled={actionLoading}
-              style={{
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 700,
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--success)',
-                background: 'var(--alert-success-bg)',
-                color: 'var(--success)',
-                cursor: actionLoading ? 'not-allowed' : 'pointer',
-                opacity: actionLoading ? 0.6 : 1,
-              }}
-            >
-              {actionLoading ? 'Restoring…' : 'Restore Incident'}
-            </button>
-          </div>
-        </div>
+        <DeletedBanner
+          incident={inc}
+          actionLoading={actionLoading}
+          setActionLoading={setActionLoading}
+          setActionSuccess={setActionSuccess}
+          setActionError={setActionError}
+          setData={setData}
+          onRefresh={onRefresh}
+        />
       )}
 
       {mode === 'edit' ? (
-        /* ─── Edit Form ─── */
         <EditForm
           form={editForm}
           onChange={setEditForm}
@@ -347,200 +322,181 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
         <>
           {/* Admin Actions */}
           {adminMode && !isDeleted && !isPurged && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {!isPolygon && (
-                <button
-                  onClick={enterEditMode}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--navy-500)',
-                    background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
+                <ActionButton onClick={enterEditMode} variant="primary" icon={null}>
                   Edit Incident
-                </button>
+                </ActionButton>
               )}
               {isPolygon && onEditZone && (
-                <button
-                  onClick={onEditZone}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--navy-500)',
-                    background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
+                <ActionButton onClick={onEditZone} variant="primary" icon={Box}>
                   Edit Zone
-                </button>
+                </ActionButton>
               )}
               {isPolygon && onEditZoneInfo && (
-                <button
-                  onClick={onEditZoneInfo}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--navy-500)',
-                    background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
+                <ActionButton onClick={onEditZoneInfo} variant="primary" icon={Tag}>
                   Edit Zone Info
-                </button>
+                </ActionButton>
               )}
               {inc.status === 'active' && (
-                <button
-                  onClick={() => setShowResolveConfirm(true)}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--warning)',
-                    background: 'var(--alert-warning-bg)',
-                    color: 'var(--warning)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
+                <ActionButton onClick={() => setShowResolveConfirm(true)} variant="warning" icon={Check}>
                   Resolve
-                </button>
+                </ActionButton>
               )}
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--danger)',
-                  background: 'var(--alert-error-bg)',
-                  color: 'var(--danger)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-              >
+              <ActionButton onClick={() => setShowDeleteConfirm(true)} variant="danger" icon={null}>
                 Delete
-              </button>
+              </ActionButton>
             </div>
           )}
 
           {/* Badges */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: catColor,
-                background: `${catColor}18`,
-                padding: '3px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-              }}
-            >
-              {inc.domain_name || 'Unknown'}
-            </span>
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: (SEVERITY_SCALE.find((s) => s.value === inc.severity) || SEVERITY_SCALE[2]).color,
-                background: `${(SEVERITY_SCALE.find((s) => s.value === inc.severity) || SEVERITY_SCALE[2]).color}18`,
-                padding: '3px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-              }}
-            >
-              {(SEVERITY_SCALE.find((s) => s.value === inc.severity) || SEVERITY_SCALE[2]).label}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Badge color={catColor}>{inc.domain_name || 'Unknown'}</Badge>
+            <Badge color={sev.color}>{sev.label}</Badge>
             {vCfg && (
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  color: vCfg.color,
-                  background: `${vCfg.color}18`,
-                  padding: '3px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}
-              >
+              <Badge color={vCfg.color}>
                 {vCfg.icon} {vCfg.label}
-              </span>
+              </Badge>
             )}
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: isPurged ? 'var(--text-muted)' : isDeleted ? 'var(--danger)' : inc.status === 'active' ? '#22c55e' : 'var(--text-muted)',
-                background: isPurged ? 'rgba(107, 114, 128, 0.1)' : isDeleted ? 'var(--alert-error-bg)' : inc.status === 'active' ? 'var(--alert-success-bg)' : 'rgba(107, 114, 128, 0.1)',
-                padding: '3px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-              }}
-            >
+            <Badge color={isPurged ? '#6b7280' : isDeleted ? '#f43f5e' : inc.status === 'active' ? '#22c55e' : '#6b7280'}>
               {isPurged ? 'Purged' : isDeleted ? 'Deleted' : inc.status}
-            </span>
+            </Badge>
+            {isPolygon && <Badge color="#818cf8">⬡ Zone</Badge>}
           </div>
 
           {/* Title */}
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.25 }}>
             {inc.title}
           </h2>
 
-          {/* Meta */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            <div>
-              📍{' '}
-              {isPurged
-                ? (inc.location_context || 'Location no longer available')
-                : isPolygon
-                ? `⬡ ${inc.zone_category_name || 'Zone'} · Polygon`
-                : (inc.location_context ||
-                    (Number.isFinite(parseFloat(inc.latitude)) && Number.isFinite(parseFloat(inc.longitude))
-                      ? `${parseFloat(inc.latitude).toFixed(4)}, ${parseFloat(inc.longitude).toFixed(4)}`
-                      : 'Location unknown'))}
-            </div>
-            <div>📅 {dateStr}</div>
+          {/* Quick stats */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 8,
+            }}
+          >
+            <StatTile icon={Layers} value={sources.length} label="Sources" />
+            <StatTile icon={History} value={timeline.length} label="Updates" />
+            <StatTile icon={MessageSquare} value={sourceCounts[SOURCE_TYPES.x_post] || 0} label="Posts" />
+          </div>
+
+          {/* Meta info card */}
+          <div
+            style={{
+              padding: 14,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            {/* Location */}
+            <MetaRow icon={MapPin} label="Location">
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {isPurged
+                  ? (inc.location_context || 'Location no longer available')
+                  : isPolygon
+                  ? `⬡ ${inc.zone_category_name || 'Zone'} · Polygon`
+                  : (inc.location_context || (coordinates ? `${coordinates.lat.toFixed(4)}, ${coordinates.lng.toFixed(4)}` : 'Location unknown'))}
+              </span>
+              {coordinates && (
+                <CopyButton text={`${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)}`} />
+              )}
+            </MetaRow>
+
+            {/* Date */}
+            <MetaRow icon={Calendar} label="Started">
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {inc.start_date ? format(new Date(inc.start_date), 'MMM d, yyyy · h:mm a') : 'Unknown'}
+              </span>
+              {inc.start_date && (
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  <RelativeTime date={inc.start_date} />
+                </span>
+              )}
+            </MetaRow>
+
             {inc.end_date && (
-              <div>🏁 Ends: {format(new Date(inc.end_date), 'MMM d, yyyy · h:mm a')}</div>
+              <MetaRow icon={Clock} label="Ended">
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {format(new Date(inc.end_date), 'MMM d, yyyy · h:mm a')}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  <RelativeTime date={inc.end_date} />
+                </span>
+              </MetaRow>
+            )}
+
+            {/* Category */}
+            <MetaRow icon={Tag} label="Category">
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {inc.category_name ? (
+                  <>
+                    <span style={{ color: catColor, fontWeight: 600 }}>{inc.category_name}</span>
+                    {' · '}
+                    {inc.domain_name || 'Unknown'}
+                  </>
+                ) : (
+                  'Uncategorized'
+                )}
+              </span>
+            </MetaRow>
+
+            {/* Geometry metrics */}
+            {isPolygon && (
+              <>
+                <MetaRow icon={Box} label="Geometry">
+                  <span style={{ color: 'var(--text-secondary)' }}>Polygon</span>
+                </MetaRow>
+                {Number.isFinite(parseFloat(inc.area_sq_m)) && (
+                  <MetaRow icon={Globe} label="Area">
+                    <span style={{ color: 'var(--text-secondary)' }}>{formatArea(inc.area_sq_m)}</span>
+                  </MetaRow>
+                )}
+                {Number.isFinite(parseFloat(inc.perimeter_m)) && (
+                  <MetaRow icon={Ruler} label="Perimeter">
+                    <span style={{ color: 'var(--text-secondary)' }}>{formatLength(inc.perimeter_m)}</span>
+                  </MetaRow>
+                )}
+              </>
             )}
           </div>
 
           {/* Description */}
           {inc.description && (
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-              {inc.description}
+            <div
+              style={{
+                padding: 14,
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
+                Description
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                {inc.description}
+              </div>
             </div>
           )}
 
           {/* Sources */}
           {sources.length > 0 && (
             <div>
-              <h3 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                Sources · {sources.length}
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  Sources
+                </h3>
+                <SourceTypePills counts={sourceCounts} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {sources.map((source) => (
-                  <SourceItem key={source.id} source={source} />
+                  <SourceCard key={source.id} source={source} />
                 ))}
               </div>
             </div>
@@ -549,10 +505,10 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
           {/* Timeline */}
           {timeline.length > 0 && (
             <div>
-              <h3 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                Timeline · {timeline.length}
+              <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                Timeline Updates
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {timeline.map((update) => (
                   <TimelineEntry
                     key={update.id}
@@ -565,22 +521,153 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
             </div>
           )}
 
-          {/* Admin Metadata */}
+          {/* Activity log link */}
+          {adminMode && inc.created_by && (
+            <button
+              onClick={() => navigate(activityUrl)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                width: '100%',
+                padding: '10px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <Activity size={14} />
+              View creator activity log
+            </button>
+          )}
+
+          {/* Debug Metadata */}
           {adminMode && (
-            <div style={{ marginTop: '8px', padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-subtle)' }}>
-              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                Debug Metadata
-              </h3>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', lineHeight: 1.7 }}>
-                <div>ID: {inc.id}</div>
-                <div>Created by: {inc.created_by || '—'}</div>
-                <div>Created at: {inc.created_at ? new Date(inc.created_at).toLocaleString() : '—'}</div>
-                <div>Updated at: {inc.updated_at ? new Date(inc.updated_at).toLocaleString() : '—'}</div>
-                {inc.resolved_by && <div>Resolved by: {inc.resolved_by}</div>}
-                {inc.resolved_at && <div>Resolved at: {new Date(inc.resolved_at).toLocaleString()}</div>}
-                <div>Category ID: {inc.category_id}</div>
-                <div>Verification: {inc.verification_status || 'computed'}</div>
-                <div>Override: {inc.verification_override || 'none'}</div>
+            <div
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px dashed var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+              }}
+            >
+              <button
+                onClick={() => setRawIdsOpen(!rawIdsOpen)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Debug Metadata
+                </span>
+                {rawIdsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Human-readable fields always visible */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '10px 16px',
+                    fontSize: 12,
+                  }}
+                >
+                  <MetadataField label="Created by">
+                    {inc.created_by_name ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{inc.created_by_name}</span>
+                        {inc.created_by_email && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{inc.created_by_email}</span>}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>{inc.created_by || '—'}</span>
+                    )}
+                  </MetadataField>
+
+                  <MetadataField label="Created at">
+                    {inc.created_at ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{format(new Date(inc.created_at), 'MMM d, yyyy · h:mm a')}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}><RelativeTime date={inc.created_at} /></span>
+                      </div>
+                    ) : (
+                      '—'
+                    )}
+                  </MetadataField>
+
+                  <MetadataField label="Updated at">
+                    {inc.updated_at ? format(new Date(inc.updated_at), 'MMM d, yyyy · h:mm a') : '—'}
+                  </MetadataField>
+
+                  {inc.resolved_by && (
+                    <MetadataField label="Resolved by">
+                      {inc.resolved_by_name || inc.resolved_by}
+                    </MetadataField>
+                  )}
+                  {inc.resolved_at && (
+                    <MetadataField label="Resolved at">
+                      {format(new Date(inc.resolved_at), 'MMM d, yyyy · h:mm a')}
+                    </MetadataField>
+                  )}
+
+                  {inc.category_name && (
+                    <MetadataField label="Category">
+                      <span style={{ color: catColor, fontWeight: 500 }}>{inc.category_name}</span>
+                      {' · '}
+                      {inc.domain_name}
+                    </MetadataField>
+                  )}
+
+                  <MetadataField label="Geometry">
+                    {isPolygon ? 'Polygon' : 'Point'}
+                  </MetadataField>
+                </div>
+
+                {/* Raw IDs - collapsible */}
+                {rawIdsOpen && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: 12,
+                      background: 'var(--bg-elevated)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                      fontSize: 11,
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <RawIdRow label="Incident ID" value={inc.id} />
+                    <RawIdRow label="Created by ID" value={inc.created_by} />
+                    {inc.resolved_by && <RawIdRow label="Resolved by ID" value={inc.resolved_by} />}
+                    <RawIdRow label="Category ID" value={inc.category_id} />
+                    <RawIdRow label="Zone category ID" value={inc.zone_category_id || '—'} />
+                    <RawIdRow label="Verification override" value={inc.verification_override || 'none'} />
+                    {isDeleted && (
+                      <>
+                        <RawIdRow label="Deleted by ID" value={inc.deleted_by} />
+                        <RawIdRow label="Original status" value={inc.original_status} />
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -590,18 +677,18 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
       {/* Resolve Confirm Modal */}
       {showResolveConfirm && (
         <Modal onClose={() => setShowResolveConfirm(false)}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 12px' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 12px' }}>
             Resolve Incident
           </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
             Mark <strong>{inc.title}</strong> as resolved? It will be hidden from the live map and moved to historic view.
           </p>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button
               onClick={() => setShowResolveConfirm(false)}
               style={{
                 padding: '8px 16px',
-                fontSize: '13px',
+                fontSize: 13,
                 fontWeight: 600,
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border-subtle)',
@@ -617,7 +704,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
               disabled={actionLoading}
               style={{
                 padding: '8px 16px',
-                fontSize: '13px',
+                fontSize: 13,
                 fontWeight: 700,
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--warning)',
@@ -636,18 +723,18 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
       {/* Delete Confirm Modal */}
       {showDeleteConfirm && (
         <Modal onClose={() => setShowDeleteConfirm(false)}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--danger)', margin: '0 0 12px' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--danger)', margin: '0 0 12px' }}>
             Move to Recycle Bin
           </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
             Move <strong>{inc.title}</strong> to the Recycle Bin? It will be hidden from all views but can be restored later from the Recycle Bin page.
           </p>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button
               onClick={() => setShowDeleteConfirm(false)}
               style={{
                 padding: '8px 16px',
-                fontSize: '13px',
+                fontSize: 13,
                 fontWeight: 600,
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border-subtle)',
@@ -663,7 +750,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
               disabled={actionLoading}
               style={{
                 padding: '8px 16px',
-                fontSize: '13px',
+                fontSize: 13,
                 fontWeight: 700,
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--danger)',
@@ -678,6 +765,608 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+/* ─── Helper Components ─── */
+
+function Badge({ children, color }) {
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color,
+        background: `${color}18`,
+        padding: '3px 10px',
+        borderRadius: 'var(--radius-sm)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ActionButton({ children, onClick, variant = 'primary', icon: Icon, disabled }) {
+  const styles = {
+    primary: {
+      border: '1px solid var(--navy-500)',
+      background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+      color: '#fff',
+    },
+    warning: {
+      border: '1px solid var(--warning)',
+      background: 'var(--alert-warning-bg)',
+      color: 'var(--warning)',
+    },
+    danger: {
+      border: '1px solid var(--danger)',
+      background: 'var(--alert-error-bg)',
+      color: 'var(--danger)',
+    },
+  };
+  const style = styles[variant] || styles.primary;
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 14px',
+        fontSize: 12,
+        fontWeight: 700,
+        borderRadius: 'var(--radius-sm)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
+        transition: 'all 0.2s ease',
+        fontFamily: 'var(--font-sans)',
+        ...style,
+      }}
+    >
+      {Icon && <Icon size={14} />}
+      {children}
+    </button>
+  );
+}
+
+function StatTile({ icon: Icon, value, label }) {
+  return (
+    <div
+      style={{
+        padding: '12px',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-md)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+      }}
+    >
+      {Icon && <Icon size={18} style={{ color: 'var(--navy-400)', flexShrink: 0 }} />}
+      <div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function MetaRow({ icon: Icon, label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      {Icon && <Icon size={16} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>{label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetadataField({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>{children}</span>
+    </div>
+  );
+}
+
+function RawIdRow({ label, value }) {
+  if (!value || value === '—') {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+        <span>{label}</span>
+        <span>—</span>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+      <span>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+        <CopyButton text={value} compact />
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ text, compact }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      title="Copy to clipboard"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: compact ? 20 : 24,
+        height: compact ? 20 : 24,
+        borderRadius: 'var(--radius-sm)',
+        border: '1px solid var(--border-subtle)',
+        background: 'transparent',
+        color: copied ? 'var(--success)' : 'var(--text-muted)',
+        cursor: 'pointer',
+        flexShrink: 0,
+      }}
+    >
+      {copied ? <Check size={compact ? 12 : 14} /> : <Copy size={compact ? 12 : 14} />}
+    </button>
+  );
+}
+
+function RelativeTime({ date }) {
+  if (!date) return null;
+  const d = new Date(date);
+  return (
+    <span title={format(d, 'MMM d, yyyy · h:mm a')}>
+      {formatDistanceToNow(d, { addSuffix: true })}
+    </span>
+  );
+}
+
+function formatArea(sqM) {
+  const n = parseFloat(sqM);
+  if (!Number.isFinite(n)) return '—';
+  if (n >= 1000000) return `${(n / 1000000).toFixed(2)} km²`;
+  if (n >= 10000) return `${(n / 10000).toFixed(2)} ha`;
+  return `${n.toFixed(2)} m²`;
+}
+
+function formatLength(m) {
+  const n = parseFloat(m);
+  if (!Number.isFinite(n)) return '—';
+  if (n >= 1000) return `${(n / 1000).toFixed(2)} km`;
+  return `${n.toFixed(2)} m`;
+}
+
+function StatusHistory({ incident, isPurged, isDeleted }) {
+  const events = [];
+
+  events.push({
+    label: 'Created',
+    date: incident.created_at,
+    actor: incident.created_by_name || incident.created_by_email,
+    actorId: incident.created_by,
+    icon: User,
+    color: '#6366f1',
+  });
+
+  if (incident.verification_status && incident.verification_status !== 'unverified') {
+    const vCfg = VERIFICATION_CONFIG[incident.verification_status];
+    events.push({
+      label: vCfg?.label || incident.verification_status,
+      date: incident.updated_at,
+      icon: Check,
+      color: vCfg?.color || '#22c55e',
+    });
+  }
+
+  if (incident.status === 'resolved' && incident.resolved_at) {
+    events.push({
+      label: 'Resolved',
+      date: incident.resolved_at,
+      actor: incident.resolved_by_name || incident.resolved_by_email,
+      actorId: incident.resolved_by,
+      icon: Check,
+      color: '#eab308',
+    });
+  }
+
+  if (isDeleted && incident.deleted_at) {
+    events.push({
+      label: 'Moved to Recycle Bin',
+      date: incident.deleted_at,
+      actor: incident.deleted_by_name,
+      icon: null,
+      color: '#f43f5e',
+    });
+  }
+
+  if (isPurged && incident.purged_at) {
+    events.push({
+      label: 'Permanently deleted',
+      date: incident.purged_at,
+      icon: null,
+      color: '#6b7280',
+    });
+  }
+
+  if (events.length <= 1) return null;
+
+  return (
+    <div
+      style={{
+        padding: 14,
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-md)',
+      }}
+    >
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>
+        Status History
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {events.map((evt, idx) => (
+          <HistoryStep key={idx} event={evt} isLast={idx === events.length - 1} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HistoryStep({ event, isLast }) {
+  const Icon = event.icon;
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            background: `${event.color}18`,
+            border: `1.5px solid ${event.color}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          {Icon && <Icon size={11} style={{ color: event.color }} />}
+        </div>
+        {!isLast && (
+          <div style={{ width: 1.5, flex: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+        )}
+      </div>
+      <div style={{ paddingBottom: 14, flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{event.label}</span>
+          {event.date && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <RelativeTime date={event.date} />
+            </span>
+          )}
+        </div>
+        {event.date && (
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+            {format(new Date(event.date), 'MMM d, yyyy · h:mm a')}
+          </div>
+        )}
+        {event.actor && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+            by {event.actor}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PurgedBanner({ incident }) {
+  return (
+    <div
+      style={{
+        padding: '12px 14px',
+        background: 'rgba(107, 114, 128, 0.12)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-md)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
+        This incident has been permanently deleted.
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+        {incident.deleted_at && (
+          <div>Moved to Recycle Bin {format(new Date(incident.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
+        )}
+        {incident.purged_at && (
+          <div>Permanently deleted {format(new Date(incident.purged_at), 'MMM d, yyyy · h:mm a')}</div>
+        )}
+        {incident.original_status && <div>Original status: {incident.original_status}</div>}
+      </div>
+    </div>
+  );
+}
+
+function DeletedBanner({ incident, actionLoading, setActionLoading, setActionSuccess, setActionError, setData, onRefresh }) {
+  const navigate = useNavigate();
+  return (
+    <div
+      style={{
+        padding: '12px 14px',
+        background: 'var(--alert-error-bg)',
+        border: '1px solid var(--alert-error-border)',
+        borderRadius: 'var(--radius-md)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>
+        This incident has been moved to the Recycle Bin.
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+        {incident.deleted_at && (
+          <div>Deleted {format(new Date(incident.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
+        )}
+        {incident.deleted_by_name && <div>Deleted by {incident.deleted_by_name}</div>}
+        {incident.original_status && <div>Original status: {incident.original_status}</div>}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => navigate(`/superadmin/recycle-bin?highlight=${incident.id}`)}
+          style={{
+            padding: '6px 14px',
+            fontSize: 12,
+            fontWeight: 700,
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+            background: 'transparent',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+          }}
+        >
+          View in Recycle Bin
+        </button>
+        <button
+          onClick={async () => {
+            setActionLoading(true);
+            setActionError('');
+            try {
+              await restoreIncident(incident.id);
+              setActionSuccess('Incident restored successfully');
+              const res = await getIncident(incident.id);
+              if (res?.incident) {
+                setData(res);
+              }
+              onRefresh?.();
+            } catch (err) {
+              setActionError(err.message || 'Failed to restore incident');
+            } finally {
+              setActionLoading(false);
+            }
+          }}
+          disabled={actionLoading}
+          style={{
+            padding: '6px 14px',
+            fontSize: 12,
+            fontWeight: 700,
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--success)',
+            background: 'var(--alert-success-bg)',
+            color: 'var(--success)',
+            cursor: actionLoading ? 'not-allowed' : 'pointer',
+            opacity: actionLoading ? 0.6 : 1,
+            fontFamily: 'var(--font-sans)',
+          }}
+        >
+          {actionLoading ? 'Restoring…' : 'Restore Incident'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SourceTypePills({ counts }) {
+  const types = [
+    { key: SOURCE_TYPES.news_article, label: 'News', color: '#3b82f6' },
+    { key: SOURCE_TYPES.x_post, label: 'X', color: '#000000' },
+    { key: SOURCE_TYPES.image, label: 'Images', color: '#22c55e' },
+    { key: SOURCE_TYPES.video, label: 'Videos', color: '#a855f7' },
+    { key: SOURCE_TYPES.admin_note, label: 'Notes', color: '#6b7280' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      {types.map((type) => {
+        const count = counts[type.key] || 0;
+        if (count === 0) return null;
+        return (
+          <span
+            key={type.key}
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-md)',
+              background: `${type.color}18`,
+              color: type.color,
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+            }}
+          >
+            {type.label} · {count}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function SourceCard({ source }) {
+  const svCfg = source.verification_status ? SOURCE_VERIFICATION_CONFIG[source.verification_status] : null;
+  const type = source.source_type || 'unknown';
+
+  const typeConfig = {
+    [SOURCE_TYPES.news_article]: { icon: FileText, label: 'News Article', color: '#3b82f6' },
+    [SOURCE_TYPES.x_post]: { icon: MessageSquare, label: 'X Post', color: '#000000' },
+    [SOURCE_TYPES.image]: { icon: ImageIcon, label: 'Image', color: '#22c55e' },
+    [SOURCE_TYPES.video]: { icon: Video, label: 'Video', color: '#a855f7' },
+    [SOURCE_TYPES.admin_note]: { icon: StickyNote, label: 'Admin Note', color: '#6b7280' },
+  };
+
+  const cfg = typeConfig[type] || { icon: LinkIcon, label: 'Source', color: '#6b7280' };
+  const Icon = cfg.icon;
+  const isMedia = type === SOURCE_TYPES.image || type === SOURCE_TYPES.video;
+  const isLink = source.source_url && (type === SOURCE_TYPES.news_article || type === SOURCE_TYPES.x_post);
+
+  const domain = (() => {
+    if (!source.source_url) return '';
+    try {
+      return new URL(source.source_url).hostname.replace(/^www\./, '');
+    } catch {
+      return '';
+    }
+  })();
+
+  return (
+    <div
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-md)',
+        overflow: 'hidden',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border-default)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+        e.currentTarget.style.boxShadow = 'none';
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '10px 12px',
+          borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          background: 'var(--bg-elevated)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon size={14} style={{ color: cfg.color }} />
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-secondary)' }}>
+            {cfg.label}
+          </span>
+          {domain && (
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>· {domain}</span>
+          )}
+        </div>
+        {svCfg && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: svCfg.color, background: `${svCfg.color}18`, padding: '2px 8px', borderRadius: 'var(--radius-sm)' }}>
+            {svCfg.label}
+          </span>
+        )}
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Image */}
+        {type === SOURCE_TYPES.image && source.media_url && (
+          <div style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+            <img
+              src={source.media_url}
+              alt="Source"
+              style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
+        )}
+
+        {/* Video */}
+        {type === SOURCE_TYPES.video && source.media_url && (
+          <div style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-subtle)', aspectRatio: '16 / 9' }}>
+            <video
+              src={source.media_url}
+              controls
+              style={{ width: '100%', height: '100%', display: 'block' }}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
+        )}
+
+        {/* Description */}
+        {source.description && (
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            {source.description}
+          </div>
+        )}
+
+        {/* Link */}
+        {source.source_url && (
+          <a
+            href={source.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--navy-400)',
+              wordBreak: 'break-all',
+              textDecoration: 'none',
+              padding: '8px 12px',
+              background: 'var(--bg-elevated)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <LinkIcon size={13} />
+            {isLink ? 'Open article' : 'Open source'}
+            <ExternalLink size={11} />
+          </a>
+        )}
+
+        {/* Embed HTML */}
+        {source.embed_html && (
+          <div
+            style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}
+            dangerouslySetInnerHTML={{ __html: source.embed_html }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -848,42 +1537,6 @@ function Modal({ children, onClose }) {
       >
         {children}
       </div>
-    </div>
-  );
-}
-
-/* ─── Source Item ─── */
-function SourceItem({ source }) {
-  const svCfg = source.verification_status ? SOURCE_VERIFICATION_CONFIG[source.verification_status] : null;
-
-  return (
-    <div style={{ padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-          {source.source_type?.replace(/_/g, ' ')}
-        </span>
-        {svCfg && (
-          <span style={{ fontSize: '10px', fontWeight: 700, color: svCfg.color, background: `${svCfg.color}18`, padding: '2px 6px', borderRadius: '4px' }}>
-            {svCfg.label}
-          </span>
-        )}
-      </div>
-      {source.description && (
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{source.description}</div>
-      )}
-      {source.source_url && (
-        <a
-          href={source.source_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ fontSize: '12px', color: 'var(--navy-400)', wordBreak: 'break-all' }}
-        >
-          {source.source_url}
-        </a>
-      )}
-      {source.embed_html && (
-        <div style={{ marginTop: '8px' }} dangerouslySetInnerHTML={{ __html: source.embed_html }} />
-      )}
     </div>
   );
 }
