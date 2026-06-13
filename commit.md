@@ -6576,3 +6576,41 @@ feat: show ghost markers/zones for recycle-bin incidents and handle purged incid
 ```
 
 *End of recycle-bin ghost + purged incident follow-up.*
+
+---
+
+## ✨ 2026-06-13 — Feature follow-up: Pagination and date filters on user profile activity tabs
+
+### Issues Addressed
+
+1. **Staff and public user profile activity lists can become very long**
+   - Fix: added pagination, date-range filtering, action filtering, and page-size selection to the Activity tab in both `UserDetailDrawer` and `PublicUserDrawer`.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` | Added `activityPage`, `activityLimit`, `activityDateFrom`, `activityDateTo`, `activityAction`, and `activityPagination` state. `fetchActivity` calls `getUserActivity` with filters. Added date/action/per-page filter UI and prev/next pagination controls above/below the timeline. |
+| `src/superadmin-web/src/components/PublicUsers/PublicUserDrawer.jsx` | Same pagination/filter support for public-user activity, with public-user-specific action options (login, save, unsave, view). |
+
+### Behavior
+
+- The Activity tab in both staff and public user drawers now defaults to 25 items per page.
+- Users can filter by date range and action type; changing filters resets to page 1.
+- Page size can be switched between 25, 50, and 100.
+- Pagination controls appear when there is more than one page.
+- The backend already supported these query params (`page`, `limit`, `dateFrom`, `dateTo`, `action`), so no backend changes were required.
+
+### Verification
+
+```bash
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+feat: add pagination and date/action filters to user profile activity tabs
+```
+
+*End of profile activity pagination follow-up.*

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Loader2, AlertCircle, Check, KeyRound, UserX, UserCheck, Trash2, Edit3, Save, XCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle, Check, KeyRound, UserX, UserCheck, Trash2, Edit3, Save, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getUser, updateUser, resetUserPassword, deleteUser, getUserActivity } from '../../services/api.js';
 import ActivityTimeline from '../Audit/ActivityTimeline.jsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,6 +14,28 @@ const TABS = [
   { key: 'activity', label: 'Activity' },
 ];
 
+const ACTION_OPTIONS = [
+  { value: '', label: 'All actions' },
+  { value: 'incident_created', label: 'Incident created' },
+  { value: 'incident_updated', label: 'Incident updated' },
+  { value: 'incident_resolved', label: 'Incident resolved' },
+  { value: 'incident_deleted', label: 'Incident deleted' },
+  { value: 'incident_restored', label: 'Incident restored' },
+  { value: 'source_added', label: 'Source added' },
+  { value: 'timeline_added', label: 'Timeline update' },
+  { value: 'user_login', label: 'Staff login' },
+];
+
+function toStartOfDayIso(date) {
+  if (!date) return '';
+  return new Date(`${date}T00:00:00.000Z`).toISOString();
+}
+
+function toEndOfDayIso(date) {
+  if (!date) return '';
+  return new Date(`${date}T23:59:59.999Z`).toISOString();
+}
+
 export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, initialTab, initialScroll }) {
   const [data, setData] = useState(null);
   const [activityData, setActivityData] = useState(null);
@@ -22,6 +44,15 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
   const contentRef = useRef(null);
+
+  // Activity filters / pagination
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityLimit, setActivityLimit] = useState(25);
+  const [activityDateFrom, setActivityDateFrom] = useState('');
+  const [activityDateTo, setActivityDateTo] = useState('');
+  const [activityAction, setActivityAction] = useState('');
+  const [activityPagination, setActivityPagination] = useState(null);
+
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -29,17 +60,34 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
   const [tempPassword, setTempPassword] = useState(null);
   const [isResetting, setIsResetting] = useState(false);
 
+  const fetchActivity = useCallback(async () => {
+    setActivityLoading(true);
+    try {
+      const params = { page: activityPage, limit: activityLimit };
+      const dateFromIso = toStartOfDayIso(activityDateFrom);
+      const dateToIso = toEndOfDayIso(activityDateTo);
+      if (dateFromIso) params.dateFrom = dateFromIso;
+      if (dateToIso) params.dateTo = dateToIso;
+      if (activityAction) params.action = activityAction;
+
+      const actData = await getUserActivity(userId, params);
+      setActivityData(actData);
+      setActivityPagination(actData?.pagination || null);
+    } catch (err) {
+      console.error('Failed to load activity:', err);
+      setActivityData({ logs: [], stats: null, pagination: null });
+      setActivityPagination(null);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [userId, activityPage, activityLimit, activityDateFrom, activityDateTo, activityAction]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    setActivityLoading(true);
     setError('');
     try {
-      const [userData, actData] = await Promise.all([
-        getUser(userId),
-        getUserActivity(userId),
-      ]);
+      const userData = await getUser(userId);
       setData(userData);
-      setActivityData(actData);
       setEditForm({
         fullName: userData.user.full_name,
         role: userData.user.role,
@@ -49,13 +97,16 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
       setError(err.message || 'Failed to load user');
     } finally {
       setLoading(false);
-      setActivityLoading(false);
     }
   }, [userId]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    fetchActivity();
+  }, [fetchActivity]);
 
   // Restore scroll position when returning from activity map view
   useEffect(() => {
@@ -390,13 +441,118 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
                     />
                   </div>
 
-                  <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-                    Activity Timeline
-                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                      Activity Timeline
+                    </h3>
+                    {activityPagination && activityPagination.total > 0 && (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {activityPagination.total} events
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Activity filters */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 10,
+                      marginBottom: 16,
+                      padding: 12,
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                    }}
+                  >
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: 4 }}>Date range</label>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input
+                          type="date"
+                          value={activityDateFrom}
+                          onChange={(e) => { setActivityPage(1); setActivityDateFrom(e.target.value); }}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            background: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: 'var(--radius-sm)',
+                            color: 'var(--text-primary)',
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 12,
+                            outline: 'none',
+                          }}
+                        />
+                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>→</span>
+                        <input
+                          type="date"
+                          value={activityDateTo}
+                          onChange={(e) => { setActivityPage(1); setActivityDateTo(e.target.value); }}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            background: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: 'var(--radius-sm)',
+                            color: 'var(--text-primary)',
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 12,
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: 4 }}>Action</label>
+                      <select
+                        value={activityAction}
+                        onChange={(e) => { setActivityPage(1); setActivityAction(e.target.value); }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 12,
+                          outline: 'none',
+                        }}
+                      >
+                        {ACTION_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: 4 }}>Per page</label>
+                      <select
+                        value={activityLimit}
+                        onChange={(e) => { setActivityPage(1); setActivityLimit(parseInt(e.target.value, 10)); }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 12,
+                          outline: 'none',
+                        }}
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <ActivityTimeline
                     logs={activityData?.logs}
                     loading={activityLoading}
-                    emptyMessage="No activity recorded yet"
+                    emptyMessage="No activity matches your filters"
                     actorName={user?.full_name}
                     getReturnTo={() => {
                       const scrollTop = contentRef.current?.scrollTop || 0;
@@ -404,6 +560,67 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
                     }}
                     staffUserId={user?.id}
                   />
+
+                  {/* Activity pagination */}
+                  {activityPagination && activityPagination.totalPages > 1 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        marginTop: 16,
+                        paddingTop: 16,
+                        borderTop: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                          disabled={activityPage <= 1}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 28,
+                            height: 28,
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-subtle)',
+                            background: 'transparent',
+                            color: 'var(--text-muted)',
+                            cursor: activityPage <= 1 ? 'not-allowed' : 'pointer',
+                            opacity: activityPage <= 1 ? 0.5 : 1,
+                          }}
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                          Page {activityPage} of {activityPagination.totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActivityPage((p) => (activityPagination && p < activityPagination.totalPages ? p + 1 : p))}
+                          disabled={activityPage >= activityPagination.totalPages}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 28,
+                            height: 28,
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-subtle)',
+                            background: 'transparent',
+                            color: 'var(--text-muted)',
+                            cursor: activityPage >= activityPagination.totalPages ? 'not-allowed' : 'pointer',
+                            opacity: activityPage >= activityPagination.totalPages ? 0.5 : 1,
+                          }}
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </>
