@@ -7572,3 +7572,335 @@ feat(superadmin): Back to Profile reopens creator drawer and closes activity sid
 ```
 
 *End of Back to Profile improvement.*
+
+---
+
+## 🧪 2026-06-13 — Trial: Proposed unified incident sidebar (admin + user)
+
+### Summary
+Created a standalone trial page at `/sidebarTrial` to experiment with a new unified incident-detail sidebar before integrating it into the real admin and user apps.
+
+### Layout approach
+- Replaced the old Sources / Updates / Media buckets with a single **Story Timeline**.
+- Each timeline event can be a source, update, media drop, or status change.
+- Media is now shown inline inside the event card it belongs to, instead of a separate orphan grid.
+- Admin sidebar exposes add/edit/delete/verify controls.
+- User sidebar highlights the latest update at the top and keeps the timeline read-only and collapsible.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial.jsx` | New trial component with dummy data, admin sidebar, user sidebar, modals, and media grid/lightbox. |
+| `src/admin-web/src/App.jsx` | Registered `/sidebarTrial` route. |
+
+### Verification
+
+```bash
+npm run build -w src/admin-web  # ✅
+```
+
+### How to view
+
+```bash
+npm run dev -w src/admin-web
+# open http://localhost:5174/sidebarTrial
+```
+
+### Git Commit
+
+```
+feat(admin): add sidebarTrial page for proposed unified incident-detail layout
+```
+
+*End of sidebar trial setup.*
+
+
+## Sidebar Trial 2 — full incident page
+
+### What changed
+- Rebuilt `SidebarTrial2` around a dedicated **full incident page** that opens from the compact sidebar.
+- Full page features:
+  - Large hero header with title, severity/verification/status badges, location, date, and category.
+  - Hero media gallery: main image + thumbnail strip with lightbox.
+  - “About this incident” panel with status, severity, domain, and first-reported meta.
+  - Sticky filter bar: **All / Media / Posts / Articles / Notes** — filters the entire timeline by evidence type.
+  - Chronological story timeline grouped by date (Today / Yesterday / Month DD, YYYY).
+  - Each story beat shows grouped evidence via tabs and supports **full X/Twitter embeds** so users never leave the site.
+  - Admin controls per beat: verify, edit, delete.
+  - “Jump to latest” button and a sticky back bar to return to the map.
+- Compact sidebar remains as a quick preview: latest update hero + earlier update cards + “View full incident” CTA.
+- Embedded X posts use `platform.twitter.com/widgets.js` with a loading fallback card.
+- Theme toggle (dark/light) and role toggle (admin/user) for evaluation.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2.jsx` | Full incident page, compact sidebar, X/Twitter embed component, media gallery/lightbox, timeline filters, grouped evidence bundles, admin controls, and modals. |
+| `src/admin-web/src/App.jsx` | Registered `/sidebarTrial2` route and imported `SidebarTrial2`. |
+
+### Verification
+
+```bash
+npm run build -w src/admin-web  # ✅
+```
+
+### How to view
+
+```bash
+npm run dev -w src/admin-web
+# open http://localhost:5174/sidebarTrial2
+# then click “View full incident” in the sidebar
+```
+
+### Git Commit
+
+```
+feat(admin): add full incident page to sidebarTrial2 with grouped evidence and X embeds
+```
+
+*End of sidebar trial 2 full-page setup.*
+
+
+## Sidebar Trial 2 — four layout prototype options
+
+### What changed
+- Extracted shared dummy data and components into `SidebarTrialShared.jsx` so all prototypes use the same incident, timeline, helpers, media/lightbox, source cards, and X embed component.
+- Created four standalone layout prototypes for comparison:
+  1. **Option 1 — Sticky Evidence Rail** (`/sidebarTrial2/option1`): story timeline on the left, sticky evidence panel on the right that updates as you scroll.
+  2. **Option 2 — Horizontal Timeline** (`/sidebarTrial2/option2`): horizontally scrollable update cards with snap points and arrow navigation.
+  3. **Option 3 — Bento Grid per Update** (`/sidebarTrial2/option3`): each update becomes a bento-style grid of summary, meta, media, posts, articles, and notes.
+  4. **Option 4 — Horizontal Evidence Decks** (`/sidebarTrial2/option4`): vertical timeline where each update’s evidence is shown as horizontal swipeable decks.
+- Registered the four new routes in `App.jsx`.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrialShared.jsx` | New shared module: dummy data, helpers, UI primitives, media/lightbox, source cards, X embed, theme shell, top bar, and incident hero. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Sticky evidence rail prototype. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option2.jsx` | Horizontal timeline prototype. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option3.jsx` | Bento grid per update prototype. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option4.jsx` | Horizontal evidence decks prototype. |
+| `src/admin-web/src/App.jsx` | Registered `/sidebarTrial2/option1-4` routes. |
+
+### Verification
+
+```bash
+npm run build -w src/admin-web  # ✅
+npm run dev -w src/admin-web
+# tested routes /sidebarTrial2/option{1,2,3,4} — all returned 200 ✅
+```
+
+### How to view
+
+```bash
+npm run dev -w src/admin-web
+# open:
+# http://localhost:5174/sidebarTrial2/option1
+# http://localhost:5174/sidebarTrial2/option2
+# http://localhost:5174/sidebarTrial2/option3
+# http://localhost:5174/sidebarTrial2/option4
+```
+
+### Git Commit
+
+```
+feat(admin): add four SidebarTrial2 layout prototypes for comparison
+```
+
+*End of prototype batch.*
+
+
+### Follow-up fix
+- `SidebarTrial2Option3.jsx` was missing the `relativeTime` import, causing a runtime `ReferenceError` that could blank the page / persist across route navigation in Vite’s dev overlay.
+- Added the import and rebuilt; verified all `/sidebarTrial2/option{1-4}` routes render correctly.
+
+
+## Sidebar Trial 2 — Option 1 polished to Awwwards-level
+
+### What changed
+- Fully rewrote `SidebarTrial2Option1.jsx` with a premium editorial layout:
+  - Full-width hero card with background image, gradient overlay, glassmorphism meta pills, animated live dot, and gradient title.
+  - Two-column story view: scrollable timeline on the left, sticky evidence rail on the right.
+  - Animated vertical timeline with progress line, active-state glow, hover lifts, and staggered fade-in-up entrance.
+  - Sticky evidence rail rendered as a bento grid (media, posts, articles, notes) with Prev/Next navigation.
+  - Top scroll progress bar and keyboard navigation (arrow keys move between beats).
+- Added `SidebarTrial2Option1.css` with keyframe animations (`fadeInUp`, `pulse`, `shimmer`), glass effects, light/dark theme overrides, and responsive breakpoints.
+- Updated `SidebarTrialShared.jsx` `TopBar` to accept an optional `className` prop.
+- Replaced the random Picsum hero fallback with a thematic Unsplash aircraft image.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Rewritten with hero, animated timeline, sticky bento evidence rail, keyboard nav, progress bar. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | New animation-heavy stylesheet with glassmorphism, gradients, hover states, and theme overrides. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrialShared.jsx` | `TopBar` now accepts `className`. |
+
+### Verification
+
+```bash
+npm run build -w src/admin-web  # ✅
+npm run dev -w src/admin-web
+# http://localhost:5174/sidebarTrial2/option1
+```
+
+### Git Commit
+
+```
+feat(admin): polish SidebarTrial2 Option 1 with Awwwards-level hero, timeline, and sticky evidence rail
+```
+
+*End of Option 1 polish.*
+
+
+### Follow-up fix — independent evidence rail scroll
+- Root cause: the sticky evidence rail was not independently scrollable, so reading long evidence forced the main page to scroll, which in turn changed the active timeline beat via `IntersectionObserver`.
+- Fix:
+  - Gave `.opt1-rail` its own `max-height: calc(100vh - 110px)`, `overflow-y: auto`, and `overscroll-behavior: contain` so users can scroll through evidence without moving the timeline.
+  - Replaced `IntersectionObserver` with scroll-driven active detection tied to timeline position only (35% from viewport top).
+  - Made the timeline progress line continuous by interpolating between event positions instead of jumping with the active index.
+- Verified with Playwright screenshots: selecting update e3 and scrolling the evidence rail to the bottom keeps e3 active and the progress line stable.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | Added independent scroll + custom scrollbar to evidence rail. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Replaced IntersectionObserver with scroll-driven active detection and continuous progress line. |
+
+### Verification
+
+```bash
+npm run build -w src/admin-web  # ✅
+# Playwright screenshot test: timeline active stays locked while evidence rail scrolls ✅
+```
+
+### Git Commit
+
+```
+fix(admin): make Option 1 evidence rail scroll independently and smooth timeline progress
+```
+
+*End of scroll fix.*
+
+---
+
+## 📅 2026-06-14 — Fix: Option 1 Scroll-Click Selection Behavior
+
+### Summary
+Polished the sticky evidence rail timeline interaction so explicit user clicks always win and the scroll-driven spy no longer overrides the selected update during or after a smooth scroll.
+
+### Problem
+- Clicking an earlier timeline update smooth-scrolled the page, but the scroll spy would immediately re-highlight whichever beat happened to be nearest the viewport center.
+- Result: the active state flickered or ended on the wrong update, and the evidence rail showed incorrect content.
+
+### Solution
+Replaced the always-on scroll spy with a guarded model:
+
+1. **Scroll no longer auto-selects.** Scrolling the timeline only updates the top progress bar and the continuous timeline progress line; it does not change the active update.
+2. **Clicks are authoritative.** Clicking a timeline update (or using keyboard nav) calls `goTo(idx)`, which:
+   - Sets that update as the active update immediately.
+   - Smooth-scrolls it to the 35% viewport target line.
+   - Disables the spy during the scroll and re-enables it on `scrollend` (with a fallback timeout for older browsers).
+3. **Rail content is stable.** The right-hand evidence rail always reflects the explicitly selected update.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Added `ignoreSpyRef`; removed scroll-driven `setActiveId`; made `goTo()` the only source of active updates; progress bars still driven by scroll. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | (Minor) kept active card glow and timeline marker styles unchanged. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Scroll timeline manually | ✅ Progress bar advances; active highlight stays on last clicked update; rail stays stable. |
+| Click update 2 | ✅ Update 2 highlighted and scrolled to target; rail shows update 2 evidence. |
+| Click update 1 after scrolling down | ✅ Update 1 highlighted and scrolled to target; rail shows update 1 evidence. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+fix(sidebarTrial2/option1): make clicks authoritative over scroll spy
+```
+
+*End of fix*
+
+
+---
+
+## 📅 2026-06-14 — Fix: Option 1 Page Scroll Collaboration
+
+### Summary
+Switched Option 1 from an internal scrollable div to the natural page/window scroll so the left timeline progress line matches the screen scrollbar and reaches the bottom when the page is fully scrolled.
+
+### Root Cause
+- `ThemeShell` locked the page to `height: 100vh; overflow: hidden`, forcing all scrolling into an inner `<div>`.
+- The progress line was driven by that inner div's scroll position, but the last timeline event never crossed the 35% viewport target line before the div hit its maximum scroll (due to bottom padding). This left a visible gray "tail" on the track even though the user was at the bottom of the page.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrialShared.jsx` | Added optional `scrollable` prop to `ThemeShell` so a page can use natural body scroll instead of a fixed-height shell. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Enabled `scrollable` on `ThemeShell`; replaced inner scroll container with `<main>`; progress bars now listen to `window` scroll; `goTo()` scrolls the window; removed unused `rootRef`. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | Made `.option1-root` a `min-height: 100vh` flex column; lowered sticky rail `top` to `80px` so it clears the sticky top bar. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Page top | ✅ Progress line starts at 0, no extra scroll area. |
+| Scroll to bottom | ✅ Timeline progress line fills all the way to the bottom of the track; matches screen scrollbar. |
+| Click update 2 | ✅ Active highlight and rail switch to update 2; page smooth-scrolls. |
+| Click update 1 | ✅ Active highlight and rail switch back to update 1; page scrolls to top. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+fix(sidebarTrial2/option1): use natural page scroll so timeline progress matches scrollbar
+```
+
+*End of fix*
+
+
+---
+
+## 📅 2026-06-14 — Feature: Evidence Panel Tweet Carousel + New Update
+
+### Summary
+Replaced the vertical X-post stack in the evidence rail with a horizontal carousel so long embedded tweets can be shown at full length and users can flip through multiple posts. Added a new timeline update (`e6`) containing the requested real IAF tweet, a second small tweet, media, an article, and an admin note.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrialShared.jsx` | Added `MEDIA.statement` images; added `e6` update with IAF_MCC tweet, jack tweet, article, admin note; created `XPostCarousel` component that renders one embedded tweet at a time with Prev/Next controls and a slide-in animation. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Evidence rail now uses `<XPostCarousel posts={sources.x_post} />` instead of a scrolling list of `XPostCard`s. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | Added `opt1-carousel-slide` and `opt1-slideInRight` animation. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| New `e6` update appears at bottom | ✅ Timeline shows sixth update; rail shows 7 evidence items. |
+| IAF tweet embed | ✅ Full-length embedded tweet from `https://x.com/IAF_MCC/status/2065719865890205976` renders with text and images. |
+| Carousel next | ✅ Clicking Next slides in the small jack tweet; counter shows 2/2. |
+| Carousel prev | ✅ Returns to the IAF tweet. |
+| Single-tweet updates | ✅ Carousel hides navigation when only one post. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+feat(sidebarTrial2/option1): add tweet carousel in evidence rail and new IAF update
+```
+
+*End of feature*
+

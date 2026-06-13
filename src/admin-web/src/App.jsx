@@ -4,6 +4,12 @@ import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import LoginPage from './components/Login/LoginPage.jsx';
 import DashboardLayout from './components/Layout/DashboardLayout.jsx';
 import DesignTrial from './components/DesignTrial/DesignTrial.jsx';
+import SidebarTrial from './components/DesignTrial/SidebarTrial.jsx';
+import SidebarTrial2 from './components/DesignTrial/SidebarTrial2.jsx';
+import SidebarTrial2Option1 from './components/DesignTrial/SidebarTrial2Option1.jsx';
+import SidebarTrial2Option2 from './components/DesignTrial/SidebarTrial2Option2.jsx';
+import SidebarTrial2Option3 from './components/DesignTrial/SidebarTrial2Option3.jsx';
+import SidebarTrial2Option4 from './components/DesignTrial/SidebarTrial2Option4.jsx';
 import ZonesPage from './pages/ZonesPage.jsx';
 
 function ProtectedRoute({ children }) {
@@ -32,6 +38,12 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/trial" element={<DesignTrial />} />
+      <Route path="/sidebarTrial" element={<SidebarTrial />} />
+      <Route path="/sidebarTrial2" element={<SidebarTrial2 />} />
+      <Route path="/sidebarTrial2/option1" element={<SidebarTrial2Option1 />} />
+      <Route path="/sidebarTrial2/option2" element={<SidebarTrial2Option2 />} />
+      <Route path="/sidebarTrial2/option3" element={<SidebarTrial2Option3 />} />
+      <Route path="/sidebarTrial2/option4" element={<SidebarTrial2Option4 />} />
       <Route
         path="/zones"
         element={
