@@ -6683,3 +6683,34 @@ fix: make recycle-bin link work and render purged incidents without refetch erro
 ```
 
 *End of recycle-bin / purged incident fixes.*
+
+---
+
+## ✨ 2026-06-13 — Fix: Activity sidebar close button should stay on map
+
+### Issue
+- Clicking the **X** (close) button in the activity sidebar was navigating back to the user profile because `handleCloseActivitySidebar` reused the `returnTo` path.
+
+### Fix
+- `handleCloseActivitySidebar` now only strips the activity-related query params (`ref`, `actor`, `returnTo`, `staffUserId`, `publicUserId`) and stays on `/superadmin/map`.
+- The **Back to Profile** button remains the dedicated way to return to the originating profile.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | `handleCloseActivitySidebar` no longer navigates to `returnToParam`; it only removes activity params. |
+
+### Verification
+
+```bash
+npm run build:superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix: activity sidebar close button now stays on map instead of returning to profile
+```
+
+*End of sidebar close-button fix.*

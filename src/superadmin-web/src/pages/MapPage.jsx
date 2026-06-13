@@ -533,20 +533,18 @@ export default function MapPage() {
   }, []);
 
   const handleCloseActivitySidebar = useCallback(() => {
-    if (returnToParam) {
-      navigate(returnToParam);
-    } else {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('ref');
-        next.delete('actor');
-        next.delete('returnTo');
-        next.delete('staffUserId');
-        next.delete('publicUserId');
-        return next;
-      });
-    }
-  }, [returnToParam, navigate, setSearchParams]);
+    // Close the activity sidebar and stay on the map. The Back to Profile button
+    // is the dedicated path for returning to the originating user profile.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('ref');
+      next.delete('actor');
+      next.delete('returnTo');
+      next.delete('staffUserId');
+      next.delete('publicUserId');
+      return next;
+    });
+  }, [setSearchParams]);
 
 
   // ─── Handle incident ID from URL — deep-linking with ghost + deleted support ───
