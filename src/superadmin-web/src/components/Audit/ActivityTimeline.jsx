@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -126,6 +126,16 @@ export default function ActivityTimeline({
   onIncidentClick,
   selectedIncidentId,
 }) {
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!selectedIncidentId || !rootRef.current) return;
+    const selectedEl = rootRef.current.querySelector(`[data-target-id="${selectedIncidentId}"]`);
+    if (selectedEl) {
+      selectedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedIncidentId, logs]);
+
   if (loading) {
     return (
       <div
@@ -160,7 +170,7 @@ export default function ActivityTimeline({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div ref={rootRef} style={{ display: 'flex', flexDirection: 'column' }}>
       {logs.map((log, index) => {
         const Icon = ACTION_ICONS[log.action] || Activity;
         const color = getAuditActionColor(log.action);
@@ -169,7 +179,7 @@ export default function ActivityTimeline({
         const isSelected = selectedIncidentId && log.target_id === selectedIncidentId;
 
         return (
-          <div key={log.id} style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
+          <div key={log.id} data-target-id={log.target_id} style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
             {/* Timeline pillar: dot + line */}
             <div
               style={{

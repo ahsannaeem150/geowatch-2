@@ -168,6 +168,16 @@ export default function MapPage() {
   const [creatorDrawer, setCreatorDrawer] = useState({ userId: null, role: null });
   const isRecycleBinMode = refParam === 'recyclebin';
 
+  // Close the creator drawer when the user selects a different incident
+  // (e.g. from the drawer's own Activity tab) so the incident detail panel
+  // on the right can open without staying hidden behind the overlay.
+  useEffect(() => {
+    if (creatorDrawer.userId) {
+      setCreatorDrawer({ userId: null, role: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incidentIdFromUrl]);
+
   // Ghost zone for recycle-bin incidents
   const [ghostZone, setGhostZone] = useState(null);
 

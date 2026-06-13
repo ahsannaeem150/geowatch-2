@@ -7250,3 +7250,98 @@ feat(superadmin): inline Created by profile viewer in incident detail panel
 ```
 
 *End of inline creator profile viewer.*
+
+---
+
+## 🐛 2026-06-13 — Fix: Close creator drawer when selecting an incident from its activity
+
+### Issue
+- After opening a creator profile from the incident detail panel and navigating to the **Activity** tab, clicking an incident kept the profile drawer open. The drawer overlaid the right-side incident detail panel, so the newly selected event was hidden.
+
+### Fix
+- Added a `useEffect` in `MapPage` that closes the inline creator drawer whenever the `incident` URL param changes.
+- This lets the right-side incident detail panel open cleanly and the left activity sidebar remain/go as expected.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | Close `creatorDrawer` when `incidentIdFromUrl` changes. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix(superadmin): close creator drawer when an activity incident is selected
+```
+
+*End of creator drawer auto-close fix.*
+
+---
+
+## ✨ 2026-06-13 — Feature: Auto-scroll Activity sidebar to selected incident
+
+### Issue
+- When a user selected an incident from the creator profile drawer’s Activity tab, the left Activity sidebar did not automatically scroll to the selected incident, making it hard to locate in a long list.
+
+### Fix
+- Updated `ActivityTimeline` to accept `selectedIncidentId` and scroll the matching activity item into view whenever the selection or the log list changes.
+- Added a `data-target-id` attribute to each timeline item so the component can locate the selected DOM node.
+- The scroll uses `scrollIntoView({ behavior: 'smooth', block: 'nearest' })`, which scrolls the nearest scrollable ancestor (the Activity sidebar content area).
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Added root ref, `data-target-id` markers, and a `useEffect` that scrolls the selected incident into view. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+feat(superadmin): auto-scroll activity sidebar to selected incident
+```
+
+*End of activity sidebar auto-scroll.*
+
+---
+
+## 🐛 2026-06-13 — Fix: React hooks order in ActivityTimeline auto-scroll
+
+### Issue
+- Selecting a creator profile and then changing pages in the user activity pagination caused the map to go blank with React error: **"Rendered fewer hooks than expected"**.
+- The `useEffect` for auto-scrolling was placed after the early `loading` / `empty` returns in `ActivityTimeline`, violating React's rules of hooks.
+
+### Fix
+- Moved `useRef` and `useEffect` to the very top of `ActivityTimeline`, before any conditional return statements.
+- Removed the duplicate `useEffect` that was left after the early returns.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Reordered hooks so they run before all early returns. |
+
+### Verification
+
+```bash
+npm run build -w src/superadmin-web  # ✅
+```
+
+### Git Commit
+
+```
+fix(superadmin): keep hooks before early returns in ActivityTimeline
+```
+
+*End of ActivityTimeline hooks fix.*
