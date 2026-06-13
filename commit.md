@@ -6520,3 +6520,59 @@ feat: handle deleted incidents in activity sidebar and restore exact profile pos
 ```
 
 *End of activity-inspector deleted-incident + back-to-profile follow-up.*
+
+---
+
+## ✨ 2026-06-13 — Feature follow-up: Recycle-bin ghost visualization, purged incident handling, and location badges
+
+### Issues Addressed
+
+1. **Incidents can also be fully purged from the Recycle Bin**
+   - Suggestion: treat purged incidents as a third state. Show a read-only "Permanently deleted" panel built from the audit log details, with no map marker/zone.
+   - Fix: `handleActivityIncidentClick` now branches on `log.incident_status`. If the incident no longer exists, it opens a purged panel directly from the audit log without changing the URL.
+
+2. **Recycle-bin incidents should show admin name, deletion time, original status, and a ghost marker/zone**
+   - Fix: `getDeletedIncidentById` now returns `geometry_type`, `geometry`, `deleted_by_name`, and `deleted_by_email`.
+   - `MapPage` sets `flyToCoords` for deleted point incidents and `fitBounds` + `ghostZone` for deleted polygon incidents.
+   - `SuperadminMap` gained a `ghostZone` prop and new `ghost-zones` source/layers rendered with low-opacity fill + dashed outline.
+
+3. **Activity timeline should indicate where each incident currently lives**
+   - Fix: audit logs are now enriched with `incident_status` via a LEFT JOIN to `incidents`.
+   - `ActivityTimeline` renders small badges: **Map** (active/resolved), **Recycle Bin** (hidden), or **Deleted** (purged/not found).
+
+4. **Deleted panel location showed `NaN, NaN` for polygon incidents**
+   - Fix: `IncidentDetailPanel` now shows "Polygon zone" for deleted polygons and "Location unknown" when coordinates are missing.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/audit.service.js` | LEFT JOIN `incidents` for incident targets; returns `incident_status`. |
+| `src/backend/src/services/incident.service.js` | `getDeletedIncidentById` selects `geometry_type`, `geometry`, `deleted_by_name`, `deleted_by_email`. |
+| `src/superadmin-web/src/components/Audit/ActivityTimeline.jsx` | Added `getIncidentLocationBadge` helper and renders Map/Recycle Bin/Deleted badges; safe `JSON.parse` guard. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | `handleActivityIncidentClick` branches by `incident_status`; deleted incidents fly map and set `ghostZone`; purged incidents open a synthetic panel; ghost zone cleared on back/dismiss/restore. |
+| `src/superadmin-web/src/components/Map/SuperadminMap.jsx` | Added `ghostZone` prop + `ghost-zones` source/layers with dashed outlines and low opacity. |
+| `src/superadmin-web/src/components/Map/IncidentDetailPanel.jsx` | Added purged-incident banner; refined deleted banner with deleter name; fixed location meta for polygons/unknown coords; hidden admin actions for purged incidents. |
+
+### Behavior
+
+- Activity items now show a badge indicating current incident location before you click.
+- Recycle-bin incidents open the deleted panel and render a ghost marker (point) or dashed ghost zone (polygon) on the map.
+- Purged incidents open a "Permanently deleted" panel with metadata from the audit log; no map marker is shown.
+- Restoring a recycle-bin incident refreshes the panel, removes the ghost marker/zone, and refetches the live incident list.
+
+### Verification
+
+```bash
+node --check src/backend/src/services/audit.service.js     # ✅
+node --check src/backend/src/services/incident.service.js  # ✅
+npm run build:superadmin-web                               # ✅
+```
+
+### Git Commit
+
+```
+feat: show ghost markers/zones for recycle-bin incidents and handle purged incidents in activity sidebar
+```
+
+*End of recycle-bin ghost + purged incident follow-up.*

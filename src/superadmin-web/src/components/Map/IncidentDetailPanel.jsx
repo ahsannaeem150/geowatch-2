@@ -161,7 +161,6 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
   if (!data) return null;
 
   const { incident: inc, sources = [], timeline = [] } = data;
-  const isDeleted = inc.isDeleted || inc.status === 'hidden';
   const catColor = inc.domain_color || '#6b7280';
   const vCfg = inc.verification_status ? VERIFICATION_CONFIG[inc.verification_status] : null;
 
@@ -174,6 +173,8 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
     : 'http://localhost:5174';
   const adminUrl = `${adminBaseUrl}?incident=${inc.id}`;
 
+  const isPurged = inc.isPurged;
+  const isDeleted = !isPurged && (inc.isDeleted || inc.status === 'hidden');
   const isPolygon = inc.geometry_type === 'polygon' || inc.geometry?.type === 'Polygon';
 
   return (
@@ -223,6 +224,34 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
       {actionSuccess && (
         <div style={{ padding: '10px 14px', background: 'var(--alert-success-bg)', border: '1px solid var(--alert-success-border)', borderRadius: 'var(--radius-sm)', color: 'var(--success)', fontSize: '12px', fontWeight: 500 }}>
           {actionSuccess}
+        </div>
+      )}
+
+      {/* Purged incident banner */}
+      {isPurged && (
+        <div
+          style={{
+            padding: '12px 14px',
+            background: 'rgba(107, 114, 128, 0.12)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>
+            This incident has been permanently deleted.
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            {inc.deleted_at && (
+              <div>Moved to Recycle Bin {format(new Date(inc.deleted_at), 'MMM d, yyyy · h:mm a')}</div>
+            )}
+            {inc.purged_at && (
+              <div>Permanently deleted {format(new Date(inc.purged_at), 'MMM d, yyyy · h:mm a')}</div>
+            )}
+            {inc.original_status && <div>Original status: {inc.original_status}</div>}
+          </div>
         </div>
       )}
 
@@ -320,7 +349,7 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
       ) : (
         <>
           {/* Admin Actions */}
-          {adminMode && !isDeleted && (
+          {adminMode && !isDeleted && !isPurged && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {!isPolygon && (
                 <button
@@ -463,15 +492,15 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
               style={{
                 fontSize: '10px',
                 fontWeight: 700,
-                color: isDeleted ? 'var(--danger)' : inc.status === 'active' ? '#22c55e' : 'var(--text-muted)',
-                background: isDeleted ? 'var(--alert-error-bg)' : inc.status === 'active' ? 'var(--alert-success-bg)' : 'rgba(107, 114, 128, 0.1)',
+                color: isPurged ? 'var(--text-muted)' : isDeleted ? 'var(--danger)' : inc.status === 'active' ? '#22c55e' : 'var(--text-muted)',
+                background: isPurged ? 'rgba(107, 114, 128, 0.1)' : isDeleted ? 'var(--alert-error-bg)' : inc.status === 'active' ? 'var(--alert-success-bg)' : 'rgba(107, 114, 128, 0.1)',
                 padding: '3px 10px',
                   borderRadius: 'var(--radius-sm)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
               }}
             >
-              {isDeleted ? 'Deleted' : inc.status}
+              {isPurged ? 'Purged' : isDeleted ? 'Deleted' : inc.status}
             </span>
           </div>
 
@@ -482,7 +511,17 @@ export default function IncidentDetailPanel({ incident, onBack, adminMode = fals
 
           {/* Meta */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            <div>📍 {isPolygon ? `⬡ ${inc.zone_category_name || 'Zone'} · Polygon` : (inc.location_context || `${parseFloat(inc.latitude).toFixed(4)}, ${parseFloat(inc.longitude).toFixed(4)}`)}</div>
+            <div>
+              📍{' '}
+              {isPurged
+                ? (inc.location_context || 'Location no longer available')
+                : isPolygon
+                ? `⬡ ${inc.zone_category_name || 'Zone'} · Polygon`
+                : (inc.location_context ||
+                    (Number.isFinite(parseFloat(inc.latitude)) && Number.isFinite(parseFloat(inc.longitude))
+                      ? `${parseFloat(inc.latitude).toFixed(4)}, ${parseFloat(inc.longitude).toFixed(4)}`
+                      : 'Location unknown'))}
+            </div>
             <div>📅 {dateStr}</div>
             {inc.end_date && (
               <div>🏁 Ends: {format(new Date(inc.end_date), 'MMM d, yyyy · h:mm a')}</div>

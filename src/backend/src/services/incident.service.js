@@ -506,16 +506,20 @@ export async function getDeletedIncidentById(id) {
   const sql = `
     SELECT
       i.id, i.title, i.description, i.latitude, i.longitude,
+      i.geometry_type,
       i.severity, i.status, i.start_date, i.end_date,
       i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
       i.location_context, i.category_id, i.verification_override,
       c.name AS category_name, c.slug AS category_slug,
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
-      l.deleted_at, l.deleted_by, l.original_status
+      l.deleted_at, l.deleted_by, l.original_status,
+      ST_AsGeoJSON(i.geom)::json AS geometry,
+      u.email AS deleted_by_email, u.full_name AS deleted_by_name
     FROM incidents i
     JOIN deleted_incidents_log l ON i.id = l.incident_id
     LEFT JOIN categories c ON i.category_id = c.id
     LEFT JOIN domains d ON c.domain_id = d.id
+    LEFT JOIN users u ON l.deleted_by = u.id
     WHERE i.id = $1 AND i.status = 'hidden'
       AND l.restored_at IS NULL
       AND l.purged_at IS NULL

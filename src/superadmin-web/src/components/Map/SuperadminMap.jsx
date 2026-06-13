@@ -76,6 +76,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   fitBounds,
   markerCoords,
   ghostIncident,
+  ghostZone,
   newIncidentIds = new Set(),
   mapMode = 'pan',
   drawVertices = [],
@@ -313,6 +314,39 @@ const SuperadminMap = forwardRef(function SuperadminMap({
               ['boolean', ['feature-state', 'selected'], false], 0.9,
               0.6,
             ],
+          },
+        });
+      }
+
+      // Ghost zone layers (recycle-bin incidents)
+      if (!mapInstance.getSource('ghost-zones')) {
+        mapInstance.addSource('ghost-zones', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+          promoteId: 'id',
+        });
+      }
+      if (!mapInstance.getLayer('ghost-zone-fills')) {
+        mapInstance.addLayer({
+          id: 'ghost-zone-fills',
+          type: 'fill',
+          source: 'ghost-zones',
+          paint: {
+            'fill-color': ['get', 'fillColor'],
+            'fill-opacity': 0.06,
+          },
+        });
+      }
+      if (!mapInstance.getLayer('ghost-zone-outlines')) {
+        mapInstance.addLayer({
+          id: 'ghost-zone-outlines',
+          type: 'line',
+          source: 'ghost-zones',
+          paint: {
+            'line-color': ['get', 'strokeColor'],
+            'line-width': 2,
+            'line-dasharray': [4, 3],
+            'line-opacity': 0.5,
           },
         });
       }
@@ -864,6 +898,36 @@ const SuperadminMap = forwardRef(function SuperadminMap({
 
     source.setData({ type: 'FeatureCollection', features });
   }, [zones, editingZoneId, showZones, styleVersion]);
+
+  // ─── Update ghost zone source when a deleted zone is selected ───
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('ghost-zones');
+    if (!source) return;
+
+    if (!ghostZone || !ghostZone.geometry) {
+      source.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    const color = ghostZone.zone_category_color || '#ef4444';
+    source.setData({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          id: String(ghostZone.id),
+          geometry: ghostZone.geometry,
+          properties: {
+            id: ghostZone.id,
+            name: ghostZone.title || ghostZone.name,
+            fillColor: color,
+            strokeColor: color,
+          },
+        },
+      ],
+    });
+  }, [ghostZone]);
 
   // ─── Zone hover / click interaction ───
   useEffect(() => {

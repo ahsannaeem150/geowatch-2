@@ -64,10 +64,12 @@ export async function listAuditLogs(filters) {
     `SELECT 
        al.id, al.user_id, al.user_email, al.action, al.target_type, al.target_id,
        al.details, al.ip_address, al.user_agent, al.created_at, al.realm, al.actor_type,
-       COALESCE(u.full_name, pu.full_name) as user_full_name
+       COALESCE(u.full_name, pu.full_name) as user_full_name,
+       inc.status AS incident_status
      FROM audit_logs al
      LEFT JOIN users u ON al.user_id = u.id
      LEFT JOIN public_users pu ON al.user_id = pu.id
+     LEFT JOIN incidents inc ON al.target_type = 'incident' AND inc.id::text = al.target_id
      ${where}
      ORDER BY al.created_at DESC
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,

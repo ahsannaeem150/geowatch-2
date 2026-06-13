@@ -158,6 +158,9 @@ export default function MapPage() {
   const [activitySidebarOpen, setActivitySidebarOpen] = useState(true);
   const isActivityMode = refParam === 'activity' && (staffUserId || publicUserId);
 
+  // Ghost zone for recycle-bin incidents
+  const [ghostZone, setGhostZone] = useState(null);
+
   // Ghost fetch tracking
   const ghostFetchAttempted = useRef(false);
   const lastIncidentIdRef = useRef(null);
@@ -313,6 +316,7 @@ export default function MapPage() {
       setIncidents((prev) => prev.filter((i) => i.id !== e?.detail?.incidentId));
       if (selectedIncident?.id === e?.detail?.incidentId) {
         setSelectedIncident(null);
+        setGhostZone(null);
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.delete('incident');
@@ -464,6 +468,7 @@ export default function MapPage() {
   const handleBack = useCallback(() => {
     setSelectedIncident(null);
     setSelectedZoneId(null);
+    setGhostZone(null);
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
@@ -481,11 +486,44 @@ export default function MapPage() {
   const handleActivityIncidentClick = useCallback(
     (log) => {
       if (!log.target_id || log.target_type !== 'incident') return;
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('incident', log.target_id);
-        return next;
+
+      const status = log.incident_status;
+
+      // Live / recycle-bin incidents: navigate via URL so the deep-link effect
+      // can load them and (for deleted ones) render a ghost marker/zone.
+      if (status === 'active' || status === 'resolved' || status === 'hidden') {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('incident', log.target_id);
+          return next;
+        });
+        return;
+      }
+
+      // Fully purged / no longer present: show a read-only panel built from the
+      // audit log details. No URL change, no map marker.
+      const details = typeof log.details === 'string'
+        ? (() => { try { return JSON.parse(log.details); } catch { return {}; } })()
+        : (log.details || {});
+      setSelectedIncident({
+        id: log.target_id,
+        title: details.title || 'Unknown incident',
+        description: details.description || '',
+        severity: details.severity,
+        category_name: details.categoryName,
+        domain_name: details.domainName,
+        domain_color: details.domainColor,
+        start_date: details.startDate,
+        end_date: details.endDate,
+        deleted_at: details.deletedAt,
+        purged_at: details.purgedAt,
+        original_status: details.originalStatus,
+        isPurged: true,
       });
+      setSelectedZoneId(null);
+      setGhostZone(null);
+      setFlyToCoords(null);
+      setFitBounds(null);
     },
     [setSearchParams]
   );
@@ -547,7 +585,30 @@ export default function MapPage() {
             getDeletedIncident(incidentIdFromUrl)
               .then((res) => {
                 if (res?.incident) {
-                  setSelectedIncident({ ...res.incident, isDeleted: true });
+                  const deletedIncident = { ...res.incident, isDeleted: true };
+                  setSelectedIncident(deletedIncident);
+                  setSelectedZoneId(null);
+                  setGhostZone(null);
+
+                  // Fly the map to the deleted incident and render a ghost marker/zone.
+                  if (deletedIncident.geometry_type === 'polygon' && deletedIncident.geometry?.coordinates?.[0]) {
+                    const coords = deletedIncident.geometry.coordinates[0];
+                    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+                    coords.forEach(([lng, lat]) => {
+                      minLng = Math.min(minLng, lng);
+                      minLat = Math.min(minLat, lat);
+                      maxLng = Math.max(maxLng, lng);
+                      maxLat = Math.max(maxLat, lat);
+                    });
+                    setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+                    setGhostZone(deletedIncident);
+                  } else {
+                    const lat = parseFloat(deletedIncident.latitude);
+                    const lng = parseFloat(deletedIncident.longitude);
+                    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                      setFlyToCoords({ lat, lng, zoom: 10 });
+                    }
+                  }
                 } else {
                   setSearchParams((prev) => {
                     const next = new URLSearchParams(prev);
@@ -996,6 +1057,7 @@ export default function MapPage() {
       if (selectedIncident?.id === id) {
         setSelectedIncident(null);
         setSelectedZoneId(null);
+        setGhostZone(null);
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.delete('incident');
@@ -1033,6 +1095,7 @@ export default function MapPage() {
     setShowZoneCreatePanel(false);
     setZoneInfoEditMode(false);
     setSelectedIncident(null);
+    setGhostZone(null);
     setMapMode('polygon');
     setTimeout(() => {
       handleDrawVertexAdd({ lat, lng });
@@ -1046,6 +1109,7 @@ export default function MapPage() {
     setZoneInfoEditMode(false);
     setSelectedIncident(null);
     setSelectedZoneId(null);
+    setGhostZone(null);
     setPointFormCoords({ lat, lng });
     setPointFormMode('create');
     closeMapMenu();
@@ -1144,6 +1208,8 @@ export default function MapPage() {
   }, []);
 
   const handleDismissContext = useCallback(() => {
+    setSelectedIncident(null);
+    setGhostZone(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('ref');
@@ -1311,6 +1377,7 @@ export default function MapPage() {
             flyToCoords={flyToCoords}
             fitBounds={fitBounds}
             ghostIncident={ghostIncident}
+            ghostZone={ghostZone}
             adminMode={true}
             mapMode={mapMode}
             drawVertices={drawVertices}
@@ -1630,6 +1697,7 @@ export default function MapPage() {
                 adminMode={true}
                 onRefresh={() => {
                   setRefreshKey((k) => k + 1);
+                  setGhostZone(null);
                 }}
                 categories={categories}
                 onEditZone={handleEditZone}

@@ -67,6 +67,18 @@ const ACTION_ICONS = {
   setting_updated: Settings,
 };
 
+function getIncidentLocationBadge(log) {
+  if (log.target_type !== 'incident') return null;
+  const status = log.incident_status;
+  if (status === 'active' || status === 'resolved') {
+    return { label: 'Map', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)' };
+  }
+  if (status === 'hidden') {
+    return { label: 'Recycle Bin', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' };
+  }
+  return { label: 'Deleted', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)' };
+}
+
 function getActivityDescription(log) {
   const label = getAuditActionShortLabel(log.action);
   let details = {};
@@ -293,18 +305,48 @@ function ClickableItem({ link, log, actorName, staffUserId, publicUserId, return
 }
 
 function TimelineItemContent({ log }) {
+  const badge = getIncidentLocationBadge(log);
   return (
     <>
       <div
         style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          lineHeight: 1.4,
-          wordBreak: 'break-word',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 8,
         }}
       >
-        {getActivityDescription(log)}
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            lineHeight: 1.4,
+            wordBreak: 'break-word',
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          {getActivityDescription(log)}
+        </div>
+        {badge && (
+          <span
+            style={{
+              flexShrink: 0,
+              fontSize: 10,
+              fontWeight: 700,
+              color: badge.color,
+              background: badge.bg,
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {badge.label}
+          </span>
+        )}
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
         {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
