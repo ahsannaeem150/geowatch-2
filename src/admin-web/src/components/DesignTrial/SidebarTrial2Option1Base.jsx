@@ -483,6 +483,7 @@ function EvidenceRail({
   onEditItem,
   onDeleteItem,
   onPinItem,
+  extraTabs = [],
 }) {
   if (!event) return null;
   const isAdmin = mode === 'admin' || mode === 'superadmin';
@@ -514,7 +515,12 @@ function EvidenceRail({
     { key: 'x_post', label: SOURCE_TYPE_LABELS.x_post, icon: SOURCE_TYPE_ICONS.x_post },
     { key: 'news_article', label: SOURCE_TYPE_LABELS.news_article, icon: SOURCE_TYPE_ICONS.news_article },
     { key: 'admin_note', label: SOURCE_TYPE_LABELS.admin_note, icon: SOURCE_TYPE_ICONS.admin_note },
+    ...extraTabs.map((t) => ({ key: t.key, label: t.label, icon: t.icon })),
   ];
+
+  extraTabs.forEach((t) => {
+    counts[t.key] = t.count ?? 0;
+  });
 
   const show = (key) => filter === 'all' || filter === key;
   const isEmpty = counts[filter] === 0;
@@ -674,6 +680,17 @@ function EvidenceRail({
 
         <div className="opt1-bento">
           {categoryOrder.map((key) => renderSection(key))}
+
+          {(() => {
+            const activeExtra = extraTabs.find((t) => t.key === filter);
+            if (!activeExtra) return null;
+            return (
+              <div key={activeExtra.key} className="opt1-bento-cell opt1-bento-cell--wide">
+                <div className="opt1-bento-label">{activeExtra.label}</div>
+                <div className="opt1-bento-scroll">{activeExtra.render?.()}</div>
+              </div>
+            );
+          })()}
 
           {isEmpty && (
             <div className="opt1-empty-state">
@@ -1152,7 +1169,7 @@ function AccessManagerModal({ initialAdmins, onClose, onSave }) {
 }
 
 /* ─── Top bar with admin controls ─── */
-function Option1TopBar({ mode, theme, setTheme, onEditIncident, onAddEvent, onManageAccess }) {
+function Option1TopBar({ mode, theme, setTheme, onEditIncident, onAddEvent, onManageAccess, extraActions }) {
   const role = ROLE_META[mode];
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const isSuper = mode === 'superadmin';
@@ -1189,6 +1206,7 @@ function Option1TopBar({ mode, theme, setTheme, onEditIncident, onAddEvent, onMa
               {Icons.hash} Manage access
             </button>
           )}
+          {extraActions}
           <div className="opt1-theme-switch">
             <span>Theme</span>
             <select value={theme} onChange={(e) => setTheme(e.target.value)}>
@@ -1203,7 +1221,12 @@ function Option1TopBar({ mode, theme, setTheme, onEditIncident, onAddEvent, onMa
 }
 
 /* ─── Main base page ─── */
-export default function SidebarTrial2Option1Base({ mode = 'user' }) {
+export default function SidebarTrial2Option1Base({
+  mode = 'user',
+  topBarExtra,
+  rightSidebar,
+  railExtraTabs,
+}) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const isSuper = mode === 'superadmin';
   const role = ROLE_META[mode];
@@ -1406,16 +1429,20 @@ export default function SidebarTrial2Option1Base({ mode = 'user' }) {
         onEditIncident={() => setModal({ type: 'incident' })}
         onAddEvent={() => setModal({ type: 'event' })}
         onManageAccess={() => setModal({ type: 'access' })}
+        extraActions={topBarExtra}
       />
 
       <div className="opt1-progress-bar" style={{ width: `${progress}%` }} />
 
       <main className="opt1-main">
-        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 24px 80px' }}>
+        <div style={{ maxWidth: rightSidebar ? 1560 : 1240, margin: '0 auto', padding: '0 24px 80px' }}>
           <Hero incident={incident} heroImage={{ url: incident.heroImage || DEFAULT_HERO_IMAGE }} mode={mode} />
 
           <div className="opt1-section-title">Story timeline</div>
-          <div className="opt1-grid">
+          <div
+            className="opt1-grid"
+            style={rightSidebar ? { gridTemplateColumns: 'minmax(0, 1.35fr) 360px 320px', gap: 28 } : undefined}
+          >
             {/* Left: timeline */}
             <div className="opt1-timeline" ref={timelineRef}>
               <div className="opt1-timeline-track">
@@ -1514,7 +1541,16 @@ export default function SidebarTrial2Option1Base({ mode = 'user' }) {
               onEditItem={(eventId, sourceType, item) => setModal({ type: 'item', eventId, sourceType, item })}
               onDeleteItem={deleteEvidence}
               onPinItem={togglePin}
+              extraTabs={railExtraTabs}
             />
+            {rightSidebar && (
+              <aside
+                className="opt1-rail"
+                style={{ position: 'sticky', top: 80, alignSelf: 'start', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto', paddingRight: 6 }}
+              >
+                {rightSidebar}
+              </aside>
+            )}
           </div>
         </div>
       </main>
@@ -1648,3 +1684,5 @@ export default function SidebarTrial2Option1Base({ mode = 'user' }) {
     </div>
   );
 }
+
+export { EvidenceRail };
