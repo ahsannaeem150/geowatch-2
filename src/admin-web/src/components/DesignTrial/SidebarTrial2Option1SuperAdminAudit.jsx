@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { formatDate, formatTime, relativeTime, Icons, Badge } from './SidebarTrialShared.jsx';
+import React, { useEffect, useMemo, useState } from 'react';
+import { formatDate, formatTime, relativeTime, Icons, Badge, INCIDENT, TIMELINE } from './SidebarTrialShared.jsx';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Rough audit / activity helpers for the Option 1 Superadmin layout prototypes.
@@ -331,7 +331,38 @@ function ActivityRow({ log, onUserClick, compact = false }) {
   );
 }
 
-export function Drawer({ open, onClose, title, children }) {
+const drawerStack = [];
+let drawerId = 0;
+
+function useDrawerLayer(open) {
+  const [id] = useState(() => ++drawerId);
+  useEffect(() => {
+    if (!open) return;
+    drawerStack.push(id);
+    return () => {
+      const idx = drawerStack.indexOf(id);
+      if (idx >= 0) drawerStack.splice(idx, 1);
+    };
+  }, [open, id]);
+  return open && drawerStack[drawerStack.length - 1] === id;
+}
+
+export function Drawer({ open, onClose, title, children, zIndex = 10500 }) {
+  const isTopLayer = useDrawerLayer(open);
+
+  useEffect(() => {
+    if (!open || !isTopLayer) return;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      /* Don't close if a modal/dialog is currently open above us */
+      if (document.querySelector('[role="dialog"]')) return;
+      e.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, isTopLayer, onClose]);
+
   if (!open) return null;
   return (
     <>
@@ -340,11 +371,12 @@ export function Drawer({ open, onClose, title, children }) {
           position: 'fixed',
           inset: 0,
           background: 'rgba(0,0,0,0.6)',
-          zIndex: 10500,
+          zIndex,
         }}
         onClick={onClose}
       />
       <div
+        data-drawer="true"
         style={{
           position: 'fixed',
           top: 0,
@@ -353,7 +385,7 @@ export function Drawer({ open, onClose, title, children }) {
           width: 'min(520px, 92vw)',
           background: 'var(--bg-elevated)',
           borderLeft: '1px solid var(--border-subtle)',
-          zIndex: 10501,
+          zIndex: zIndex + 1,
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -412,8 +444,57 @@ export function AuditLogPanel({ incident, events, onUserClick, compact = false }
     letterSpacing: '0.05em',
   };
 
+  const creator = findUser('u1');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 12 : 18 }}>
+      {!compact && (
+        <div
+          style={{
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 14,
+            padding: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+          }}
+        >
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 18,
+              flexShrink: 0,
+            }}
+          >
+            📋
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 2 }}>
+              {logs.length} audit entries
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              Created by{' '}
+              <button
+                type="button"
+                onClick={() => onUserClick?.(creator.id)}
+                style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--accent-light)', fontWeight: 700, cursor: 'pointer' }}
+              >
+                {creator.name}
+              </button>{' '}
+              · {formatDate(incident.createdAt)} · {formatTime(incident.createdAt)}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={sectionBase}>
         <div style={sectionTitle}>Incident metadata</div>
         <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : '1fr 1fr', gap: compact ? '8px 10px' : '10px 16px', fontSize: compact ? 11 : 12 }}>
@@ -498,47 +579,57 @@ function ActorLink({ id, onUserClick }) {
   );
 }
 
-export function UserProfileDrawer({ userId, onClose }) {
+export function UserProfileDrawer({ userId, onClose, zIndex }) {
   const user = useMemo(() => {
-    const u = USERS.find((x) => x.id === userId) || USERS[0];
-    const allLogs = generateAuditData(
-      { id: 'inc-001', title: 'IAF AN-32 crashes in Assam, India', createdAt: '2026-06-13T21:01:00Z' },
-      []
-    ).logs;
-    const activity = allLogs.filter((l) => l.actorId === u.id);
+    const all = generateAuditData(INCIDENT, TIMELINE);
+    const base = all.users.find((u) => u.id === userId) || USERS[0];
+    const activity = [...base.activity];
     /* add some unrelated demo activity so it looks like a real profile */
     activity.push({
-      id: `demo-other-${u.id}`,
+      id: `demo-other-${base.id}`,
       action: 'incident_created',
       targetType: 'incident',
       targetId: 'inc-OTHER',
       targetLabel: 'Factory fire in Gujarat',
-      actorId: u.id,
+      actorId: base.id,
       timestamp: '2026-06-10T14:22:00Z',
       details: 'Other incident created by this user.',
     });
     activity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    return { ...u, activity };
+    return { ...base, activity };
   }, [userId]);
 
   const [tab, setTab] = useState('overview');
 
+  const roleColor = user.role === 'superadmin' ? '#f472b6' : user.role === 'admin' ? '#a78bfa' : '#94a3b8';
+
   return (
-    <Drawer open onClose={onClose} title="User profile">
-      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+    <Drawer open onClose={onClose} title="User profile" zIndex={zIndex}>
+      <div
+        style={{
+          textAlign: 'center',
+          marginBottom: 20,
+          padding: '18px 14px',
+          background: 'var(--bg-primary)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 16,
+        }}
+      >
         <img
           src={`https://picsum.photos/seed/${user.avatarSeed}/120/120`}
           alt={user.name}
-          style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', marginBottom: 12 }}
+          style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginBottom: 12, border: `2px solid ${roleColor}55` }}
         />
-        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{user.name}</div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>{user.email}</div>
-        <Badge color={user.role === 'superadmin' ? '#f472b6' : user.role === 'admin' ? '#a78bfa' : '#94a3b8'} bg={`${user.role === 'superadmin' ? '#f472b6' : user.role === 'admin' ? '#a78bfa' : '#94a3b8'}1a`}>
-          {user.role}
-        </Badge>
-        <span style={{ marginLeft: 8, fontSize: 12, color: user.active ? '#4ade80' : '#ef4444', fontWeight: 700 }}>
-          {user.active ? 'Active' : 'Inactive'}
-        </span>
+        <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--text-primary)' }}>{user.name}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>{user.email}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Badge color={roleColor} bg={`${roleColor}1a`}>
+            {user.role}
+          </Badge>
+          <Badge color={user.active ? '#4ade80' : '#ef4444'} bg={user.active ? 'rgba(74,222,128,0.12)' : 'rgba(239,68,68,0.12)'}>
+            {user.active ? 'Active' : 'Inactive'}
+          </Badge>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)' }}>
@@ -547,14 +638,19 @@ export function UserProfileDrawer({ userId, onClose }) {
       </div>
 
       {tab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <StatBox label="Incidents created" value={user.stats?.incidentsCreated ?? 1} />
-          <StatBox label="Resolved" value={user.stats?.resolved ?? 0} />
-          <StatBox label="Sources added" value={user.stats?.sourcesAdded ?? 0} />
-          <StatBox label="Timeline updates" value={user.stats?.timelineUpdates ?? 0} />
-          <StatBox label="Audit entries" value={user.stats?.auditEntries ?? user.activity.length} />
-          <StatBox label="Member since" value={formatDate(user.memberSince)} />
-        </div>
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+            <StatBox label="Created" value={user.stats.incidentsCreated} />
+            <StatBox label="Resolved" value={user.stats.resolved} />
+            <StatBox label="Sources" value={user.stats.sourcesAdded} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            <StatBox label="Timeline updates" value={user.stats.timelineUpdates} />
+            <StatBox label="Audit entries" value={user.stats.auditEntries} />
+            <StatBox label="Member since" value={formatDate(user.memberSince)} />
+            <StatBox label="Last active" value={relativeTime(user.memberSince)} />
+          </div>
+        </>
       )}
 
       {tab === 'activity' && (

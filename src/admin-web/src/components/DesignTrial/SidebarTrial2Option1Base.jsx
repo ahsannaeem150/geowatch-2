@@ -1052,127 +1052,10 @@ function EvidenceModal({ type, item, onClose, onSave }) {
   );
 }
 
-function AccessManagerModal({ initialAdmins, onClose, onSave }) {
-  const [admins, setAdmins] = useState(initialAdmins);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('admin');
-
-  const add = () => {
-    if (!name.trim() || !email.trim()) return;
-    setAdmins((a) => [...a, { id: uid(), name: name.trim(), email: email.trim(), role }]);
-    setName('');
-    setEmail('');
-    setRole('admin');
-  };
-
-  const remove = (id) => setAdmins((a) => a.filter((x) => x.id !== id));
-  const toggleRole = (id) =>
-    setAdmins((a) => a.map((x) => (x.id === id ? { ...x, role: x.role === 'admin' ? 'viewer' : 'admin' } : x)));
-
-  return (
-    <Modal title="Manage admin access" onClose={onClose} onSubmit={() => onSave(admins)}>
-      <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 16 }}>
-        {admins.map((a) => (
-          <div
-            key={a.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 12px',
-              background: 'var(--bg-primary)',
-              borderRadius: 12,
-              marginBottom: 8,
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{a.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.email}</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => toggleRole(a.id)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 8,
-                background: a.role === 'admin' ? 'rgba(139,92,246,0.15)' : 'var(--bg-hover)',
-                color: a.role === 'admin' ? '#a78bfa' : 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {a.role}
-            </button>
-            <button
-              type="button"
-              onClick={() => remove(a.id)}
-              style={{
-                padding: '4px 8px',
-                borderRadius: 8,
-                background: 'rgba(239,68,68,0.12)',
-                color: 'var(--danger-light)',
-                border: '1px solid rgba(239,68,68,0.25)',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {Icons.trash}
-            </button>
-          </div>
-        ))}
-        {admins.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>
-            No admins configured.
-          </div>
-        )}
-      </div>
-
-      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 10 }}>Add admin</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Name">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-          </Field>
-          <Field label="Email">
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" />
-          </Field>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-          <Select value={role} onChange={(e) => setRole(e.target.value)} style={{ maxWidth: 140 }}>
-            <option value="admin">Admin</option>
-            <option value="viewer">Viewer</option>
-          </Select>
-          <button
-            type="button"
-            onClick={add}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, var(--accent-light), var(--accent))',
-              border: 'none',
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            {Icons.plus} Add
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 /* ─── Top bar with admin controls ─── */
-function Option1TopBar({ mode, theme, setTheme, onEditIncident, onAddEvent, onManageAccess, extraActions }) {
+function Option1TopBar({ mode, theme, setTheme, onEditIncident, onAddEvent, extraActions }) {
   const role = ROLE_META[mode];
   const isAdmin = mode === 'admin' || mode === 'superadmin';
-  const isSuper = mode === 'superadmin';
 
   return (
     <div className="opt1-topbar">
@@ -1200,11 +1083,6 @@ function Option1TopBar({ mode, theme, setTheme, onEditIncident, onAddEvent, onMa
                 {Icons.plus} Add update
               </button>
             </>
-          )}
-          {isSuper && (
-            <button type="button" className="opt1-topbar-btn" onClick={onManageAccess}>
-              {Icons.hash} Manage access
-            </button>
           )}
           {extraActions}
           <div className="opt1-theme-switch">
@@ -1240,11 +1118,6 @@ export default function SidebarTrial2Option1Base({
   const [lineProgress, setLineProgress] = useState(0);
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
-  const [admins, setAdmins] = useState([
-    { id: 'a1', name: 'Ops Manager', email: 'ops@geowatch.local', role: 'admin' },
-    { id: 'a2', name: 'Field Editor', email: 'field@geowatch.local', role: 'admin' },
-    { id: 'a3', name: 'Analyst', email: 'analyst@geowatch.local', role: 'viewer' },
-  ]);
 
   const itemRefs = useRef({});
   const timelineRef = useRef(null);
@@ -1380,6 +1253,7 @@ export default function SidebarTrial2Option1Base({
     const onKey = (e) => {
       if (lightbox.open) return;
       if (document.querySelector('[role="dialog"]')) return;
+      if (document.querySelector('[data-drawer="true"]')) return;
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
@@ -1428,7 +1302,6 @@ export default function SidebarTrial2Option1Base({
         setTheme={setTheme}
         onEditIncident={() => setModal({ type: 'incident' })}
         onAddEvent={() => setModal({ type: 'event' })}
-        onManageAccess={() => setModal({ type: 'access' })}
         extraActions={topBarExtra}
       />
 
@@ -1610,18 +1483,6 @@ export default function SidebarTrial2Option1Base({
           onClose={() => setModal(null)}
           onSave={(item) => {
             updateEvidence(modal.eventId, modal.sourceType, item);
-            setModal(null);
-          }}
-        />
-      )}
-
-      {modal?.type === 'access' && isSuper && (
-        <AccessManagerModal
-          initialAdmins={admins}
-          onClose={() => setModal(null)}
-          onSave={(next) => {
-            setAdmins(next);
-            notify('Access list updated');
             setModal(null);
           }}
         />

@@ -9,9 +9,6 @@ import SidebarTrial2 from './components/DesignTrial/SidebarTrial2.jsx';
 import SidebarTrial2Option1User from './components/DesignTrial/SidebarTrial2Option1User.jsx';
 import SidebarTrial2Option1Admin from './components/DesignTrial/SidebarTrial2Option1Admin.jsx';
 import SidebarTrial2Option1SuperAdmin from './components/DesignTrial/SidebarTrial2Option1SuperAdmin.jsx';
-import SidebarTrial2Option1SuperAdminA from './components/DesignTrial/SidebarTrial2Option1SuperAdminA.jsx';
-import SidebarTrial2Option1SuperAdminB from './components/DesignTrial/SidebarTrial2Option1SuperAdminB.jsx';
-import SidebarTrial2Option1SuperAdminC from './components/DesignTrial/SidebarTrial2Option1SuperAdminC.jsx';
 import ZonesPage from './pages/ZonesPage.jsx';
 
 function ProtectedRoute({ children }) {
@@ -45,9 +42,6 @@ function AppRoutes() {
       <Route path="/sidebarTrial2/option1user" element={<SidebarTrial2Option1User />} />
       <Route path="/sidebarTrial2/option1admin" element={<SidebarTrial2Option1Admin />} />
       <Route path="/sidebarTrial2/option1superadmin" element={<SidebarTrial2Option1SuperAdmin />} />
-      <Route path="/sidebarTrial2/option1superadmin-a" element={<SidebarTrial2Option1SuperAdminA />} />
-      <Route path="/sidebarTrial2/option1superadmin-b" element={<SidebarTrial2Option1SuperAdminB />} />
-      <Route path="/sidebarTrial2/option1superadmin-c" element={<SidebarTrial2Option1SuperAdminC />} />
       <Route
         path="/zones"
         element={
