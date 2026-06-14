@@ -139,6 +139,7 @@ export function generateAuditData(incident, events) {
     targetLabel: incident.title,
     actorId: 'u1',
     timestamp: offset(incident.createdAt, 15),
+    newValue: 'verified',
     details: 'Verification set to verified based on official confirmation.',
   });
 
@@ -176,8 +177,14 @@ export function generateAuditData(incident, events) {
     let sourceCounter = 1;
     Object.entries(event.sources || {}).forEach(([sourceType, list]) => {
       list.forEach((item) => {
-        const label =
-          item.caption || item.title || item.author || item.text?.slice(0, 40) || 'Untitled';
+        let label;
+        if (sourceType === 'x_post') {
+          label = `${item.author} — ${item.text?.slice(0, 60) || ''}`.trim();
+        } else if (sourceType === 'admin_note') {
+          label = item.text?.slice(0, 80) || 'Admin note';
+        } else {
+          label = item.caption || item.title || item.author || item.text?.slice(0, 40) || 'Untitled';
+        }
         logs.push({
           id: `log-src-${event.id}-${item.id}`,
           action: 'source_added',
@@ -255,16 +262,87 @@ export function generateAuditData(incident, events) {
   return { logs, users: usersWithActivity };
 }
 
+function typeName(type, withArticle = false) {
+  const map = { media: 'image', x_post: 'post', news_article: 'article', admin_note: 'note' };
+  const name = map[type] || type;
+  if (!withArticle) return name;
+  return ['image', 'article'].includes(name) ? `an ${name}` : `a ${name}`;
+}
+
+function capitalize(str) {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function humanizeLog(log) {
+  switch (log.action) {
+    case 'incident_created':
+      return { title: 'Incident created', subtitle: log.details };
+    case 'incident_updated':
+      return {
+        title: `Edited ${log.changed?.map((c) => c.toLowerCase()).join(', ')}`,
+        subtitle: log.details,
+      };
+    case 'verification_changed':
+      return {
+        title: `Verification changed to ${log.newValue || 'verified'}`,
+        subtitle: log.details,
+      };
+    case 'timeline_added':
+      return {
+        title: 'Added this update',
+        subtitle: log.details,
+      };
+    case 'timeline_updated':
+      return {
+        title: `Edited this update · ${log.changed?.map((c) => c.toLowerCase()).join(', ')}`,
+        subtitle: log.details,
+      };
+    case 'source_added':
+      return {
+        title: `Added ${typeName(log.targetType, true)}`,
+        subtitle: log.targetLabel,
+      };
+    case 'source_updated':
+      return {
+        title: `Edited ${typeName(log.targetType, true)}`,
+        subtitle: log.targetLabel,
+      };
+    case 'source_pinned':
+      return {
+        title: `Pinned ${typeName(log.targetType, true)}`,
+        subtitle: log.targetLabel,
+      };
+    case 'source_deleted':
+      return {
+        title: `Deleted ${typeName(log.targetType, true)}`,
+        subtitle: log.targetLabel,
+      };
+    case 'access_changed':
+      return { title: 'Access changed', subtitle: log.details };
+    case 'admin_login':
+      return { title: 'Logged in', subtitle: log.details };
+    default:
+      return { title: capitalize(log.action.replace(/_/g, ' ')), subtitle: log.targetLabel };
+  }
+}
+
 function ActivityRow({ log, onUserClick, compact = false }) {
   const meta = ACTION_META[log.action] || ACTION_META.admin_login;
   const user = findUser(log.actorId);
+  const { title, subtitle } = humanizeLog(log);
+
   return (
     <div
       style={{
         display: 'flex',
         gap: compact ? 8 : 12,
-        padding: compact ? '8px 0' : '12px 0',
-        borderBottom: '1px solid var(--border-subtle)',
+        padding: compact ? 10 : 14,
+        marginBottom: compact ? 6 : 8,
+        background: 'var(--bg-primary)',
+        border: '1px solid var(--border-subtle)',
+        borderLeft: `3px solid ${meta.color}`,
+        borderRadius: 12,
         fontSize: compact ? 12 : 13,
       }}
     >
@@ -280,31 +358,37 @@ function ActivityRow({ log, onUserClick, compact = false }) {
           color: meta.color,
           fontSize: compact ? 10 : 12,
           flexShrink: 0,
+          marginTop: 2,
         }}
       >
         {meta.icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: 'var(--text-primary)', fontWeight: 700, marginBottom: compact ? 1 : 2, lineHeight: 1.35 }}>
-          {meta.label}
-          {log.changed && (
-            <span style={{ color: 'var(--text-muted)', fontWeight: 500, marginLeft: 6 }}>
-              · {log.changed.join(', ')}
-            </span>
-          )}
-        </div>
         <div
           style={{
-            color: 'var(--text-secondary)',
-            lineHeight: 1.45,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: compact ? 'nowrap' : undefined,
+            color: 'var(--text-primary)',
+            fontWeight: 700,
+            marginBottom: 2,
+            lineHeight: 1.35,
           }}
         >
-          {log.targetLabel}
+          {title}
         </div>
-        <div style={{ color: 'var(--text-muted)', fontSize: compact ? 10 : 11, marginTop: compact ? 2 : 4 }}>
+        {subtitle && (
+          <div
+            style={{
+              color: 'var(--text-secondary)',
+              lineHeight: 1.5,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: compact ? 'nowrap' : undefined,
+              marginBottom: 4,
+            }}
+          >
+            {subtitle}
+          </div>
+        )}
+        <div style={{ color: 'var(--text-muted)', fontSize: compact ? 10 : 11 }}>
           <button
             type="button"
             onClick={() => onUserClick?.(user.id)}
@@ -321,11 +405,6 @@ function ActivityRow({ log, onUserClick, compact = false }) {
           </button>{' '}
           · {formatDate(log.timestamp)} · {formatTime(log.timestamp)} · {relativeTime(log.timestamp)}
         </div>
-        {log.details && (
-          <div style={{ color: 'var(--text-muted)', fontSize: compact ? 11 : 12, marginTop: compact ? 2 : 4, lineHeight: 1.4 }}>
-            {log.details}
-          </div>
-        )}
       </div>
     </div>
   );
