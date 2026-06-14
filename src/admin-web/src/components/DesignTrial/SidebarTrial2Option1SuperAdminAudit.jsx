@@ -255,37 +255,37 @@ export function generateAuditData(incident, events) {
   return { logs, users: usersWithActivity };
 }
 
-function ActivityRow({ log, onUserClick }) {
+function ActivityRow({ log, onUserClick, compact = false }) {
   const meta = ACTION_META[log.action] || ACTION_META.admin_login;
   const user = findUser(log.actorId);
   return (
     <div
       style={{
         display: 'flex',
-        gap: 12,
-        padding: '12px 0',
+        gap: compact ? 8 : 12,
+        padding: compact ? '8px 0' : '12px 0',
         borderBottom: '1px solid var(--border-subtle)',
-        fontSize: 13,
+        fontSize: compact ? 12 : 13,
       }}
     >
       <div
         style={{
-          width: 28,
-          height: 28,
+          width: compact ? 22 : 28,
+          height: compact ? 22 : 28,
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           background: `${meta.color}1a`,
           color: meta.color,
-          fontSize: 12,
+          fontSize: compact ? 10 : 12,
           flexShrink: 0,
         }}
       >
         {meta.icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: 'var(--text-primary)', fontWeight: 700, marginBottom: 2 }}>
+        <div style={{ color: 'var(--text-primary)', fontWeight: 700, marginBottom: compact ? 1 : 2, lineHeight: 1.35 }}>
           {meta.label}
           {log.changed && (
             <span style={{ color: 'var(--text-muted)', fontWeight: 500, marginLeft: 6 }}>
@@ -293,8 +293,18 @@ function ActivityRow({ log, onUserClick }) {
             </span>
           )}
         </div>
-        <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>{log.targetLabel}</div>
-        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 4 }}>
+        <div
+          style={{
+            color: 'var(--text-secondary)',
+            lineHeight: 1.45,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: compact ? 'nowrap' : undefined,
+          }}
+        >
+          {log.targetLabel}
+        </div>
+        <div style={{ color: 'var(--text-muted)', fontSize: compact ? 10 : 11, marginTop: compact ? 2 : 4 }}>
           <button
             type="button"
             onClick={() => onUserClick?.(user.id)}
@@ -312,7 +322,9 @@ function ActivityRow({ log, onUserClick }) {
           · {formatDate(log.timestamp)} · {formatTime(log.timestamp)} · {relativeTime(log.timestamp)}
         </div>
         {log.details && (
-          <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>{log.details}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: compact ? 11 : 12, marginTop: compact ? 2 : 4, lineHeight: 1.4 }}>
+            {log.details}
+          </div>
         )}
       </div>
     </div>
@@ -375,7 +387,7 @@ export function Drawer({ open, onClose, title, children }) {
   );
 }
 
-export function AuditLogPanel({ incident, events, onUserClick }) {
+export function AuditLogPanel({ incident, events, onUserClick, compact = false }) {
   const { logs } = useMemo(() => generateAuditData(incident, events), [incident, events]);
   const [expandedEventId, setExpandedEventId] = useState(null);
 
@@ -385,58 +397,46 @@ export function AuditLogPanel({ incident, events, onUserClick }) {
     )
   );
 
+  const sectionBase = {
+    background: 'var(--bg-primary)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: compact ? 12 : 14,
+    padding: compact ? 12 : 16,
+  };
+  const sectionTitle = {
+    fontSize: compact ? 11 : 12,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    color: 'var(--text-muted)',
+    marginBottom: compact ? 8 : 12,
+    letterSpacing: '0.05em',
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div
-        style={{
-          background: 'var(--bg-primary)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 14,
-          padding: 16,
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.05em' }}>
-          Incident metadata
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px', fontSize: 12 }}>
-          <Meta label="Incident ID" value={incident.id} />
-          <Meta label="Created by" value={<ActorLink id="u1" onUserClick={onUserClick} />} />
-          <Meta label="Created at" value={`${formatDate(incident.createdAt)} · ${formatTime(incident.createdAt)}`} />
-          <Meta label="Updated at" value={`${formatDate(incident.createdAt)} · ${formatTime(incident.createdAt)}`} />
-          <Meta label="Category" value={incident.category} />
-          <Meta label="Category ID" value="cat-148" />
-          <Meta label="Zone category ID" value="zone-av-09" />
-          <Meta label="Verification override" value="none" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 12 : 18 }}>
+      <div style={sectionBase}>
+        <div style={sectionTitle}>Incident metadata</div>
+        <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : '1fr 1fr', gap: compact ? '8px 10px' : '10px 16px', fontSize: compact ? 11 : 12 }}>
+          <Meta label="Incident ID" value={incident.id} compact={compact} />
+          <Meta label="Created by" value={<ActorLink id="u1" onUserClick={onUserClick} />} compact={compact} />
+          <Meta label="Created at" value={`${formatDate(incident.createdAt)} · ${formatTime(incident.createdAt)}`} compact={compact} />
+          <Meta label="Updated at" value={`${formatDate(incident.createdAt)} · ${formatTime(incident.createdAt)}`} compact={compact} />
+          <Meta label="Category" value={incident.category} compact={compact} />
+          <Meta label="Category ID" value="cat-148" compact={compact} />
+          <Meta label="Zone category ID" value="zone-av-09" compact={compact} />
+          <Meta label="Verification override" value="none" compact={compact} />
         </div>
       </div>
 
-      <div
-        style={{
-          background: 'var(--bg-primary)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 14,
-          padding: 16,
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.05em' }}>
-          Status history ({statusLogs.length})
-        </div>
+      <div style={sectionBase}>
+        <div style={sectionTitle}>Status history ({statusLogs.length})</div>
         {statusLogs.map((log) => (
-          <ActivityRow key={log.id} log={log} onUserClick={onUserClick} />
+          <ActivityRow key={log.id} log={log} onUserClick={onUserClick} compact={compact} />
         ))}
       </div>
 
-      <div
-        style={{
-          background: 'var(--bg-primary)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 14,
-          padding: 16,
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.05em' }}>
-          Per-update activity
-        </div>
+      <div style={sectionBase}>
+        <div style={sectionTitle}>Per-update activity</div>
         {events.map((event) => {
           const eventLogs = logs.filter((l) => l.eventId === event.id);
           const open = expandedEventId === event.id;
@@ -450,9 +450,9 @@ export function AuditLogPanel({ incident, events, onUserClick }) {
                   textAlign: 'left',
                   background: 'transparent',
                   border: 'none',
-                  padding: '10px 0',
+                  padding: compact ? '8px 0' : '10px 0',
                   color: 'var(--text-primary)',
-                  fontSize: 13,
+                  fontSize: compact ? 12 : 13,
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -460,12 +460,14 @@ export function AuditLogPanel({ incident, events, onUserClick }) {
                   justifyContent: 'space-between',
                 }}
               >
-                <span>{event.summary}</span>
-                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                  {eventLogs.length} entries {open ? '▲' : '▼'}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
+                  {event.summary}
+                </span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>
+                  {eventLogs.length} {open ? '▲' : '▼'}
                 </span>
               </button>
-              {open && eventLogs.map((log) => <ActivityRow key={log.id} log={log} onUserClick={onUserClick} />)}
+              {open && eventLogs.map((log) => <ActivityRow key={log.id} log={log} onUserClick={onUserClick} compact={compact} />)}
             </div>
           );
         })}
@@ -474,11 +476,11 @@ export function AuditLogPanel({ incident, events, onUserClick }) {
   );
 }
 
-function Meta({ label, value }) {
+function Meta({ label, value, compact = false }) {
   return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: 3 }}>{label}</div>
-      <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{value}</div>
+    <div style={{ overflow: 'hidden' }}>
+      <div style={{ fontSize: compact ? 9 : 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: compact ? 1 : 3 }}>{label}</div>
+      <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: compact ? 11 : 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: compact ? 'nowrap' : undefined }}>{value}</div>
     </div>
   );
 }

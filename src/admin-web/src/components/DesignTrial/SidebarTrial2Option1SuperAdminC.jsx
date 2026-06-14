@@ -9,7 +9,7 @@ export default function SidebarTrial2Option1SuperAdminC() {
   const [userId, setUserId] = useState(null);
 
   const rightSidebar = (
-    <AuditLogPanel incident={INCIDENT} events={TIMELINE} onUserClick={setUserId} />
+    <AuditLogPanel incident={INCIDENT} events={TIMELINE} onUserClick={setUserId} compact />
   );
 
   return (

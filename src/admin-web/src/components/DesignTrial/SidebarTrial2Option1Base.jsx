@@ -1435,13 +1435,13 @@ export default function SidebarTrial2Option1Base({
       <div className="opt1-progress-bar" style={{ width: `${progress}%` }} />
 
       <main className="opt1-main">
-        <div style={{ maxWidth: rightSidebar ? 1560 : 1240, margin: '0 auto', padding: '0 24px 80px' }}>
+        <div style={{ maxWidth: rightSidebar ? 1580 : 1240, margin: '0 auto', padding: rightSidebar ? '0 16px 80px' : '0 24px 80px' }}>
           <Hero incident={incident} heroImage={{ url: incident.heroImage || DEFAULT_HERO_IMAGE }} mode={mode} />
 
           <div className="opt1-section-title">Story timeline</div>
           <div
             className="opt1-grid"
-            style={rightSidebar ? { gridTemplateColumns: 'minmax(0, 1.35fr) 360px 320px', gap: 28 } : undefined}
+            style={rightSidebar ? { gridTemplateColumns: 'minmax(0, 1.2fr) 340px 360px', gap: 22 } : undefined}
           >
             {/* Left: timeline */}
             <div className="opt1-timeline" ref={timelineRef}>
