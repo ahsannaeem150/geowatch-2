@@ -7904,3 +7904,279 @@ feat(sidebarTrial2/option1): add tweet carousel in evidence rail and new IAF upd
 
 *End of feature*
 
+
+---
+
+## 📅 2026-06-14 — Feature: Evidence Panel Improvements
+
+### Summary
+Implemented five requested evidence-panel enhancements (all except source-verification badges): filter tabs, pinned evidence, copy-link buttons, expandable admin notes, and navigable image lightbox.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrialShared.jsx` | Added `pin` and `copy` icons; added `sortPinned` helper and `CopyButton`; pinned the IAF tweet in `e6`; made `MediaThumb` and `ArticleCard` copyable + keyboard accessible; made `AdminNoteCard` expandable with “Read more / Show less”; added pinned badge and copy link to `XPostCarousel`; rewrote `Lightbox` to navigate through all media with prev/next arrows, keyboard support, and copy link. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Added evidence filter tabs to `EvidenceRail`; sorted each source type with pinned first; updated lightbox state to pass the full media array and current index. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | Added `.opt1-filter-tabs`, `.opt1-filter-tab`, `.opt1-filter-tab--active`, `.opt1-filter-tab__count`, and `.opt1-empty-state` styles. |
+
+### Verified Behavior
+
+| Feature | Result |
+|:--|:--|
+| Filter tabs | ✅ All / Media / Posts / Articles / Notes tabs with counts; only selected type shown. |
+| Pinned tweet | ✅ IAF_MCC tweet shows “Pinned post” badge and appears first in carousel. |
+| Copy link | ✅ Copy buttons visible on images, article, note, and active tweet. |
+| Expandable note | ✅ Long admin note truncates with “Read more”; expands to “Show less”. |
+| Lightbox nav | ✅ Clicking media opens lightbox at correct image; prev/next arrows and left/right keys navigate; counter shows `1 / 3`; copy link available. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+feat(sidebarTrial2/option1): evidence filters, pinning, copy links, expandable notes, lightbox nav
+```
+
+*End of feature*
+
+
+---
+
+## 📅 2026-06-14 — Tweak: Remove Copy-Buttons from Evidence Panel
+
+### Summary
+Removed all copy-link buttons from the evidence panel based on user feedback.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrialShared.jsx` | Removed `CopyButton` component, `copy` icon, and all copy-button usage from `MediaThumb`, `ArticleCard`, `AdminNoteCard`, `XPostCarousel`, and `Lightbox`. Kept `pin` icon and pinned sorting. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Evidence panel | ✅ No copy buttons visible on images, article, note, tweet, or lightbox. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+fix(sidebarTrial2/option1): remove copy-link buttons from evidence panel
+```
+
+*End of tweak*
+
+
+---
+
+## 📅 2026-06-14 — Tweak: Pinned Evidence Promotes Its Category to Top
+
+### Summary
+Changed pinning behavior so a pinned item not only sorts first inside its own category, but also moves that entire category to the top of the evidence rail. Default order remains Media > Posts > Articles > Notes; if a post is pinned, the order becomes Posts > Media > Articles > Notes.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | `EvidenceRail` now computes a dynamic `categoryOrder`: categories containing a pinned item are moved to the front, preserving default order among pinned and unpinned groups. Sections are rendered using a map over this order. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| `e6` with pinned IAF tweet | ✅ X Posts section now appears before Media section; pinned tweet is first in the carousel. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+fix(sidebarTrial2/option1): pinned category moves to top of evidence rail
+```
+
+*End of tweak*
+
+
+
+---
+
+## 📅 2026-06-14 — Restructure: Option 1 Split into User, Admin, and Superadmin Variants
+
+### Summary
+Removed the unused Option 2–4 prototypes and split the polished Option 1 sticky-evidence-rail design into three role-specific variants:
+
+- **Option 1 User** (`/sidebarTrial2/option1user`) — public-ready read-only view.
+- **Option 1 Admin** (`/sidebarTrial2/option1admin`) — full editorial controls for the incident and its evidence.
+- **Option 1 Superadmin** (`/sidebarTrial2/option1superadmin`) — admin controls plus access management and destructive incident actions.
+
+A shared `SidebarTrial2Option1Base.jsx` core now drives all three pages. Admin/superadmin pages are visually distinct via role-colored accents (amber for admin, violet for superadmin).
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/App.jsx` | Replaced `/sidebarTrial2/option1-4` routes with `/sidebarTrial2/option1user`, `/sidebarTrial2/option1admin`, `/sidebarTrial2/option1superadmin`. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option2.jsx` | Deleted. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option3.jsx` | Deleted. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option4.jsx` | Deleted. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.jsx` | Deleted; user view replaced by `SidebarTrial2Option1User.jsx`. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1User.jsx` | New thin wrapper rendering the shared base in `mode="user"`. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1Admin.jsx` | New thin wrapper rendering the shared base in `mode="admin"`. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1SuperAdmin.jsx` | New thin wrapper rendering the shared base in `mode="superadmin"`. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1Base.jsx` | New shared core containing the hero, timeline, sticky evidence rail, lightbox, and all admin/superadmin editing logic and modals. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | Extended with topbar, admin toolbar, editable evidence cards, pinned badges, role accent overrides, and responsive rules. |
+
+### Admin / Superadmin Controls
+
+- **Incident-level:** Edit incident metadata (title, description, location, category, severity, status, verification) via modal.
+- **Timeline updates:** Add, edit, delete, and change verification status of each story update.
+- **Evidence items:** Add, edit, delete, and pin/unpin media, X posts, articles, and admin notes per update.
+- **Superadmin-only:** Manage admin access list (add, remove, toggle role) and a "Delete incident" action.
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| User page render | ✅ `/sidebarTrial2/option1user` loads with read-only UI and cyan accent. |
+| Admin page render | ✅ `/sidebarTrial2/option1admin` loads with amber accent, edit/delete/pin controls, and "Add update" button. |
+| Superadmin page render | ✅ `/sidebarTrial2/option1superadmin` loads with violet accent, "Manage access" button, and "Delete incident" button. |
+| Edit incident modal | ✅ Opens from admin/superadmin top bar. |
+| Add update modal | ✅ Opens and adds a new timeline event. |
+| Edit evidence modal | ✅ Opens for media/X posts/articles/notes. |
+| Manage access modal | ✅ Opens from superadmin top bar and lists editable admins. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+feat(sidebarTrial2): split Option 1 into user/admin/superadmin variants
+```
+
+*End of tweak*
+
+
+---
+
+## 📅 2026-06-14 — Admin Page Refinements: Color Scheme, Hero Upload, Simplified Forms
+
+### Summary
+Polished the admin/superadmin variant of Option 1 to match the existing admin-web "Crimson Seal" palette and streamlined the add/edit workflows so admins only provide the minimum required input.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1Base.jsx` | Admin/superadmin accent switched to crimson/maroon (`#5a011c` / `#9f1239`). Added hero-image upload + URL switch in the Edit Incident modal. Simplified `EvidenceModal`: media now supports multi-file upload with preview grid + URL fallback; X posts only require a URL; admin notes only require note text. Admin X-posts now render with the same embedded carousel as the user view plus a per-tweet Pin/Edit/Delete toolbar. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | Updated role overrides so admin/superadmin use the admin-site crimson accent instead of amber/violet. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrialShared.jsx` | `XPostCarousel` is now optionally controlled (`value` / `onChange`) so the admin toolbar can target the active tweet. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Admin color scheme | ✅ Now uses crimson/maroon matching the rest of the admin site. |
+| Hero image upload | ✅ Edit Incident modal shows Upload / URL toggle with live preview. |
+| Add media | ✅ File input supports multiple images; preview grid with caption inputs; URL mode still available. |
+| Add X post | ✅ Only Tweet URL is required. |
+| Add note | ✅ Only note text is required; author is auto-filled. |
+| Admin X-post carousel | ✅ Embedded tweet carousel with Pin/Edit/Delete toolbar on the active tweet. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+feat(sidebarTrial2/admin): match admin palette, hero upload, simplified evidence forms
+```
+
+*End of tweak*
+
+
+---
+
+## 📅 2026-06-14 — Bug Fixes: Keyboard Navigation, Admin Tweet Embed, Verification Dropdown
+
+### Summary
+Fixed three interaction issues reported on the Option 1 trial pages (user, admin, and superadmin share the same base component, so all three were affected and fixed together).
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1Base.jsx` | **Lightbox keyboard nav:** page-level arrow-key navigation now ignores events while the lightbox is open, so `← / →` move through images instead of switching timeline updates. **Admin X-posts:** removed the `max-height` scroll wrapper around the embedded-tweet carousel so tweets expand naturally like they do on the user page. **Verification dropdown:** the select is blurred after a value is chosen, so subsequent `↑ / ↓` keys navigate timeline updates instead of cycling dropdown options. Added `role="dialog"` to modals so keyboard nav is also suppressed while any modal is open. |
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1.css` | No direct CSS change needed; the scroll removal was done in the component. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Lightbox arrow keys | ✅ Pressing `→` inside the lightbox advances the image (1/4 → 2/4) without scrolling the page or switching updates. |
+| Admin long tweet embed | ✅ The IAF statement tweet now renders fully without an internal scroll container. |
+| Verification dropdown after selection | ✅ After changing an update’s verification status, pressing `↓` moves to the next timeline update; the dropdown no longer captures arrow keys. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+fix(sidebarTrial2/option1): keyboard nav conflicts, tweet embed clipping, select blur
+```
+
+*End of tweak*
+
+
+---
+
+## 📅 2026-06-14 — UX Improvement: Make Media Caption Editing Obvious
+
+### Summary
+Made the caption-editing step in the multi-file media uploader impossible to miss by adding a clear helper message and labeled caption fields.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1Base.jsx` | In the *Add Media* upload view, added a helper row showing the file count and prompting the admin to add/edit captions. Each preview card now has a visible "Caption" label with an edit icon and a bordered input field with placeholder text. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Multi-file upload UI | ✅ After selecting 4 images, the modal clearly shows "4 files selected. Add or edit captions below." and each image has a labeled caption input. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+ux(sidebarTrial2/admin): clarify media caption editing in upload modal
+```
+
+*End of tweak*
+
+
+---
+
+## 📅 2026-06-14 — Admin Page: Add Delete Incident Button
+
+### Summary
+Made the destructive **Delete incident** action available to admins as well, not only superadmins.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/DesignTrial/SidebarTrial2Option1Base.jsx` | Changed the fixed bottom-left *Delete incident* button render condition from superadmin-only to all admin/superadmin modes. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Admin page | ✅ Red “Delete incident” button now appears in the bottom-left corner. |
+| Build | ✅ `npm run build -w src/admin-web` passes. |
+
+### Git Commit Suggestion
+
+```
+feat(sidebarTrial2/admin): expose delete incident button to admins
+```
+
+*End of tweak*

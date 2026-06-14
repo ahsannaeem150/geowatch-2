@@ -92,7 +92,7 @@ const MEDIA = {
   ],
 };
 
-export const makeTweet = (id, author, handle, text, tweetUrl, avatarSeed) => ({
+export const makeTweet = (id, author, handle, text, tweetUrl, avatarSeed, pinned = false) => ({
   id,
   type: 'x_post',
   author,
@@ -100,6 +100,7 @@ export const makeTweet = (id, author, handle, text, tweetUrl, avatarSeed) => ({
   text,
   tweetUrl,
   authorAvatar: `https://picsum.photos/seed/${avatarSeed}/120/120`,
+  pinned,
 });
 
 /* ─── Dummy incident ─── */
@@ -230,14 +231,14 @@ export const TIMELINE = [
     sources: {
       media: MEDIA.statement,
       x_post: [
-        makeTweet('xp8', 'IAF_MCC', '@IAF_MCC', 'IAF statement on the AN-32 crash at Air Force Station Jorhat.', 'https://x.com/IAF_MCC/status/2065719865890205976', 'iafmcc'),
+        makeTweet('xp8', 'IAF_MCC', '@IAF_MCC', 'IAF statement on the AN-32 crash at Air Force Station Jorhat.', 'https://x.com/IAF_MCC/status/2065719865890205976', 'iafmcc', true),
         makeTweet('xp9', 'jack', '@jack', 'just setting up my twttr', 'https://x.com/jack/status/20', 'jack'),
       ],
       news_article: [
         { id: 'na6', publisher: 'The Indian Express', title: 'IAF shares full statement, photos of Assam AN-32 crash', url: 'https://indianexpress.com' },
       ],
       admin_note: [
-        { id: 'an5', author: 'Media Cell', text: 'Official X thread published at 11:45 IST. Includes high-resolution images and casualty update.' },
+        { id: 'an5', author: 'Media Cell', text: 'Official X thread published at 11:45 IST. Includes high-resolution images and casualty update. The Media Cell will continue to release verified information as the court of inquiry progresses and next-of-kin notifications are completed.' },
       ],
     },
   },
@@ -260,6 +261,7 @@ export const Icons = {
   calendar: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
   mapPin: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>,
   hash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /><line x1="10" y1="3" x2="8" y2="21" /><line x1="16" y1="3" x2="14" y2="21" /></svg>,
+  pin: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C8.5 2 6 5 6 8c0 3.5 3 4.5 3 9h6c0-4.5 3-5.5 3-9 0-3-2.5-6-6-6z" /><path d="M9 21h6" /></svg>,
 };
 
 /* ─── UI primitives ─── */
@@ -290,6 +292,11 @@ export function Button({ children, onClick, variant = 'default', icon, small, fu
       {children}
     </button>
   );
+}
+
+export function sortPinned(arr) {
+  if (!arr) return [];
+  return [...arr].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 }
 
 /* ─── X / Twitter embed ─── */
@@ -367,8 +374,18 @@ export function XPostCard({ post, embed = false }) {
   );
 }
 
-export function XPostCarousel({ posts }) {
-  const [idx, setIdx] = React.useState(0);
+export function XPostCarousel({ posts, value, onChange }) {
+  const [internalIdx, setInternalIdx] = React.useState(0);
+  const isControlled = value !== undefined;
+  const idx = isControlled ? value : internalIdx;
+  const setIdx = (next) => {
+    const resolved = typeof next === 'function' ? next(idx) : next;
+    if (isControlled) {
+      onChange?.(resolved);
+    } else {
+      setInternalIdx(resolved);
+    }
+  };
 
   if (!posts?.length) return null;
 
@@ -392,6 +409,13 @@ export function XPostCarousel({ posts }) {
 
   return (
     <div style={{ position: 'relative' }}>
+      {activePost.pinned && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            {Icons.pin} Pinned post
+          </span>
+        </div>
+      )}
       <div style={{ overflow: 'hidden', borderRadius: 14 }}>
         <div
           key={activePost.id}
@@ -402,7 +426,7 @@ export function XPostCarousel({ posts }) {
       </div>
 
       {posts.length > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setIdx((i) => Math.max(0, i - 1))}
@@ -433,32 +457,61 @@ export function XPostCarousel({ posts }) {
 }
 
 export function ArticleCard({ article }) {
+  const openLink = () => window.open(article.url, '_blank', 'noopener,noreferrer');
+
   return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noreferrer"
-      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 14, color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: 10, transition: 'transform 0.15s, border-color 0.15s' }}
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={openLink}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLink(); } }}
+      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 14, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 10, transition: 'transform 0.15s, border-color 0.15s', outline: 'none' }}
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.transform = 'translateY(0)'; }}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 10, background: 'var(--bg-hover)', color: 'var(--accent-light)' }}>{Icons.link}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>{article.title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>{article.title}</div>
+          {article.pinned && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 999, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>
+              {Icons.pin} Pinned
+            </span>
+          )}
+        </div>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{article.publisher}</div>
       </div>
       {Icons.arrowRight}
-    </a>
+    </div>
   );
 }
 
 export function AdminNoteCard({ note }) {
+  const [expanded, setExpanded] = useState(false);
+  const TRUNCATE_AT = 140;
+  const isLong = note.text.length > TRUNCATE_AT;
+  const displayText = expanded || !isLong ? note.text : `${note.text.slice(0, TRUNCATE_AT)}…`;
+
   return (
     <div style={{ padding: 14, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: 14, marginBottom: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#fbbf24', marginBottom: 6, letterSpacing: '0.05em' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#fbbf24', letterSpacing: '0.05em', marginBottom: 6 }}>
         {SOURCE_TYPE_ICONS.admin_note} Admin note · {note.author}
+        {note.pinned && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 4, padding: '2px 6px', borderRadius: 999, background: 'rgba(245,158,11,0.2)', color: '#fbbf24', fontSize: 9 }}>
+            {Icons.pin} Pinned
+          </span>
+        )}
       </div>
-      <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{note.text}</div>
+      <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{displayText}</div>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          style={{ marginTop: 8, padding: 0, background: 'transparent', border: 'none', color: 'var(--accent-light)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+        >
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
     </div>
   );
 }
@@ -466,11 +519,23 @@ export function AdminNoteCard({ note }) {
 /* ─── Media components ─── */
 export function MediaThumb({ item, onClick, overlay }) {
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick?.(item)}
-      style={{ position: 'relative', border: 'none', padding: 0, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg-elevated)', aspectRatio: '16 / 10' }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(item); } }}
+      style={{ position: 'relative', border: 'none', padding: 0, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg-elevated)', aspectRatio: '16 / 10', outline: 'none' }}
     >
       <img src={item.url} alt={item.caption} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.25s' }} onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.03)')} onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')} />
+
+      {item.pinned && (
+        <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px', borderRadius: 999, background: 'rgba(245,158,11,0.9)', color: '#fff', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            {Icons.pin} Pinned
+          </span>
+        </div>
+      )}
+
       {overlay && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 20, fontWeight: 800 }}>
           {overlay}
@@ -481,7 +546,7 @@ export function MediaThumb({ item, onClick, overlay }) {
           {item.caption}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -503,13 +568,78 @@ export function MediaGrid({ items, onItemClick, maxVisible = 4 }) {
   );
 }
 
-export function Lightbox({ item, onClose }) {
+export function Lightbox({ items, index, onClose, onPrev, onNext }) {
+  if (!items?.length) return null;
+  const item = items[index];
   if (!item) return null;
+
+  const hasPrev = index > 0;
+  const hasNext = index < items.length - 1;
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowLeft' && hasPrev) onPrev();
+      else if (e.key === 'ArrowRight' && hasNext) onNext();
+      else if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [hasPrev, hasNext, onClose, onPrev, onNext]);
+
+  const stop = (e) => e.stopPropagation();
+
+  const navStyle = {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.12)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: '#fff',
+    cursor: 'pointer',
+    transition: '0.15s',
+    zIndex: 2,
+  };
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ position: 'relative', maxWidth: '92vw', maxHeight: '92vh' }}>
+      <div onClick={stop} style={{ position: 'relative', maxWidth: '92vw', maxHeight: '92vh' }}>
+        {hasPrev && (
+          <button
+            type="button"
+            className="opt1-lightbox-prev"
+            onClick={onPrev}
+            style={{ ...navStyle, left: -64 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+          >
+            {Icons.chevronLeft}
+          </button>
+        )}
         <img src={item.url} alt={item.caption} style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 16, display: 'block' }} />
-        <div style={{ color: '#fff', marginTop: 12, fontSize: 14, textAlign: 'center', fontWeight: 600 }}>{item.caption}</div>
+        {hasNext && (
+          <button
+            type="button"
+            className="opt1-lightbox-next"
+            onClick={onNext}
+            style={{ ...navStyle, right: -64 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+          >
+            {Icons.chevronRight}
+          </button>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>
+            {index + 1} / {items.length}
+          </div>
+          <div style={{ color: '#fff', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>{item.caption}</div>
+        </div>
       </div>
     </div>
   );
