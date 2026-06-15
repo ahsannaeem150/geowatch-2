@@ -1,0 +1,589 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   X-post options page layout + option-specific styles.
+   Only Option 1 (single active embed + thumbnails) and Option 2 (compact
+   paginated list) remain. Both cards are sized to the real sidebar width.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.xpo-page {
+  width: 100vw;
+  min-height: 100vh;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow-x: auto;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.xpo-header {
+  max-width: 1284px;
+  margin: 0 auto 24px;
+}
+
+.xpo-header__title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.xpo-header__desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.xpo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 630px);
+  gap: 24px;
+  justify-content: center;
+  align-items: start;
+}
+
+.xpo-card {
+  width: 630px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.xpo-card__title {
+  padding: 14px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.xpo-card__body {
+  padding: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Shared X embed treatment: shrink the container to the tweet's natural width
+   so there is no empty space on either side.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.xpo-deck__stage,
+.xpo-compact__embed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.xpo-deck__stage .id-x-embed,
+.xpo-compact__embed .id-x-embed {
+  display: inline-block;
+  width: auto;
+  margin: 0 auto;
+}
+
+.xpo-deck__stage .twitter-tweet,
+.xpo-compact__embed .twitter-tweet {
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+/* ─── Option 1: Tweet deck ─── */
+.xpo-deck {
+  width: 100%;
+}
+
+.xpo-deck__stage {
+  padding: 8px 0 20px;
+}
+
+.xpo-deck__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.xpo-deck__nav {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.xpo-deck__nav:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  transform: scale(1.08);
+}
+
+.xpo-deck__counter {
+  min-width: 54px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.xpo-deck__thumbs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  padding: 4px 2px;
+  scrollbar-width: thin;
+}
+
+.xpo-deck__thumbs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.xpo-deck__thumbs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.xpo-deck__thumbs::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.xpo-deck__thumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 150px;
+  padding: 7px 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.xpo-deck__thumb:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.xpo-deck__thumb.active {
+  background: var(--accent-subtle-bg);
+  border-color: var(--accent-light);
+}
+
+.xpo-deck__thumb-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.xpo-deck__thumb-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.xpo-deck__thumb-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xpo-deck__thumb-handle {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Option 2: Compact paginated list ─── */
+.xpo-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.xpo-compact__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xpo-compact__search {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.xpo-compact__search::placeholder {
+  color: var(--text-muted);
+}
+
+.xpo-compact__search:focus {
+  border-color: var(--accent-light);
+  box-shadow: 0 0 0 2px rgba(159, 18, 57, 0.18);
+}
+
+.xpo-compact__collapse {
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.xpo-compact__collapse:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.xpo-compact__collapse:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.xpo-compact__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xpo-compact__item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease, border-left-color 0.15s ease;
+}
+
+.xpo-compact__item:hover {
+  background: var(--bg-hover);
+}
+
+.xpo-compact__item.open {
+  background: var(--bg-elevated);
+  border-color: var(--border-hover);
+  border-left-color: var(--accent-light);
+}
+
+.xpo-compact__summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.xpo-compact__avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.xpo-compact__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.xpo-compact__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xpo-compact__author-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.xpo-compact__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xpo-compact__handle {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xpo-compact__time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.xpo-compact__chevron {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.xpo-compact__item.open .xpo-compact__chevron {
+  transform: rotate(180deg);
+}
+
+.xpo-compact__embed {
+  padding: 6px 16px 18px;
+  animation: xpo-fade-in 0.25s ease;
+}
+
+.xpo-compact__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.xpo-compact__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.xpo-compact__action:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.xpo-compact__action svg {
+  width: 13px;
+  height: 13px;
+}
+
+.xpo-compact__empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.xpo-compact__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.xpo-compact__page-btn {
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.xpo-compact__page-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.xpo-compact__page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.xpo-compact__page-info {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  min-width: 44px;
+  text-align: center;
+}
+
+@keyframes xpo-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Archived tweet fallback (Option 2) ─── */
+.xpo-archive {
+  position: relative;
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.xpo-archive__badge {
+  position: absolute;
+  top: 10px;
+  right: 62px;
+  left: auto;
+  padding: 3px 7px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  z-index: 2;
+}
+
+.xpo-archive__img-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.xpo-archive__img-btn img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.xpo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  padding: 40px;
+  cursor: default;
+}
+
+.xpo-lightbox__close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 0.15s ease;
+}
+
+.xpo-lightbox__close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.xpo-lightbox__notice {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.xpo-lightbox__img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
