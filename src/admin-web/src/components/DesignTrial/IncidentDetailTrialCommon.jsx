@@ -101,6 +101,11 @@ export const Icons = {
       <polyline points="20 6 9 17 4 12" />
     </svg>
   ),
+  star: (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  ),
   x: (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="6" x2="6" y2="18" />
@@ -117,8 +122,12 @@ export const Icons = {
 };
 
 /* ─── Sorting helpers ─── */
-export function sortPinned(items = []) {
-  return [...items].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+export function sortPinned(items = [], featuredId = null) {
+  const priority = (item) => {
+    if (item.featured || (featuredId && item.id === featuredId)) return 2;
+    return item.pinned ? 1 : 0;
+  };
+  return [...items].sort((a, b) => priority(b) - priority(a));
 }
 
 /* ─── Badges ─── */
@@ -161,12 +170,7 @@ export function VerificationBadge({ status }) {
 
 export function StatusBadge({ status }) {
   const color = status === 'active' ? '#22c55e' : '#6b7280';
-  return (
-    <Badge color={color}>
-      <span className="id-status-dot" style={{ background: color }} />
-      {status}
-    </Badge>
-  );
+  return <Badge color={color}>{status}</Badge>;
 }
 
 export function SaveButton({ saved = false }) {
@@ -194,20 +198,20 @@ export function SummaryCard({ incident, children, onTitleClick, mode = 'user' })
         <VerificationBadge status={incident.verification} />
         <SeverityBadge level={incident.severity} />
         {roleMeta && <Badge color={roleMeta.color}>{roleMeta.label}</Badge>}
-        <span style={{ marginLeft: 'auto' }}>
-          <SaveButton saved />
-        </span>
       </div>
 
-      <h1 className="id-summary__title">
-        {onTitleClick ? (
-          <button onClick={onTitleClick} className="id-summary__title-link">
-            {incident.title}
-          </button>
-        ) : (
-          incident.title
-        )}
-      </h1>
+      <div className="id-summary__title-row">
+        <h1 className="id-summary__title">
+          {onTitleClick ? (
+            <button onClick={onTitleClick} className="id-summary__title-link">
+              {incident.title}
+            </button>
+          ) : (
+            incident.title
+          )}
+        </h1>
+        <SaveButton saved />
+      </div>
 
       <div className="id-summary__meta">
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -270,6 +274,30 @@ export function UpdateHeader({ event }) {
   );
 }
 
+/* ─── Compact source count chips ─── */
+export function SourceCountChips({ sources, counts: countsProp, className = '' }) {
+  const counts = countsProp || sourceCounts(sources);
+  const types = [
+    { key: 'x_post', icon: SOURCE_TYPE_ICONS.x_post, label: 'Posts' },
+    { key: 'news_article', icon: SOURCE_TYPE_ICONS.news_article, label: 'Articles' },
+    { key: 'admin_note', icon: SOURCE_TYPE_ICONS.admin_note, label: 'Notes' },
+    { key: 'media', icon: SOURCE_TYPE_ICONS.media, label: 'Media' },
+  ];
+  if (types.every((t) => !counts[t.key])) return null;
+  return (
+    <div className={`id-source-chips ${className}`}>
+      {types.map((type) =>
+        counts[type.key] > 0 ? (
+          <span key={type.key} className="id-source-chip" title={`${counts[type.key]} ${type.label}`}>
+            <span className="id-source-chip__icon">{type.icon}</span>
+            <span className="id-source-chip__count">{counts[type.key]}</span>
+          </span>
+        ) : null
+      )}
+    </div>
+  );
+}
+
 /* ─── Evidence preview ─── */
 export function EvidencePreview({ sources, onMediaClick, onOpenDrawer }) {
   const counts = sourceCounts(sources);
@@ -307,22 +335,19 @@ export function EvidencePreview({ sources, onMediaClick, onOpenDrawer }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {counts.x_post > 0 && <span className="id-pill">{SOURCE_TYPE_ICONS.x_post} {counts.x_post}</span>}
-        {counts.news_article > 0 && <span className="id-pill">{SOURCE_TYPE_ICONS.news_article} {counts.news_article}</span>}
-        {counts.admin_note > 0 && <span className="id-pill">{SOURCE_TYPE_ICONS.admin_note} {counts.admin_note}</span>}
+      <div className="id-evidence-count-row">
+        <SourceCountChips counts={counts} />
+        <button
+          className="id-btn-ghost"
+          style={{ marginLeft: 'auto' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenDrawer?.();
+          }}
+        >
+          Inspect {Icons.chevronRight}
+        </button>
       </div>
-
-      <button
-        className="id-btn-ghost"
-        style={{ marginLeft: 'auto' }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpenDrawer?.();
-        }}
-      >
-        Inspect {Icons.chevronRight}
-      </button>
     </div>
   );
 }
@@ -412,16 +437,26 @@ export function Carousel({ items, renderItem, itemWidth, gap = 10, keyboard = tr
 }
 
 /* ─── Admin inline toolbar for evidence items ─── */
-function EvidenceToolbar({ item, onEdit, onDelete, onPin }) {
+function EvidenceToolbar({ item, onEdit, onDelete, onPin, onFeature, featured }) {
   return (
     <div className="id-evidence-toolbar">
+      {onFeature && (
+        <button
+          type="button"
+          className={featured ? 'id-evidence-toolbar__btn id-evidence-toolbar__btn--feature active' : 'id-evidence-toolbar__btn'}
+          onClick={onFeature}
+          title={featured ? 'Remove from update card' : 'Feature this item in the update card'}
+        >
+          {Icons.star} {featured ? 'Featured' : 'Feature'}
+        </button>
+      )}
       <button
         type="button"
         className={item.pinned ? 'id-evidence-toolbar__btn id-evidence-toolbar__btn--pin active' : 'id-evidence-toolbar__btn'}
         onClick={onPin}
-        title={item.pinned ? 'Unpin' : 'Pin'}
+        title={item.pinned ? 'Unpin from top' : 'Pin to top of this list'}
       >
-        {Icons.pin} {item.pinned ? 'Unpin' : 'Pin'}
+        {Icons.pin} {item.pinned ? 'Pinned' : 'Pin to top'}
       </button>
       <button type="button" className="id-evidence-toolbar__btn" onClick={onEdit}>
         {Icons.edit} Edit
@@ -433,12 +468,17 @@ function EvidenceToolbar({ item, onEdit, onDelete, onPin }) {
   );
 }
 
-function AdminMediaThumb({ item, onClick, onEdit, onDelete, onPin }) {
+function AdminMediaThumb({ item, onClick, onEdit, onDelete, onPin, onFeature, featured }) {
   return (
-    <div className="id-admin-media">
+    <div className="id-admin-media" data-featured={featured || undefined}>
       <button type="button" className="id-media-thumb id-media-thumb--carousel" onClick={() => onClick?.(item)}>
         <img src={item.url} alt={item.caption} />
-        {item.pinned && (
+        {featured && (
+          <span className="id-featured-badge">
+            {Icons.star} Featured
+          </span>
+        )}
+        {item.pinned && !featured && (
           <span className="id-pinned-badge">
             {Icons.pin} Pinned
           </span>
@@ -446,7 +486,22 @@ function AdminMediaThumb({ item, onClick, onEdit, onDelete, onPin }) {
         {item.caption && <div className="id-media-thumb__caption">{item.caption}</div>}
       </button>
       <div className="id-admin-media__toolbar">
-        <button type="button" className={item.pinned ? 'active' : ''} onClick={onPin} title={item.pinned ? 'Unpin' : 'Pin'}>
+        {onFeature && (
+          <button
+            type="button"
+            className={featured ? 'feature active' : 'feature'}
+            onClick={onFeature}
+            title={featured ? 'Remove from update card' : 'Feature in update card'}
+          >
+            {Icons.star}
+          </button>
+        )}
+        <button
+          type="button"
+          className={item.pinned ? 'pin active' : 'pin'}
+          onClick={onPin}
+          title={item.pinned ? 'Unpin from top' : 'Pin to top'}
+        >
           {Icons.pin}
         </button>
         <button type="button" onClick={onEdit} title="Edit">
@@ -460,10 +515,10 @@ function AdminMediaThumb({ item, onClick, onEdit, onDelete, onPin }) {
   );
 }
 
-function EditableArticleCard({ article, onEdit, onDelete, onPin }) {
+function EditableArticleCard({ article, onEdit, onDelete, onPin, onFeature, featured }) {
   return (
-    <div className="id-editable-card">
-      <EvidenceToolbar item={article} onEdit={onEdit} onDelete={onDelete} onPin={onPin} />
+    <div className={`id-editable-card ${featured ? 'id-editable-card--featured' : ''}`} data-featured={featured || undefined}>
+      <EvidenceToolbar item={article} onEdit={onEdit} onDelete={onDelete} onPin={onPin} onFeature={onFeature} featured={featured} />
       <a href={article.url} target="_blank" rel="noreferrer" className="id-article">
         <span className="id-article__icon">{Icons.link}</span>
         <div className="id-article__body">
@@ -476,15 +531,15 @@ function EditableArticleCard({ article, onEdit, onDelete, onPin }) {
   );
 }
 
-function EditableAdminNoteCard({ note, onEdit, onDelete, onPin }) {
+function EditableAdminNoteCard({ note, onEdit, onDelete, onPin, onFeature, featured }) {
   const [expanded, setExpanded] = useState(false);
   const TRUNCATE_AT = 140;
   const isLong = note.text.length > TRUNCATE_AT;
   const displayText = expanded || !isLong ? note.text : `${note.text.slice(0, TRUNCATE_AT)}…`;
 
   return (
-    <div className="id-editable-card id-note">
-      <EvidenceToolbar item={note} onEdit={onEdit} onDelete={onDelete} onPin={onPin} />
+    <div className={`id-editable-card id-note ${featured ? 'id-editable-card--featured' : ''}`} data-featured={featured || undefined}>
+      <EvidenceToolbar item={note} onEdit={onEdit} onDelete={onDelete} onPin={onPin} onFeature={onFeature} featured={featured} />
       <div className="id-note__label">
         {SOURCE_TYPE_ICONS.admin_note} Admin note · {note.author}
       </div>
@@ -509,9 +564,14 @@ export function EvidenceBundle({
   onEditItem,
   onDeleteItem,
   onPinItem,
+  featuredItem,
+  onFeatureItem,
 }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const sources = event.sources || {};
+
+  const isFeatured = (type, item) =>
+    featuredItem && featuredItem.sourceType === type && featuredItem.itemId === item.id;
   const defaultOrder = ['media', 'x_post', 'news_article', 'admin_note'];
 
   // Pinned items sort first inside each category; categories with pinned items
@@ -519,19 +579,23 @@ export function EvidenceBundle({
   const sortedByType = useMemo(() => {
     const out = {};
     defaultOrder.forEach((key) => {
-      out[key] = sortPinned(sources[key]);
+      const featuredId = featuredItem?.sourceType === key ? featuredItem.itemId : null;
+      out[key] = sortPinned(sources[key], featuredId);
     });
     return out;
-  }, [sources]);
+  }, [sources, featuredItem]);
 
   const counts = sourceCounts(sortedByType);
   const total = countSources(sortedByType);
 
   const categoryOrder = useMemo(() => {
-    const pinned = defaultOrder.filter((key) => sortedByType[key]?.some((x) => x.pinned));
-    const unpinned = defaultOrder.filter((key) => !pinned.includes(key));
-    return [...pinned, ...unpinned];
-  }, [sortedByType]);
+    const priority = (key) => {
+      if (featuredItem?.sourceType === key) return 2;
+      if (sortedByType[key]?.some((x) => x.pinned)) return 1;
+      return 0;
+    };
+    return [...defaultOrder].sort((a, b) => priority(b) - priority(a));
+  }, [sortedByType, featuredItem]);
 
   const tabs = [
     { key: 'all', label: `All (${total})` },
@@ -561,10 +625,12 @@ export function EvidenceBundle({
     </div>
   );
 
-  const SectionTitle = ({ type, title, count }) => (
+  const SectionTitle = ({ type, title, count, featured, pinned }) => (
     <div className="id-evidence-section__title">
       <span>
         {SOURCE_TYPE_ICONS[type]} {title} ({count})
+        {featured && <span className="id-section-badge id-section-badge--featured">{Icons.star} Featured</span>}
+        {!featured && pinned && <span className="id-section-badge id-section-badge--pinned">{Icons.pin} Pinned</span>}
       </span>
       {isAdmin && (
         <button type="button" className="id-evidence-section__add" onClick={() => onAddEvidence?.(event.id, type)}>
@@ -577,9 +643,11 @@ export function EvidenceBundle({
   const renderSection = (type, title) => {
     const items = sortedByType[type];
     if (!items?.length) return null;
+    const hasFeatured = items.some((item) => isFeatured(type, item));
+    const hasPinned = items.some((item) => item.pinned);
     return (
       <div className="id-evidence-section" key={type}>
-        <SectionTitle type={type} title={title} count={items.length} />
+        <SectionTitle type={type} title={title} count={items.length} featured={hasFeatured} pinned={hasPinned} />
         {type === 'media' ? (
           <Carousel
             items={items}
@@ -593,6 +661,8 @@ export function EvidenceBundle({
                   onEdit={() => onEditItem?.(event.id, 'media', item)}
                   onDelete={() => onDeleteItem?.(event.id, 'media', item.id)}
                   onPin={() => onPinItem?.(event.id, 'media', item.id)}
+                  onFeature={() => onFeatureItem?.(event.id, 'media', item.id)}
+                  featured={isFeatured('media', item)}
                 />
               ) : (
                 <MediaThumb item={item} onClick={() => onMediaClick?.(items, items.indexOf(item))} carousel />
@@ -606,6 +676,8 @@ export function EvidenceBundle({
             onEditItem={(item) => onEditItem?.(event.id, 'x_post', item)}
             onDeleteItem={(itemId) => onDeleteItem?.(event.id, 'x_post', itemId)}
             onPinItem={(itemId) => onPinItem?.(event.id, 'x_post', itemId)}
+            onFeatureItem={(itemId) => onFeatureItem?.(event.id, 'x_post', itemId)}
+            featuredId={featuredItem?.sourceType === 'x_post' ? featuredItem.itemId : null}
           />
         ) : type === 'news_article' ? (
           <div className="id-editable-list">
@@ -617,6 +689,8 @@ export function EvidenceBundle({
                   onEdit={() => onEditItem?.(event.id, 'news_article', item)}
                   onDelete={() => onDeleteItem?.(event.id, 'news_article', item.id)}
                   onPin={() => onPinItem?.(event.id, 'news_article', item.id)}
+                  onFeature={() => onFeatureItem?.(event.id, 'news_article', item.id)}
+                  featured={isFeatured('news_article', item)}
                 />
               ) : (
                 <ArticleCard key={item.id} article={item} />
@@ -633,6 +707,8 @@ export function EvidenceBundle({
                   onEdit={() => onEditItem?.(event.id, 'admin_note', item)}
                   onDelete={() => onDeleteItem?.(event.id, 'admin_note', item.id)}
                   onPin={() => onPinItem?.(event.id, 'admin_note', item.id)}
+                  onFeature={() => onFeatureItem?.(event.id, 'admin_note', item.id)}
+                  featured={isFeatured('admin_note', item)}
                 />
               ) : (
                 <AdminNoteCard key={item.id} note={item} />
@@ -643,6 +719,18 @@ export function EvidenceBundle({
       </div>
     );
   };
+
+  // Scroll the featured item into view when the drawer/tab changes.
+  useEffect(() => {
+    if (!featuredItem) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector('[data-featured="true"]');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [featuredItem?.sourceType, featuredItem?.itemId, activeTab]);
 
   return (
     <div>
@@ -903,9 +991,9 @@ function ArchiveLightbox({ post, onClose }) {
 }
 
 /* ─── Compact X-post list (final Option 2) ─── */
-export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditItem, onDeleteItem, onPinItem }) {
+export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditItem, onDeleteItem, onPinItem, onFeatureItem, featuredId }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
-  const sortedPosts = useMemo(() => sortPinned(posts), [posts]);
+  const sortedPosts = useMemo(() => sortPinned(posts, featuredId), [posts, featuredId]);
   const [openIds, setOpenIds] = useState(new Set());
   const [renderedIds, setRenderedIds] = useState(new Set());
   const [query, setQuery] = useState('');
@@ -937,13 +1025,15 @@ export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditIte
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  // Auto-expand pinned posts so users don't have to click them open.
+  // Auto-expand pinned and featured posts so users don't have to click them open.
   useEffect(() => {
-    const pinnedIds = sortedPosts.filter((p) => p.pinned).map((p) => p.id);
-    if (!pinnedIds.length) return;
-    setOpenIds((prev) => new Set([...prev, ...pinnedIds]));
-    setRenderedIds((prev) => new Set([...prev, ...pinnedIds]));
-  }, [sortedPosts]);
+    const priorityIds = sortedPosts
+      .filter((p) => p.pinned || p.id === featuredId)
+      .map((p) => p.id);
+    if (!priorityIds.length) return;
+    setOpenIds((prev) => new Set([...prev, ...priorityIds]));
+    setRenderedIds((prev) => new Set([...prev, ...priorityIds]));
+  }, [sortedPosts, featuredId]);
 
   const openAll = () => {
     const next = new Set(openIds);
@@ -1010,7 +1100,7 @@ export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditIte
         {pagePosts.map((post) => {
           const isOpen = openIds.has(post.id);
           return (
-            <div key={post.id} className={`id-x-compact__item ${isOpen ? 'open' : ''}`}>
+            <div key={post.id} className={`id-x-compact__item ${isOpen ? 'open' : ''}`} data-featured={featuredId === post.id || undefined}>
               <button className="id-x-compact__summary" onClick={() => toggle(post.id)}>
                 <img src={post.authorAvatar} alt={post.author} className="id-x-compact__avatar" loading="lazy" />
                 <span className="id-x-compact__main">
@@ -1018,19 +1108,33 @@ export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditIte
                     <span className="id-x-compact__author-line">
                       <span className="id-x-compact__name">{post.author}</span>
                       <span className="id-x-compact__handle">{post.handle}</span>
-                      {post.pinned && <span className="id-x-compact__pinned" title="Pinned">{Icons.pin}</span>}
+                      {featuredId === post.id && <span className="id-x-compact__featured" title="Featured in update card">{Icons.star}</span>}
+                      {post.pinned && featuredId !== post.id && <span className="id-x-compact__pinned" title="Pinned to top">{Icons.pin}</span>}
                     </span>
                     <span className="id-x-compact__time">{relativeTime(post.timestamp)}</span>
                     {isAdmin && (
                       <span className="id-x-compact__admin">
+                        {onFeatureItem && (
+                          <button
+                            type="button"
+                            className={featuredId === post.id ? 'feature active' : 'feature'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onFeatureItem?.(post.id);
+                            }}
+                            title={featuredId === post.id ? 'Remove from update card' : 'Feature in update card'}
+                          >
+                            {Icons.star}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className={post.pinned ? 'active' : ''}
+                          className={post.pinned ? 'pin active' : 'pin'}
                           onClick={(e) => {
                             e.stopPropagation();
                             onPinItem?.(post.id);
                           }}
-                          title={post.pinned ? 'Unpin' : 'Pin'}
+                          title={post.pinned ? 'Unpin from top' : 'Pin to top'}
                         >
                           {Icons.pin}
                         </button>
