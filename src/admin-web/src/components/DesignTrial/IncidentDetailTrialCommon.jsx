@@ -12,6 +12,7 @@ import {
   countSources,
   sourceCounts,
 } from './IncidentDetailTrialData.js';
+import { generateAuditData, findUser } from './SidebarTrial2Option1SuperAdminAudit.jsx';
 
 export {
   INCIDENT,
@@ -177,15 +178,22 @@ export function SaveButton({ saved = false }) {
 }
 
 /* ─── Summary card ─── */
-export function SummaryCard({ incident, children, onTitleClick }) {
+export function SummaryCard({ incident, children, onTitleClick, mode = 'user' }) {
   const sev = SEVERITY_LABELS[incident.severity] || SEVERITY_LABELS[3];
+  const roleMeta =
+    mode === 'superadmin'
+      ? { label: 'Superadmin', color: '#6366f1' }
+      : mode === 'admin'
+      ? { label: 'Admin', color: '#9f1239' }
+      : null;
   return (
     <div className="id-summary">
       <div className="id-summary__row">
-        <Badge color={incident.categoryColor || '#9f1239'}>{incident.category}</Badge>
+        <Badge color={incident.domainColor || incident.categoryColor || '#9f1239'}>{incident.domain || incident.category}</Badge>
         <StatusBadge status={incident.status} />
         <VerificationBadge status={incident.verification} />
         <SeverityBadge level={incident.severity} />
+        {roleMeta && <Badge color={roleMeta.color}>{roleMeta.label}</Badge>}
         <span style={{ marginLeft: 'auto' }}>
           <SaveButton saved />
         </span>
@@ -1173,6 +1181,236 @@ export function AdminNoteCard({ note }) {
         {SOURCE_TYPE_ICONS.admin_note} Admin note · {note.author}
       </div>
       <div className="id-note__text">{note.text}</div>
+    </div>
+  );
+}
+
+/* ─── Superadmin helpers ─── */
+export function CopyButton({ text, label = 'Copy', compact = false }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={`id-copy-btn ${compact ? 'id-copy-btn--compact' : ''}`}
+      title="Copy to clipboard"
+    >
+      {copied ? 'Copied' : label}
+    </button>
+  );
+}
+
+export function MetaRow({ icon: Icon, label, children }) {
+  return (
+    <div className="id-meta-row">
+      {Icon && <Icon className="id-meta-row__icon" />}
+      <div className="id-meta-row__body">
+        <span className="id-meta-row__label">{label}</span>
+        <div className="id-meta-row__value">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function StatTile({ value, label }) {
+  return (
+    <div className="id-stat-tile">
+      <div className="id-stat-tile__value">{value}</div>
+      <div className="id-stat-tile__label">{label}</div>
+    </div>
+  );
+}
+
+export function parseCoordinates(str) {
+  if (!str) return null;
+  const [lat, lng] = String(str).split(',').map((s) => parseFloat(s.trim()));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+const STATUS_ACTION_META = {
+  incident_created: { label: 'Created', color: '#22c55e', icon: '◎' },
+  incident_updated: { label: 'Edited', color: '#38bdf8', icon: '✎' },
+  incident_resolved: { label: 'Resolved', color: '#eab308', icon: '✓' },
+  incident_deleted: { label: 'Moved to Recycle Bin', color: '#f43f5e', icon: '🗑' },
+  incident_restored: { label: 'Restored', color: '#22c55e', icon: '↺' },
+  incident_purged: { label: 'Permanently deleted', color: '#6b7280', icon: '✕' },
+  verification_changed: { label: 'Verification changed', color: '#f59e0b', icon: '◉' },
+  access_changed: { label: 'Access changed', color: '#f472b6', icon: '🔒' },
+};
+
+export function StatusHistory({ incident, events, onUserClick }) {
+  const [open, setOpen] = useState(false);
+  const { logs } = useMemo(() => generateAuditData(incident, events || TIMELINE), [incident, events]);
+
+  const lifecycleLogs = [
+    ...(incident.createdAt
+      ? [
+          {
+            id: 'lifecycle-created',
+            action: 'incident_created',
+            timestamp: incident.createdAt,
+            actorId: incident.createdBy,
+            actorName: incident.createdByName,
+          },
+        ]
+      : []),
+    ...(incident.status === 'resolved' && incident.resolvedAt
+      ? [
+          {
+            id: 'lifecycle-resolved',
+            action: 'incident_resolved',
+            timestamp: incident.resolvedAt,
+            actorId: incident.resolvedBy,
+            actorName: findUser(incident.resolvedBy)?.name,
+          },
+        ]
+      : []),
+    ...(incident.status === 'deleted' && incident.deletedAt
+      ? [
+          {
+            id: 'lifecycle-deleted',
+            action: 'incident_deleted',
+            timestamp: incident.deletedAt,
+            actorId: incident.deletedBy,
+            actorName: incident.deletedByName || findUser(incident.deletedBy)?.name,
+          },
+        ]
+      : []),
+    ...(incident.status === 'purged' && incident.purgedAt
+      ? [
+          {
+            id: 'lifecycle-purged',
+            action: 'incident_purged',
+            timestamp: incident.purgedAt,
+            actorId: incident.deletedBy,
+            actorName: incident.deletedByName || findUser(incident.deletedBy)?.name,
+          },
+        ]
+      : []),
+    ...logs.filter((l) => ['incident_updated', 'verification_changed', 'access_changed'].includes(l.action)),
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  if (lifecycleLogs.length === 0) return null;
+
+  return (
+    <div className="id-status-history">
+      <button type="button" className="id-status-history__header" onClick={() => setOpen((v) => !v)}>
+        <span>
+          Status History <span className="id-status-history__count">{lifecycleLogs.length}</span>
+        </span>
+        <span className="id-status-history__chevron">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="id-status-history__list">
+          {lifecycleLogs.map((log, idx) => {
+            const meta = STATUS_ACTION_META[log.action] || { label: log.action, color: '#94a3b8', icon: '•' };
+            const actor = log.actorName || findUser(log.actorId)?.name || log.actorId || 'System';
+            return (
+              <div key={log.id} className="id-status-history__item">
+                <div className="id-status-history__dot" style={{ color: meta.color, background: `${meta.color}1a`, borderColor: meta.color }}>
+                  {meta.icon}
+                </div>
+                <div className="id-status-history__content">
+                  <div className="id-status-history__top">
+                    <span className="id-status-history__label">{meta.label}</span>
+                    <span className="id-status-history__time">{relativeTime(log.timestamp)}</span>
+                  </div>
+                  <div className="id-status-history__sub">
+                    {formatDate(log.timestamp)} · {formatTime(log.timestamp)}
+                    {log.actorId && (
+                      <>
+                        {' · by '}
+                        <button type="button" className="id-status-history__actor" onClick={() => onUserClick?.(log.actorId)}>
+                          {actor}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {idx !== lifecycleLogs.length - 1 && <div className="id-status-history__line" />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DebugMetadata({ incident }) {
+  const [open, setOpen] = useState(false);
+  const coords = parseCoordinates(incident.coordinates);
+  return (
+    <div className="id-debug-meta">
+      <button type="button" className="id-debug-meta__header" onClick={() => setOpen((v) => !v)}>
+        <span>Debug Metadata</span>
+        <span className="id-debug-meta__chevron">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="id-debug-meta__body">
+          <div className="id-debug-meta__grid">
+            <div className="id-debug-meta__field">
+              <span>Incident ID</span>
+              <span>{incident.id}</span>
+            </div>
+            <div className="id-debug-meta__field">
+              <span>Created by</span>
+              <span>{incident.createdByName || incident.createdBy || '—'}</span>
+            </div>
+            <div className="id-debug-meta__field">
+              <span>Created at</span>
+              <span>{formatDate(incident.createdAt)} · {formatTime(incident.createdAt)}</span>
+            </div>
+            <div className="id-debug-meta__field">
+              <span>Updated at</span>
+              <span>{incident.updatedAt ? `${formatDate(incident.updatedAt)} · ${formatTime(incident.updatedAt)}` : '—'}</span>
+            </div>
+            <div className="id-debug-meta__field">
+              <span>Category ID</span>
+              <span>{incident.categoryId || '—'}</span>
+            </div>
+            <div className="id-debug-meta__field">
+              <span>Zone category ID</span>
+              <span>{incident.zoneCategoryId || '—'}</span>
+            </div>
+            <div className="id-debug-meta__field">
+              <span>Geometry</span>
+              <span>{incident.geometryType || 'Point'}</span>
+            </div>
+            <div className="id-debug-meta__field">
+              <span>Verification override</span>
+              <span>{incident.verificationOverride || 'none'}</span>
+            </div>
+          </div>
+          <div className="id-debug-meta__raw">
+            <div className="id-debug-meta__raw-row">
+              <span>Incident ID</span>
+              <span>{incident.id}</span>
+              <CopyButton text={incident.id} compact />
+            </div>
+            <div className="id-debug-meta__raw-row">
+              <span>Created by ID</span>
+              <span>{incident.createdBy || '—'}</span>
+              <CopyButton text={incident.createdBy || ''} compact />
+            </div>
+            {coords && (
+              <div className="id-debug-meta__raw-row">
+                <span>Coordinates</span>
+                <span>{coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}</span>
+                <CopyButton text={`${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`} compact />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

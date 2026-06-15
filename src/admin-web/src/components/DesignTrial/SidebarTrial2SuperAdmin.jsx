@@ -1,35 +1,34 @@
-import React from 'react';
-import './IncidentDetailTrial.css';
+import React, { useState } from 'react';
+import IncidentDetailOptionF from './IncidentDetailOptionF.jsx';
+import { AuditLogPanel, UserProfileDrawer, Drawer } from './SidebarTrial2Option1SuperAdminAudit.jsx';
+import { INCIDENT, TIMELINE } from './SidebarTrialShared.jsx';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Superadmin sidebar trial — Option F shell with full superadmin controls.
+   Route: /sidebarTrial2/superadmin
+   ───────────────────────────────────────────────────────────────────────────── */
 
 export default function SidebarTrial2SuperAdmin() {
-  return (
-    <div className="id-trial-page">
-      <div className="id-fake-map">
-        <div className="id-fake-map-grid" />
-        <div className="id-fake-map-label">Selected incident</div>
-      </div>
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [userId, setUserId] = useState(null);
 
-      <aside className="id-sidebar">
-        <div className="id-sidebar__scroll">
-          <div className="id-summary">
-            <div className="id-summary__row">
-              <span style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-                Superadmin
-              </span>
-            </div>
-            <h1 className="id-summary__title">Superadmin sidebar</h1>
-            <p className="id-summary__desc">
-              This view is under construction. Incident-level audit, role management, and global moderation tools will appear here.
-            </p>
-            <div className="id-summary__actions">
-              <button className="id-btn" onClick={() => window.history.back()}>
-                Go back
-              </button>
-            </div>
-          </div>
-          <div style={{ height: 40 }} />
-        </div>
-      </aside>
-    </div>
+  return (
+    <>
+      <IncidentDetailOptionF
+        mode="superadmin"
+        onOpenAudit={() => setAuditOpen(true)}
+        onViewCreator={(id) => setUserId(id || INCIDENT.createdBy)}
+      />
+      <Drawer open={auditOpen} onClose={() => setAuditOpen(false)} title="Audit log" zIndex={10500}>
+        <AuditLogPanel
+          incident={INCIDENT}
+          events={TIMELINE}
+          onUserClick={(id) => setUserId(id)}
+        />
+      </Drawer>
+      {userId && (
+        <UserProfileDrawer userId={userId} onClose={() => setUserId(null)} zIndex={10600} />
+      )}
+    </>
   );
 }

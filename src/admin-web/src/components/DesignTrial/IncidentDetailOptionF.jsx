@@ -12,12 +12,21 @@ import {
   EvidenceBundle,
   VerificationBadge,
   Lightbox,
+  formatDate,
   formatTime,
   relativeTime,
+  countSources,
   SEVERITY_LABELS,
   VERIFICATION,
   SOURCE_TYPE_LABELS,
+  StatusHistory,
+  DebugMetadata,
+  CopyButton,
+  parseCoordinates,
+  MetaRow,
+  StatTile,
 } from './IncidentDetailTrialCommon.jsx';
+import { AuditLogPanel, UserProfileDrawer, Drawer } from './SidebarTrial2Option1SuperAdminAudit.jsx';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Final incident-detail sidebar.
@@ -563,8 +572,9 @@ function EvidenceModal({ type, item, onClose, onSave }) {
   );
 }
 
-export default function IncidentDetailOptionF({ mode = 'user' }) {
+export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onViewCreator }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
+  const isSuper = mode === 'superadmin';
   const navigate = useNavigate();
 
   const [incident, setIncident] = useState({ ...INCIDENT });
@@ -574,9 +584,13 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
   const [lightbox, setLightbox] = useState(null);
   const [copied, setCopied] = useState(false);
   const [modal, setModal] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const [toast, setToast] = useState(null);
 
   const notify = useCallback((message) => setToast({ message }), []);
+
+  const nowIso = () => new Date().toISOString();
+  const currentUser = { id: 'u1', name: 'System Administrator' };
 
   /* ─── Evidence mutations ─── */
   const mutateSources = useCallback((eventId, sourceType, updater) => {
@@ -666,15 +680,63 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
   /* ─── Incident mutations ─── */
   const updateIncident = useCallback(
     (patch) => {
-      setIncident((prev) => ({ ...prev, ...patch }));
+      setIncident((prev) => ({ ...prev, ...patch, updatedAt: nowIso() }));
       notify('Incident updated');
     },
     [notify]
   );
 
-  const deleteIncident = useCallback(() => {
-    if (!window.confirm('This will permanently delete the incident. Continue?')) return;
-    notify('Incident deleted (demo)');
+  const resolveIncidentFunc = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: 'resolved',
+      endDate: nowIso(),
+      resolvedAt: nowIso(),
+      resolvedBy: currentUser.id,
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident resolved');
+  }, [notify]);
+
+  const softDeleteIncident = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: 'deleted',
+      originalStatus: prev.status === 'deleted' ? prev.originalStatus : prev.status,
+      deletedAt: nowIso(),
+      deletedBy: currentUser.id,
+      deletedByName: currentUser.name,
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident moved to Recycle Bin');
+  }, [notify]);
+
+  const restoreIncidentFunc = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: prev.originalStatus || 'active',
+      originalStatus: null,
+      deletedAt: null,
+      deletedBy: null,
+      deletedByName: null,
+      purgedAt: null,
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident restored');
+  }, [notify]);
+
+  const purgeIncidentFunc = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: 'purged',
+      purgedAt: nowIso(),
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident permanently deleted');
   }, [notify]);
 
   /* ─── UI helpers ─── */
@@ -720,8 +782,17 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
   const initialReport = events[0];
   const updates = events.slice(1);
 
+  const totalSources = events.reduce((sum, e) => sum + countSources(e.sources), 0);
+  const totalUpdates = events.length;
+  const totalPosts = events.reduce((sum, e) => sum + (e.sources?.x_post?.length || 0), 0);
+  const coords = parseCoordinates(incident.coordinates);
+  const isDeleted = incident.status === 'deleted';
+  const isPurged = incident.status === 'purged';
+  const isResolved = incident.status === 'resolved';
+  const isReadOnly = isDeleted || isPurged;
+
   return (
-    <div className="id-trial-page">
+    <div className={`id-trial-page ${isSuper ? 'id-trial-page--superadmin' : ''}`}>
       <div className="id-fake-map">
         <div className="id-fake-map-grid" />
         <div className="id-fake-map-markers">
@@ -737,7 +808,7 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
 
       <aside className="id-sidebar">
         <div className="id-sidebar__scroll">
-          <SummaryCard incident={incident} onTitleClick={goFullDetails}>
+          <SummaryCard incident={incident} onTitleClick={goFullDetails} mode={mode}>
             <div className="id-summary__actions">
               <button className="id-btn-primary" onClick={goFullDetails}>
                 {Icons.external} Full details
@@ -746,7 +817,72 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
                 {copied ? 'Copied!' : 'Copy incident link'}
               </button>
             </div>
-            {isAdmin && (
+
+            {isSuper && (
+              <div className="id-summary-stats">
+                <StatTile value={totalSources} label="Sources" />
+                <StatTile value={totalUpdates} label="Updates" />
+                <StatTile value={totalPosts} label="Posts" />
+              </div>
+            )}
+
+            {isSuper && (
+              <div className="id-summary-meta">
+                <MetaRow label="Location">{incident.locationContext || incident.location}</MetaRow>
+                {coords && (
+                  <MetaRow label="Coordinates">
+                    <span className="id-mono">
+                      {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+                    </span>
+                    <CopyButton text={`${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`} />
+                  </MetaRow>
+                )}
+                <MetaRow label="Started">{formatDate(incident.startDate)} · {formatTime(incident.startDate)}</MetaRow>
+                {incident.endDate && <MetaRow label="Ended">{formatDate(incident.endDate)} · {formatTime(incident.endDate)}</MetaRow>}
+                <MetaRow label="Category">
+                  <span style={{ color: incident.categoryColor, fontWeight: 700 }}>{incident.category}</span>
+                  {' · '}
+                  {incident.domain}
+                </MetaRow>
+                <MetaRow label="Created by">
+                  <button
+                    type="button"
+                    className="id-creator-link"
+                    onClick={() => onViewCreator?.(incident.createdBy)}
+                  >
+                    {incident.createdByName || incident.createdBy}
+                    {incident.createdByEmail && <span className="id-creator-email">{incident.createdByEmail}</span>}
+                  </button>
+                </MetaRow>
+              </div>
+            )}
+
+            {isPurged && (
+              <div className="id-banner id-banner--purged">
+                <div className="id-banner__title">This incident has been permanently deleted.</div>
+                {incident.purgedAt && <div>Purged {formatDate(incident.purgedAt)} · {formatTime(incident.purgedAt)}</div>}
+                {incident.originalStatus && <div>Original status: {incident.originalStatus}</div>}
+              </div>
+            )}
+
+            {isDeleted && (
+              <div className="id-banner id-banner--deleted">
+                <div className="id-banner__title">This incident has been moved to the Recycle Bin.</div>
+                {incident.deletedAt && <div>Deleted {formatDate(incident.deletedAt)} · {formatTime(incident.deletedAt)}</div>}
+                {incident.deletedByName && <div>Deleted by {incident.deletedByName}</div>}
+                {incident.originalStatus && <div>Original status: {incident.originalStatus}</div>}
+                <div className="id-banner__actions">
+                  <button type="button" className="id-btn" onClick={() => setConfirm({ type: 'restore' })}>
+                    ↺ Restore
+                  </button>
+                  <button type="button" className="id-btn-danger" onClick={() => setConfirm({ type: 'purge' })}>
+                    {Icons.trash} Purge permanently
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isAdmin && !isReadOnly && (
               <div className="id-admin-bar">
                 <button className="id-admin-bar__btn" onClick={() => setModal({ type: 'incident' })}>
                   {Icons.edit} Edit incident
@@ -754,11 +890,29 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
                 <button className="id-admin-bar__btn id-admin-bar__btn--primary" onClick={() => setModal({ type: 'event' })}>
                   {Icons.plus} Add update
                 </button>
-                <button className="id-admin-bar__btn id-admin-bar__btn--danger" onClick={deleteIncident}>
+                {isSuper && incident.status === 'active' && (
+                  <button className="id-admin-bar__btn id-admin-bar__btn--warning" onClick={() => setConfirm({ type: 'resolve' })}>
+                    ✓ Resolve
+                  </button>
+                )}
+                <button className="id-admin-bar__btn id-admin-bar__btn--danger" onClick={() => setConfirm({ type: 'delete' })}>
                   {Icons.trash} Delete incident
                 </button>
+                {isSuper && (
+                  <>
+                    <button className="id-admin-bar__btn" onClick={() => onOpenAudit?.()}>
+                      📋 Audit log
+                    </button>
+                    <button className="id-admin-bar__btn" onClick={() => onViewCreator?.(incident.createdBy)}>
+                      {Icons.external} View creator
+                    </button>
+                  </>
+                )}
               </div>
             )}
+
+            {isSuper && <StatusHistory incident={incident} events={events} onUserClick={onViewCreator} />}
+            {isSuper && <DebugMetadata incident={incident} />}
           </SummaryCard>
 
           <div className="id-section-title">
@@ -821,12 +975,13 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
                 </span>
               </div>
 
-              {isAdmin && (
+              {isAdmin && !isReadOnly && (
                 <div className="id-drawer-admin">
                   <Select
                     value={drawerEvent.verification}
                     onChange={(e) => updateEvent(drawerEvent.id, { verification: e.target.value })}
                     style={{ maxWidth: 140, padding: '5px 9px', fontSize: 12 }}
+                    disabled={isReadOnly}
                   >
                     {Object.keys(VERIFICATION).map((k) => (
                       <option key={k} value={k}>
@@ -838,6 +993,7 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
                     type="button"
                     className="id-drawer-admin__btn"
                     onClick={() => setModal({ type: 'event', event: drawerEvent })}
+                    disabled={isReadOnly}
                   >
                     {Icons.edit} Edit
                   </button>
@@ -845,6 +1001,7 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
                     type="button"
                     className="id-drawer-admin__btn id-drawer-admin__btn--danger"
                     onClick={() => deleteEvent(drawerEvent.id)}
+                    disabled={isReadOnly}
                   >
                     {Icons.trash} Delete
                   </button>
@@ -927,6 +1084,38 @@ export default function IncidentDetailOptionF({ mode = 'user' }) {
             setModal(null);
           }}
         />
+      )}
+
+      {confirm?.type === 'resolve' && (
+        <Modal title="Resolve incident" onClose={() => setConfirm(null)} onSubmit={resolveIncidentFunc} submitLabel="Resolve">
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Mark <strong>{incident.title}</strong> as resolved? It will be hidden from the live map and moved to historic view.
+          </p>
+        </Modal>
+      )}
+
+      {confirm?.type === 'delete' && (
+        <Modal title="Move to Recycle Bin" onClose={() => setConfirm(null)} onSubmit={softDeleteIncident} submitLabel="Move to Recycle Bin">
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Move <strong>{incident.title}</strong> to the Recycle Bin? It will be hidden from all views but can be restored later.
+          </p>
+        </Modal>
+      )}
+
+      {confirm?.type === 'restore' && (
+        <Modal title="Restore incident" onClose={() => setConfirm(null)} onSubmit={restoreIncidentFunc} submitLabel="Restore">
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Restore <strong>{incident.title}</strong> to its original status? It will reappear on the live map.
+          </p>
+        </Modal>
+      )}
+
+      {confirm?.type === 'purge' && (
+        <Modal title="Permanently delete" onClose={() => setConfirm(null)} onSubmit={purgeIncidentFunc} submitLabel="Purge permanently">
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Permanently delete <strong>{incident.title}</strong>? This action cannot be undone and the record will be purged from the Recycle Bin.
+          </p>
+        </Modal>
       )}
 
       {toast && <Toast message={toast.message} onClose={() => setToast(null)} />}
