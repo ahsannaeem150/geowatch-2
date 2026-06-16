@@ -8500,3 +8500,52 @@ feat(superadmin-web): integrate incident detail with full curation controls
 ```
 
 *End of Phase 7*
+
+
+---
+
+## 📅 2026-06-16 — Phase 8: X Snapshot / Archive Workflow
+
+### Summary
+Implemented the end-to-end X-post archive workflow. Admins and superadmins can now archive an X-post source by uploading a screenshot; the UI falls back to the archived screenshot (with lightbox), and sources can be unarchived to restore the live embed.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/incident-detail/IncidentIcons.jsx` | Added `undo` inline SVG icon. |
+| `src/shared/components/incident-detail/XPostCompactList.jsx` | Archive button now passes the full `post` object to `onArchiveSource`. Added an **Unarchive** button for already-archived posts. |
+| `src/shared/components/incident-detail/EvidenceBundle.jsx` | `onArchiveSource` wrapper now passes `(event.id, item)` instead of `(event.id, sourceId)`. |
+| `src/shared/components/incident-detail/EvidenceRail.jsx` | Same wrapper signature update. |
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPage.jsx` | Replaced `onArchiveSource` stub with real flow: prompt for reason, pick screenshot file, upload via `api.uploadMedia`, then PATCH source with `archived: true`, `archiveMediaId`, `archiveReason`. Unarchive clears the archive fields. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Same archive/unarchive implementation for the admin sidebar. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Same archive/unarchive implementation for the superadmin sidebar. |
+| `src/superadmin-web/src/components/IncidentDetail/IncidentDetailPage.jsx` | Same archive/unarchive implementation for the superadmin full page. |
+
+### How It Works
+
+1. Click **Archive** on an X-post source.
+2. Enter a reason in the prompt.
+3. Pick a screenshot file from the native file picker.
+4. Frontend uploads the file to `POST /incidents/:id/media` with the source's `updateId`.
+5. Frontend PATCHes the source with `{ archived: true, archiveMediaId, archiveReason }`.
+6. Backend already persists `archived`, `archive_media_id`, `archive_reason`, and `archived_at`.
+7. The shared mapper builds `post.archiveUrl` from the linked media, and the shared UI renders `ArchivedPost` + lightbox instead of the live `XEmbed`.
+8. **Unarchive** reverses the process by setting `archived: false` and clearing the archive fields.
+
+### Verified
+
+| Scenario | Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ Succeeds. |
+| `npm run build:superadmin-web` | ✅ Succeeds. |
+| `npm run build:user-web` | ✅ Succeeds. |
+| Backend `PATCH /incidents/:id/sources/:sourceId` archive toggle | ✅ Verified via curl (archive → unarchive → delete test source). |
+
+### Git Commit Suggestion
+
+```
+feat(x-post): archive X posts with screenshot upload and fallback viewer
+```
+
+*End of Phase 8*

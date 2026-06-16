@@ -339,7 +339,7 @@ export default function XPostCompactList({
                       {onArchiveSource && (
                         <button
                           className="id-x-compact__action"
-                          onClick={() => onArchiveSource(post.id)}
+                          onClick={() => onArchiveSource(post)}
                         >
                           {Icons.image} Archive
                         </button>
@@ -359,6 +359,14 @@ export default function XPostCompactList({
                     <button className="id-x-compact__action" onClick={() => copyLink(post)}>
                       {Icons.link} {copiedId === post.id ? 'Copied!' : 'Copy link'}
                     </button>
+                    {onArchiveSource && (
+                      <button
+                        className="id-x-compact__action"
+                        onClick={() => onArchiveSource(post)}
+                      >
+                        {Icons.undo} Unarchive
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

@@ -321,7 +321,7 @@ export default function EvidenceRail({
             onDeleteItem={(itemId) => onDeleteEvidence?.(event.id, 'x_post', itemId)}
             onPinItem={(itemId) => onPinEvidence?.(event.id, 'x_post', itemId)}
             onFeatureItem={isAdmin ? (itemId) => onFeatureEvidence?.(event.id, { sourceType: 'x_post', sourceId: itemId }) : undefined}
-            onArchiveSource={onArchiveSource ? (sourceId) => onArchiveSource?.(event.id, sourceId) : undefined}
+            onArchiveSource={onArchiveSource ? (item) => onArchiveSource?.(event.id, item) : undefined}
             featuredId={featuredPostId}
           />
         ),

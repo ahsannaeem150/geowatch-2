@@ -337,11 +337,67 @@ export default function IncidentDetailPage() {
     [id, withRefresh]
   );
 
+  function pickScreenshotFile() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      let resolved = false;
+      const cleanup = () => {
+        if (input.parentNode) input.parentNode.removeChild(input);
+      };
+      input.addEventListener('change', () => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        resolve(input.files?.[0] || null);
+      });
+      const onFocus = () => {
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            cleanup();
+            resolve(null);
+          }
+        }, 300);
+      };
+      window.addEventListener('focus', onFocus, { once: true });
+      input.click();
+    });
+  }
+
   const handleArchiveSource = useCallback(
-    withRefresh(async (eventId, sourceType, item, reason) => {
-      // Archiving requires an archiveMediaId; this is a placeholder until Phase 8.
-      console.warn('Archive source not yet fully implemented', { eventId, sourceType, item, reason });
-      throw new Error('Archiving sources requires a screenshot. This will be implemented in Phase 8.');
+    withRefresh(async (eventId, item) => {
+      if (item.archived) {
+        await api.archiveSource(id, item.id, {
+          archived: false,
+          archiveMediaId: null,
+          archiveReason: null,
+        });
+        return;
+      }
+
+      const reason = window.prompt('Reason for archiving this X post?');
+      if (reason === null) return;
+
+      const file = await pickScreenshotFile();
+      if (!file) {
+        throw new Error('A screenshot is required to archive an X post.');
+      }
+
+      const uploadRes = await api.uploadMedia(id, file, { updateId: eventId, caption: reason });
+      const mediaId = uploadRes?.data?.media?.id;
+      if (!mediaId) {
+        throw new Error('Screenshot upload failed: no media id returned.');
+      }
+
+      await api.archiveSource(id, item.id, {
+        archived: true,
+        archiveMediaId: mediaId,
+        archiveReason: reason,
+      });
     }),
     [id, withRefresh]
   );

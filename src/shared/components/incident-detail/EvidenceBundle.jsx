@@ -199,7 +199,7 @@ export default function EvidenceBundle({
             onDeleteItem={(itemId) => onDeleteEvidence?.(event.id, 'x_post', itemId)}
             onPinItem={(item) => onPinEvidence?.(event.id, 'x_post', item.id, !item.pinned)}
             onFeatureItem={(itemId) => onFeatureEvidence?.(event.id, { sourceType: 'x_post', sourceId: itemId })}
-            onArchiveSource={onArchiveSource ? (sourceId) => onArchiveSource?.(event.id, sourceId) : undefined}
+            onArchiveSource={onArchiveSource ? (item) => onArchiveSource?.(event.id, item) : undefined}
             featuredId={featuredItem?.sourceType === 'x_post' ? featuredItem.sourceId || featuredItem.itemId : null}
           />
         ) : type === 'news_article' ? (
