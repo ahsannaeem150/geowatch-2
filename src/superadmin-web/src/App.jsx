@@ -14,6 +14,7 @@ import ZoneCategoriesPage from './pages/ZoneCategoriesPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import RecycleBinPage from './pages/RecycleBinPage.jsx';
+import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 function LoadingScreen() {
@@ -129,6 +130,7 @@ function AppRoutes() {
           <Route path="/superadmin/system" element={<SystemPage />} />
           <Route path="/superadmin/export" element={<ExportPage />} />
           <Route path="/superadmin/recycle-bin" element={<RecycleBinPage />} />
+          <Route path="/superadmin/incident/:id" element={<IncidentDetailPage />} />
         </Route>
       </Route>
 

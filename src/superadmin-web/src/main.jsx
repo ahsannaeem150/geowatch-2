@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
+import '@shared/styles/incident-detail.css';
 import { ThemeProvider } from '@shared/theme-context.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

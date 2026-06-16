@@ -9,10 +9,28 @@ import {
   updateIncident,
   deleteIncident,
   resolveIncident,
+  restoreIncident,
+  purgeIncident,
   getDomains,
   listAllCategories,
+  mapIncidentForShared,
+  addTimeline,
+  updateTimeline,
+  deleteTimeline,
+  addSource,
+  updateSource,
+  deleteSource,
+  pinSource,
+  uploadMedia,
+  updateMedia,
+  deleteMedia,
+  pinMedia,
+  setFeatured,
+  clearFeatured,
+  listAuditLogs,
 } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
+import { IncidentDetailSidebar } from '@shared';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
 import MapControls from '../components/Map/MapControls.jsx';
 import DrawingToolbar from '../components/Map/DrawingToolbar.jsx';
@@ -28,6 +46,7 @@ import ActivityInspectorSidebar from '../components/Audit/ActivityInspectorSideb
 import RecycleBinSidebar from '../components/Map/RecycleBinSidebar.jsx';
 import UserDetailDrawer from '../components/Users/UserDetailDrawer.jsx';
 import PublicUserDrawer from '../components/PublicUsers/PublicUserDrawer.jsx';
+import AuditTable from '../components/Audit/AuditTable.jsx';
 
 function pointToSegmentDistance(p, a, b) {
   const dx = b[0] - a[0];
@@ -82,6 +101,13 @@ export default function MapPage() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState(null);
+  const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditDrawerOpen, setAuditDrawerOpen] = useState(false);
+  const [auditPagination, setAuditPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
+  const [auditLoading, setAuditLoading] = useState(false);
   const [flyToCoords, setFlyToCoords] = useState(
     latParam && lngParam
       ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: zoomParam ? parseFloat(zoomParam) : 10 }
@@ -491,6 +517,9 @@ export default function MapPage() {
 
   const handleBack = useCallback(() => {
     setSelectedIncident(null);
+    setSelectedIncidentDetail(null);
+    setDetailError('');
+    setAuditDrawerOpen(false);
     setSelectedZoneId(null);
     setGhostZone(null);
     setEditingZoneId(null);
@@ -506,6 +535,61 @@ export default function MapPage() {
       return next;
     });
   }, [setSearchParams]);
+
+  // ─── Shared incident detail fetch & refresh ───
+  const fetchSelectedIncidentDetail = useCallback(async () => {
+    if (!selectedIncident?.id) return;
+    if (selectedIncident.isDeleted || selectedIncident.isPurged || selectedIncident.status === 'hidden') {
+      setSelectedIncidentDetail(null);
+      return;
+    }
+    setDetailLoading(true);
+    setDetailError('');
+    try {
+      const res = await getIncident(selectedIncident.id);
+      setSelectedIncidentDetail(mapIncidentForShared(res));
+    } catch (err) {
+      setDetailError(err.message || 'Failed to load incident details');
+      setSelectedIncidentDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [selectedIncident]);
+
+  useEffect(() => {
+    fetchSelectedIncidentDetail();
+  }, [fetchSelectedIncidentDetail]);
+
+  useEffect(() => {
+    if (refreshKey > 0 && selectedIncident?.id) {
+      fetchSelectedIncidentDetail();
+    }
+  }, [refreshKey, selectedIncident?.id, fetchSelectedIncidentDetail]);
+
+  const fetchAuditLogs = useCallback(async (page = 1) => {
+    if (!selectedIncident?.id) return;
+    setAuditLoading(true);
+    try {
+      const data = await listAuditLogs({
+        targetType: 'incident',
+        targetId: selectedIncident.id,
+        page,
+        limit: 50,
+      });
+      setAuditLogs(data.logs || []);
+      setAuditPagination(data.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
+    } catch (err) {
+      console.warn('[Audit] Failed to load audit logs:', err);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [selectedIncident?.id]);
+
+  useEffect(() => {
+    if (auditDrawerOpen) {
+      fetchAuditLogs(1);
+    }
+  }, [auditDrawerOpen, fetchAuditLogs]);
 
   const handleActivityIncidentClick = useCallback(
     (log) => {
@@ -551,6 +635,264 @@ export default function MapPage() {
     },
     [setSearchParams]
   );
+
+  // ─── Shared incident detail callbacks ───
+  const withDetailRefresh = useCallback(
+    (fn) =>
+      async (...args) => {
+        if (!selectedIncident?.id) return;
+        try {
+          await fn(...args);
+          await fetchSelectedIncidentDetail();
+          setRefreshKey((k) => k + 1);
+          setGhostZone(null);
+        } catch (err) {
+          setDetailError(err.message || 'Action failed');
+        }
+      },
+    [selectedIncident?.id, fetchSelectedIncidentDetail]
+  );
+
+  const handleNavigateToFullPage = useCallback(() => {
+    if (selectedIncident?.id) {
+      navigate(`/superadmin/incident/${selectedIncident.id}`);
+    }
+  }, [navigate, selectedIncident?.id]);
+
+  const handleCopyIncidentLink = useCallback(() => {
+    if (!selectedIncident?.id) return;
+    const url = `${window.location.origin}/incident/${selectedIncident.id}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+  }, [selectedIncident?.id]);
+
+  const handleOpenAudit = useCallback(() => {
+    setAuditDrawerOpen(true);
+  }, []);
+
+  const handleViewCreator = useCallback((userId, role) => {
+    setCreatorDrawer({ userId, role });
+  }, []);
+
+  const handleUpdateIncident = useCallback(
+    withDetailRefresh(async (patch) => {
+      const body = {
+        ...(patch.title !== undefined && { title: patch.title }),
+        ...(patch.description !== undefined && { description: patch.description }),
+        ...(patch.locationContext !== undefined && { locationContext: patch.locationContext }),
+        ...(patch.severity !== undefined && { severity: patch.severity }),
+        ...(patch.verification !== undefined && { verificationOverride: patch.verification }),
+        ...(patch.heroImageUrl !== undefined && { heroImageUrl: patch.heroImageUrl }),
+      };
+      await updateIncident(selectedIncident.id, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleResolveSelectedIncident = useCallback(
+    withDetailRefresh(async () => {
+      await resolveIncident(selectedIncident.id, { resolvedAt: new Date().toISOString() });
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleDeleteSelectedIncident = useCallback(
+    withDetailRefresh(async () => {
+      await deleteIncident(selectedIncident.id);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleRestoreIncident = useCallback(
+    withDetailRefresh(async () => {
+      await restoreIncident(selectedIncident.id);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handlePurgeIncident = useCallback(
+    withDetailRefresh(async () => {
+      await purgeIncident(selectedIncident.id);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleAddUpdate = useCallback(
+    withDetailRefresh(async (form) => {
+      await addTimeline(selectedIncident.id, {
+        summary: form.summary,
+        details: form.details,
+        updateDate: form.timestamp || form.updateDate || new Date().toISOString(),
+        type: form.type || 'update',
+        verificationStatus: form.verification || 'verified',
+      });
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleEditUpdate = useCallback(
+    withDetailRefresh(async (updateId, form) => {
+      const body = {};
+      if (form.summary !== undefined) body.summary = form.summary;
+      if (form.details !== undefined) body.details = form.details;
+      if (form.timestamp !== undefined || form.updateDate !== undefined) {
+        body.updateDate = form.timestamp || form.updateDate;
+      }
+      if (form.type !== undefined) body.type = form.type;
+      if (form.verification !== undefined) body.verificationStatus = form.verification;
+      await updateTimeline(selectedIncident.id, updateId, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleDeleteUpdate = useCallback(
+    withDetailRefresh(async (updateId) => {
+      await deleteTimeline(selectedIncident.id, updateId);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleAddEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, item) => {
+      const incidentId = selectedIncident.id;
+      if (sourceType === 'media') {
+        const items = Array.isArray(item) ? item : [item];
+        for (const mediaItem of items) {
+          if (mediaItem.url?.startsWith('data:')) {
+            const file = dataUrlToFile(mediaItem.url, mediaItem.name || 'upload.png');
+            await uploadMedia(incidentId, file, { updateId: eventId, caption: mediaItem.caption });
+          } else if (mediaItem.url) {
+            console.warn('URL-based media evidence not yet supported', mediaItem);
+          }
+        }
+        return;
+      }
+
+      if (sourceType === 'x_post') {
+        await addSource(incidentId, {
+          updateId: eventId,
+          sourceType: 'x_post',
+          sourceUrl: item.tweetUrl,
+          description: item.text,
+        });
+        return;
+      }
+
+      if (sourceType === 'news_article') {
+        await addSource(incidentId, {
+          updateId: eventId,
+          sourceType: 'news_article',
+          sourceUrl: item.url,
+          description: [item.title, item.publisher].filter(Boolean).join(' — '),
+        });
+        return;
+      }
+
+      if (sourceType === 'admin_note') {
+        await addSource(incidentId, {
+          updateId: eventId,
+          sourceType: 'admin_note',
+          description: item.text,
+        });
+        return;
+      }
+
+      console.warn('Unsupported evidence type', sourceType, item);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleEditEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, item) => {
+      const incidentId = selectedIncident.id;
+      if (sourceType === 'media') {
+        const body = {};
+        if (item.caption !== undefined) body.caption = item.caption;
+        if (item.pinned !== undefined) body.pinned = item.pinned;
+        if (eventId !== undefined) body.updateId = eventId;
+        await updateMedia(incidentId, item.id, body);
+        return;
+      }
+
+      const body = {};
+      if (item.sourceUrl !== undefined || item.tweetUrl !== undefined || item.url !== undefined) {
+        body.sourceUrl = item.tweetUrl || item.url || item.sourceUrl;
+      }
+      if (item.text !== undefined || item.description !== undefined) {
+        body.description = item.text || item.description;
+      }
+      if (item.title !== undefined && item.publisher !== undefined) {
+        body.description = [item.title, item.publisher].filter(Boolean).join(' — ');
+      }
+      if (item.pinned !== undefined) body.pinned = item.pinned;
+      await updateSource(incidentId, item.id, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleDeleteEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, itemId) => {
+      const incidentId = selectedIncident.id;
+      if (sourceType === 'media') {
+        await deleteMedia(incidentId, itemId);
+      } else {
+        await deleteSource(incidentId, itemId);
+      }
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handlePinEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, itemId, pinned) => {
+      const incidentId = selectedIncident.id;
+      if (sourceType === 'media') {
+        await pinMedia(incidentId, itemId, pinned);
+      } else {
+        await pinSource(incidentId, itemId, pinned);
+      }
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleFeatureEvidence = useCallback(
+    withDetailRefresh(async (eventId, { sourceType, sourceId }) => {
+      const body = { sourceType };
+      if (sourceType === 'media') {
+        body.mediaId = sourceId;
+      } else {
+        body.sourceId = sourceId;
+      }
+      await setFeatured(selectedIncident.id, eventId, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleClearFeatureEvidence = useCallback(
+    withDetailRefresh(async (eventId) => {
+      await clearFeatured(selectedIncident.id, eventId);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleArchiveSource = useCallback(
+    withDetailRefresh(async (eventId, sourceType, item, reason) => {
+      // Archiving requires an archiveMediaId; placeholder until Phase 8.
+      console.warn('Archive source not yet fully implemented', { eventId, sourceType, item, reason });
+      throw new Error('Archiving sources requires a screenshot. This will be implemented in Phase 8.');
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  function dataUrlToFile(dataUrl, fileName = 'image.png') {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], fileName, { type: mime });
+  }
 
   // When an incident is clicked inside the inline creator profile drawer,
   // close the drawer and navigate to the map with the activity sidebar open
@@ -1865,6 +2207,89 @@ export default function MapPage() {
                   submitting={submitting}
                 />
               </div>
+            ) : selectedIncident && !(selectedIncident.isDeleted || selectedIncident.isPurged || selectedIncident.status === 'hidden') ? (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {selectedIncident.geometry_type === 'polygon' && (
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      gap: 10,
+                      background: 'var(--bg-elevated)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <button
+                      onClick={() => handleEditZone()}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-subtle)',
+                        background: 'var(--bg-surface)',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Edit geometry
+                    </button>
+                    <button
+                      onClick={() => handleZoneInfoEdit()}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-subtle)',
+                        background: 'var(--bg-surface)',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Edit zone info
+                    </button>
+                  </div>
+                )}
+                {detailLoading ? (
+                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    Loading incident details…
+                  </div>
+                ) : detailError ? (
+                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--danger)', fontSize: 13 }}>
+                    {detailError}
+                  </div>
+                ) : selectedIncidentDetail ? (
+                  <div style={{ flex: 1, overflowY: 'auto' }}>
+                    <IncidentDetailSidebar
+                      mode="superadmin"
+                      incident={selectedIncidentDetail.incident}
+                      timeline={selectedIncidentDetail.timeline}
+                      onNavigateToFullPage={handleNavigateToFullPage}
+                      onCopyIncidentLink={handleCopyIncidentLink}
+                      onUpdateIncident={handleUpdateIncident}
+                      onResolveIncident={handleResolveSelectedIncident}
+                      onDeleteIncident={handleDeleteSelectedIncident}
+                      onRestoreIncident={handleRestoreIncident}
+                      onPurgeIncident={handlePurgeIncident}
+                      onAddUpdate={handleAddUpdate}
+                      onEditUpdate={handleEditUpdate}
+                      onDeleteUpdate={handleDeleteUpdate}
+                      onAddEvidence={handleAddEvidence}
+                      onEditEvidence={handleEditEvidence}
+                      onDeleteEvidence={handleDeleteEvidence}
+                      onPinEvidence={handlePinEvidence}
+                      onFeatureEvidence={handleFeatureEvidence}
+                      onClearFeatureEvidence={handleClearFeatureEvidence}
+                      onArchiveSource={handleArchiveSource}
+                      onOpenAudit={handleOpenAudit}
+                      onViewCreator={handleViewCreator}
+                      auditLogs={auditLogs}
+                    />
+                  </div>
+                ) : null}
+              </div>
             ) : selectedIncident ? (
               <IncidentDetailPanel
                 incident={selectedIncident}
@@ -1911,6 +2336,81 @@ export default function MapPage() {
           onClose={() => setCreatorDrawer({ userId: null, role: null })}
           onIncidentClick={handleCreatorDrawerIncidentClick}
         />
+      )}
+
+      {/* Inline audit log drawer */}
+      {auditDrawerOpen && selectedIncident?.id && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 13000,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setAuditDrawerOpen(false);
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 1100,
+              maxHeight: '90vh',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Audit log — {selectedIncident.title}</h3>
+              <button
+                onClick={() => setAuditDrawerOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <PanelLeftOpen size={18} style={{ transform: 'rotate(180deg)' }} />
+              </button>
+            </div>
+            <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+              <AuditTable
+                logs={auditLogs}
+                pagination={auditPagination}
+                loading={auditLoading}
+                onPageChange={(page) => fetchAuditLogs(page)}
+                onUserClick={() => {}}
+                onTargetClick={() => {}}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

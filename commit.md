@@ -8458,3 +8458,45 @@ feat(user-web): integrate shared incident detail sidebar and full page in read-o
 ```
 
 *End of Phase 6*
+
+
+---
+
+## 📅 2026-06-13 — Phase 7: superadmin-web Integration
+
+### Summary
+Wired the shared incident-detail components into the superadmin console with full curation controls: added `/superadmin/incident/:id`, replaced the map-page `IncidentDetailPanel` with `IncidentDetailSidebar`, added all missing API methods, implemented every mutation callback, and connected the existing creator-profile and audit-log drawers.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/main.jsx` | Imported `@shared/styles/incident-detail.css`. |
+| `src/superadmin-web/src/services/api.js` | Added `mapIncidentForShared()` mapper. Added timeline/source/media/featured helpers: `addTimeline`, `updateTimeline`, `deleteTimeline`, `setFeatured`, `clearFeatured`, `addSource`, `updateSource`, `deleteSource`, `pinSource`, `uploadMedia`, `updateMedia`, `deleteMedia`, `pinMedia`. Updated `request()` to skip JSON `Content-Type` for `FormData` uploads. |
+| `src/superadmin-web/src/components/IncidentDetail/IncidentDetailPage.jsx` | **New** wrapper for `/superadmin/incident/:id`. Fetches and maps incident detail, renders shared `IncidentDetailPage` in `mode="superadmin"`, provides all callbacks, SSE live refresh, an inline audit-log modal, and creator-profile drawer overlays. |
+| `src/superadmin-web/src/App.jsx` | Added protected `/superadmin/incident/:id` route inside `Layout`. |
+| `src/superadmin-web/src/pages/MapPage.jsx` | Replaced live-incident `IncidentDetailPanel` with `IncidentDetailSidebar` (mode="superadmin"). Added detail fetch/mapping state, SSE-driven refresh, all curation callbacks, an inline audit-log drawer, and a polygon edit header. Kept `IncidentDetailPanel` only for deleted/purged/hidden incidents (recycle-bin fallback). |
+
+### Key Wiring
+
+- **Live incident sidebar** now receives full mutation handlers (update, resolve, delete, restore, purge, timeline CRUD, source/media CRUD, pin, feature, archive stub).
+- **Audit log drawer** opens from the shared sidebar's "Audit log" button and fetches `listAuditLogs({ targetType: 'incident', targetId })`.
+- **Creator profile drawers** are triggered from `onViewCreator` using the existing `UserDetailDrawer` / `PublicUserDrawer` overlays.
+- **Zone editing preserved** for polygon incidents via a header row with "Edit geometry" / "Edit zone info" buttons above the shared sidebar.
+- **Deleted/purged incidents** still render the legacy `IncidentDetailPanel` because the recycle-bin endpoint does not return the timeline shape required by the shared components.
+
+### Verified
+
+| Scenario | Result |
+|:--|:--|
+| `npm run build:superadmin-web` | ✅ Succeeds, no errors. |
+| `npm run build:admin-web` | ✅ Still succeeds. |
+| `npm run build:user-web` | ✅ Still succeeds. |
+
+### Git Commit Suggestion
+
+```
+feat(superadmin-web): integrate incident detail with full curation controls
+```
+
+*End of Phase 7*
