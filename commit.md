@@ -8659,3 +8659,39 @@ fix(shared): remove trial-page grid wrapper from IncidentDetailSidebar
 
 *End of fix*
 
+
+---
+
+## 📅 2026-06-16 — Fix: Admin Sidebar Clipping + Full Details Blank Page
+
+### Summary
+Fixed two issues reported after the previous sidebar layout change:
+1. **Admin sidebar clipped on the right** — the admin dashboard's right panel had `padding: 20px`, which reduced the available width from 630px to 590px and clipped sidebar content that expected the full 630px.
+2. **"Full details" opened a blank page** — `EvidenceRail.jsx` used `formatDate` and `formatTime` without importing them, causing a runtime `ReferenceError` and a white screen on the full incident page in all three apps.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Right panel now uses `padding: 0` when `panelMode === 'detail'` so the shared sidebar gets the full 630px width. Forms and zone editors still keep the 20px padding. |
+| `src/shared/components/incident-detail/EvidenceRail.jsx` | Added `formatDate` and `formatTime` to the `IncidentUtils.js` import so the full-page evidence rail can render update timestamps. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+| `npm run build -w src/admin-web` | ✅ |
+| `npm run build -w src/superadmin-web` | ✅ |
+
+### Note on CORS console message
+The console also shows a CORS / connection error for `http://localhost:3000/api/v1/incidents/stream`. That is the SSE live-refresh connection failing because the backend is not running or is not reachable from the dev origin. It did not cause the blank page; the blank page was caused by the missing `formatDate` import.
+
+### Git Commit Suggestion
+
+```
+fix(admin,shared): admin sidebar padding and EvidenceRail missing imports
+```
+
+*End of fix*
+

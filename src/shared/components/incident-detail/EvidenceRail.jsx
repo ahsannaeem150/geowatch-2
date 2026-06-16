@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Icons, SOURCE_TYPE_ICONS, SOURCE_TYPE_LABELS } from './IncidentIcons.jsx';
-import { sortPinned, countEvidence } from './IncidentUtils.js';
+import { sortPinned, countEvidence, formatDate, formatTime } from './IncidentUtils.js';
 import { VerificationBadge } from './IncidentBadges.jsx';
 import XPostCompactList, { XEmbed, ArchivedPost, ArchiveLightbox } from './XPostCompactList.jsx';
 import { ArticleCard, AdminNoteCard, EditableArticleCard, EditableAdminNoteCard, MediaGrid } from './SourceCards.jsx';

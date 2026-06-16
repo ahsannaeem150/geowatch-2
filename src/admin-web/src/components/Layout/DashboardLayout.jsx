@@ -2308,7 +2308,7 @@ export default function DashboardLayout() {
             style={{
               width: '630px',
               overflowY: 'auto',
-              padding: '20px',
+              padding: panelMode === 'detail' ? 0 : '20px',
               boxSizing: 'border-box',
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--border-subtle)',
