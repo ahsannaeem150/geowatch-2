@@ -8372,3 +8372,47 @@ refactor(shared): move trial incident-detail components into shared package
 ```
 
 *End of Phase 4*
+
+
+---
+
+## 📅 2026-06-16 — Phase 5: admin-web Integration
+
+### Summary
+Wired the shared incident-detail components into the admin dashboard: added `/incident/:id` full-page route, replaced the sidebar detail panel with `IncidentDetailSidebar`, added all new curation API methods, implemented mutation callbacks, added hero-image upload to the create form, and kept SSE live refresh for both the sidebar and full-page views.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/main.jsx` | Imported `@shared/styles/incident-detail.css`. |
+| `src/admin-web/src/services/api.js` | Added `updateSource`, `deleteSource`, `pinSource`, `archiveSource`, `updateMedia`, `pinMedia`, `setFeatured`, `clearFeatured`, `restoreIncident`, `purgeIncident`. Added `uploadMedia` options (`updateId`, `caption`). Added `mapIncidentForShared()` to convert backend snake-case response to shared component shape. |
+| `src/admin-web/src/components/IncidentDetail/IncidentDetailPage.jsx` | New wrapper for `/incident/:id`. Fetches incident, maps data, renders `IncidentDetailPage` with all callbacks, and listens to SSE for live refresh. |
+| `src/admin-web/src/App.jsx` | Added protected `<Route path="/incident/:id" element={<IncidentDetailPage />} />`. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Replaced `IncidentDetailPanel` with `IncidentDetailSidebar`; fetches full detail on selection; wires all mutation callbacks; refreshes detail on SSE `incident_updated` for the selected incident; updated create flow to upload hero image and patch `heroImageUrl`. |
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | Added optional hero-image file input for create mode; changed `onSubmit` signature to `onSubmit(payload, { heroImageFile })`. |
+| `src/shared/components/incident-detail/EvidenceBundle.jsx` | Updated pin callbacks to pass the target `pinned` state (`!item.pinned`) so wrappers don't need to look it up. |
+| `src/shared/components/incident-detail/XPostCompactList.jsx` | Updated pin callback to pass `post` and target pinned state. |
+
+### Callback Mapping Fixes
+
+- `onPinEvidence(eventId, sourceType, itemId, pinned)` — wrappers now receive the explicit target pinned state.
+- `onDeleteEvidence(eventId, sourceType, itemId)` — wrappers now receive the item ID directly.
+- `onUpdateIncident` no longer sends `status` or `categoryName` to the backend; status changes use dedicated endpoints.
+
+### Verified
+
+| Scenario | Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ Succeeds, no errors. |
+| Dev server `http://localhost:5174/` | ✅ Returns app shell. |
+| Dev server `http://localhost:5174/incident/<id>` | ✅ Returns app shell and route resolves. |
+| Backend `GET /incidents/:id` shape | ✅ Returns `{ incident, timeline }` as expected by `mapIncidentForShared`. |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): integrate shared incident detail sidebar and full page
+```
+
+*End of Phase 5*

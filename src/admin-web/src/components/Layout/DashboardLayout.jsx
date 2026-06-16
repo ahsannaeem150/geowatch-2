@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
-import IncidentDetailPanel from '../IncidentDetail/IncidentDetailPanel.jsx';
+import { IncidentDetailSidebar } from '@shared';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
 import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
@@ -14,7 +14,7 @@ import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
-import { api } from '../../services/api.js';
+import { api, mapIncidentForShared } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 
 const MAX_ACTIVITIES = 50;
@@ -92,6 +92,9 @@ export default function DashboardLayout() {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const selectedIncidentRef = useRef(selectedIncident);
   selectedIncidentRef.current = selectedIncident;
+  const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
+  const [selectedIncidentDetailLoading, setSelectedIncidentDetailLoading] = useState(false);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(null);
@@ -204,7 +207,6 @@ export default function DashboardLayout() {
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchModalQuery, setSearchModalQuery] = useState('');
-  const [resolveTrigger, setResolveTrigger] = useState(0);
 
   // Smart viewport filtering state
   const [viewportFiltering, setViewportFiltering] = useState(null);
@@ -468,6 +470,34 @@ export default function DashboardLayout() {
     }
   }, [location.state, location.pathname, location.search, zoneIdFromUrl, polygonIncidents, navigate, setSearchParams]);
 
+  // Fetch full incident detail whenever a sidebar incident is selected
+  useEffect(() => {
+    if (!selectedIncident) {
+      setSelectedIncidentDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    setSelectedIncidentDetailLoading(true);
+    api.getIncident(selectedIncident.id)
+      .then((res) => {
+        if (cancelled) return;
+        setSelectedIncidentDetail(mapIncidentForShared(res.data));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSelectedIncidentDetail(null);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setSelectedIncidentDetailLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedIncident?.id, detailRefreshKey, refreshKey]);
+
   // Clear context menu when switching modes
   useEffect(() => {
     setDrawContextMenu(null);
@@ -594,6 +624,14 @@ export default function DashboardLayout() {
               }
               return [payload.incident, ...prev];
             });
+
+            // Refresh selected incident detail when it is updated
+            if (
+              selectedIncidentRef.current?.id === payload.incident.id &&
+              (payload.type === 'incident_updated' || payload.type === 'timeline_updated' || payload.type === 'timeline_added' || payload.type === 'timeline_deleted')
+            ) {
+              setDetailRefreshKey((k) => k + 1);
+            }
 
             // Mark as new for pulse animation
             if (payload.type === 'incident_created') {
@@ -1305,7 +1343,7 @@ export default function DashboardLayout() {
     ? selectedIncident
     : null;
 
-  const handleSubmit = async (payload) => {
+  const handleSubmit = async (payload, { heroImageFile } = {}) => {
     setSubmitting(true);
     try {
       if (isEditing && selectedIncident) {
@@ -1315,7 +1353,30 @@ export default function DashboardLayout() {
         setPanelMode('detail');
       } else {
         const res = await api.createIncident(payload);
-        const newIncident = res.data.incident;
+        let newIncident = res.data.incident;
+
+        // Upload hero image if provided and attach it to the incident.
+        if (heroImageFile) {
+          try {
+            const detailRes = await api.getIncident(newIncident.id);
+            const initialReport = detailRes.data.timeline?.find((u) => u.type === 'report');
+            const uploadRes = await api.uploadMedia(newIncident.id, heroImageFile, {
+              updateId: initialReport?.id,
+              caption: payload.title,
+            });
+            await api.updateIncident(newIncident.id, {
+              heroImageUrl: uploadRes.data.media.file_url,
+            });
+            newIncident = { ...newIncident, hero_image_url: uploadRes.data.media.file_url };
+          } catch (err) {
+            console.warn('Hero image upload failed', err);
+            setToast({
+              message: 'Incident created, but hero image upload failed: ' + (err.message || 'Unknown error'),
+              type: 'error',
+            });
+          }
+        }
+
         // Open the newly created incident in the sidebar, but do NOT fly the map
         // — it's already centered where the user double-clicked.
         setSelectedIncident(newIncident);
@@ -1425,6 +1486,249 @@ export default function DashboardLayout() {
     navigate('/zones');
   }, [navigate]);
 
+  // ─── Shared incident-detail callbacks ───
+  function dataUrlToFile(dataUrl, fileName = 'image.png') {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], fileName, { type: mime });
+  }
+
+  const refreshSelectedDetail = useCallback(() => {
+    setDetailRefreshKey((k) => k + 1);
+  }, []);
+
+  const withDetailRefresh = useCallback(
+    (fn) =>
+      async (...args) => {
+        try {
+          await fn(...args);
+          refreshSelectedDetail();
+          setRefreshKey((k) => k + 1);
+        } catch (err) {
+          setToast({ message: err.message || 'Action failed', type: 'error' });
+        }
+      },
+    [refreshSelectedDetail]
+  );
+
+  const handleCopyIncidentLink = useCallback(() => {
+    const url = `${window.location.origin}/incident/${selectedIncident?.id}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setToast({ message: 'Link copied to clipboard', type: 'success' });
+  }, [selectedIncident?.id]);
+
+  const handleUpdateIncident = useCallback(
+    withDetailRefresh(async (patch) => {
+      const body = {
+        ...(patch.title !== undefined && { title: patch.title }),
+        ...(patch.description !== undefined && { description: patch.description }),
+        ...(patch.locationContext !== undefined && { locationContext: patch.locationContext }),
+        ...(patch.severity !== undefined && { severity: patch.severity }),
+        ...(patch.verification !== undefined && { verificationOverride: patch.verification }),
+        ...(patch.heroImageUrl !== undefined && { heroImageUrl: patch.heroImageUrl }),
+      };
+      await api.updateIncident(selectedIncident.id, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleResolveIncidentDetail = useCallback(
+    withDetailRefresh(async () => {
+      await api.resolveIncident(selectedIncident.id, { resolvedAt: new Date().toISOString() });
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleDeleteIncidentDetail = useCallback(
+    withDetailRefresh(async () => {
+      await api.deleteIncident(selectedIncident.id);
+      handleClosePanel();
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleRestoreIncidentDetail = useCallback(
+    withDetailRefresh(async () => {
+      await api.restoreIncident(selectedIncident.id);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handlePurgeIncidentDetail = useCallback(
+    withDetailRefresh(async () => {
+      await api.purgeIncident(selectedIncident.id);
+      handleClosePanel();
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleAddUpdate = useCallback(
+    withDetailRefresh(async (form) => {
+      await api.addTimeline(selectedIncident.id, {
+        summary: form.summary,
+        details: form.details,
+        updateDate: form.timestamp || form.updateDate || new Date().toISOString(),
+        type: form.type || 'update',
+        verificationStatus: form.verification || 'verified',
+      });
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleEditUpdate = useCallback(
+    withDetailRefresh(async (updateId, form) => {
+      const body = {};
+      if (form.summary !== undefined) body.summary = form.summary;
+      if (form.details !== undefined) body.details = form.details;
+      if (form.timestamp !== undefined || form.updateDate !== undefined) {
+        body.updateDate = form.timestamp || form.updateDate;
+      }
+      if (form.type !== undefined) body.type = form.type;
+      if (form.verification !== undefined) body.verificationStatus = form.verification;
+      await api.updateTimeline(selectedIncident.id, updateId, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleDeleteUpdate = useCallback(
+    withDetailRefresh(async (updateId) => {
+      await api.deleteTimeline(selectedIncident.id, updateId);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleAddEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, item) => {
+      if (sourceType === 'media') {
+        const items = Array.isArray(item) ? item : [item];
+        for (const mediaItem of items) {
+          if (mediaItem.url?.startsWith('data:')) {
+            const file = dataUrlToFile(mediaItem.url, mediaItem.name || 'upload.png');
+            await api.uploadMedia(selectedIncident.id, file, { updateId: eventId, caption: mediaItem.caption });
+          } else if (mediaItem.url) {
+            console.warn('URL-based media evidence not yet supported', mediaItem);
+          }
+        }
+        return;
+      }
+
+      if (sourceType === 'x_post') {
+        await api.addSource(selectedIncident.id, {
+          updateId: eventId,
+          sourceType: 'x_post',
+          sourceUrl: item.tweetUrl,
+          description: item.text,
+        });
+        return;
+      }
+
+      if (sourceType === 'news_article') {
+        await api.addSource(selectedIncident.id, {
+          updateId: eventId,
+          sourceType: 'news_article',
+          sourceUrl: item.url,
+          description: [item.title, item.publisher].filter(Boolean).join(' — '),
+        });
+        return;
+      }
+
+      if (sourceType === 'admin_note') {
+        await api.addSource(selectedIncident.id, {
+          updateId: eventId,
+          sourceType: 'admin_note',
+          description: item.text,
+        });
+        return;
+      }
+
+      console.warn('Unsupported evidence type', sourceType, item);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleEditEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, item) => {
+      if (sourceType === 'media') {
+        const body = {};
+        if (item.caption !== undefined) body.caption = item.caption;
+        if (item.pinned !== undefined) body.pinned = item.pinned;
+        if (eventId !== undefined) body.updateId = eventId;
+        await api.updateMedia(selectedIncident.id, item.id, body);
+        return;
+      }
+
+      const body = {};
+      if (item.sourceUrl !== undefined || item.tweetUrl !== undefined || item.url !== undefined) {
+        body.sourceUrl = item.tweetUrl || item.url || item.sourceUrl;
+      }
+      if (item.text !== undefined || item.description !== undefined) {
+        body.description = item.text || item.description;
+      }
+      if (item.title !== undefined && item.publisher !== undefined) {
+        body.description = [item.title, item.publisher].filter(Boolean).join(' — ');
+      }
+      if (item.pinned !== undefined) body.pinned = item.pinned;
+      await api.updateSource(selectedIncident.id, item.id, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleDeleteEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, itemId) => {
+      if (sourceType === 'media') {
+        await api.deleteMedia(selectedIncident.id, itemId);
+      } else {
+        await api.deleteSource(selectedIncident.id, itemId);
+      }
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handlePinEvidence = useCallback(
+    withDetailRefresh(async (eventId, sourceType, itemId, pinned) => {
+      if (sourceType === 'media') {
+        await api.pinMedia(selectedIncident.id, itemId, pinned);
+      } else {
+        await api.pinSource(selectedIncident.id, itemId, pinned);
+      }
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleFeatureEvidence = useCallback(
+    withDetailRefresh(async (eventId, { sourceType, sourceId }) => {
+      const body = { sourceType };
+      if (sourceType === 'media') {
+        body.mediaId = sourceId;
+      } else {
+        body.sourceId = sourceId;
+      }
+      await api.setFeatured(selectedIncident.id, eventId, body);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleClearFeatureEvidence = useCallback(
+    withDetailRefresh(async (eventId) => {
+      await api.clearFeatured(selectedIncident.id, eventId);
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleArchiveSource = useCallback(
+    withDetailRefresh(async (eventId, sourceType, item, reason) => {
+      console.warn('Archive source not yet fully implemented', { eventId, sourceType, item, reason });
+      throw new Error('Archiving sources requires a screenshot. This will be implemented in Phase 8.');
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
   // Determine what to show in the right panel
   const renderPanel = () => {
     if (showZoneCreatePanel) {
@@ -1451,19 +1755,46 @@ export default function DashboardLayout() {
     }
 
     if (panelMode === 'detail' && selectedIncident) {
+      if (selectedIncidentDetailLoading) {
+        return (
+          <div style={{ padding: 24, color: 'var(--text-secondary)' }}>
+            Loading incident details…
+          </div>
+        );
+      }
+
+      if (!selectedIncidentDetail) {
+        return (
+          <div style={{ padding: 24, color: 'var(--danger)' }}>
+            Failed to load incident details.
+          </div>
+        );
+      }
+
       return (
-        <IncidentDetailPanel
-          incidentId={selectedIncident.id}
-          onEdit={handleEditFromDetail}
-          onEditZone={selectedIncident?.geometry_type === 'polygon' ? handleEditZone : null}
-          onEditZoneInfo={selectedIncident?.geometry_type === 'polygon' ? handleZoneInfoEdit : null}
-          onClose={handleClosePanel}
-          onResolve={(id) => {
-            setRefreshKey((k) => k + 1);
-            // Keep panel open but refresh data
-          }}
-          resolveTrigger={resolveTrigger}
-          refreshTrigger={refreshKey}
+        <IncidentDetailSidebar
+          mode="admin"
+          incident={selectedIncidentDetail.incident}
+          timeline={selectedIncidentDetail.timeline}
+          onNavigateToFullPage={() => navigate(`/incident/${selectedIncident.id}`)}
+          onCopyIncidentLink={handleCopyIncidentLink}
+          onUpdateIncident={handleUpdateIncident}
+          onResolveIncident={handleResolveIncidentDetail}
+          onDeleteIncident={handleDeleteIncidentDetail}
+          onRestoreIncident={handleRestoreIncidentDetail}
+          onPurgeIncident={handlePurgeIncidentDetail}
+          onAddUpdate={handleAddUpdate}
+          onEditUpdate={handleEditUpdate}
+          onDeleteUpdate={handleDeleteUpdate}
+          onAddEvidence={handleAddEvidence}
+          onEditEvidence={handleEditEvidence}
+          onDeleteEvidence={handleDeleteEvidence}
+          onPinEvidence={handlePinEvidence}
+          onFeatureEvidence={handleFeatureEvidence}
+          onClearFeatureEvidence={handleClearFeatureEvidence}
+          onArchiveSource={handleArchiveSource}
+          onOpenAudit={() => {}}
+          onViewCreator={() => {}}
         />
       );
     }
@@ -1502,8 +1833,7 @@ export default function DashboardLayout() {
           if (panelMode !== 'detail' && selectedIncident) {
             setPanelMode('detail');
           }
-          // Trigger the resolve modal in the detail panel
-          setResolveTrigger((t) => t + 1);
+          // The shared sidebar provides its own resolve confirmation.
         }}
       />
 

@@ -182,7 +182,7 @@ export default function EvidenceBundle({
                   onClick={() => onMediaClick?.(items, items.indexOf(item))}
                   onEdit={() => onEditEvidence?.(event.id, 'media', item)}
                   onDelete={() => onDeleteEvidence?.(event.id, 'media', item.id)}
-                  onPin={() => onPinEvidence?.(event.id, 'media', item.id)}
+                  onPin={() => onPinEvidence?.(event.id, 'media', item.id, !item.pinned)}
                   onFeature={() => onFeatureEvidence?.(event.id, { sourceType: 'media', sourceId: item.id })}
                   featured={isFeatured('media', item)}
                 />
@@ -197,7 +197,7 @@ export default function EvidenceBundle({
             mode={mode}
             onEditItem={(item) => onEditEvidence?.(event.id, 'x_post', item)}
             onDeleteItem={(itemId) => onDeleteEvidence?.(event.id, 'x_post', itemId)}
-            onPinItem={(itemId) => onPinEvidence?.(event.id, 'x_post', itemId)}
+            onPinItem={(item) => onPinEvidence?.(event.id, 'x_post', item.id, !item.pinned)}
             onFeatureItem={(itemId) => onFeatureEvidence?.(event.id, { sourceType: 'x_post', sourceId: itemId })}
             onArchiveSource={onArchiveSource ? (sourceId) => onArchiveSource?.(event.id, sourceId) : undefined}
             featuredId={featuredItem?.sourceType === 'x_post' ? featuredItem.sourceId || featuredItem.itemId : null}
@@ -211,7 +211,7 @@ export default function EvidenceBundle({
                   article={item}
                   onEdit={() => onEditEvidence?.(event.id, 'news_article', item)}
                   onDelete={() => onDeleteEvidence?.(event.id, 'news_article', item.id)}
-                  onPin={() => onPinEvidence?.(event.id, 'news_article', item.id)}
+                  onPin={() => onPinEvidence?.(event.id, 'news_article', item.id, !item.pinned)}
                   onFeature={() => onFeatureEvidence?.(event.id, { sourceType: 'news_article', sourceId: item.id })}
                   featured={isFeatured('news_article', item)}
                 />
@@ -229,7 +229,7 @@ export default function EvidenceBundle({
                   note={item}
                   onEdit={() => onEditEvidence?.(event.id, 'admin_note', item)}
                   onDelete={() => onDeleteEvidence?.(event.id, 'admin_note', item.id)}
-                  onPin={() => onPinEvidence?.(event.id, 'admin_note', item.id)}
+                  onPin={() => onPinEvidence?.(event.id, 'admin_note', item.id, !item.pinned)}
                   onFeature={() => onFeatureEvidence?.(event.id, { sourceType: 'admin_note', sourceId: item.id })}
                   featured={isFeatured('admin_note', item)}
                 />

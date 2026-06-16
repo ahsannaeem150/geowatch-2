@@ -291,7 +291,7 @@ export default function XPostCompactList({
                           className={post.pinned ? 'pin active' : 'pin'}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onPinItem?.(post.id);
+                            onPinItem?.(post, !post.pinned);
                           }}
                           title={post.pinned ? 'Unpin from top' : 'Pin to top'}
                         >

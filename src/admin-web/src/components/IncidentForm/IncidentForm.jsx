@@ -35,6 +35,7 @@ export default function IncidentForm({
       : ''
   );
   const [sources, setSources] = useState([{ sourceType: 'admin_note', sourceUrl: '', description: '', verificationStatus: 'unverified' }]);
+  const [heroImageFile, setHeroImageFile] = useState(null);
 
   // Set initial domain/category for edit mode once categories load
   useEffect(() => {
@@ -124,7 +125,7 @@ export default function IncidentForm({
           ...(s.description?.trim() ? { description: s.description.trim() } : {}),
         })),
     };
-    onSubmit(payload);
+    onSubmit(payload, { heroImageFile });
   };
 
   const inputBase = {
@@ -358,6 +359,24 @@ export default function IncidentForm({
           </div>
         </div>
       </div>
+
+      {/* Hero image */}
+      {!isEdit && (
+        <div style={sectionBox}>
+          <label style={labelBase}>Hero Image (optional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setHeroImageFile(e.target.files?.[0] || null)}
+            style={inputBase}
+          />
+          {heroImageFile && (
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+              Selected: {heroImageFile.name}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Sources */}
       {!isEdit && (

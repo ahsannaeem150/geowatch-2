@@ -15,6 +15,7 @@ import SidebarTrial2Admin from './components/DesignTrial/SidebarTrial2Admin.jsx'
 import SidebarTrial2SuperAdmin from './components/DesignTrial/SidebarTrial2SuperAdmin.jsx';
 
 import ZonesPage from './pages/ZonesPage.jsx';
+import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -53,6 +54,14 @@ function AppRoutes() {
       <Route path="/incident-trial/user" element={<SidebarTrial2Option1User />} />
       <Route path="/incident-trial/admin" element={<SidebarTrial2Option1Admin />} />
       <Route path="/incident-trial/superadmin" element={<SidebarTrial2Option1SuperAdmin />} />
+      <Route
+        path="/incident/:id"
+        element={
+          <ProtectedRoute>
+            <IncidentDetailPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/zones"
         element={
