@@ -8,7 +8,6 @@ import {
   formatDate,
   formatTime,
   countEvidence,
-  XPostCarousel,
   ArticleCard,
   AdminNoteCard,
   MediaGrid,
@@ -21,6 +20,7 @@ import {
   makeImg,
   makeTweet,
 } from './SidebarTrialShared.jsx';
+import { XPostCompactList, XEmbed, ArchivedPost, ArchiveLightbox } from './IncidentDetailTrialCommon.jsx';
 import './SidebarTrial2Option1.css';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -313,6 +313,7 @@ function AdminInlineButton({ icon, label, onClick, variant = 'default', title })
     default: { bg: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' },
     danger: { bg: 'rgba(239,68,68,0.12)', color: 'var(--danger-light)', border: '1px solid rgba(239,68,68,0.25)' },
     pin: { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' },
+    feature: { bg: 'rgba(245,158,11,0.14)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.35)' },
   };
   const v = variants[variant];
   return (
@@ -340,9 +341,18 @@ function AdminInlineButton({ icon, label, onClick, variant = 'default', title })
   );
 }
 
-function EvidenceToolbar({ item, onEdit, onDelete, onPin, kind = 'item' }) {
+function EvidenceToolbar({ item, onEdit, onDelete, onPin, onFeature, isFeatured, kind = 'item' }) {
   return (
     <div className="opt1-evidence-toolbar">
+      {onFeature && (
+        <AdminInlineButton
+          icon={Icons.star}
+          label={isFeatured ? 'Featured' : 'Feature'}
+          variant={isFeatured ? 'feature' : 'default'}
+          title={isFeatured ? 'Remove from featured' : 'Feature this item'}
+          onClick={onFeature}
+        />
+      )}
       <AdminInlineButton
         icon={Icons.pin}
         label={item.pinned ? 'Unpin' : 'Pin'}
@@ -358,7 +368,7 @@ function EvidenceToolbar({ item, onEdit, onDelete, onPin, kind = 'item' }) {
 
 
 /* ─── Editable evidence cards ─── */
-function EditableMediaThumb({ item, onClick, onEdit, onDelete, onPin }) {
+function EditableMediaThumb({ item, onClick, onEdit, onDelete, onPin, onFeature, isFeatured }) {
   return (
     <div className="opt1-media-wrap">
       <div
@@ -379,16 +389,28 @@ function EditableMediaThumb({ item, onClick, onEdit, onDelete, onPin }) {
             {Icons.pin} Pinned
           </span>
         )}
+        {isFeatured && (
+          <span className="opt1-featured-badge opt1-featured-badge--thumb">
+            {Icons.star} Featured
+          </span>
+        )}
         {item.caption && (
           <div className="opt1-media-caption">{item.caption}</div>
         )}
       </div>
-      <EvidenceToolbar item={item} onEdit={onEdit} onDelete={onDelete} onPin={onPin} />
+      <EvidenceToolbar
+        item={item}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onPin={onPin}
+        onFeature={onFeature}
+        isFeatured={isFeatured}
+      />
     </div>
   );
 }
 
-function EditableMediaGrid({ items, onItemClick, onEdit, onDelete, onPin }) {
+function EditableMediaGrid({ items, onItemClick, onEdit, onDelete, onPin, onFeature, featuredId }) {
   if (!items?.length) return null;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
@@ -400,17 +422,26 @@ function EditableMediaGrid({ items, onItemClick, onEdit, onDelete, onPin }) {
           onEdit={() => onEdit(item)}
           onDelete={() => onDelete(item.id)}
           onPin={() => onPin(item.id)}
+          onFeature={onFeature ? () => onFeature(item.id) : undefined}
+          isFeatured={featuredId === item.id}
         />
       ))}
     </div>
   );
 }
 
-function EditableArticleCard({ article, onEdit, onDelete, onPin }) {
+function EditableArticleCard({ article, onEdit, onDelete, onPin, onFeature, isFeatured }) {
   const openLink = () => window.open(article.url, '_blank', 'noopener,noreferrer');
   return (
     <div className="opt1-editable-card">
-      <EvidenceToolbar item={article} onEdit={onEdit} onDelete={onDelete} onPin={onPin} />
+      <EvidenceToolbar
+        item={article}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onPin={onPin}
+        onFeature={onFeature}
+        isFeatured={isFeatured}
+      />
       <div
         role="link"
         tabIndex={0}
@@ -434,6 +465,11 @@ function EditableArticleCard({ article, onEdit, onDelete, onPin }) {
                 {Icons.pin} Pinned
               </span>
             )}
+            {isFeatured && (
+              <span className="opt1-featured-badge opt1-featured-badge--inline">
+                {Icons.star} Featured
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{article.publisher}</div>
         </div>
@@ -443,7 +479,7 @@ function EditableArticleCard({ article, onEdit, onDelete, onPin }) {
   );
 }
 
-function EditableAdminNoteCard({ note, onEdit, onDelete, onPin }) {
+function EditableAdminNoteCard({ note, onEdit, onDelete, onPin, onFeature, isFeatured }) {
   const [expanded, setExpanded] = useState(false);
   const TRUNCATE_AT = 140;
   const isLong = note.text.length > TRUNCATE_AT;
@@ -451,10 +487,18 @@ function EditableAdminNoteCard({ note, onEdit, onDelete, onPin }) {
 
   return (
     <div className="opt1-editable-card opt1-note-card">
-      <EvidenceToolbar item={note} onEdit={onEdit} onDelete={onDelete} onPin={onPin} />
+      <EvidenceToolbar
+        item={note}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onPin={onPin}
+        onFeature={onFeature}
+        isFeatured={isFeatured}
+      />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#fbbf24', letterSpacing: '0.05em', marginBottom: 6 }}>
         {SOURCE_TYPE_ICONS.admin_note} Admin note · {note.author}
         {note.pinned && <span className="opt1-pinned-badge opt1-pinned-badge--inline">{Icons.pin} Pinned</span>}
+        {isFeatured && <span className="opt1-featured-badge opt1-featured-badge--inline">{Icons.star} Featured</span>}
       </div>
       <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{displayText}</div>
       {isLong && (
@@ -465,6 +509,73 @@ function EditableAdminNoteCard({ note, onEdit, onDelete, onPin }) {
         >
           {expanded ? 'Show less' : 'Read more'}
         </button>
+      )}
+    </div>
+  );
+}
+
+function findItemByFeature(sources, featured) {
+  if (!featured || !sources) return null;
+  const list = sources[featured.sourceType];
+  return list?.find((x) => x.id === featured.itemId) || null;
+}
+
+function RailFeaturedContent({ sourceType, item, onMediaClick, onArchivedOpen }) {
+  if (sourceType === 'media') {
+    return (
+      <button type="button" className="opt1-featured-media" onClick={() => onMediaClick?.([item], 0)}>
+        <img src={item.url} alt={item.caption} loading="lazy" />
+        {item.caption && <div className="opt1-featured-media__caption">{item.caption}</div>}
+      </button>
+    );
+  }
+  if (sourceType === 'x_post') {
+    if (item.archived) {
+      return (
+        <div key={item.id} className="opt1-featured-embed">
+          <ArchivedPost post={item} onOpen={() => onArchivedOpen?.(item)} />
+        </div>
+      );
+    }
+    return (
+      <div key={item.id} className="opt1-featured-embed">
+        <XEmbed post={item} />
+      </div>
+    );
+  }
+  if (sourceType === 'news_article') {
+    return <ArticleCard article={item} />;
+  }
+  if (sourceType === 'admin_note') {
+    return <AdminNoteCard note={item} />;
+  }
+  return null;
+}
+
+function RailFeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, isAdmin }) {
+  const [archivedLightbox, setArchivedLightbox] = useState(null);
+  const item = findItemByFeature(event.sources, featuredItem);
+  if (!item) return null;
+  return (
+    <div className="opt1-featured-block">
+      <div className="opt1-featured-block__header">
+        <span className="opt1-featured-block__label">{Icons.star} Featured</span>
+        {isAdmin && (
+          <button type="button" className="opt1-featured-block__remove" onClick={onClearFeature}>
+            Remove
+          </button>
+        )}
+      </div>
+      <div className="opt1-featured-block__body">
+        <RailFeaturedContent
+          sourceType={featuredItem.sourceType}
+          item={item}
+          onMediaClick={onMediaClick}
+          onArchivedOpen={setArchivedLightbox}
+        />
+      </div>
+      {archivedLightbox && (
+        <ArchiveLightbox post={archivedLightbox} onClose={() => setArchivedLightbox(null)} portal />
       )}
     </div>
   );
@@ -483,23 +594,26 @@ function EvidenceRail({
   onEditItem,
   onDeleteItem,
   onPinItem,
+  onFeatureItem,
+  onClearFeature,
+  featuredItem,
   extraTabs = [],
 }) {
   if (!event) return null;
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const [filter, setFilter] = useState('all');
-  const [postIdx, setPostIdx] = useState(0);
-
-  useEffect(() => {
-    setPostIdx(0);
-  }, [event?.id]);
   const sources = event.sources || {};
   const ver = VERIFICATION[event.verification] || VERIFICATION.unverified;
 
-  const media = useMemo(() => sortPinned(sources.media || []), [sources.media]);
-  const posts = useMemo(() => sortPinned(sources.x_post || []), [sources.x_post]);
-  const articles = useMemo(() => sortPinned(sources.news_article || []), [sources.news_article]);
-  const notes = useMemo(() => sortPinned(sources.admin_note || []), [sources.admin_note]);
+  const featuredMediaId = featuredItem?.sourceType === 'media' ? featuredItem.itemId : null;
+  const featuredPostId = featuredItem?.sourceType === 'x_post' ? featuredItem.itemId : null;
+  const featuredArticleId = featuredItem?.sourceType === 'news_article' ? featuredItem.itemId : null;
+  const featuredNoteId = featuredItem?.sourceType === 'admin_note' ? featuredItem.itemId : null;
+
+  const media = useMemo(() => sortPinned(sources.media || [], featuredMediaId), [sources.media, featuredMediaId]);
+  const posts = useMemo(() => sortPinned(sources.x_post || [], featuredPostId), [sources.x_post, featuredPostId]);
+  const articles = useMemo(() => sortPinned(sources.news_article || [], featuredArticleId), [sources.news_article, featuredArticleId]);
+  const notes = useMemo(() => sortPinned(sources.admin_note || [], featuredNoteId), [sources.admin_note, featuredNoteId]);
 
   const counts = {
     all: media.length + posts.length + articles.length + notes.length,
@@ -567,31 +681,27 @@ function EvidenceRail({
               onEdit={(item) => onEditItem(event.id, 'media', item)}
               onDelete={(id) => onDeleteItem(event.id, 'media', id)}
               onPin={(id) => onPinItem(event.id, 'media', id)}
+              onFeature={isAdmin ? (id) => onFeatureItem(event.id, 'media', id) : undefined}
+              featuredId={featuredMediaId}
             />
           ) : (
-            <MediaGrid items={media} onItemClick={onMediaClick} maxVisible={4} />
+            <MediaGrid items={media} onItemClick={onMediaClick} maxVisible={4} featuredId={featuredMediaId} />
           ),
       },
       x_post: {
         count: posts.length,
-        render: () => {
-          const activePost = posts[postIdx];
-          return (
-            <div>
-              {isAdmin && activePost && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                  <EvidenceToolbar
-                    item={activePost}
-                    onEdit={() => onEditItem(event.id, 'x_post', activePost)}
-                    onDelete={() => onDeleteItem(event.id, 'x_post', activePost.id)}
-                    onPin={() => onPinItem(event.id, 'x_post', activePost.id)}
-                  />
-                </div>
-              )}
-              <XPostCarousel posts={posts} value={postIdx} onChange={setPostIdx} />
-            </div>
-          );
-        },
+        render: () => (
+          <XPostCompactList
+            posts={posts}
+            mode={mode}
+            archivedLightboxPortal
+            onEditItem={(item) => onEditItem(event.id, 'x_post', item)}
+            onDeleteItem={(itemId) => onDeleteItem(event.id, 'x_post', itemId)}
+            onPinItem={(itemId) => onPinItem(event.id, 'x_post', itemId)}
+            onFeatureItem={isAdmin ? (itemId) => onFeatureItem(event.id, 'x_post', itemId) : undefined}
+            featuredId={featuredPostId}
+          />
+        ),
       },
       news_article: {
         count: articles.length,
@@ -605,11 +715,15 @@ function EvidenceRail({
                   onEdit={() => onEditItem(event.id, 'news_article', article)}
                   onDelete={() => onDeleteItem(event.id, 'news_article', article.id)}
                   onPin={() => onPinItem(event.id, 'news_article', article.id)}
+                  onFeature={isAdmin ? () => onFeatureItem(event.id, 'news_article', article.id) : undefined}
+                  isFeatured={featuredArticleId === article.id}
                 />
               ))}
             </div>
           ) : (
-            articles.map((article) => <ArticleCard key={article.id} article={article} />)
+            articles.map((article) => (
+              <ArticleCard key={article.id} article={article} isFeatured={featuredArticleId === article.id} />
+            ))
           ),
       },
       admin_note: {
@@ -624,11 +738,15 @@ function EvidenceRail({
                   onEdit={() => onEditItem(event.id, 'admin_note', note)}
                   onDelete={() => onDeleteItem(event.id, 'admin_note', note.id)}
                   onPin={() => onPinItem(event.id, 'admin_note', note.id)}
+                  onFeature={isAdmin ? () => onFeatureItem(event.id, 'admin_note', note.id) : undefined}
+                  isFeatured={featuredNoteId === note.id}
                 />
               ))}
             </div>
           ) : (
-            notes.map((note) => <AdminNoteCard key={note.id} note={note} />)
+            notes.map((note) => (
+              <AdminNoteCard key={note.id} note={note} isFeatured={featuredNoteId === note.id} />
+            ))
           ),
       },
     };
@@ -660,6 +778,16 @@ function EvidenceRail({
             {ver.label}
           </Badge>
         </div>
+
+        {filter === 'all' && featuredItem && (
+          <RailFeaturedSection
+            event={event}
+            featuredItem={featuredItem}
+            onMediaClick={onMediaClick}
+            onClearFeature={() => onClearFeature(event.id)}
+            isAdmin={isAdmin}
+          />
+        )}
 
         <div className="opt1-filter-tabs" role="tablist">
           {tabs.map((tab) => (
@@ -877,7 +1005,7 @@ function evidenceDefaults(type) {
     case 'media':
       return { id: uid(), type: 'image', url: '', caption: '', pinned: false };
     case 'x_post':
-      return makeTweet(uid(), 'X', '@x', 'Embedded post', '', uid(), false);
+      return makeTweet(uid(), 'X', '@x', 'Embedded post', '', uid(), { pinned: false, timestamp: new Date().toISOString() });
     case 'news_article':
       return { id: uid(), publisher: '', title: '', url: '', pinned: false };
     case 'admin_note':
@@ -1113,6 +1241,7 @@ export default function SidebarTrial2Option1Base({
   const [incident, setIncident] = useState({ ...INCIDENT, heroImage: DEFAULT_HERO_IMAGE });
   const [events, setEvents] = useState([...TIMELINE]);
   const [activeId, setActiveId] = useState(events[0]?.id);
+  const [featuredItems, setFeaturedItems] = useState({});
   const [lightbox, setLightbox] = useState({ open: false, items: [], index: 0 });
   const [progress, setProgress] = useState(0);
   const [lineProgress, setLineProgress] = useState(0);
@@ -1160,6 +1289,18 @@ export default function SidebarTrial2Option1Base({
     mutateSources(eventId, sourceType, (list) =>
       list.map((x) => (x.id === itemId ? { ...x, pinned: !x.pinned } : x))
     );
+  };
+
+  const setFeaturedItem = (eventId, sourceType, itemId) => {
+    setFeaturedItems((prev) => ({ ...prev, [eventId]: { sourceType, itemId } }));
+  };
+
+  const clearFeaturedItem = (eventId) => {
+    setFeaturedItems((prev) => {
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
   };
 
   /* ─── Event mutations ─── */
@@ -1274,8 +1415,14 @@ export default function SidebarTrial2Option1Base({
     setActiveId(event.id);
     const el = itemRefs.current[event.id];
     if (!el) return;
-    const targetOffset = window.innerHeight * 0.35;
-    window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - targetOffset, behavior: 'smooth' });
+    const itemTarget = window.scrollY + el.getBoundingClientRect().top - window.innerHeight * 0.35;
+    let targetScroll = itemTarget;
+    const railEl = document.querySelector('.opt1-rail');
+    if (railEl) {
+      const railTarget = Math.max(0, railEl.offsetTop - 80);
+      targetScroll = Math.max(itemTarget, railTarget);
+    }
+    window.scrollTo({ top: targetScroll, behavior: 'smooth' });
   };
 
   return (
@@ -1308,7 +1455,7 @@ export default function SidebarTrial2Option1Base({
       <div className="opt1-progress-bar" style={{ width: `${progress}%` }} />
 
       <main className="opt1-main">
-        <div style={{ maxWidth: rightSidebar ? 1580 : 1240, margin: '0 auto', padding: rightSidebar ? '0 16px 80px' : '0 24px 80px' }}>
+        <div style={{ maxWidth: rightSidebar ? 1580 : 1400, margin: '0 auto', padding: rightSidebar ? '0 16px 80px' : '0 24px 80px' }}>
           <Hero incident={incident} heroImage={{ url: incident.heroImage || DEFAULT_HERO_IMAGE }} mode={mode} />
 
           <div className="opt1-section-title">Story timeline</div>
@@ -1414,6 +1561,9 @@ export default function SidebarTrial2Option1Base({
               onEditItem={(eventId, sourceType, item) => setModal({ type: 'item', eventId, sourceType, item })}
               onDeleteItem={deleteEvidence}
               onPinItem={togglePin}
+              onFeatureItem={setFeaturedItem}
+              onClearFeature={clearFeaturedItem}
+              featuredItem={featuredItems[activeEvent.id]}
               extraTabs={railExtraTabs}
             />
             {rightSidebar && (

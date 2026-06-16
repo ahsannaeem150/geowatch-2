@@ -16,15 +16,23 @@ import {
   formatTime,
   relativeTime,
   countSources,
+  sourceCounts,
+  SourceCountChips,
   SEVERITY_LABELS,
   VERIFICATION,
   SOURCE_TYPE_LABELS,
+  SOURCE_TYPE_ICONS,
   StatusHistory,
   DebugMetadata,
   CopyButton,
   parseCoordinates,
   MetaRow,
   StatTile,
+  XEmbed,
+  XPostCard,
+  ArticleCard,
+  AdminNoteCard,
+  MediaThumb,
 } from './IncidentDetailTrialCommon.jsx';
 import { AuditLogPanel, UserProfileDrawer, Drawer } from './SidebarTrial2Option1SuperAdminAudit.jsx';
 
@@ -586,8 +594,35 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
   const [modal, setModal] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [toast, setToast] = useState(null);
+  const [featuredItems, setFeaturedItems] = useState({});
 
   const notify = useCallback((message) => setToast({ message }), []);
+
+  const setFeaturedItem = useCallback((eventId, sourceType, itemId) => {
+    setFeaturedItems((prev) => {
+      const current = prev[eventId];
+      if (current && current.sourceType === sourceType && current.itemId === itemId) {
+        const next = { ...prev };
+        delete next[eventId];
+        return next;
+      }
+      return { ...prev, [eventId]: { sourceType, itemId } };
+    });
+  }, []);
+
+  const clearFeaturedItem = useCallback((eventId) => {
+    setFeaturedItems((prev) => {
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
+  }, []);
+
+  const findFeaturedItem = useCallback((event, featured) => {
+    if (!featured || !event?.sources) return null;
+    const list = event.sources[featured.sourceType];
+    return list?.find((x) => x.id === featured.itemId) || null;
+  }, []);
 
   const nowIso = () => new Date().toISOString();
   const currentUser = { id: 'u1', name: 'System Administrator' };
@@ -915,14 +950,15 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
             {isSuper && <DebugMetadata incident={incident} />}
           </SummaryCard>
 
-          <div className="id-section-title">
-            Initial Report
-            <span>{formatTime(initialReport.timestamp)}</span>
-          </div>
+          <div className="id-section-title">Initial Report</div>
 
           <TimelineItem event={initialReport} index={0} total={events.length}>
             <InitialReportCard
               event={initialReport}
+              isAdmin={isAdmin}
+              featuredItem={featuredItems[initialReport.id]}
+              onSetFeature={openDrawer}
+              onClearFeature={() => clearFeaturedItem(initialReport.id)}
               onOpenDrawer={openDrawer}
               onOpenLightbox={openLightbox}
             />
@@ -933,6 +969,10 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
             <TimelineItem key={event.id} event={event} index={idx + 1} total={events.length}>
               <UpdateCard
                 event={event}
+                isAdmin={isAdmin}
+                featuredItem={featuredItems[event.id]}
+                onSetFeature={openDrawer}
+                onClearFeature={() => clearFeaturedItem(event.id)}
                 onOpenDrawer={openDrawer}
                 onOpenLightbox={openLightbox}
               />
@@ -1029,6 +1069,8 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
                 onEditItem={(eventId, sourceType, item) => setModal({ type: 'item', eventId, sourceType, item })}
                 onDeleteItem={deleteEvidence}
                 onPinItem={togglePin}
+                featuredItem={featuredItems[drawerEvent.id]}
+                onFeatureItem={setFeaturedItem}
               />
             </div>
           </div>
@@ -1123,18 +1165,176 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
   );
 }
 
-function InitialReportCard({ event, onOpenDrawer, onOpenLightbox }) {
+function findItemByFeature(sources, featured) {
+  if (!featured || !sources) return null;
+  const list = sources[featured.sourceType];
+  return list?.find((x) => x.id === featured.itemId) || null;
+}
+
+function FeaturedItemContent({ sourceType, item, onMediaClick }) {
+  if (sourceType === 'media') {
+    return (
+      <button type="button" className="id-featured-media" onClick={() => onMediaClick?.([item], 0)}>
+        <img src={item.url} alt={item.caption} loading="lazy" />
+        {item.caption && <div className="id-featured-media__caption">{item.caption}</div>}
+      </button>
+    );
+  }
+  if (sourceType === 'x_post') {
+    return (
+      <div className="id-featured-embed">
+        <XEmbed post={item} />
+      </div>
+    );
+  }
+  if (sourceType === 'news_article') {
+    return <ArticleCard article={item} />;
+  }
+  if (sourceType === 'admin_note') {
+    return <AdminNoteCard note={item} />;
+  }
+  return null;
+}
+
+function FeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, isAdmin, onOpenDrawer }) {
+  const item = findItemByFeature(event.sources, featuredItem);
+  if (!item) return null;
+  return (
+    <>
+      <div className="id-featured-block">
+        <div className="id-featured-block__header">
+          <span className="id-featured-block__label">{Icons.star} Featured</span>
+          {isAdmin && (
+            <div className="id-featured-block__actions">
+              <button type="button" className="id-featured-block__change" onClick={(e) => { e.stopPropagation(); onOpenDrawer(event, 'all'); }}>
+                Change
+              </button>
+              <button type="button" className="id-featured-block__remove" onClick={(e) => { e.stopPropagation(); onClearFeature(); }}>
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="id-featured-block__body">
+          <FeaturedItemContent sourceType={featuredItem.sourceType} item={item} onMediaClick={onMediaClick} />
+        </div>
+      </div>
+      <div className="id-featured-meta">
+        <SourceCountChips sources={event.sources} />
+        <button
+          type="button"
+          className="id-btn-ghost"
+          onClick={(e) => { e.stopPropagation(); onOpenDrawer(event, 'all'); }}
+        >
+          Inspect {Icons.chevronRight}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function FeatureTrigger({ event, onSetFeature }) {
+  if (countSources(event.sources) === 0) return null;
+  return (
+    <button
+      type="button"
+      className="id-feature-trigger"
+      onClick={(e) => {
+        e.stopPropagation();
+        onSetFeature(event, 'all');
+      }}
+    >
+      {Icons.star} Set featured item
+    </button>
+  );
+}
+
+function TwitterMediaGrid({ sources, onMediaClick, onOpenDrawer }) {
+  const counts = sourceCounts(sources);
+  const allMedia = sources?.media || [];
+  const totalMedia = allMedia.length;
+
+  if (totalMedia === 0) {
+    return (
+      <div className="id-evidence-count-row">
+        <SourceCountChips counts={counts} />
+        <button
+          type="button"
+          className="id-btn-ghost"
+          style={{ marginLeft: 'auto' }}
+          onClick={(e) => { e.stopPropagation(); onOpenDrawer?.(); }}
+        >
+          Inspect {Icons.chevronRight}
+        </button>
+      </div>
+    );
+  }
+
+  // Pinned media first, then preserve upload order.
+  const sortedMedia = [...allMedia].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+  const display = sortedMedia.slice(0, 4);
+  const hasMore = totalMedia > 4;
+  const gridClass = `id-twitter-grid id-twitter-grid--${display.length === 4 && hasMore ? 'more' : display.length}`;
+
+  return (
+    <div className="id-update-card__media">
+      <div className={gridClass}>
+        {display.map((item, idx) => (
+          <button
+            key={item.id}
+            type="button"
+            className="id-twitter-grid__cell"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMediaClick?.(sortedMedia, idx);
+            }}
+          >
+            <img src={item.url} alt={item.caption} loading="lazy" />
+            {idx === 3 && hasMore && (
+              <span className="id-twitter-grid__overlay">+{totalMedia - 4}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div className="id-evidence-count-row">
+        <SourceCountChips counts={counts} />
+        <button
+          type="button"
+          className="id-btn-ghost"
+          style={{ marginLeft: 'auto' }}
+          onClick={(e) => { e.stopPropagation(); onOpenDrawer?.(); }}
+        >
+          Inspect {Icons.chevronRight}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InitialReportCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
   return (
     <div className="id-latest" onClick={() => onOpenDrawer(event, 'all')}>
       <UpdateHeader event={event} />
       <h3 className="id-update-card__title">{event.summary}</h3>
       <p className="id-update-card__text">{event.details}</p>
-      <EvidencePreview sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
+      {isAdmin && !featuredItem && <FeatureTrigger event={event} onSetFeature={onSetFeature} />}
+      {featuredItem ? (
+        <FeaturedSection
+          event={event}
+          featuredItem={featuredItem}
+          onMediaClick={onOpenLightbox}
+          onClearFeature={onClearFeature}
+          isAdmin={isAdmin}
+          onOpenDrawer={onOpenDrawer}
+        />
+      ) : (
+        <TwitterMediaGrid sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
+      )}
     </div>
   );
 }
 
-function UpdateCard({ event, onOpenDrawer, onOpenLightbox }) {
+function UpdateCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
   return (
     <div className="id-update-card" onClick={() => onOpenDrawer(event, 'all')}>
       <div className="id-update-card__body">
@@ -1143,7 +1343,19 @@ function UpdateCard({ event, onOpenDrawer, onOpenLightbox }) {
         <p className="id-update-card__text">
           {event.details.length > 130 ? event.details.slice(0, 130) + '…' : event.details}
         </p>
-        <EvidencePreview sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
+        {isAdmin && !featuredItem && <FeatureTrigger event={event} onSetFeature={onSetFeature} />}
+        {featuredItem ? (
+          <FeaturedSection
+            event={event}
+            featuredItem={featuredItem}
+            onMediaClick={onOpenLightbox}
+            onClearFeature={onClearFeature}
+            isAdmin={isAdmin}
+            onOpenDrawer={onOpenDrawer}
+          />
+        ) : (
+          <TwitterMediaGrid sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import './XPostCompactList.css';
 import {
   INCIDENT,
   TIMELINE,
@@ -937,7 +939,7 @@ export function XEmbed({ post }) {
 }
 
 /* ─── Archived post screenshot ─── */
-function ArchivedPost({ post, onOpen }) {
+export function ArchivedPost({ post, onOpen }) {
   if (!post.archiveUrl) return null;
   return (
     <div className="id-x-archive">
@@ -960,17 +962,21 @@ function ArchivedPost({ post, onOpen }) {
 }
 
 /* ─── Archived screenshot lightbox ─── */
-function ArchiveLightbox({ post, onClose }) {
+export function ArchiveLightbox({ post, onClose, portal = false }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    if (portal) document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      if (portal) document.body.style.overflow = '';
+    };
+  }, [onClose, portal]);
 
   if (!post) return null;
-  return (
+  const content = (
     <div className="id-x-lightbox" onClick={onClose}>
       <button
         type="button"
@@ -988,10 +994,11 @@ function ArchiveLightbox({ post, onClose }) {
       </div>
     </div>
   );
+  return portal && typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }
 
 /* ─── Compact X-post list (final Option 2) ─── */
-export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditItem, onDeleteItem, onPinItem, onFeatureItem, featuredId }) {
+export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditItem, onDeleteItem, onPinItem, onFeatureItem, featuredId, archivedLightboxPortal = false }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const sortedPosts = useMemo(() => sortPinned(posts, featuredId), [posts, featuredId]);
   const [openIds, setOpenIds] = useState(new Set());
@@ -1117,14 +1124,15 @@ export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditIte
                         {onFeatureItem && (
                           <button
                             type="button"
-                            className={featuredId === post.id ? 'feature active' : 'feature'}
+                            className={`id-x-compact__feature-btn ${featuredId === post.id ? 'active' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               onFeatureItem?.(post.id);
                             }}
-                            title={featuredId === post.id ? 'Remove from update card' : 'Feature in update card'}
+                            title={featuredId === post.id ? 'Remove from featured' : 'Feature this post'}
                           >
                             {Icons.star}
+                            <span>{featuredId === post.id ? 'Featured' : 'Feature'}</span>
                           </button>
                         )}
                         <button
@@ -1167,7 +1175,7 @@ export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditIte
               </button>
 
               {renderedIds.has(post.id) && !post.archived && (
-                <div className="id-x-compact__embed" style={{ display: isOpen ? 'block' : 'none' }}>
+                <div className="id-x-compact__embed">
                   <XEmbed post={post} />
                   {isOpen && (
                     <div className="id-x-compact__actions">
@@ -1236,7 +1244,7 @@ export function XPostCompactList({ posts, pageSize = 5, mode = 'user', onEditIte
         )
       )}
 
-      {lightbox && <ArchiveLightbox post={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox && <ArchiveLightbox post={lightbox} onClose={() => setLightbox(null)} portal={archivedLightboxPortal} />}
     </div>
   );
 }

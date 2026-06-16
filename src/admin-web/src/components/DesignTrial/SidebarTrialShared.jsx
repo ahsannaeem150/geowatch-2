@@ -92,7 +92,7 @@ const MEDIA = {
   ],
 };
 
-export const makeTweet = (id, author, handle, text, tweetUrl, avatarSeed, pinned = false) => ({
+export const makeTweet = (id, author, handle, text, tweetUrl, avatarSeed, opts = {}) => ({
   id,
   type: 'x_post',
   author,
@@ -100,7 +100,12 @@ export const makeTweet = (id, author, handle, text, tweetUrl, avatarSeed, pinned
   text,
   tweetUrl,
   authorAvatar: `https://picsum.photos/seed/${avatarSeed}/120/120`,
-  pinned,
+  pinned: opts.pinned ?? false,
+  timestamp: opts.timestamp ?? null,
+  archived: opts.archived ?? false,
+  archiveUrl: opts.archiveUrl ?? '',
+  archivedAt: opts.archivedAt ?? '',
+  archiveReason: opts.archiveReason ?? '',
 });
 
 /* ─── Dummy incident ─── */
@@ -133,8 +138,8 @@ export const TIMELINE = [
     sources: {
       media: MEDIA.crash,
       x_post: [
-        makeTweet('xp1', 'Aviation Spotter', '@aviationspotter', 'AN-32 crash reported at Jorhat. Rescue teams moving in.', 'https://x.com/Twitter/status/20', 'avspot'),
-        makeTweet('xp2', 'Jorhat News', '@jorhat_news', 'Loud explosion heard near air force station. Emergency sirens active.', 'https://x.com/Twitter/status/20', 'jorhat'),
+        makeTweet('xp1', 'Aviation Spotter', '@aviationspotter', 'AN-32 crash reported at Jorhat. Rescue teams moving in.', 'https://x.com/aviationspotter/status/2000000000000000001', 'avspot', { timestamp: '2026-06-13T17:05:00Z' }),
+        makeTweet('xp2', 'Jorhat News', '@jorhat_news', 'Loud explosion heard near air force station. Emergency sirens active.', 'https://x.com/jorhat_news/status/2000000000000000002', 'jorhat', { timestamp: '2026-06-13T17:08:00Z', archived: true, archiveUrl: '/archive/p1.png', archivedAt: '2026-06-14T00:00:00Z', archiveReason: 'Post deleted by author' }),
       ],
       news_article: [
         { id: 'na1', publisher: 'The Hindu', title: 'IAF aircraft crashes in Assam, rescue operations on', url: 'https://www.thehindu.com' },
@@ -154,7 +159,7 @@ export const TIMELINE = [
     sources: {
       media: MEDIA.rescue,
       x_post: [
-        makeTweet('xp6', 'Rescue Watch', '@rescue_watch', 'NDRF and IAF rescue personnel now on site. Weather slowing extraction.', 'https://x.com/Twitter/status/20', 'rescue'),
+        makeTweet('xp6', 'Rescue Watch', '@rescue_watch', 'NDRF and IAF rescue personnel now on site. Weather slowing extraction.', 'https://x.com/rescue_watch/status/2000000000000000006', 'rescue', { timestamp: '2026-06-13T19:35:00Z' }),
       ],
       news_article: [],
       admin_note: [
@@ -172,9 +177,9 @@ export const TIMELINE = [
     sources: {
       media: MEDIA.casualties,
       x_post: [
-        makeTweet('xp3', 'Indian Air Force', '@airforce_in', 'With deep regret, IAF confirms 5 personnel have lost their lives in the AN-32 crash at Jorhat. Rescue ops continue.', 'https://x.com/Twitter/status/20', 'iaf'),
-        makeTweet('xp4', 'Defence Pro', '@defencepro', 'Five bodies recovered from AN-32 wreckage. Identification process underway.', 'https://x.com/Twitter/status/20', 'defpro'),
-        makeTweet('xp5', 'Rahul Reporter', '@rahul_reporter', 'Families of the crew have been informed. Station medical officer issued formal confirmation.', 'https://x.com/Twitter/status/20', 'rahul'),
+        makeTweet('xp3', 'Indian Air Force', '@airforce_in', 'With deep regret, IAF confirms 5 personnel have lost their lives in the AN-32 crash at Jorhat. Rescue ops continue.', 'https://x.com/airforce_in/status/2000000000000000003', 'iaf', { timestamp: '2026-06-13T21:05:00Z' }),
+        makeTweet('xp4', 'Defence Pro', '@defencepro', 'Five bodies recovered from AN-32 wreckage. Identification process underway.', 'https://x.com/defencepro/status/2000000000000000004', 'defpro', { timestamp: '2026-06-13T21:40:00Z', archived: true, archiveUrl: '/archive/p2.png', archivedAt: '2026-06-14T00:00:00Z', archiveReason: 'Post deleted by author' }),
+        makeTweet('xp5', 'Rahul Reporter', '@rahul_reporter', 'Families of the crew have been informed. Station medical officer issued formal confirmation.', 'https://x.com/rahul_reporter/status/2000000000000000005', 'rahul', { timestamp: '2026-06-13T22:10:00Z' }),
       ],
       news_article: [
         { id: 'na2', publisher: 'The Hindu', title: 'IAF confirms five deaths in Assam AN-32 crash', url: 'https://www.thehindu.com' },
@@ -195,7 +200,7 @@ export const TIMELINE = [
     sources: {
       media: MEDIA.officials,
       x_post: [
-        makeTweet('xp7', 'EAC IAF', '@eac_iaf', 'AOC-in-C EAC reached Jorhat to oversee operations and meet the bereaved families.', 'https://x.com/Twitter/status/20', 'eac'),
+        makeTweet('xp7', 'EAC IAF', '@eac_iaf', 'AOC-in-C EAC reached Jorhat to oversee operations and meet the bereaved families.', 'https://x.com/eac_iaf/status/2000000000000000007', 'eac', { timestamp: '2026-06-13T23:20:00Z' }),
       ],
       news_article: [
         { id: 'na4', publisher: 'India Today', title: 'IAF chief visits Jorhat crash site, orders probe', url: 'https://www.indiatoday.in' },
@@ -231,8 +236,8 @@ export const TIMELINE = [
     sources: {
       media: MEDIA.statement,
       x_post: [
-        makeTweet('xp8', 'IAF_MCC', '@IAF_MCC', 'IAF statement on the AN-32 crash at Air Force Station Jorhat.', 'https://x.com/IAF_MCC/status/2065719865890205976', 'iafmcc', true),
-        makeTweet('xp9', 'jack', '@jack', 'just setting up my twttr', 'https://x.com/jack/status/20', 'jack'),
+        makeTweet('xp8', 'IAF_MCC', '@IAF_MCC', 'IAF statement on the AN-32 crash at Air Force Station Jorhat.', 'https://x.com/IAF_MCC/status/2065719865890205976', 'iafmcc', { pinned: true, timestamp: '2026-06-14T06:20:00Z' }),
+        makeTweet('xp9', 'jack', '@jack', 'just setting up my twttr', 'https://x.com/jack/status/20', 'jack', { timestamp: '2026-06-14T06:25:00Z' }),
       ],
       news_article: [
         { id: 'na6', publisher: 'The Indian Express', title: 'IAF shares full statement, photos of Assam AN-32 crash', url: 'https://indianexpress.com' },
@@ -262,6 +267,7 @@ export const Icons = {
   mapPin: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>,
   hash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /><line x1="10" y1="3" x2="8" y2="21" /><line x1="16" y1="3" x2="14" y2="21" /></svg>,
   pin: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C8.5 2 6 5 6 8c0 3.5 3 4.5 3 9h6c0-4.5 3-5.5 3-9 0-3-2.5-6-6-6z" /><path d="M9 21h6" /></svg>,
+  star: <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
 };
 
 /* ─── UI primitives ─── */
@@ -353,110 +359,7 @@ export function XEmbed({ tweetUrl, fallback }) {
   );
 }
 
-export function XPostCard({ post, embed = false }) {
-  if (embed) return <XEmbed tweetUrl={post.tweetUrl} fallback={post.text} />;
-  return (
-    <div style={{ padding: 14, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 14, marginBottom: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <img src={post.authorAvatar} alt={post.author} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{post.author}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{post.handle} · X</div>
-        </div>
-      </div>
-      <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{post.text}</div>
-      {post.tweetUrl && (
-        <a href={post.tweetUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, color: 'var(--accent-light)', textDecoration: 'none' }}>
-          {Icons.link} View post
-        </a>
-      )}
-    </div>
-  );
-}
-
-export function XPostCarousel({ posts, value, onChange }) {
-  const [internalIdx, setInternalIdx] = React.useState(0);
-  const isControlled = value !== undefined;
-  const idx = isControlled ? value : internalIdx;
-  const setIdx = (next) => {
-    const resolved = typeof next === 'function' ? next(idx) : next;
-    if (isControlled) {
-      onChange?.(resolved);
-    } else {
-      setInternalIdx(resolved);
-    }
-  };
-
-  if (!posts?.length) return null;
-
-  const activePost = posts[idx];
-
-  const navBtn = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: '6px 12px',
-    borderRadius: 10,
-    background: 'var(--bg-hover)',
-    border: '1px solid var(--border-subtle)',
-    color: 'var(--text-secondary)',
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: '0.15s',
-  };
-
-  return (
-    <div style={{ position: 'relative' }}>
-      {activePost.pinned && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-            {Icons.pin} Pinned post
-          </span>
-        </div>
-      )}
-      <div style={{ overflow: 'hidden', borderRadius: 14 }}>
-        <div
-          key={activePost.id}
-          className="opt1-carousel-slide"
-        >
-          <XPostCard post={activePost} embed />
-        </div>
-      </div>
-
-      {posts.length > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => setIdx((i) => Math.max(0, i - 1))}
-            disabled={idx === 0}
-            style={navBtn}
-            onMouseEnter={(e) => { if (idx !== 0) { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--accent)'; } }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-          >
-            {Icons.chevronLeft} Prev
-          </button>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', minWidth: 40, textAlign: 'center' }}>
-            {idx + 1} / {posts.length}
-          </span>
-          <button
-            type="button"
-            onClick={() => setIdx((i) => Math.min(posts.length - 1, i + 1))}
-            disabled={idx === posts.length - 1}
-            style={navBtn}
-            onMouseEnter={(e) => { if (idx !== posts.length - 1) { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--accent)'; } }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-          >
-            Next {Icons.chevronRight}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function ArticleCard({ article }) {
+export function ArticleCard({ article, isFeatured = false }) {
   const openLink = () => window.open(article.url, '_blank', 'noopener,noreferrer');
 
   return (
@@ -478,6 +381,11 @@ export function ArticleCard({ article }) {
               {Icons.pin} Pinned
             </span>
           )}
+          {isFeatured && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 999, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>
+              {Icons.star} Featured
+            </span>
+          )}
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{article.publisher}</div>
       </div>
@@ -486,7 +394,7 @@ export function ArticleCard({ article }) {
   );
 }
 
-export function AdminNoteCard({ note }) {
+export function AdminNoteCard({ note, isFeatured = false }) {
   const [expanded, setExpanded] = useState(false);
   const TRUNCATE_AT = 140;
   const isLong = note.text.length > TRUNCATE_AT;
@@ -499,6 +407,11 @@ export function AdminNoteCard({ note }) {
         {note.pinned && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 4, padding: '2px 6px', borderRadius: 999, background: 'rgba(245,158,11,0.2)', color: '#fbbf24', fontSize: 9 }}>
             {Icons.pin} Pinned
+          </span>
+        )}
+        {isFeatured && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 4, padding: '2px 6px', borderRadius: 999, background: 'rgba(245,158,11,0.2)', color: '#fbbf24', fontSize: 9 }}>
+            {Icons.star} Featured
           </span>
         )}
       </div>
@@ -517,7 +430,7 @@ export function AdminNoteCard({ note }) {
 }
 
 /* ─── Media components ─── */
-export function MediaThumb({ item, onClick, overlay }) {
+export function MediaThumb({ item, onClick, overlay, featured = false }) {
   return (
     <div
       role="button"
@@ -536,6 +449,14 @@ export function MediaThumb({ item, onClick, overlay }) {
         </div>
       )}
 
+      {featured && (
+        <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px', borderRadius: 999, background: 'rgba(245,158,11,0.9)', color: '#fff', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            {Icons.star} Featured
+          </span>
+        </div>
+      )}
+
       {overlay && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 20, fontWeight: 800 }}>
           {overlay}
@@ -550,7 +471,7 @@ export function MediaThumb({ item, onClick, overlay }) {
   );
 }
 
-export function MediaGrid({ items, onItemClick, maxVisible = 4 }) {
+export function MediaGrid({ items, onItemClick, maxVisible = 4, featuredId = null }) {
   if (!items?.length) return null;
   const visible = items.slice(0, maxVisible);
   const remaining = items.length - maxVisible;
@@ -561,6 +482,7 @@ export function MediaGrid({ items, onItemClick, maxVisible = 4 }) {
           key={item.id}
           item={item}
           onClick={onItemClick}
+          featured={featuredId === item.id}
           overlay={idx === maxVisible - 1 && remaining > 0 ? `+${remaining}` : undefined}
         />
       ))}

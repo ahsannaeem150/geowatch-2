@@ -13,7 +13,7 @@ import SidebarTrial2Option1Admin from './components/DesignTrial/SidebarTrial2Opt
 import SidebarTrial2Option1SuperAdmin from './components/DesignTrial/SidebarTrial2Option1SuperAdmin.jsx';
 import SidebarTrial2Admin from './components/DesignTrial/SidebarTrial2Admin.jsx';
 import SidebarTrial2SuperAdmin from './components/DesignTrial/SidebarTrial2SuperAdmin.jsx';
-import SidebarTrial2AdminTest from './components/DesignTrial/SidebarTrial2AdminTest.jsx';
+
 import ZonesPage from './pages/ZonesPage.jsx';
 
 function ProtectedRoute({ children }) {
@@ -48,7 +48,7 @@ function AppRoutes() {
       <Route path="/sidebarTrial2/xGallery" element={<IncidentDetailOptionFXGallery />} />
       <Route path="/sidebarTrial2/admin" element={<SidebarTrial2Admin />} />
       <Route path="/sidebarTrial2/superadmin" element={<SidebarTrial2SuperAdmin />} />
-      <Route path="/sidebarTrial2/adminTest" element={<SidebarTrial2AdminTest />} />
+
       <Route path="/xPostOptions" element={<XPostOptionsPage />} />
       <Route path="/incident-trial/user" element={<SidebarTrial2Option1User />} />
       <Route path="/incident-trial/admin" element={<SidebarTrial2Option1Admin />} />
