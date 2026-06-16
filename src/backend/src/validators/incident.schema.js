@@ -39,6 +39,7 @@ export const createIncidentSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
   locationContext: z.string().max(255).optional(),
   verificationOverride: z.enum(['unverified', 'verified', 'confirmed', 'contested']).optional().nullable(),
+  heroImageUrl: z.string().url().optional().nullable(),
   sources: z.array(
     z.object({
       sourceType: z.enum(['x_post', 'news_article', 'image', 'video', 'admin_note']),
@@ -99,6 +100,7 @@ export const updateIncidentSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
   locationContext: z.string().max(255).optional(),
   verificationOverride: z.enum(['unverified', 'verified', 'confirmed', 'contested']).optional().nullable(),
+  heroImageUrl: z.string().url().optional().nullable(),
 }).refine(
   (data) => {
     if (data.geometryType === 'polygon' && data.geometry?.type !== 'Polygon') {

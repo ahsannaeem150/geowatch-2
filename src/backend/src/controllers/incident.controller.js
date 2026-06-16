@@ -85,12 +85,27 @@ export async function createIncidentController(req, res) {
   const { sources, ...incidentData } = req.body;
   const incident = await createIncident(incidentData, req.user.id);
 
+  // Create the initial report update automatically.
+  // All initial sources and media are attached to this update.
+  const initialUpdate = await createTimelineUpdate(
+    incident.id,
+    {
+      summary: incident.title,
+      updateDate: incident.start_date,
+      sourceUrl: null,
+      type: 'report',
+      verificationStatus: 'verified',
+    },
+    req.user.id
+  );
+
   // Create sources if provided
   if (Array.isArray(sources) && sources.length > 0) {
     for (const src of sources) {
       const source = await createEventSource(
         incident.id,
         {
+          updateId: initialUpdate.id,
           sourceType: src.sourceType,
           sourceUrl: src.sourceUrl,
           description: src.description,
@@ -154,6 +169,7 @@ function computeChangedFields(original, body) {
     endDate: 'end_date',
     locationContext: 'location_context',
     verificationOverride: 'verification_override',
+    heroImageUrl: 'hero_image_url',
     latitude: 'latitude',
     longitude: 'longitude',
     geometryType: 'geometry_type',

@@ -2,13 +2,20 @@ import {
   createTimelineUpdate,
   updateTimelineEntry,
   deleteTimelineEntry,
+  setFeaturedItem,
+  clearFeaturedItem,
 } from '../services/timeline.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
 export async function createTimelineController(req, res) {
-  const update = await createTimelineUpdate(req.params.id, req.body, req.user.id);
+  const { summary, updateDate, sourceUrl, type, verificationStatus } = req.body;
+  const update = await createTimelineUpdate(
+    req.params.id,
+    { summary, updateDate, sourceUrl, type, verificationStatus },
+    req.user.id
+  );
   broadcastEvent({ type: 'timeline_added', incidentId: req.params.id, update });
 
   await auditLog(req, AUDIT_ACTIONS.TIMELINE_ADDED, 'timeline', update.id, {
@@ -21,12 +28,19 @@ export async function createTimelineController(req, res) {
 }
 
 export async function updateTimelineController(req, res) {
-  const { summary, updateDate, sourceUrl } = req.body;
-  if (summary === undefined && updateDate === undefined && sourceUrl === undefined) {
-    return res.apiError('At least one field (summary, updateDate, or sourceUrl) is required', 'VALIDATION_ERROR', 400);
+  const { summary, updateDate, sourceUrl, type, verificationStatus } = req.body;
+  const hasField = [summary, updateDate, sourceUrl, type, verificationStatus].some((v) => v !== undefined);
+  if (!hasField) {
+    return res.apiError('At least one field is required', 'VALIDATION_ERROR', 400);
   }
 
-  const update = await updateTimelineEntry(req.params.updateId, { summary, updateDate, sourceUrl });
+  const update = await updateTimelineEntry(req.params.updateId, {
+    summary,
+    updateDate,
+    sourceUrl,
+    type,
+    verificationStatus,
+  });
   if (!update) {
     return res.apiError('Timeline update not found', 'NOT_FOUND', 404);
   }
@@ -53,4 +67,36 @@ export async function deleteTimelineController(req, res) {
   });
 
   res.apiSuccess({ deleted: true }, 'Timeline update deleted successfully');
+}
+
+export async function setFeaturedController(req, res) {
+  const { sourceType, sourceId, mediaId } = req.body;
+  const update = await setFeaturedItem(req.params.updateId, { sourceType, sourceId, mediaId });
+  if (!update) {
+    return res.apiError('Timeline update not found', 'NOT_FOUND', 404);
+  }
+  broadcastEvent({ type: 'timeline_updated', incidentId: req.params.id, updateId: req.params.updateId });
+
+  await auditLog(req, AUDIT_ACTIONS.TIMELINE_FEATURED_SET, 'timeline', req.params.updateId, {
+    incidentId: req.params.id,
+    sourceType,
+    sourceId,
+    mediaId,
+  });
+
+  res.apiSuccess({ featuredItem: { sourceType, sourceId, mediaId } }, 'Featured item set');
+}
+
+export async function clearFeaturedController(req, res) {
+  const update = await clearFeaturedItem(req.params.updateId);
+  if (!update) {
+    return res.apiError('Timeline update not found', 'NOT_FOUND', 404);
+  }
+  broadcastEvent({ type: 'timeline_updated', incidentId: req.params.id, updateId: req.params.updateId });
+
+  await auditLog(req, AUDIT_ACTIONS.TIMELINE_FEATURED_CLEARED, 'timeline', req.params.updateId, {
+    incidentId: req.params.id,
+  });
+
+  res.apiSuccess({ cleared: true }, 'Featured item cleared');
 }

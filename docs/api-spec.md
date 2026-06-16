@@ -128,31 +128,83 @@ Response:
 ```json
 {
   "data": {
-    "incident": { ... },
-    "sources": [
-      {
-        "id": "uuid",
-        "sourceType": "x_post",
-        "sourceUrl": "https://x.com/...",
-        "embedHtml": "<blockquote...>",
-        "description": "Context from admin",
-        "verificationStatus": "verified",
-        "displayOrder": 0
-      }
-    ],
+    "incident": {
+      "id": "uuid",
+      "title": "...",
+      "description": "...",
+      "heroImageUrl": "https://...",
+      "verificationStatus": "verified",
+      "geometryType": "point",
+      "geometry": { "type": "Point", "coordinates": [74.3587, 31.5204] },
+      "severity": 4,
+      "status": "active",
+      "locationContext": "...",
+      "startDate": "2024-01-15T10:00:00Z",
+      "endDate": null,
+      "createdByName": "Admin Name",
+      "createdAt": "2024-01-15T10:00:00Z"
+    },
     "timeline": [
       {
         "id": "uuid",
-        "summary": "Update text",
+        "summary": "Initial report / update text",
         "updateDate": "2024-01-16T14:00:00Z",
         "sourceUrl": "...",
         "embedHtml": "...",
-        "createdBy": "Admin Name"
+        "type": "report",
+        "verificationStatus": "verified",
+        "createdByName": "Admin Name",
+        "createdAt": "2024-01-15T10:00:00Z",
+        "sources": {
+          "x_post": [
+            {
+              "id": "uuid",
+              "sourceType": "x_post",
+              "sourceUrl": "https://x.com/...",
+              "embedHtml": "<blockquote...>",
+              "description": "Context from admin",
+              "verificationStatus": "verified",
+              "displayOrder": 0,
+              "pinned": false,
+              "archived": false,
+              "archiveMediaId": null,
+              "archiveReason": null,
+              "archivedAt": null
+            }
+          ],
+          "news_article": [],
+          "admin_note": [],
+          "image": [],
+          "video": []
+        },
+        "media": [
+          {
+            "id": "uuid",
+            "fileType": "image",
+            "fileUrl": "https://...",
+            "thumbnailUrl": "https://...",
+            "width": 1024,
+            "height": 768,
+            "displayOrder": 0,
+            "pinned": false,
+            "caption": "..."
+          }
+        ],
+        "featuredItem": {
+          "sourceType": "x_post",
+          "itemId": "uuid"
+        }
       }
     ]
   }
 }
 ```
+
+Notes:
+- Each timeline entry contains its own grouped `sources` and `media`.
+- `sources.image` / `sources.video` represent external image/video source rows; uploaded media lives in `media`.
+- `featuredItem` is `null` when no item is featured for that update.
+- Items are sorted by `pinned` first, then `displayOrder`, then `createdAt`.
 
 ---
 
@@ -175,6 +227,7 @@ Body:
   "endDate": null,
   "locationContext": "Punjab, Pakistan",
   "verificationOverride": null,
+  "heroImageUrl": null,
   "sources": [
     {
       "sourceType": "x_post",
@@ -190,7 +243,7 @@ Note: Backend fetches oEmbed HTML automatically for X posts.
 
 ### PATCH /incidents/:id
 Access: `admin` / `super_admin`  
-Body: Same as POST but partial. To convert a marker to a zone, send `geometryType: 'polygon'` and `geometry: { type: 'Polygon', coordinates: [...] }`.  
+Body: Same as POST but partial. Also supports `heroImageUrl`. To convert a marker to a zone, send `geometryType: 'polygon'` and `geometry: { type: 'Polygon', coordinates: [...] }`.  
 Response: Updated incident
 
 #### Polygon incident example
@@ -245,16 +298,28 @@ Body:
 {
   "summary": "New developments reported...",
   "updateDate": "2024-01-16T14:00:00Z",
-  "sourceUrl": "https://x.com/..."
+  "sourceUrl": "https://x.com/...",
+  "type": "update",
+  "verificationStatus": "unverified"
 }
 ```
 
 ### PATCH /incidents/:id/timeline/:updateId
 Access: `admin` / `super_admin`  
-Body: `{ summary?, updateDate?, sourceUrl? }`
+Body: `{ summary?, updateDate?, sourceUrl?, type?, verificationStatus? }`
 
 ### DELETE /incidents/:id/timeline/:updateId
-Access: `admin` / `super_admin`
+Access: `admin` / `super_admin`  
+Note: Deleting an update cascades to its linked sources and media.
+
+### PATCH /incidents/:id/timeline/:updateId/featured
+Access: `admin` / `super_admin`  
+Body: `{ "sourceType": "x_post", "sourceId": "uuid" }` or `{ "sourceType": "media", "mediaId": "uuid" }`  
+Response: Featured item set for the update.
+
+### DELETE /incidents/:id/timeline/:updateId/featured
+Access: `admin` / `super_admin`  
+Response: Featured item cleared.
 
 ---
 
@@ -265,6 +330,7 @@ Access: `admin` / `super_admin`
 Body:
 ```json
 {
+  "updateId": "uuid",
   "sourceType": "x_post",
   "sourceUrl": "https://x.com/...",
   "description": "...",
@@ -272,10 +338,36 @@ Body:
   "verificationStatus": "verified"
 }
 ```
+Note: `updateId` is required. The source is attached to the specified timeline update.
 
 ### PATCH /incidents/:id/sources/:sourceId
 Access: `admin` / `super_admin`  
+Body:
+```json
+{
+  "updateId": "uuid?",
+  "sourceUrl": "https://x.com/...",
+  "description": "...",
+  "displayOrder": 1,
+  "verificationStatus": "verified",
+  "archived": true,
+  "archiveMediaId": "uuid",
+  "archiveReason": "Post deleted by author"
+}
+```
+Note: When `archived` is `true`, `archiveMediaId` must be provided. To unarchive, set `archived: false` and clear `archiveMediaId`.
+
+### DELETE /incidents/:id/sources/:sourceId
+Access: `admin` / `super_admin`  
+Response: `{ data: { deleted: true } }`
+
+### PATCH /incidents/:id/sources/:sourceId/verification
+Access: `admin` / `super_admin`  
 Body: `{ verificationStatus: 'verified' | 'disputed' | 'debunked' | 'unverified' }`
+
+### PATCH /incidents/:id/sources/:sourceId/pin
+Access: `admin` / `super_admin`  
+Body: `{ pinned: boolean }`
 
 ---
 
@@ -283,16 +375,25 @@ Body: `{ verificationStatus: 'verified' | 'disputed' | 'debunked' | 'unverified'
 
 ### GET /incidents/:id/media
 Access: Public  
-Response: `{ data: { media: [ { id, originalName, storedName, fileType, mimeType, fileSizeBytes, fileUrl, thumbnailUrl, width, height, displayOrder, createdAt } ] } }`
+Response: `{ data: { media: [ { id, originalName, storedName, fileType, mimeType, fileSizeBytes, fileUrl, thumbnailUrl, width, height, displayOrder, pinned, caption, createdAt } ] } }`
 
 ### POST /incidents/:id/media
 Access: `admin` / `super_admin`  
 Content-Type: `multipart/form-data`  
 Field: `file` (image or video, max 50MB)  
+Optional text fields: `updateId` (UUID), `caption` (string)  
 Response: `{ data: { media: { ... } }, message: "File uploaded successfully" }`
 
 ### DELETE /incidents/:id/media/:mediaId
 Access: `admin` / `super_admin`
+
+### PATCH /incidents/:id/media/:mediaId
+Access: `admin` / `super_admin`  
+Body: `{ updateId?, caption?, pinned? }`
+
+### PATCH /incidents/:id/media/:mediaId/pin
+Access: `admin` / `super_admin`  
+Body: `{ pinned: boolean }`
 
 ### PATCH /incidents/:id/media/:mediaId/order
 Access: `admin` / `super_admin`  

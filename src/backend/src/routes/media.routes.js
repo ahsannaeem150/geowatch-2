@@ -1,11 +1,18 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadMedia, listMedia, deleteMedia, reorderMedia } from '../controllers/media.controller.js';
+import {
+  uploadMedia,
+  listMedia,
+  deleteMedia,
+  updateMedia,
+  pinMedia,
+  reorderMedia,
+} from '../controllers/media.controller.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
 import { validateRequest } from '../middleware/validate-request.js';
-import { reorderMediaSchema } from '../validators/media.schema.js';
+import { updateMediaSchema, pinMediaSchema, reorderMediaSchema } from '../validators/media.schema.js';
 
 const router = Router({ mergeParams: true });
 
@@ -40,6 +47,20 @@ router.delete(
   authenticate,
   requireRole(['admin', 'super_admin']),
   asyncHandler(deleteMedia)
+);
+router.patch(
+  '/:mediaId',
+  authenticate,
+  requireRole(['admin', 'super_admin']),
+  validateRequest(updateMediaSchema, 'body'),
+  asyncHandler(updateMedia)
+);
+router.patch(
+  '/:mediaId/pin',
+  authenticate,
+  requireRole(['admin', 'super_admin']),
+  validateRequest(pinMediaSchema, 'body'),
+  asyncHandler(pinMedia)
 );
 router.patch(
   '/:mediaId/order',

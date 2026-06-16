@@ -2,11 +2,12 @@ import { query } from '../config/database.js';
 
 export async function listMediaByIncident(incidentId) {
   const result = await query(
-    `SELECT id, original_name, file_type, mime_type, file_size_bytes,
-            file_url, thumbnail_url, width, height, display_order, created_at
+    `SELECT id, incident_id, update_id, original_name, file_type, mime_type, file_size_bytes,
+            file_url, thumbnail_url, width, height, display_order, pinned, caption,
+            uploaded_by, created_at
      FROM incident_media
      WHERE incident_id = $1
-     ORDER BY display_order ASC, created_at DESC`,
+     ORDER BY pinned DESC, display_order ASC, created_at DESC`,
     [incidentId]
   );
   return result.rows;
@@ -15,12 +16,13 @@ export async function listMediaByIncident(incidentId) {
 export async function createMediaRecord(data) {
   const result = await query(
     `INSERT INTO incident_media
-       (incident_id, original_name, stored_name, file_type, mime_type,
-        file_size_bytes, file_url, thumbnail_url, width, height, uploaded_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (incident_id, update_id, original_name, stored_name, file_type, mime_type,
+        file_size_bytes, file_url, thumbnail_url, width, height, uploaded_by, caption)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      RETURNING *`,
     [
       data.incidentId,
+      data.updateId,
       data.originalName,
       data.storedName,
       data.fileType,
@@ -31,9 +33,48 @@ export async function createMediaRecord(data) {
       data.width,
       data.height,
       data.uploadedBy,
+      data.caption || null,
     ]
   );
   return result.rows[0];
+}
+
+export async function updateMedia(mediaId, { updateId, caption, pinned }) {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+
+  if (updateId !== undefined) {
+    fields.push(`update_id = $${idx++}`);
+    values.push(updateId);
+  }
+  if (caption !== undefined) {
+    fields.push(`caption = $${idx++}`);
+    values.push(caption || null);
+  }
+  if (pinned !== undefined) {
+    fields.push(`pinned = $${idx++}`);
+    values.push(pinned);
+  }
+
+  if (fields.length === 0) {
+    throw new Error('No fields to update');
+  }
+
+  values.push(mediaId);
+  const result = await query(
+    `UPDATE incident_media SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING *`,
+    values
+  );
+  return result.rows[0] || null;
+}
+
+export async function pinMedia(mediaId, pinned) {
+  const result = await query(
+    'UPDATE incident_media SET pinned = $1, updated_at = NOW() WHERE id = $2 RETURNING id, pinned',
+    [pinned, mediaId]
+  );
+  return result.rows[0] || null;
 }
 
 export async function deleteMediaRecord(id) {

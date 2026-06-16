@@ -8224,3 +8224,55 @@ feat(db): add per-update evidence, featured/pinned/archive, and hero image colum
 ```
 
 *End of Phase 1*
+
+
+---
+
+## 📅 2026-06-16 — Phase 2: Backend API & Services for Per-Update Evidence
+
+### Summary
+Extended backend services, controllers, routes, validators, and audit actions to support the new per-update evidence model introduced in Phase 1. The API now returns timeline updates with nested sources and media, supports featured/pinned items, X-post archiving, media captions, hero images, and update type/verification.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/backend/src/services/incident.service.js` | `getEventById` now returns `incident` + `timeline[]` with each update's `sources` and `media` grouped; added `hero_image_url` support and deletion queries. |
+| `src/backend/src/services/source.service.js` | Full CRUD, `updateId` linkage, pin toggle, archive link/unlink with `archiveMediaId`/`archiveReason`, X oEmbed fetch. |
+| `src/backend/src/services/media.service.js` | `updateId`, `caption`, `pinned` support; list by incident returns uploader name. |
+| `src/backend/src/services/timeline.service.js` | `type`, `verificationStatus`, `setFeaturedItem`, `clearFeaturedItem`. |
+| `src/backend/src/controllers/source.controller.js` | Create/update/delete/verification/pin/archive controllers with audit + SSE broadcast. |
+| `src/backend/src/controllers/media.controller.js` | Upload accepts `updateId`/`caption`; update supports caption/updateId/pin; pin endpoint. |
+| `src/backend/src/controllers/timeline.controller.js` | Create/update/delete + featured set/clear with audit + broadcast. |
+| `src/backend/src/routes/source.routes.js` | Added `PATCH /:sourceId`, `DELETE /:sourceId`, `PATCH /:sourceId/verification`, `PATCH /:sourceId/pin`. |
+| `src/backend/src/routes/media.routes.js` | Added `PATCH /:mediaId`, `PATCH /:mediaId/pin`. |
+| `src/backend/src/routes/timeline.routes.js` | Added `PATCH /:updateId/featured` and `DELETE /:updateId/featured`. |
+| `src/backend/src/validators/source.schema.js` | Added `updateId`, archive fields, pin schema. |
+| `src/backend/src/validators/media.schema.js` | Added `updateId`, `caption`, `pinned` schemas. |
+| `src/backend/src/validators/timeline.schema.js` | Added `type`, `verificationStatus`, `setFeaturedSchema`. |
+| `src/backend/src/validators/incident.schema.js` | Added `heroImageUrl` to create/update. |
+| `src/backend/src/utils/audit-actions.js` | Added source/media/timeline/hero image audit actions. |
+| `docs/api-spec.md` | Updated response shapes and new endpoints for sources, media, timeline, and incidents. |
+
+### Verified Endpoints
+
+| # | Test | Result |
+|:--|:--|:--|
+| 1 | `GET /incidents/:id` returns `hero_image_url` | ✅ |
+| 2 | `GET /incidents/:id` returns `timeline[]` with `sources` and `media` | ✅ |
+| 3 | `POST /incidents/:id/timeline` with `type`/`verificationStatus` | ✅ |
+| 4 | `POST /incidents/:id/sources` with `updateId` | ✅ |
+| 5 | `PATCH /incidents/:id/sources/:id/pin` | ✅ |
+| 6 | `PATCH /incidents/:id/timeline/:id/featured` (source) | ✅ |
+| 7 | `PATCH /incidents/:id/timeline/:id/featured` (media) | ✅ |
+| 8 | `DELETE /incidents/:id/timeline/:id/featured` | ✅ |
+| 9 | `PATCH /incidents/:id/media/:id` with `caption` | ✅ |
+| 10 | `PATCH /incidents/:id` with `heroImageUrl` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(backend): per-update evidence APIs — timeline bundles, featured/pinned items, captions, hero image
+```
+
+*End of Phase 2*

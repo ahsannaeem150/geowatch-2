@@ -9,6 +9,7 @@ const INCIDENT_COLUMNS = `
   i.category_id,
   i.zone_category_id,
   i.verification_override,
+  i.hero_image_url,
   c.name AS category_name, c.slug AS category_slug,
   d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
   zc.name AS zone_category_name, zc.color AS zone_category_color, zc.icon AS zone_category_icon,
@@ -257,32 +258,103 @@ export async function getEventById(id) {
 
   const incident = incidentResult.rows[0];
 
-  const [sourcesResult, timelineResult] = await Promise.all([
+  const [sourcesResult, mediaResult, timelineResult] = await Promise.all([
     query(
-      `SELECT id, source_type, source_url, embed_html, media_url, description, display_order, verification_status, created_at
-       FROM incident_sources
-       WHERE incident_id = $1
-       ORDER BY display_order ASC, created_at ASC`,
+      `SELECT s.id, s.incident_id, s.update_id, s.source_type, s.source_url, s.embed_html,
+              s.media_url, s.description, s.display_order, s.verification_status,
+              s.pinned, s.archived, s.archive_media_id, s.archive_reason, s.archived_at,
+              s.created_by, s.created_at,
+              u.full_name AS created_by_name
+       FROM incident_sources s
+       LEFT JOIN users u ON s.created_by = u.id
+       WHERE s.incident_id = $1
+       ORDER BY s.pinned DESC, s.display_order ASC, s.created_at ASC`,
       [id]
     ),
     query(
-      `SELECT eu.id, eu.summary, eu.update_date, eu.source_url, eu.embed_html, eu.created_at, u.full_name as created_by_name
+      `SELECT m.id, m.incident_id, m.update_id, m.original_name, m.file_type, m.mime_type,
+              m.file_size_bytes, m.file_url, m.thumbnail_url, m.width, m.height,
+              m.display_order, m.pinned, m.caption, m.uploaded_by, m.created_at,
+              u.full_name AS uploaded_by_name
+       FROM incident_media m
+       LEFT JOIN users u ON m.uploaded_by = u.id
+       WHERE m.incident_id = $1
+       ORDER BY m.pinned DESC, m.display_order ASC, m.created_at ASC`,
+      [id]
+    ),
+    query(
+      `SELECT eu.id, eu.incident_id, eu.summary, eu.update_date, eu.source_url, eu.embed_html,
+              eu.type, eu.verification_status,
+              eu.featured_source_type, eu.featured_source_id, eu.featured_media_id,
+              eu.created_by, eu.created_at,
+              u.full_name AS created_by_name
        FROM incident_updates eu
        LEFT JOIN users u ON eu.created_by = u.id
        WHERE eu.incident_id = $1
-       ORDER BY eu.update_date DESC, eu.created_at DESC`,
+       ORDER BY eu.update_date ASC, eu.created_at ASC`,
       [id]
     ),
   ]);
 
-  const sources = sourcesResult.rows;
-  const verificationStatus = computeVerificationStatus(sources, incident.verification_override);
+  // Group sources and media by update_id for fast lookup
+  const sourcesByUpdate = groupSourcesByUpdate(sourcesResult.rows);
+  const mediaByUpdate = groupMediaByUpdate(mediaResult.rows);
+
+  const timeline = timelineResult.rows.map((update) => ({
+    id: update.id,
+    incident_id: update.incident_id,
+    summary: update.summary,
+    update_date: update.update_date,
+    source_url: update.source_url,
+    embed_html: update.embed_html,
+    type: update.type,
+    verification_status: update.verification_status,
+    created_by: update.created_by,
+    created_by_name: update.created_by_name,
+    created_at: update.created_at,
+    sources: sourcesByUpdate[update.id] || { x_post: [], news_article: [], admin_note: [], image: [], video: [] },
+    media: mediaByUpdate[update.id] || [],
+    featured_item: buildFeaturedItem(update),
+  }));
+
+  // Aggregate all sources for incident-level verification computation
+  const allSources = sourcesResult.rows;
+  const verificationStatus = computeVerificationStatus(allSources, incident.verification_override);
 
   return {
     incident: { ...incident, verification_status: verificationStatus },
-    sources,
-    timeline: timelineResult.rows,
+    timeline,
   };
+}
+
+function groupSourcesByUpdate(sources) {
+  const grouped = {};
+  for (const source of sources) {
+    if (!grouped[source.update_id]) {
+      grouped[source.update_id] = { x_post: [], news_article: [], admin_note: [], image: [], video: [] };
+    }
+    grouped[source.update_id][source.source_type].push(source);
+  }
+  return grouped;
+}
+
+function groupMediaByUpdate(media) {
+  const grouped = {};
+  for (const item of media) {
+    if (!grouped[item.update_id]) grouped[item.update_id] = [];
+    grouped[item.update_id].push(item);
+  }
+  return grouped;
+}
+
+function buildFeaturedItem(update) {
+  if (!update.featured_source_type) return null;
+  if (update.featured_source_type === 'media') {
+    if (!update.featured_media_id) return null;
+    return { source_type: 'media', item_id: update.featured_media_id };
+  }
+  if (!update.featured_source_id) return null;
+  return { source_type: update.featured_source_type, item_id: update.featured_source_id };
 }
 
 // ─── Admin Queries ───
@@ -301,6 +373,7 @@ export async function createIncident(data, createdBy) {
     endDate,
     locationContext,
     verificationOverride,
+    heroImageUrl,
   } = data;
 
   let { geometryType } = data;
@@ -317,23 +390,23 @@ export async function createIncident(data, createdBy) {
     sql = `
       INSERT INTO incidents (
         title, description, geometry_type, geom,
-        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
-      ) VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), 4326), $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override, hero_image_url
+      ) VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), 4326), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`;
     params = [
       title, description || null, geometryType, JSON.stringify(geometry),
-      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
+      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null, heroImageUrl || null,
     ];
   } else {
     sql = `
       INSERT INTO incidents (
         title, description, geometry_type, geom, latitude, longitude,
-        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override
-      ) VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override, hero_image_url
+      ) VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`;
     params = [
       title, description || null, geometryType, longitude, latitude, latitude, longitude,
-      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null,
+      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null, heroImageUrl || null,
     ];
   }
 
@@ -362,6 +435,7 @@ export async function updateIncident(id, data) {
   addField('end_date', data.endDate);
   addField('location_context', data.locationContext);
   addField('verification_override', data.verificationOverride);
+  addField('hero_image_url', data.heroImageUrl);
 
   if (data.endDate === null) {
     addField('status', 'active');
@@ -539,7 +613,7 @@ export async function listDeletedIncidents(filters = {}) {
       i.geometry_type,
       i.severity, i.status, i.start_date, i.end_date,
       i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
-      i.location_context, i.category_id, i.verification_override,
+      i.location_context, i.category_id, i.verification_override, i.hero_image_url,
       c.name AS category_name, c.slug AS category_slug,
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
       l.deleted_at, l.deleted_by, l.original_status,
@@ -577,7 +651,7 @@ export async function getDeletedIncidentById(id) {
       i.geometry_type,
       i.severity, i.status, i.start_date, i.end_date,
       i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
-      i.location_context, i.category_id, i.verification_override,
+      i.location_context, i.category_id, i.verification_override, i.hero_image_url,
       c.name AS category_name, c.slug AS category_slug,
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
       l.deleted_at, l.deleted_by, l.original_status,

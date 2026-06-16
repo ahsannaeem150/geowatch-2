@@ -44,15 +44,28 @@ export const AUDIT_ACTIONS = {
   SOURCE_ADDED: 'source_added',
   SOURCE_UPDATED: 'source_updated',
   SOURCE_DELETED: 'source_deleted',
+  SOURCE_PINNED: 'source_pinned',
+  SOURCE_UNPINNED: 'source_unpinned',
+  SOURCE_ARCHIVED: 'source_archived',
+  SOURCE_UNARCHIVED: 'source_unarchived',
 
   // Timeline operations
   TIMELINE_ADDED: 'timeline_added',
   TIMELINE_UPDATED: 'timeline_updated',
   TIMELINE_DELETED: 'timeline_deleted',
+  TIMELINE_FEATURED_SET: 'timeline_featured_set',
+  TIMELINE_FEATURED_CLEARED: 'timeline_featured_cleared',
 
   // Media operations
   MEDIA_UPLOADED: 'media_uploaded',
   MEDIA_DELETED: 'media_deleted',
+  MEDIA_PINNED: 'media_pinned',
+  MEDIA_UNPINNED: 'media_unpinned',
+  MEDIA_CAPTION_UPDATED: 'media_caption_updated',
+  MEDIA_LINKED_TO_UPDATE: 'media_linked_to_update',
+
+  // Incident curation
+  INCIDENT_HERO_IMAGE_UPDATED: 'incident_hero_image_updated',
 
   // Zone operations
   ZONE_CREATED: 'zone_created',
@@ -100,13 +113,25 @@ export const AUDIT_ACTION_LABELS = {
   [AUDIT_ACTIONS.SOURCE_ADDED]: 'Source Added',
   [AUDIT_ACTIONS.SOURCE_UPDATED]: 'Source Updated',
   [AUDIT_ACTIONS.SOURCE_DELETED]: 'Source Deleted',
+  [AUDIT_ACTIONS.SOURCE_PINNED]: 'Source Pinned',
+  [AUDIT_ACTIONS.SOURCE_UNPINNED]: 'Source Unpinned',
+  [AUDIT_ACTIONS.SOURCE_ARCHIVED]: 'Source Archived',
+  [AUDIT_ACTIONS.SOURCE_UNARCHIVED]: 'Source Unarchived',
 
   [AUDIT_ACTIONS.TIMELINE_ADDED]: 'Timeline Entry Added',
   [AUDIT_ACTIONS.TIMELINE_UPDATED]: 'Timeline Entry Updated',
   [AUDIT_ACTIONS.TIMELINE_DELETED]: 'Timeline Entry Deleted',
+  [AUDIT_ACTIONS.TIMELINE_FEATURED_SET]: 'Featured Item Set',
+  [AUDIT_ACTIONS.TIMELINE_FEATURED_CLEARED]: 'Featured Item Cleared',
 
   [AUDIT_ACTIONS.MEDIA_UPLOADED]: 'Media Uploaded',
   [AUDIT_ACTIONS.MEDIA_DELETED]: 'Media Deleted',
+  [AUDIT_ACTIONS.MEDIA_PINNED]: 'Media Pinned',
+  [AUDIT_ACTIONS.MEDIA_UNPINNED]: 'Media Unpinned',
+  [AUDIT_ACTIONS.MEDIA_CAPTION_UPDATED]: 'Media Caption Updated',
+  [AUDIT_ACTIONS.MEDIA_LINKED_TO_UPDATE]: 'Media Linked to Update',
+
+  [AUDIT_ACTIONS.INCIDENT_HERO_IMAGE_UPDATED]: 'Hero Image Updated',
 
   [AUDIT_ACTIONS.ZONE_CREATED]: 'Zone Created',
   [AUDIT_ACTIONS.ZONE_UPDATED]: 'Zone Updated',
@@ -150,13 +175,25 @@ export const AUDIT_ACTION_COLORS = {
   [AUDIT_ACTIONS.SOURCE_ADDED]: '#22c55e',
   [AUDIT_ACTIONS.SOURCE_UPDATED]: '#f59e0b',
   [AUDIT_ACTIONS.SOURCE_DELETED]: '#ef4444',
+  [AUDIT_ACTIONS.SOURCE_PINNED]: '#f59e0b',
+  [AUDIT_ACTIONS.SOURCE_UNPINNED]: '#f59e0b',
+  [AUDIT_ACTIONS.SOURCE_ARCHIVED]: '#6366f1',
+  [AUDIT_ACTIONS.SOURCE_UNARCHIVED]: '#6366f1',
 
   [AUDIT_ACTIONS.TIMELINE_ADDED]: '#22c55e',
   [AUDIT_ACTIONS.TIMELINE_UPDATED]: '#f59e0b',
   [AUDIT_ACTIONS.TIMELINE_DELETED]: '#ef4444',
+  [AUDIT_ACTIONS.TIMELINE_FEATURED_SET]: '#f59e0b',
+  [AUDIT_ACTIONS.TIMELINE_FEATURED_CLEARED]: '#f59e0b',
 
   [AUDIT_ACTIONS.MEDIA_UPLOADED]: '#22c55e',
   [AUDIT_ACTIONS.MEDIA_DELETED]: '#ef4444',
+  [AUDIT_ACTIONS.MEDIA_PINNED]: '#f59e0b',
+  [AUDIT_ACTIONS.MEDIA_UNPINNED]: '#f59e0b',
+  [AUDIT_ACTIONS.MEDIA_CAPTION_UPDATED]: '#f59e0b',
+  [AUDIT_ACTIONS.MEDIA_LINKED_TO_UPDATE]: '#f59e0b',
+
+  [AUDIT_ACTIONS.INCIDENT_HERO_IMAGE_UPDATED]: '#f59e0b',
 
   [AUDIT_ACTIONS.ZONE_CREATED]: '#22c55e',
   [AUDIT_ACTIONS.ZONE_UPDATED]: '#f59e0b',

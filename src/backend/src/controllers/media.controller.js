@@ -5,10 +5,17 @@ import { processVideo } from '../utils/video-processor.js';
 import { generateMediaFilename, generateThumbFilename } from '../utils/slugify.js';
 import { getIncidentTitle } from '../services/incident.service.js';
 import * as mediaService from '../services/media.service.js';
+import { getEventById } from '../services/incident.service.js';
+import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
 const storage = getStorageEngine();
+
+async function broadcastIncidentUpdate(incidentId) {
+  const enriched = await getEventById(incidentId);
+  broadcastEvent({ type: 'incident_updated', incident: enriched?.incident || { id: incidentId } });
+}
 
 export async function uploadMedia(req, res) {
   console.log('[MediaUpload] Request received — incidentId:', req.params.id, 'file:', req.file?.originalname, 'mimetype:', req.file?.mimetype, 'size:', req.file?.size);
@@ -25,6 +32,10 @@ export async function uploadMedia(req, res) {
     console.log('[MediaUpload] Rejected: unsupported file type', mimetype);
     return res.apiError('Unsupported file type', 'VALIDATION_ERROR', 400);
   }
+
+  // Read optional per-upload metadata from multipart text fields
+  const updateId = req.body.updateId || null;
+  const caption = req.body.caption || null;
 
   // Build SEO-friendly filename from incident title
   const incidentTitle = await getIncidentTitle(incidentId);
@@ -70,6 +81,7 @@ export async function uploadMedia(req, res) {
     console.log('[MediaUpload] Creating DB record...');
     const record = await mediaService.createMediaRecord({
       incidentId,
+      updateId,
       originalName: originalname,
       storedName,
       fileType,
@@ -80,13 +92,17 @@ export async function uploadMedia(req, res) {
       width,
       height,
       uploadedBy: req.user.id,
+      caption,
     });
     console.log('[MediaUpload] DB record created — id:', record.id);
+
+    await broadcastIncidentUpdate(incidentId);
 
     await auditLog(req, AUDIT_ACTIONS.MEDIA_UPLOADED, 'media', record.id, {
       incidentId,
       fileType,
       originalName: originalname,
+      updateId,
     });
 
     res.apiSuccess({ media: record }, 'File uploaded successfully');
@@ -121,6 +137,8 @@ export async function deleteMedia(req, res) {
 
   await mediaService.deleteMediaRecord(req.params.mediaId);
 
+  await broadcastIncidentUpdate(record.incident_id);
+
   await auditLog(req, AUDIT_ACTIONS.MEDIA_DELETED, 'media', req.params.mediaId, {
     incidentId: record.incident_id,
     fileType: record.file_type,
@@ -128,6 +146,50 @@ export async function deleteMedia(req, res) {
   });
 
   res.apiSuccess({ deleted: true });
+}
+
+export async function updateMedia(req, res) {
+  const { updateId, caption, pinned } = req.body;
+  const record = await mediaService.updateMedia(req.params.mediaId, { updateId, caption, pinned });
+  if (!record) {
+    return res.apiError('Media not found', 'NOT_FOUND', 404);
+  }
+
+  await broadcastIncidentUpdate(record.incident_id);
+
+  const action = pinned !== undefined
+    ? (pinned ? AUDIT_ACTIONS.MEDIA_PINNED : AUDIT_ACTIONS.MEDIA_UNPINNED)
+    : caption !== undefined
+      ? AUDIT_ACTIONS.MEDIA_CAPTION_UPDATED
+      : AUDIT_ACTIONS.MEDIA_LINKED_TO_UPDATE;
+
+  await auditLog(req, action, 'media', record.id, {
+    incidentId: record.incident_id,
+    updateId: record.update_id,
+    caption: record.caption,
+  });
+
+  res.apiSuccess({ media: record }, 'Media updated');
+}
+
+export async function pinMedia(req, res) {
+  const { pinned } = req.body;
+  const record = await mediaService.pinMedia(req.params.mediaId, pinned);
+  if (!record) {
+    return res.apiError('Media not found', 'NOT_FOUND', 404);
+  }
+
+  await broadcastIncidentUpdate(record.incident_id);
+
+  await auditLog(
+    req,
+    pinned ? AUDIT_ACTIONS.MEDIA_PINNED : AUDIT_ACTIONS.MEDIA_UNPINNED,
+    'media',
+    record.id,
+    { incidentId: record.incident_id }
+  );
+
+  res.apiSuccess({ media: record }, pinned ? 'Media pinned' : 'Media unpinned');
 }
 
 export async function reorderMedia(req, res) {

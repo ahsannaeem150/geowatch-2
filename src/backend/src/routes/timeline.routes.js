@@ -4,11 +4,17 @@ import { validateRequest } from '../middleware/validate-request.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
 import { adminWriteLimiter } from '../middleware/rate-limiter.js';
-import { createTimelineSchema, updateTimelineSchema } from '../validators/timeline.schema.js';
+import {
+  createTimelineSchema,
+  updateTimelineSchema,
+  setFeaturedSchema,
+} from '../validators/timeline.schema.js';
 import {
   createTimelineController,
   updateTimelineController,
   deleteTimelineController,
+  setFeaturedController,
+  clearFeaturedController,
 } from '../controllers/timeline.controller.js';
 
 const router = Router({ mergeParams: true });
@@ -37,6 +43,23 @@ router.delete(
   requireRole(['admin', 'super_admin']),
   adminWriteLimiter,
   asyncHandler(deleteTimelineController)
+);
+
+router.patch(
+  '/:updateId/featured',
+  authenticate,
+  requireRole(['admin', 'super_admin']),
+  adminWriteLimiter,
+  validateRequest(setFeaturedSchema, 'body'),
+  asyncHandler(setFeaturedController)
+);
+
+router.delete(
+  '/:updateId/featured',
+  authenticate,
+  requireRole(['admin', 'super_admin']),
+  adminWriteLimiter,
+  asyncHandler(clearFeaturedController)
 );
 
 export default router;
