@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { useCategories } from '@shared/hooks/useCategories.js';
 import IncidentListItem from './IncidentListItem.jsx';
-import IncidentDetailView from '../IncidentDetail/IncidentDetailView.jsx';
+import { IncidentDetailSidebar } from '@shared';
+import { api, mapIncidentForShared } from '../../services/api.js';
 
 export default function IncidentSidebar({
   incidents,
@@ -19,8 +21,52 @@ export default function IncidentSidebar({
   onSaveChange,
   savedCount = 0,
 }) {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
   const { domains, getCategoriesByDomain } = useCategories();
+
+  const fetchDetail = async (incidentId) => {
+    if (!incidentId) return;
+    setDetailLoading(true);
+    setDetailError('');
+    try {
+      const res = await api.getIncident(incidentId);
+      setDetail(mapIncidentForShared(res.data));
+    } catch (err) {
+      setDetailError(err.message || 'Failed to load incident details');
+      setDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedIncident?.id) {
+      fetchDetail(selectedIncident.id);
+    } else {
+      setDetail(null);
+      setDetailError('');
+    }
+  }, [selectedIncident?.id]);
+
+  useEffect(() => {
+    if (selectedIncident?.id && detailRefreshKey > 0) {
+      fetchDetail(selectedIncident.id);
+    }
+  }, [detailRefreshKey, selectedIncident?.id]);
+
+  const handleCopyIncidentLink = async (incidentId) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/incident/${incidentId}`);
+    } catch {}
+  };
+
+  const handleNavigateToFullPage = (incidentId) => {
+    navigate(`/incident/${incidentId}`);
+  };
 
   const filteredIncidents = searchQuery.trim()
     ? incidents.filter((i) =>
@@ -42,14 +88,65 @@ export default function IncidentSidebar({
       }}
     >
       {selectedIncident ? (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <IncidentDetailView
-            incidentId={selectedIncident.id}
-            onBack={onBack}
-            refreshKey={detailRefreshKey}
-            isSaved={savedIds?.has(selectedIncident.id)}
-            onSaveChange={onSaveChange}
-          />
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              padding: '12px 16px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: 'var(--bg-elevated)',
+              flexShrink: 0,
+            }}
+          >
+            <button
+              onClick={onBack}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 10px',
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--text-secondary)',
+                background: 'transparent',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--accent-light)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-secondary)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              }}
+            >
+              ← Back to results
+            </button>
+          </div>
+          {detailLoading ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              Loading incident details…
+            </div>
+          ) : detailError ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--danger)', fontSize: 13 }}>
+              {detailError}
+            </div>
+          ) : detail ? (
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <IncidentDetailSidebar
+                mode="user"
+                incident={detail.incident}
+                timeline={detail.timeline}
+                onNavigateToFullPage={handleNavigateToFullPage}
+                onCopyIncidentLink={handleCopyIncidentLink}
+              />
+            </div>
+          ) : null}
         </div>
       ) : (
         <>

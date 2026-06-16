@@ -6,6 +6,7 @@ import Footer from './components/Layout/Footer.jsx';
 import HomePage from './pages/HomePage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
+import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -43,6 +44,7 @@ function AnimatedRoutes() {
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
           <Route path="/map" element={<MapPage />} />
+          <Route path="/incident/:id" element={<IncidentDetailPage />} />
           <Route path="/about" element={<AboutPage />} />
         </Routes>
       </motion.div>

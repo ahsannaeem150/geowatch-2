@@ -8416,3 +8416,45 @@ feat(admin-web): integrate shared incident detail sidebar and full page
 ```
 
 *End of Phase 5*
+
+
+---
+
+## 📅 2026-06-13 — Phase 6: user-web Integration
+
+### Summary
+Wired the shared incident-detail components into the public user website in read-only mode: added the `/incident/:id` full-page route, replaced the sidebar `IncidentDetailView` with `IncidentDetailSidebar`, and provided only public-safe callbacks (navigate to full page, copy link).
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/main.jsx` | Imported `@shared/styles/incident-detail.css`. |
+| `src/user-web/src/services/api.js` | Added `mapIncidentForShared()` helper as a named export to convert backend `{ incident, timeline }` into the shared component shape. |
+| `src/user-web/src/components/IncidentDetail/IncidentDetailPage.jsx` | **New** wrapper for `/incident/:id`. Fetches and maps incident detail, renders the shared `IncidentDetailPage` in `mode="user"`, provides `onBack` and `onCopyIncidentLink`, and refreshes on SSE incident/timeline events. |
+| `src/user-web/src/App.jsx` | Added `<Route path="/incident/:id" element={<IncidentDetailPage />} />` inside `AnimatedRoutes`. |
+| `src/user-web/src/components/IncidentList/IncidentSidebar.jsx` | Replaced `IncidentDetailView` with `IncidentDetailSidebar` (mode="user"). Fetches mapped detail when an incident is selected or `detailRefreshKey` changes. Added a "← Back to results" header row to preserve existing back behavior. |
+
+### Design Decisions
+
+- **Read-only public UI:** No mutation callbacks are passed, so shared components automatically hide admin curation controls.
+- **Shared mapper reused:** `mapIncidentForShared` was copied from `src/admin-web/src/services/api.js` to keep `user-web` self-contained.
+- **SSE live refresh:** Both the full page and sidebar listen to `/incidents/stream` events and refresh the current incident detail.
+- **Old component preserved:** `IncidentDetailView.jsx` remains in the tree but is no longer imported, in case a rollback is needed.
+
+### Verified
+
+| Scenario | Result |
+|:--|:--|
+| `npm run build:user-web` | ✅ Succeeds, no errors. |
+| Dev server `http://localhost:5173/` | ✅ Returns app shell. |
+| Dev server `http://localhost:5173/map` | ✅ Returns app shell. |
+| Dev server `http://localhost:5173/incident/<id>` | ✅ Returns app shell and route resolves. |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): integrate shared incident detail sidebar and full page in read-only mode
+```
+
+*End of Phase 6*
