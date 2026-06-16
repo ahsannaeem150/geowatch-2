@@ -8593,3 +8593,69 @@ docs(qa): finalize incident detail integration, update docs, remove legacy panel
 ```
 
 *End of Phase 9 — Sidebar & Incident Page Implementation Complete*
+
+
+---
+
+## 📅 2026-06-13 — Documentation: Shared Incident Detail System
+
+### Summary
+Updated project documentation to reflect the completed 9-phase incident-detail implementation and the current minor-tweaks phase. `PROJECT.md` now contains a dedicated Shared Incident Detail System section covering routes, components, data flow, CSS, curation callbacks, X-post archive workflow, and legacy cleanup. `handoff.md` was refreshed to point future agents at the shared component package, wrapper files, trial routes, and the active visual-polish workstream.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `PROJECT.md` | Added **Shared Incident Detail System** section with route table, component list, data flow, CSS imports, curation callbacks, archive workflow, current phase, and legacy cleanup notes. |
+| `handoff.md` | Added shared incident-detail components and archive workflow to **Fully Working** table; added sidebar/page visual polish to **Partially Implemented**; updated Admin-Web, User-Web, Superadmin-Web, and Shared file maps to reference the new shared components and wrappers; added trial routes and `sidebarImplementationPlan.md` to docs index; added active visual-alignment note to **Known Issues & Active Decisions**; bumped last-updated date. |
+
+### Verified
+
+| Scenario | Result |
+|:--|:--|
+| `PROJECT.md` renders without broken markdown | ✅ Verified by preview. |
+| `handoff.md` renders without broken markdown | ✅ Verified by preview. |
+
+### Git Commit Suggestion
+
+```
+docs: document shared incident detail system and current tweak phase
+```
+
+*Documentation update only — no code changes.*
+
+---
+
+## 📅 2026-06-16 — Fix: User-Web Sidebar Content Pushed to Right Wall
+
+### Summary
+Fixed the user-web incident-detail sidebar so its content fills the sidebar container instead of being pushed against the right edge of the page. The root cause was that the shared `IncidentDetailSidebar` component still wrapped itself in the trial page's `.id-trial-page` full-viewport grid (`grid-template-columns: 1fr 630px`). In the real app the component is rendered inside a 630px container, so that grid placed the sidebar content at the right edge of a 100vw-wide implicit grid.
+
+### Root Cause
+- The trial sidebar was designed as a standalone page: a full-viewport grid with a fake-map column on the left and a 630px sidebar column on the right.
+- When the component was moved to `src/shared/` and embedded in the live apps, the `.id-trial-page` wrapper was kept.
+- In `user-web/src/pages/MapPage.jsx` the live sidebar lives in a 630px flex item. The retained `grid-template-columns: 1fr 630px` on `.id-trial-page` made the inner sidebar align to the right edge of the viewport-wide grid instead of filling its parent.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/incident-detail/IncidentDetailSidebar.jsx` | Removed the `.id-trial-page` wrapper. The component now renders `<aside className="id-sidebar">` directly, with the superadmin theme class applied to the aside. |
+| `src/shared/styles/incident-detail.css` | Added `.id-sidebar--superadmin` selectors alongside the existing `.id-trial-page--superadmin` selectors so the superadmin accent theme still works now that the theme class is on `.id-sidebar`. Kept the trial selectors so the trial routes continue to work. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+| `npm run build -w src/admin-web` | ✅ |
+| `npm run build -w src/superadmin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(shared): remove trial-page grid wrapper from IncidentDetailSidebar
+```
+
+*End of fix*
+

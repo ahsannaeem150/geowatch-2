@@ -51,6 +51,8 @@
 | Polygon drawing + vertex editing | ✅ | `DrawingToolbar.jsx`, `AdminMap.jsx` |
 | Shareable incident URLs | ✅ | `MapPage.jsx` |
 | One-command service launcher | ✅ | `scripts/start-geowatch.sh` |
+| Shared incident-detail components | ✅ | `src/shared/components/incident-detail/` |
+| X/Twitter post archive workflow | ✅ | `XPostCompactList.jsx` + source archive API |
 
 ### ⏳ Partially Implemented / WIP
 
@@ -61,6 +63,7 @@
 | Heatmap layer | Not started | Post-MVP |
 | Mobile responsiveness | Basic | Desktop-primary; mobile adaptive is post-MVP |
 | Self-hosted fonts | Using MapLibre CDN | Future enhancement |
+| Sidebar/page visual polish | In progress | Aligning implemented sidebars with trial designs; see `sidebarImplementationPlan.md` |
 
 ### ❌ Explicitly Deprioritized or Removed
 
@@ -193,7 +196,8 @@ See `docs/env-template.md` for full template. Critical vars:
 | Map component | `src/admin-web/src/components/Map/AdminMap.jsx` |
 | Drawing toolbar | `src/admin-web/src/components/Map/DrawingToolbar.jsx` |
 | Incident form | `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` |
-| Incident detail panel | `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx` |
+| Shared incident-detail sidebar | `src/admin-web/src/components/Layout/DashboardLayout.jsx` (wrapper) |
+| Shared incident-detail full page | `src/admin-web/src/pages/IncidentDetailPage.jsx` |
 | Incident table | `src/admin-web/src/components/IncidentList/IncidentTable.jsx` |
 | Live activity feed | `src/admin-web/src/components/LiveActivity/AdminLiveFeed.jsx` |
 | Media uploader | `src/admin-web/src/components/Media/MediaUploader.jsx` |
@@ -207,6 +211,7 @@ See `docs/env-template.md` for full template. Critical vars:
 | Search modal | `src/admin-web/src/components/SearchModal/SearchModal.jsx` |
 | Date picker | `src/admin-web/src/components/DatePicker/DatePicker.jsx` |
 | Login page | `src/admin-web/src/components/Login/LoginPage.jsx` |
+| Trial / design reference routes | `src/admin-web/src/components/DesignTrial/` (read-only reference) |
 | Global styles | `src/admin-web/src/index.css` |
 
 ### User-Web — Ground Truth Files
@@ -220,8 +225,8 @@ See `docs/env-template.md` for full template. Critical vars:
 | Home page | `src/user-web/src/pages/HomePage.jsx` |
 | User map component | `src/user-web/src/components/Map/UserMap.jsx` |
 | Map controls | `src/user-web/src/components/Map/MapControls.jsx` |
-| Incident sidebar | `src/user-web/src/components/IncidentList/IncidentSidebar.jsx` |
-| Incident detail view | `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx` |
+| Shared incident-detail sidebar | `src/user-web/src/components/IncidentList/IncidentSidebar.jsx` (wrapper) |
+| Shared incident-detail full page | `src/user-web/src/pages/IncidentDetailPage.jsx` |
 | Live activity feed | `src/user-web/src/components/LiveActivity/LiveActivityFeed.jsx` |
 | Ticker bar | `src/user-web/src/components/Ticker/TickerBar.jsx` |
 | Away banner | `src/user-web/src/components/AwayBanner/AwayBanner.jsx` |
@@ -254,6 +259,8 @@ See `docs/env-template.md` for full template. Critical vars:
 | Domains page | `src/superadmin-web/src/pages/DomainsPage.jsx` |
 | Recycle bin | `src/superadmin-web/src/pages/RecycleBinPage.jsx` |
 | Map page | `src/superadmin-web/src/pages/MapPage.jsx` |
+| Shared incident-detail sidebar | `src/superadmin-web/src/pages/MapPage.jsx` (wrapper) |
+| Shared incident-detail full page | `src/superadmin-web/src/pages/IncidentDetailPage.jsx` |
 | User table | `src/superadmin-web/src/components/Users/UserTable.jsx` |
 | User detail drawer | `src/superadmin-web/src/components/Users/UserDetailDrawer.jsx` |
 | Public user table | `src/superadmin-web/src/components/PublicUsers/PublicUserTable.jsx` |
@@ -281,6 +288,8 @@ See `docs/env-template.md` for full template. Critical vars:
 | Skeleton component | `src/shared/components/Skeleton.jsx` |
 | Timeline entry | `src/shared/components/TimelineEntry.jsx` |
 | Category hook | `src/shared/hooks/useCategories.js` |
+| Incident-detail component package | `src/shared/components/incident-detail/` |
+| Shared incident-detail styles | `src/shared/styles/incident-detail.css` |
 
 ### Infrastructure & Docs
 
@@ -293,6 +302,8 @@ See `docs/env-template.md` for full template. Critical vars:
 | Dev credentials | `docs/dev-credentials.md` |
 | Build history | `commit.md` |
 | Project conventions | `PROJECT.md` |
+| Incident-detail implementation plan | `sidebarImplementationPlan.md` |
+| Trial route reference list | `trialRoutes.md` |
 | One-command launcher | `scripts/start-geowatch.sh` |
 | Service status | `scripts/status-geowatch.sh` |
 | Service stopper | `scripts/stop-geowatch.sh` |
@@ -411,6 +422,7 @@ chore: description
 | MapLibre chunk size | Known | Vite warns about JS chunk >500KB. Code-splitting is post-MVP |
 | Martin manual restart | Known | `start-geowatch.sh` handles this automatically |
 | Self-hosted fonts | Future | Using MapLibre's free font CDN |
+| Sidebar / full-page visual alignment | Active | Tweaking widths, scroll behavior, spacing against trial routes in `src/admin-web/src/components/DesignTrial/` |
 
 ---
 
@@ -425,5 +437,5 @@ chore: description
 
 ---
 
-*Last updated: 2026-05-05*  
+*Last updated: 2026-06-13*  
 *Next agent: Read this file first, then `PROJECT.md`, then `commit.md` for full history.*

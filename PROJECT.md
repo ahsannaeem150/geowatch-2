@@ -104,6 +104,67 @@ Map-based global conflict and major events visualization platform.
 - NO paid APIs for MVP
 - Free tiers only until revenue justifies paid plans
 
+## Shared Incident Detail System
+
+All three frontends render incidents from a single shared component package under `src/shared/components/incident-detail/`.
+
+### Routes
+
+| App | Sidebar route | Full-page route |
+|:--|:--|:--|
+| user-web | `/map` (selected incident) | `/incident/:id` |
+| admin-web | `DashboardLayout` selected incident panel | `/incident/:id` |
+| superadmin-web | `/superadmin/map` selected incident panel | `/superadmin/incident/:id` |
+
+### Design reference routes (admin-web only)
+
+The original trial/prototype routes are preserved in `admin-web` for side-by-side comparison. See `trialRoutes.md`.
+
+### Shared components
+
+- `IncidentDetailSidebar.jsx` — compact card-style panel used inside map layouts.
+- `IncidentDetailPage.jsx` — full-page layout with timeline rail + evidence rail.
+- `EvidenceRail.jsx` / `EvidenceBundle.jsx` — evidence tabs and per-update evidence drawers.
+- `XPostCompactList.jsx` — X/Twitter post list with archive screenshot fallback.
+- `SourceCards.jsx` — media/article/admin-note cards.
+- `SummaryCard.jsx`, `TimelineItem.jsx`, `StatusHistory.jsx`, `DebugMetadata.jsx`.
+
+### Data flow
+
+1. Frontend calls `api.getIncident(id)`.
+2. Backend returns `{ incident, timeline }` where each timeline entry contains grouped `sources` and `media`.
+3. Each app uses `mapIncidentForShared()` to normalize snake_case backend fields to the camelCase props the shared components expect.
+4. Shared components render role-aware UI based on `mode` prop: `user` (read-only), `admin`, `superadmin`.
+
+### CSS
+
+`src/shared/styles/incident-detail.css` is imported in each app entry:
+- `src/user-web/src/main.jsx`
+- `src/admin-web/src/main.jsx`
+- `src/superadmin-web/src/main.jsx`
+
+### Curation callbacks
+
+Admin/superadmin wrappers implement: `onUpdateIncident`, `onResolveIncident`, `onDeleteIncident`, `onRestoreIncident`, `onPurgeIncident`, `onAddUpdate`, `onEditUpdate`, `onDeleteUpdate`, `onAddEvidence`, `onEditEvidence`, `onDeleteEvidence`, `onPinEvidence`, `onFeatureEvidence`, `onClearFeatureEvidence`, `onArchiveSource`.
+
+### X-post archive workflow
+
+1. Admin clicks **Archive** on an X post.
+2. Frontend uploads screenshot via `POST /incidents/:id/media` with `updateId`.
+3. Frontend PATCHes source with `{ archived: true, archiveMediaId, archiveReason }`.
+4. UI falls back to archived screenshot; **Unarchive** restores live embed.
+
+### Current phase
+
+The 9-phase `sidebarImplementationPlan.md` is complete. Work has shifted to minor UI tweaks and bug fixes in the implementation (sidebar widths, scrolling, spacing, etc.).
+
+### Legacy cleanup
+
+The following were removed in Phase 9:
+- `src/admin-web/src/components/IncidentDetail/IncidentDetailPanel.jsx`
+- `src/admin-web/src/components/DesignTrial/` (restored on request for comparison, now lives only in admin-web)
+- `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx`
+
 ## Build Rules for Kimi Code
 1. **Read `handoff.md` FIRST** — this is the single most important document
 2. Read `PROJECT.md` for architecture and conventions

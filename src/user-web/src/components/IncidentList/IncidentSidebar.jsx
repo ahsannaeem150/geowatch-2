@@ -88,7 +88,7 @@ export default function IncidentSidebar({
       }}
     >
       {selectedIncident ? (
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div
             style={{
               padding: '12px 16px',
@@ -137,15 +137,13 @@ export default function IncidentSidebar({
               {detailError}
             </div>
           ) : detail ? (
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              <IncidentDetailSidebar
-                mode="user"
-                incident={detail.incident}
-                timeline={detail.timeline}
-                onNavigateToFullPage={handleNavigateToFullPage}
-                onCopyIncidentLink={handleCopyIncidentLink}
-              />
-            </div>
+            <IncidentDetailSidebar
+              mode="user"
+              incident={detail.incident}
+              timeline={detail.timeline}
+              onNavigateToFullPage={handleNavigateToFullPage}
+              onCopyIncidentLink={handleCopyIncidentLink}
+            />
           ) : null}
         </div>
       ) : (

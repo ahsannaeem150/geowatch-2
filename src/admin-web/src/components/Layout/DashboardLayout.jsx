@@ -2309,6 +2309,7 @@ export default function DashboardLayout() {
               width: '630px',
               overflowY: 'auto',
               padding: '20px',
+              boxSizing: 'border-box',
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--border-subtle)',
               flexShrink: 0,

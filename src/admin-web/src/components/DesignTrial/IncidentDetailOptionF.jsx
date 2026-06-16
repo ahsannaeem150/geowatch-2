@@ -1,15 +1,60 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Icons } from './IncidentIcons.jsx';
-import { SEVERITY_LABELS, VERIFICATION, SOURCE_TYPE_LABELS, formatDate, formatTime, relativeTime, countSources, parseCoordinates } from './IncidentUtils.js';
-import SummaryCard from './SummaryCard.jsx';
-import { TimelineItem, UpdateHeader } from './TimelineItem.jsx';
-import EvidenceBundle from './EvidenceBundle.jsx';
-import Lightbox from './Lightbox.jsx';
-import StatusHistory from './StatusHistory.jsx';
-import DebugMetadata from './DebugMetadata.jsx';
-import { ArticleCard, AdminNoteCard } from './SourceCards.jsx';
-import { VerificationBadge } from './IncidentBadges.jsx';
-import XPostCompactList, { XEmbed } from './XPostCompactList.jsx';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './IncidentDetailTrial.css';
+import {
+  INCIDENT,
+  TIMELINE,
+  Icons,
+  SummaryCard,
+  TimelineItem,
+  UpdateHeader,
+  EvidencePreview,
+  EvidenceBundle,
+  VerificationBadge,
+  Lightbox,
+  formatDate,
+  formatTime,
+  relativeTime,
+  countSources,
+  sourceCounts,
+  SourceCountChips,
+  SEVERITY_LABELS,
+  VERIFICATION,
+  SOURCE_TYPE_LABELS,
+  SOURCE_TYPE_ICONS,
+  StatusHistory,
+  DebugMetadata,
+  CopyButton,
+  parseCoordinates,
+  MetaRow,
+  StatTile,
+  XEmbed,
+  XPostCard,
+  ArticleCard,
+  AdminNoteCard,
+  MediaThumb,
+} from './IncidentDetailTrialCommon.jsx';
+import { AuditLogPanel, UserProfileDrawer, Drawer } from './SidebarTrial2Option1SuperAdminAudit.jsx';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Final incident-detail sidebar.
+   Supports user, admin, and superadmin modes. Admin mode adds full incident,
+   event, and evidence management inside the 630px sidebar.
+   Route: /sidebarTrial2 (user), /sidebarTrial2/admin, /sidebarTrial2/superadmin
+   ───────────────────────────────────────────────────────────────────────────── */
+
+function uid() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function toDatetimeLocal(iso) {
   if (!iso) return '';
@@ -28,6 +73,7 @@ function fromDatetimeLocal(value) {
   return new Date(value).toISOString();
 }
 
+/* ─── Form primitives ─── */
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom: 14 }}>
@@ -198,47 +244,7 @@ function Toast({ message, onClose }) {
   );
 }
 
-function CopyButton({ text, label = 'Copy', compact = false }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
-  };
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className={`id-copy-btn ${compact ? 'id-copy-btn--compact' : ''}`}
-      title="Copy to clipboard"
-    >
-      {copied ? 'Copied' : label}
-    </button>
-  );
-}
-
-function MetaRow({ label, children }) {
-  return (
-    <div className="id-meta-row">
-      <div className="id-meta-row__body">
-        <span className="id-meta-row__label">{label}</span>
-        <div className="id-meta-row__value">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function StatTile({ value, label }) {
-  return (
-    <div className="id-stat-tile">
-      <div className="id-stat-tile__value">{value}</div>
-      <div className="id-stat-tile__label">{label}</div>
-    </div>
-  );
-}
-
+/* ─── Modals ─── */
 function IncidentEditModal({ incident, onClose, onSave }) {
   const [form, setForm] = useState({ ...incident });
   const patch = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -246,20 +252,20 @@ function IncidentEditModal({ incident, onClose, onSave }) {
   return (
     <Modal title="Edit incident" onClose={onClose} onSubmit={() => onSave(form)}>
       <Field label="Title">
-        <Input value={form.title || ''} onChange={(e) => patch('title', e.target.value)} />
+        <Input value={form.title} onChange={(e) => patch('title', e.target.value)} />
       </Field>
       <Field label="Description">
-        <TextArea value={form.description || ''} onChange={(e) => patch('description', e.target.value)} />
+        <TextArea value={form.description} onChange={(e) => patch('description', e.target.value)} />
       </Field>
       <Field label="Location">
-        <Input value={form.locationContext || form.location || ''} onChange={(e) => patch('locationContext', e.target.value)} />
+        <Input value={form.location} onChange={(e) => patch('location', e.target.value)} />
       </Field>
       <Field label="Category">
-        <Input value={form.categoryName || form.category || ''} onChange={(e) => patch('categoryName', e.target.value)} />
+        <Input value={form.category} onChange={(e) => patch('category', e.target.value)} />
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Field label="Severity">
-          <Select value={form.severity || 3} onChange={(e) => patch('severity', Number(e.target.value))}>
+          <Select value={form.severity} onChange={(e) => patch('severity', Number(e.target.value))}>
             {Object.entries(SEVERITY_LABELS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
@@ -268,7 +274,7 @@ function IncidentEditModal({ incident, onClose, onSave }) {
           </Select>
         </Field>
         <Field label="Status">
-          <Select value={form.status || 'active'} onChange={(e) => patch('status', e.target.value)}>
+          <Select value={form.status} onChange={(e) => patch('status', e.target.value)}>
             <option value="active">Active</option>
             <option value="resolved">Resolved</option>
             <option value="archived">Archived</option>
@@ -276,7 +282,7 @@ function IncidentEditModal({ incident, onClose, onSave }) {
         </Field>
       </div>
       <Field label="Verification">
-        <Select value={form.verification || 'unverified'} onChange={(e) => patch('verification', e.target.value)}>
+        <Select value={form.verification} onChange={(e) => patch('verification', e.target.value)}>
           {Object.keys(VERIFICATION).map((k) => (
             <option key={k} value={k}>
               {VERIFICATION[k].label}
@@ -292,10 +298,10 @@ function EventModal({ event, onClose, onSave }) {
   const isEdit = !!event;
   const [form, setForm] = useState({
     type: event?.type || 'update',
-    timestamp: event?.timestamp || event?.updateDate || new Date().toISOString(),
+    timestamp: event?.timestamp || new Date().toISOString(),
     summary: event?.summary || '',
     details: event?.details || '',
-    verification: event?.verification || event?.verificationStatus || 'verified',
+    verification: event?.verification || 'verified',
   });
   const patch = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -334,27 +340,29 @@ function EventModal({ event, onClose, onSave }) {
 }
 
 function evidenceDefaults(type) {
+  const seed = Math.random().toString(36).slice(2, 8);
   switch (type) {
     case 'media':
-      return { id: '', type: 'image', url: '', caption: '', pinned: false };
+      return { id: uid(), type: 'image', url: '', caption: '', pinned: false };
     case 'x_post':
-      return { id: '', type: 'x_post', author: 'X', handle: '@x', text: 'Embedded post', tweetUrl: '', authorAvatar: '', timestamp: new Date().toISOString(), archived: false };
+      return {
+        id: uid(),
+        type: 'x_post',
+        author: 'X',
+        handle: '@x',
+        text: 'Embedded post',
+        tweetUrl: '',
+        authorAvatar: `https://picsum.photos/seed/${seed}/120/120`,
+        timestamp: new Date().toISOString(),
+        archived: false,
+      };
     case 'news_article':
-      return { id: '', publisher: '', title: '', url: '', pinned: false };
+      return { id: uid(), publisher: '', title: '', url: '', pinned: false };
     case 'admin_note':
-      return { id: '', author: 'Admin', text: '', pinned: false };
+      return { id: uid(), author: 'Admin', text: '', pinned: false };
     default:
       return {};
   }
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 function EvidenceModal({ type, item, onClose, onSave }) {
@@ -405,7 +413,7 @@ function EvidenceModal({ type, item, onClose, onSave }) {
   const handleSave = () => {
     if (type === 'media' && !isEdit && mediaMode === 'file') {
       const newItems = fileItems.map((item) => ({
-        id: '',
+        id: uid(),
         type: 'image',
         url: item.dataUrl,
         caption: item.caption,
@@ -511,6 +519,12 @@ function EvidenceModal({ type, item, onClose, onSave }) {
                             fontSize: 12,
                             outline: 'none',
                           }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--accent)';
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                          }}
                         />
                       </div>
                     </div>
@@ -566,283 +580,13 @@ function EvidenceModal({ type, item, onClose, onSave }) {
   );
 }
 
-function findItemByFeature(sources, featured) {
-  if (!featured || !sources) return null;
-  const list = sources[featured.sourceType];
-  return list?.find((x) => x.id === (featured.sourceId || featured.itemId)) || null;
-}
-
-function FeaturedItemContent({ sourceType, item, onMediaClick }) {
-  if (sourceType === 'media') {
-    return (
-      <button type="button" className="id-featured-media" onClick={() => onMediaClick?.([item], 0)}>
-        <img src={item.url} alt={item.caption} loading="lazy" />
-        {item.caption && <div className="id-featured-media__caption">{item.caption}</div>}
-      </button>
-    );
-  }
-  if (sourceType === 'x_post') {
-    return (
-      <div className="id-featured-embed">
-        <XEmbed post={item} />
-      </div>
-    );
-  }
-  if (sourceType === 'news_article') {
-    return <ArticleCard article={item} />;
-  }
-  if (sourceType === 'admin_note') {
-    return <AdminNoteCard note={item} />;
-  }
-  return null;
-}
-
-function SourceCountChips({ sources, counts: countsProp }) {
-  const counts = countsProp || {
-    x_post: sources?.x_post?.length || 0,
-    news_article: sources?.news_article?.length || 0,
-    admin_note: sources?.admin_note?.length || 0,
-    media: sources?.media?.length || 0,
-  };
-  const types = [
-    { key: 'x_post', icon: '𝕏', label: 'Posts' },
-    { key: 'news_article', icon: '📰', label: 'Articles' },
-    { key: 'admin_note', icon: '📝', label: 'Notes' },
-    { key: 'media', icon: '📷', label: 'Media' },
-  ];
-  if (types.every((t) => !counts[t.key])) return null;
-  return (
-    <div className="id-source-chips">
-      {types.map((type) =>
-        counts[type.key] > 0 ? (
-          <span key={type.key} className="id-source-chip" title={`${counts[type.key]} ${type.label}`}>
-            <span className="id-source-chip__icon">{type.icon}</span>
-            <span className="id-source-chip__count">{counts[type.key]}</span>
-          </span>
-        ) : null
-      )}
-    </div>
-  );
-}
-
-function FeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, isAdmin, onOpenDrawer }) {
-  const item = findItemByFeature(event.sources, featuredItem);
-  if (!item) return null;
-  return (
-    <>
-      <div className="id-featured-block">
-        <div className="id-featured-block__header">
-          <span className="id-featured-block__label">{Icons.star} Featured</span>
-          {isAdmin && (
-            <div className="id-featured-block__actions">
-              <button
-                type="button"
-                className="id-featured-block__change"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenDrawer(event, 'all');
-                }}
-              >
-                Change
-              </button>
-              <button
-                type="button"
-                className="id-featured-block__remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClearFeature();
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="id-featured-block__body">
-          <FeaturedItemContent sourceType={featuredItem.sourceType} item={item} onMediaClick={onMediaClick} />
-        </div>
-      </div>
-      <div className="id-featured-meta">
-        <SourceCountChips sources={event.sources} />
-        <button
-          type="button"
-          className="id-btn-ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDrawer(event, 'all');
-          }}
-        >
-          Inspect {Icons.chevronRight}
-        </button>
-      </div>
-    </>
-  );
-}
-
-function FeatureTrigger({ event, onSetFeature }) {
-  if (countSources(event.sources) === 0) return null;
-  return (
-    <button
-      type="button"
-      className="id-feature-trigger"
-      onClick={(e) => {
-        e.stopPropagation();
-        onSetFeature(event, 'all');
-      }}
-    >
-      {Icons.star} Set featured item
-    </button>
-  );
-}
-
-function TwitterMediaGrid({ sources, onMediaClick, onOpenDrawer }) {
-  const counts = {
-    x_post: sources?.x_post?.length || 0,
-    news_article: sources?.news_article?.length || 0,
-    admin_note: sources?.admin_note?.length || 0,
-    media: sources?.media?.length || 0,
-  };
-  const allMedia = sources?.media || [];
-  const totalMedia = allMedia.length;
-
-  if (totalMedia === 0) {
-    return (
-      <div className="id-evidence-count-row">
-        <SourceCountChips counts={counts} />
-        <button
-          type="button"
-          className="id-btn-ghost"
-          style={{ marginLeft: 'auto' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDrawer?.();
-          }}
-        >
-          Inspect {Icons.chevronRight}
-        </button>
-      </div>
-    );
-  }
-
-  const sortedMedia = [...allMedia].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
-  const display = sortedMedia.slice(0, 4);
-  const hasMore = totalMedia > 4;
-  const gridClass = `id-twitter-grid id-twitter-grid--${display.length === 4 && hasMore ? 'more' : display.length}`;
-
-  return (
-    <div className="id-update-card__media">
-      <div className={gridClass}>
-        {display.map((item, idx) => (
-          <button
-            key={item.id}
-            type="button"
-            className="id-twitter-grid__cell"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMediaClick?.(sortedMedia, idx);
-            }}
-          >
-            <img src={item.url} alt={item.caption} loading="lazy" />
-            {idx === 3 && hasMore && <span className="id-twitter-grid__overlay">+{totalMedia - 4}</span>}
-          </button>
-        ))}
-      </div>
-      <div className="id-evidence-count-row">
-        <SourceCountChips counts={counts} />
-        <button
-          type="button"
-          className="id-btn-ghost"
-          style={{ marginLeft: 'auto' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDrawer?.();
-          }}
-        >
-          Inspect {Icons.chevronRight}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function InitialReportCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
-  return (
-    <div className="id-latest" onClick={() => onOpenDrawer(event, 'all')}>
-      <UpdateHeader event={event} />
-      <h3 className="id-update-card__title">{event.summary}</h3>
-      <p className="id-update-card__text">{event.details}</p>
-      {isAdmin && !featuredItem && <FeatureTrigger event={event} onSetFeature={onSetFeature} />}
-      {featuredItem ? (
-        <FeaturedSection
-          event={event}
-          featuredItem={featuredItem}
-          onMediaClick={onOpenLightbox}
-          onClearFeature={onClearFeature}
-          isAdmin={isAdmin}
-          onOpenDrawer={onOpenDrawer}
-        />
-      ) : (
-        <TwitterMediaGrid sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
-      )}
-    </div>
-  );
-}
-
-function UpdateCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
-  return (
-    <div className="id-update-card" onClick={() => onOpenDrawer(event, 'all')}>
-      <div className="id-update-card__body">
-        <UpdateHeader event={event} />
-        <h3 className="id-update-card__title">{event.summary}</h3>
-        <p className="id-update-card__text">
-          {event.details?.length > 130 ? event.details.slice(0, 130) + '…' : event.details}
-        </p>
-        {isAdmin && !featuredItem && <FeatureTrigger event={event} onSetFeature={onSetFeature} />}
-        {featuredItem ? (
-          <FeaturedSection
-            event={event}
-            featuredItem={featuredItem}
-            onMediaClick={onOpenLightbox}
-            onClearFeature={onClearFeature}
-            isAdmin={isAdmin}
-            onOpenDrawer={onOpenDrawer}
-          />
-        ) : (
-          <TwitterMediaGrid sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function IncidentDetailSidebar({
-  incident,
-  timeline,
-  mode = 'user',
-  onNavigateToFullPage,
-  onCopyIncidentLink,
-  onUpdateIncident,
-  onResolveIncident,
-  onDeleteIncident,
-  onRestoreIncident,
-  onPurgeIncident,
-  onAddUpdate,
-  onEditUpdate,
-  onDeleteUpdate,
-  onAddEvidence,
-  onEditEvidence,
-  onDeleteEvidence,
-  onPinEvidence,
-  onFeatureEvidence,
-  onClearFeatureEvidence,
-  onArchiveSource,
-  onOpenAudit,
-  onViewCreator,
-  auditLogs,
-}) {
+export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onViewCreator }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const isSuper = mode === 'superadmin';
+  const navigate = useNavigate();
 
+  const [incident, setIncident] = useState({ ...INCIDENT });
+  const [events, setEvents] = useState([...TIMELINE]);
   const [drawerEvent, setDrawerEvent] = useState(null);
   const [drawerTab, setDrawerTab] = useState('all');
   const [lightbox, setLightbox] = useState(null);
@@ -854,60 +598,192 @@ export default function IncidentDetailSidebar({
 
   const notify = useCallback((message) => setToast({ message }), []);
 
-  const setFeaturedItem = useCallback(
-    (eventId, sourceType, itemId) => {
-      setFeaturedItems((prev) => {
-        const current = prev[eventId];
-        if (current && current.sourceType === sourceType && (current.sourceId === itemId || current.itemId === itemId)) {
-          const next = { ...prev };
-          delete next[eventId];
-          return next;
-        }
-        return { ...prev, [eventId]: { sourceType, sourceId: itemId } };
-      });
-      onFeatureEvidence?.(eventId, { sourceType, sourceId: itemId });
-    },
-    [onFeatureEvidence]
-  );
-
-  const clearFeaturedItem = useCallback(
-    (eventId) => {
-      setFeaturedItems((prev) => {
+  const setFeaturedItem = useCallback((eventId, sourceType, itemId) => {
+    setFeaturedItems((prev) => {
+      const current = prev[eventId];
+      if (current && current.sourceType === sourceType && current.itemId === itemId) {
         const next = { ...prev };
         delete next[eventId];
         return next;
-      });
-      onClearFeatureEvidence?.(eventId);
-    },
-    [onClearFeatureEvidence]
-  );
+      }
+      return { ...prev, [eventId]: { sourceType, itemId } };
+    });
+  }, []);
+
+  const clearFeaturedItem = useCallback((eventId) => {
+    setFeaturedItems((prev) => {
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
+  }, []);
 
   const findFeaturedItem = useCallback((event, featured) => {
     if (!featured || !event?.sources) return null;
     const list = event.sources[featured.sourceType];
-    return list?.find((x) => x.id === (featured.sourceId || featured.itemId)) || null;
+    return list?.find((x) => x.id === featured.itemId) || null;
   }, []);
 
-  const events = timeline || [];
-  const initialReport = events[0];
-  const updates = events.slice(1);
+  const nowIso = () => new Date().toISOString();
+  const currentUser = { id: 'u1', name: 'System Administrator' };
 
-  const totalSources = events.reduce((sum, e) => sum + countSources(e.sources), 0);
-  const totalUpdates = events.length;
-  const totalPosts = events.reduce((sum, e) => sum + (e.sources?.x_post?.length || 0), 0);
-  const coords = parseCoordinates(incident.coordinates || (incident.latitude != null && incident.longitude != null ? `${incident.latitude},${incident.longitude}` : null));
-  const isDeleted = incident.status === 'deleted';
-  const isPurged = incident.status === 'purged';
-  const isResolved = incident.status === 'resolved';
-  const isReadOnly = isDeleted || isPurged;
+  /* ─── Evidence mutations ─── */
+  const mutateSources = useCallback((eventId, sourceType, updater) => {
+    setEvents((prev) =>
+      prev.map((e) => {
+        if (e.id !== eventId) return e;
+        const list = e.sources?.[sourceType] || [];
+        return { ...e, sources: { ...e.sources, [sourceType]: updater(list) } };
+      })
+    );
+  }, []);
 
-  const goFullDetails = useCallback(() => onNavigateToFullPage?.(incident.id), [onNavigateToFullPage, incident.id]);
+  const addEvidence = useCallback(
+    (eventId, sourceType, itemOrItems) => {
+      const items = Array.isArray(itemOrItems) ? itemOrItems : [itemOrItems];
+      mutateSources(eventId, sourceType, (list) => [...list, ...items]);
+      notify(`${SOURCE_TYPE_LABELS[sourceType]} added`);
+    },
+    [mutateSources, notify]
+  );
+
+  const updateEvidence = useCallback(
+    (eventId, sourceType, item) => {
+      mutateSources(eventId, sourceType, (list) => list.map((x) => (x.id === item.id ? { ...item } : x)));
+      notify(`${SOURCE_TYPE_LABELS[sourceType]} updated`);
+    },
+    [mutateSources, notify]
+  );
+
+  const deleteEvidence = useCallback(
+    (eventId, sourceType, itemId) => {
+      if (!window.confirm(`Delete this ${SOURCE_TYPE_LABELS[sourceType]}?`)) return;
+      mutateSources(eventId, sourceType, (list) => list.filter((x) => x.id !== itemId));
+      notify(`${SOURCE_TYPE_LABELS[sourceType]} deleted`);
+    },
+    [mutateSources, notify]
+  );
+
+  const togglePin = useCallback(
+    (eventId, sourceType, itemId) => {
+      mutateSources(eventId, sourceType, (list) =>
+        list.map((x) => (x.id === itemId ? { ...x, pinned: !x.pinned } : x))
+      );
+    },
+    [mutateSources]
+  );
+
+  /* ─── Event mutations ─── */
+  const addEvent = useCallback(
+    (payload) => {
+      const newEvent = {
+        id: uid(),
+        ...payload,
+        sources: { media: [], x_post: [], news_article: [], admin_note: [] },
+      };
+      setEvents((prev) => [...prev, newEvent]);
+      notify('Update added');
+    },
+    [notify]
+  );
+
+  const updateEvent = useCallback(
+    (id, patch) => {
+      setEvents((prev) =>
+        prev.map((e) => {
+          if (e.id !== id) return e;
+          return { ...e, ...patch };
+        })
+      );
+      // refresh drawer event if it's the one being edited
+      setDrawerEvent((current) => (current?.id === id ? { ...current, ...patch } : current));
+      notify('Update saved');
+    },
+    [notify]
+  );
+
+  const deleteEvent = useCallback(
+    (id) => {
+      if (!window.confirm('Delete this story update?')) return;
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+      setDrawerEvent((current) => (current?.id === id ? null : current));
+      notify('Update deleted');
+    },
+    [notify]
+  );
+
+  /* ─── Incident mutations ─── */
+  const updateIncident = useCallback(
+    (patch) => {
+      setIncident((prev) => ({ ...prev, ...patch, updatedAt: nowIso() }));
+      notify('Incident updated');
+    },
+    [notify]
+  );
+
+  const resolveIncidentFunc = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: 'resolved',
+      endDate: nowIso(),
+      resolvedAt: nowIso(),
+      resolvedBy: currentUser.id,
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident resolved');
+  }, [notify]);
+
+  const softDeleteIncident = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: 'deleted',
+      originalStatus: prev.status === 'deleted' ? prev.originalStatus : prev.status,
+      deletedAt: nowIso(),
+      deletedBy: currentUser.id,
+      deletedByName: currentUser.name,
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident moved to Recycle Bin');
+  }, [notify]);
+
+  const restoreIncidentFunc = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: prev.originalStatus || 'active',
+      originalStatus: null,
+      deletedAt: null,
+      deletedBy: null,
+      deletedByName: null,
+      purgedAt: null,
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident restored');
+  }, [notify]);
+
+  const purgeIncidentFunc = useCallback(() => {
+    setIncident((prev) => ({
+      ...prev,
+      status: 'purged',
+      purgedAt: nowIso(),
+      updatedAt: nowIso(),
+    }));
+    setConfirm(null);
+    notify('Incident permanently deleted');
+  }, [notify]);
+
+  /* ─── UI helpers ─── */
+  const goFullDetails = useCallback(() => navigate(`/dashboard?incident=${incident.id}`), [navigate, incident.id]);
 
   const handleCopyLink = useCallback(() => {
-    onCopyIncidentLink?.(incident.id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [onCopyIncidentLink, incident.id]);
+    const url = `${window.location.origin}/dashboard?incident=${incident.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [incident.id]);
 
   const openDrawer = useCallback((event, startingTab = 'all') => {
     setDrawerEvent(event);
@@ -931,69 +807,42 @@ export default function IncidentDetailSidebar({
     return () => document.removeEventListener('keydown', onKey);
   }, [drawerEvent, lightbox, closeDrawer]);
 
+  // keep the open drawer in sync when evidence/event mutations happen
   useEffect(() => {
     if (!drawerEvent) return;
     const updated = events.find((e) => e.id === drawerEvent.id);
     if (updated && updated !== drawerEvent) setDrawerEvent(updated);
   }, [events, drawerEvent?.id]);
 
-  const handleUpdateIncident = (patch) => {
-    onUpdateIncident?.(patch);
-    notify('Incident updated');
-    setModal(null);
-  };
+  const initialReport = events[0];
+  const updates = events.slice(1);
 
-  const handleResolve = () => {
-    onResolveIncident?.();
-    notify('Incident resolved');
-    setConfirm(null);
-  };
-
-  const handleDelete = () => {
-    onDeleteIncident?.();
-    notify('Incident moved to Recycle Bin');
-    setConfirm(null);
-  };
-
-  const handleRestore = () => {
-    onRestoreIncident?.();
-    notify('Incident restored');
-    setConfirm(null);
-  };
-
-  const handlePurge = () => {
-    onPurgeIncident?.();
-    notify('Incident permanently deleted');
-    setConfirm(null);
-  };
-
-  const handleAddUpdate = (payload) => {
-    onAddUpdate?.(payload);
-    notify('Update added');
-    setModal(null);
-  };
-
-  const handleEditUpdate = (id, patch) => {
-    onEditUpdate?.(id, patch);
-    notify('Update saved');
-    setModal(null);
-  };
-
-  const handleAddEvidence = (eventId, sourceType, item) => {
-    onAddEvidence?.(eventId, sourceType, item);
-    notify(`${SOURCE_TYPE_LABELS[sourceType]} added`);
-    setModal(null);
-  };
-
-  const handleEditEvidence = (eventId, sourceType, item) => {
-    onEditEvidence?.(eventId, sourceType, item);
-    notify(`${SOURCE_TYPE_LABELS[sourceType]} updated`);
-    setModal(null);
-  };
+  const totalSources = events.reduce((sum, e) => sum + countSources(e.sources), 0);
+  const totalUpdates = events.length;
+  const totalPosts = events.reduce((sum, e) => sum + (e.sources?.x_post?.length || 0), 0);
+  const coords = parseCoordinates(incident.coordinates);
+  const isDeleted = incident.status === 'deleted';
+  const isPurged = incident.status === 'purged';
+  const isResolved = incident.status === 'resolved';
+  const isReadOnly = isDeleted || isPurged;
 
   return (
-    <aside className={`id-sidebar ${isSuper ? 'id-sidebar--superadmin' : ''}`}>
-      <div className="id-sidebar__scroll">
+    <div className={`id-trial-page ${isSuper ? 'id-trial-page--superadmin' : ''}`}>
+      <div className="id-fake-map">
+        <div className="id-fake-map-grid" />
+        <div className="id-fake-map-markers">
+          <span style={{ left: '24%', top: '34%' }} />
+          <span style={{ left: '42%', top: '28%' }} />
+          <span style={{ left: '54%', top: '46%' }} />
+          <span style={{ left: '66%', top: '30%' }} />
+          <span style={{ left: '44%', top: '62%' }} />
+          <span style={{ left: '72%', top: '58%' }} />
+        </div>
+        <div className="id-fake-map-label">Selected incident</div>
+      </div>
+
+      <aside className="id-sidebar">
+        <div className="id-sidebar__scroll">
           <SummaryCard incident={incident} onTitleClick={goFullDetails} mode={mode}>
             <div className="id-summary__actions">
               <button className="id-btn-primary" onClick={goFullDetails}>
@@ -1023,21 +872,19 @@ export default function IncidentDetailSidebar({
                     <CopyButton text={`${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`} />
                   </MetaRow>
                 )}
-                <MetaRow label="Started">
-                  {formatDate(incident.startDate)} · {formatTime(incident.startDate)}
-                </MetaRow>
-                {incident.endDate && (
-                  <MetaRow label="Ended">
-                    {formatDate(incident.endDate)} · {formatTime(incident.endDate)}
-                  </MetaRow>
-                )}
+                <MetaRow label="Started">{formatDate(incident.startDate)} · {formatTime(incident.startDate)}</MetaRow>
+                {incident.endDate && <MetaRow label="Ended">{formatDate(incident.endDate)} · {formatTime(incident.endDate)}</MetaRow>}
                 <MetaRow label="Category">
-                  <span style={{ color: incident.categoryColor, fontWeight: 700 }}>{incident.categoryName || incident.category}</span>
+                  <span style={{ color: incident.categoryColor, fontWeight: 700 }}>{incident.category}</span>
                   {' · '}
                   {incident.domain}
                 </MetaRow>
                 <MetaRow label="Created by">
-                  <button type="button" className="id-creator-link" onClick={() => onViewCreator?.(incident.createdBy)}>
+                  <button
+                    type="button"
+                    className="id-creator-link"
+                    onClick={() => onViewCreator?.(incident.createdBy)}
+                  >
                     {incident.createdByName || incident.createdBy}
                     {incident.createdByEmail && <span className="id-creator-email">{incident.createdByEmail}</span>}
                   </button>
@@ -1048,11 +895,7 @@ export default function IncidentDetailSidebar({
             {isPurged && (
               <div className="id-banner id-banner--purged">
                 <div className="id-banner__title">This incident has been permanently deleted.</div>
-                {incident.purgedAt && (
-                  <div>
-                    Purged {formatDate(incident.purgedAt)} · {formatTime(incident.purgedAt)}
-                  </div>
-                )}
+                {incident.purgedAt && <div>Purged {formatDate(incident.purgedAt)} · {formatTime(incident.purgedAt)}</div>}
                 {incident.originalStatus && <div>Original status: {incident.originalStatus}</div>}
               </div>
             )}
@@ -1060,11 +903,7 @@ export default function IncidentDetailSidebar({
             {isDeleted && (
               <div className="id-banner id-banner--deleted">
                 <div className="id-banner__title">This incident has been moved to the Recycle Bin.</div>
-                {incident.deletedAt && (
-                  <div>
-                    Deleted {formatDate(incident.deletedAt)} · {formatTime(incident.deletedAt)}
-                  </div>
-                )}
+                {incident.deletedAt && <div>Deleted {formatDate(incident.deletedAt)} · {formatTime(incident.deletedAt)}</div>}
                 {incident.deletedByName && <div>Deleted by {incident.deletedByName}</div>}
                 {incident.originalStatus && <div>Original status: {incident.originalStatus}</div>}
                 <div className="id-banner__actions">
@@ -1107,34 +946,31 @@ export default function IncidentDetailSidebar({
               </div>
             )}
 
-            {isSuper && <StatusHistory incident={incident} logs={auditLogs} onUserClick={onViewCreator} />}
+            {isSuper && <StatusHistory incident={incident} events={events} onUserClick={onViewCreator} />}
             {isSuper && <DebugMetadata incident={incident} />}
           </SummaryCard>
 
-          {initialReport && (
-            <>
-              <div className="id-section-title">Initial Report</div>
-              <TimelineItem event={initialReport} index={0} total={events.length}>
-                <InitialReportCard
-                  event={initialReport}
-                  isAdmin={isAdmin}
-                  featuredItem={featuredItems[initialReport.id] || initialReport.featuredItem}
-                  onSetFeature={openDrawer}
-                  onClearFeature={() => clearFeaturedItem(initialReport.id)}
-                  onOpenDrawer={openDrawer}
-                  onOpenLightbox={openLightbox}
-                />
-              </TimelineItem>
-            </>
-          )}
+          <div className="id-section-title">Initial Report</div>
 
-          {updates.length > 0 && <div className="id-section-title">Updates</div>}
+          <TimelineItem event={initialReport} index={0} total={events.length}>
+            <InitialReportCard
+              event={initialReport}
+              isAdmin={isAdmin}
+              featuredItem={featuredItems[initialReport.id]}
+              onSetFeature={openDrawer}
+              onClearFeature={() => clearFeaturedItem(initialReport.id)}
+              onOpenDrawer={openDrawer}
+              onOpenLightbox={openLightbox}
+            />
+          </TimelineItem>
+
+          <div className="id-section-title">Updates</div>
           {updates.map((event, idx) => (
             <TimelineItem key={event.id} event={event} index={idx + 1} total={events.length}>
               <UpdateCard
                 event={event}
                 isAdmin={isAdmin}
-                featuredItem={featuredItems[event.id] || event.featuredItem}
+                featuredItem={featuredItems[event.id]}
                 onSetFeature={openDrawer}
                 onClearFeature={() => clearFeaturedItem(event.id)}
                 onOpenDrawer={openDrawer}
@@ -1145,6 +981,7 @@ export default function IncidentDetailSidebar({
 
           <div style={{ height: 40 }} />
         </div>
+      </aside>
 
       {drawerEvent && (
         <>
@@ -1154,7 +991,7 @@ export default function IncidentDetailSidebar({
               <div>
                 <h3 className="id-drawer__title">{drawerEvent.summary}</h3>
                 <div className="id-drawer__meta">
-                  {formatTime(drawerEvent.timestamp || drawerEvent.updateDate)} · {relativeTime(drawerEvent.timestamp || drawerEvent.updateDate)}
+                  {formatTime(drawerEvent.timestamp)} · {relativeTime(drawerEvent.timestamp)}
                 </div>
               </div>
               <button className="id-drawer__close" onClick={closeDrawer} aria-label="Close">
@@ -1164,7 +1001,7 @@ export default function IncidentDetailSidebar({
 
             <div className="id-drawer__body">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                <VerificationBadge status={drawerEvent.verification || drawerEvent.verificationStatus} />
+                <VerificationBadge status={drawerEvent.verification} />
                 <span
                   style={{
                     fontSize: 10,
@@ -1181,8 +1018,8 @@ export default function IncidentDetailSidebar({
               {isAdmin && !isReadOnly && (
                 <div className="id-drawer-admin">
                   <Select
-                    value={drawerEvent.verification || drawerEvent.verificationStatus}
-                    onChange={(e) => onEditUpdate?.(drawerEvent.id, { verification: e.target.value })}
+                    value={drawerEvent.verification}
+                    onChange={(e) => updateEvent(drawerEvent.id, { verification: e.target.value })}
                     style={{ maxWidth: 140, padding: '5px 9px', fontSize: 12 }}
                     disabled={isReadOnly}
                   >
@@ -1203,7 +1040,7 @@ export default function IncidentDetailSidebar({
                   <button
                     type="button"
                     className="id-drawer-admin__btn id-drawer-admin__btn--danger"
-                    onClick={() => onDeleteUpdate?.(drawerEvent.id)}
+                    onClick={() => deleteEvent(drawerEvent.id)}
                     disabled={isReadOnly}
                   >
                     {Icons.trash} Delete
@@ -1229,12 +1066,11 @@ export default function IncidentDetailSidebar({
                 onMediaClick={openLightbox}
                 mode={mode}
                 onAddEvidence={(eventId, sourceType) => setModal({ type: 'evidence', eventId, sourceType })}
-                onEditEvidence={(eventId, sourceType, item) => setModal({ type: 'item', eventId, sourceType, item })}
-                onDeleteEvidence={onDeleteEvidence}
-                onPinEvidence={onPinEvidence}
-                onFeatureEvidence={setFeaturedItem}
-                onArchiveSource={onArchiveSource}
-                featuredItem={featuredItems[drawerEvent.id] || drawerEvent.featuredItem}
+                onEditItem={(eventId, sourceType, item) => setModal({ type: 'item', eventId, sourceType, item })}
+                onDeleteItem={deleteEvidence}
+                onPinItem={togglePin}
+                featuredItem={featuredItems[drawerEvent.id]}
+                onFeatureItem={setFeaturedItem}
               />
             </div>
           </div>
@@ -1244,7 +1080,14 @@ export default function IncidentDetailSidebar({
       {lightbox && <Lightbox items={lightbox.items} startIndex={lightbox.startIndex} onClose={closeLightbox} />}
 
       {modal?.type === 'incident' && (
-        <IncidentEditModal incident={incident} onClose={() => setModal(null)} onSave={handleUpdateIncident} />
+        <IncidentEditModal
+          incident={incident}
+          onClose={() => setModal(null)}
+          onSave={(patch) => {
+            updateIncident(patch);
+            setModal(null);
+          }}
+        />
       )}
 
       {modal?.type === 'event' && (
@@ -1253,10 +1096,11 @@ export default function IncidentDetailSidebar({
           onClose={() => setModal(null)}
           onSave={(form) => {
             if (modal.event) {
-              handleEditUpdate(modal.event.id, form);
+              updateEvent(modal.event.id, form);
             } else {
-              handleAddUpdate(form);
+              addEvent(form);
             }
+            setModal(null);
           }}
         />
       )}
@@ -1265,7 +1109,10 @@ export default function IncidentDetailSidebar({
         <EvidenceModal
           type={modal.sourceType}
           onClose={() => setModal(null)}
-          onSave={(item) => handleAddEvidence(modal.eventId, modal.sourceType, item)}
+          onSave={(item) => {
+            addEvidence(modal.eventId, modal.sourceType, item);
+            setModal(null);
+          }}
         />
       )}
 
@@ -1274,12 +1121,15 @@ export default function IncidentDetailSidebar({
           type={modal.sourceType}
           item={modal.item}
           onClose={() => setModal(null)}
-          onSave={(item) => handleEditEvidence(modal.eventId, modal.sourceType, item)}
+          onSave={(item) => {
+            updateEvidence(modal.eventId, modal.sourceType, item);
+            setModal(null);
+          }}
         />
       )}
 
       {confirm?.type === 'resolve' && (
-        <Modal title="Resolve incident" onClose={() => setConfirm(null)} onSubmit={handleResolve} submitLabel="Resolve">
+        <Modal title="Resolve incident" onClose={() => setConfirm(null)} onSubmit={resolveIncidentFunc} submitLabel="Resolve">
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
             Mark <strong>{incident.title}</strong> as resolved? It will be hidden from the live map and moved to historic view.
           </p>
@@ -1287,7 +1137,7 @@ export default function IncidentDetailSidebar({
       )}
 
       {confirm?.type === 'delete' && (
-        <Modal title="Move to Recycle Bin" onClose={() => setConfirm(null)} onSubmit={handleDelete} submitLabel="Move to Recycle Bin">
+        <Modal title="Move to Recycle Bin" onClose={() => setConfirm(null)} onSubmit={softDeleteIncident} submitLabel="Move to Recycle Bin">
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
             Move <strong>{incident.title}</strong> to the Recycle Bin? It will be hidden from all views but can be restored later.
           </p>
@@ -1295,7 +1145,7 @@ export default function IncidentDetailSidebar({
       )}
 
       {confirm?.type === 'restore' && (
-        <Modal title="Restore incident" onClose={() => setConfirm(null)} onSubmit={handleRestore} submitLabel="Restore">
+        <Modal title="Restore incident" onClose={() => setConfirm(null)} onSubmit={restoreIncidentFunc} submitLabel="Restore">
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
             Restore <strong>{incident.title}</strong> to its original status? It will reappear on the live map.
           </p>
@@ -1303,7 +1153,7 @@ export default function IncidentDetailSidebar({
       )}
 
       {confirm?.type === 'purge' && (
-        <Modal title="Permanently delete" onClose={() => setConfirm(null)} onSubmit={handlePurge} submitLabel="Purge permanently">
+        <Modal title="Permanently delete" onClose={() => setConfirm(null)} onSubmit={purgeIncidentFunc} submitLabel="Purge permanently">
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
             Permanently delete <strong>{incident.title}</strong>? This action cannot be undone and the record will be purged from the Recycle Bin.
           </p>
@@ -1311,6 +1161,202 @@ export default function IncidentDetailSidebar({
       )}
 
       {toast && <Toast message={toast.message} onClose={() => setToast(null)} />}
-    </aside>
+    </div>
+  );
+}
+
+function findItemByFeature(sources, featured) {
+  if (!featured || !sources) return null;
+  const list = sources[featured.sourceType];
+  return list?.find((x) => x.id === featured.itemId) || null;
+}
+
+function FeaturedItemContent({ sourceType, item, onMediaClick }) {
+  if (sourceType === 'media') {
+    return (
+      <button type="button" className="id-featured-media" onClick={() => onMediaClick?.([item], 0)}>
+        <img src={item.url} alt={item.caption} loading="lazy" />
+        {item.caption && <div className="id-featured-media__caption">{item.caption}</div>}
+      </button>
+    );
+  }
+  if (sourceType === 'x_post') {
+    return (
+      <div className="id-featured-embed">
+        <XEmbed post={item} />
+      </div>
+    );
+  }
+  if (sourceType === 'news_article') {
+    return <ArticleCard article={item} />;
+  }
+  if (sourceType === 'admin_note') {
+    return <AdminNoteCard note={item} />;
+  }
+  return null;
+}
+
+function FeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, isAdmin, onOpenDrawer }) {
+  const item = findItemByFeature(event.sources, featuredItem);
+  if (!item) return null;
+  return (
+    <>
+      <div className="id-featured-block">
+        <div className="id-featured-block__header">
+          <span className="id-featured-block__label">{Icons.star} Featured</span>
+          {isAdmin && (
+            <div className="id-featured-block__actions">
+              <button type="button" className="id-featured-block__change" onClick={(e) => { e.stopPropagation(); onOpenDrawer(event, 'all'); }}>
+                Change
+              </button>
+              <button type="button" className="id-featured-block__remove" onClick={(e) => { e.stopPropagation(); onClearFeature(); }}>
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="id-featured-block__body">
+          <FeaturedItemContent sourceType={featuredItem.sourceType} item={item} onMediaClick={onMediaClick} />
+        </div>
+      </div>
+      <div className="id-featured-meta">
+        <SourceCountChips sources={event.sources} />
+        <button
+          type="button"
+          className="id-btn-ghost"
+          onClick={(e) => { e.stopPropagation(); onOpenDrawer(event, 'all'); }}
+        >
+          Inspect {Icons.chevronRight}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function FeatureTrigger({ event, onSetFeature }) {
+  if (countSources(event.sources) === 0) return null;
+  return (
+    <button
+      type="button"
+      className="id-feature-trigger"
+      onClick={(e) => {
+        e.stopPropagation();
+        onSetFeature(event, 'all');
+      }}
+    >
+      {Icons.star} Set featured item
+    </button>
+  );
+}
+
+function TwitterMediaGrid({ sources, onMediaClick, onOpenDrawer }) {
+  const counts = sourceCounts(sources);
+  const allMedia = sources?.media || [];
+  const totalMedia = allMedia.length;
+
+  if (totalMedia === 0) {
+    return (
+      <div className="id-evidence-count-row">
+        <SourceCountChips counts={counts} />
+        <button
+          type="button"
+          className="id-btn-ghost"
+          style={{ marginLeft: 'auto' }}
+          onClick={(e) => { e.stopPropagation(); onOpenDrawer?.(); }}
+        >
+          Inspect {Icons.chevronRight}
+        </button>
+      </div>
+    );
+  }
+
+  // Pinned media first, then preserve upload order.
+  const sortedMedia = [...allMedia].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+  const display = sortedMedia.slice(0, 4);
+  const hasMore = totalMedia > 4;
+  const gridClass = `id-twitter-grid id-twitter-grid--${display.length === 4 && hasMore ? 'more' : display.length}`;
+
+  return (
+    <div className="id-update-card__media">
+      <div className={gridClass}>
+        {display.map((item, idx) => (
+          <button
+            key={item.id}
+            type="button"
+            className="id-twitter-grid__cell"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMediaClick?.(sortedMedia, idx);
+            }}
+          >
+            <img src={item.url} alt={item.caption} loading="lazy" />
+            {idx === 3 && hasMore && (
+              <span className="id-twitter-grid__overlay">+{totalMedia - 4}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div className="id-evidence-count-row">
+        <SourceCountChips counts={counts} />
+        <button
+          type="button"
+          className="id-btn-ghost"
+          style={{ marginLeft: 'auto' }}
+          onClick={(e) => { e.stopPropagation(); onOpenDrawer?.(); }}
+        >
+          Inspect {Icons.chevronRight}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InitialReportCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
+  return (
+    <div className="id-latest" onClick={() => onOpenDrawer(event, 'all')}>
+      <UpdateHeader event={event} />
+      <h3 className="id-update-card__title">{event.summary}</h3>
+      <p className="id-update-card__text">{event.details}</p>
+      {isAdmin && !featuredItem && <FeatureTrigger event={event} onSetFeature={onSetFeature} />}
+      {featuredItem ? (
+        <FeaturedSection
+          event={event}
+          featuredItem={featuredItem}
+          onMediaClick={onOpenLightbox}
+          onClearFeature={onClearFeature}
+          isAdmin={isAdmin}
+          onOpenDrawer={onOpenDrawer}
+        />
+      ) : (
+        <TwitterMediaGrid sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
+      )}
+    </div>
+  );
+}
+
+function UpdateCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
+  return (
+    <div className="id-update-card" onClick={() => onOpenDrawer(event, 'all')}>
+      <div className="id-update-card__body">
+        <UpdateHeader event={event} />
+        <h3 className="id-update-card__title">{event.summary}</h3>
+        <p className="id-update-card__text">
+          {event.details.length > 130 ? event.details.slice(0, 130) + '…' : event.details}
+        </p>
+        {isAdmin && !featuredItem && <FeatureTrigger event={event} onSetFeature={onSetFeature} />}
+        {featuredItem ? (
+          <FeaturedSection
+            event={event}
+            featuredItem={featuredItem}
+            onMediaClick={onOpenLightbox}
+            onClearFeature={onClearFeature}
+            isAdmin={isAdmin}
+            onOpenDrawer={onOpenDrawer}
+          />
+        ) : (
+          <TwitterMediaGrid sources={event.sources} onMediaClick={onOpenLightbox} onOpenDrawer={() => onOpenDrawer(event, 'all')} />
+        )}
+      </div>
+    </div>
   );
 }

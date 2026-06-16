@@ -2243,7 +2243,7 @@ export default function MapPage() {
 
         {/* Right — Incident detail or zone creation panel */}
         {(selectedIncident || showZoneCreatePanel || pointFormMode) && (
-          <div style={{ width: '480px', flexShrink: 0, minHeight: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ width: '630px', flexShrink: 0, minHeight: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
             {pointFormMode ? (
               <IncidentForm
                 initialData={pointFormMode === 'edit' ? selectedIncident : null}
