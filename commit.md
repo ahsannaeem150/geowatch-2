@@ -8180,3 +8180,47 @@ feat(sidebarTrial2/admin): expose delete incident button to admins
 ```
 
 *End of tweak*
+
+---
+
+## 📅 2026-06-16 — Phase 1: Database Migration & Backfill
+
+### Summary
+Created and ran migration `005_incident_detail_evidence.sql` to support per-update evidence, featured items, pinned items, X-post archive snapshots, media captions, hero images, and update type/verification in the live GeoWatch database.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `docs/migrations/005_incident_detail_evidence.sql` | New migration. Adds columns to `incidents`, `incident_updates`, `incident_sources`, `incident_media`; creates missing initial report updates for incidents without updates; backfills existing sources/media to the initial report update; adds check constraints, foreign keys, and indexes. |
+| `docs/database-schema.sql` | Updated canonical schema to include new columns (`hero_image_url`, `update_id`, `pinned`, `archived`, `archive_media_id`, `archive_reason`, `archived_at`, `caption`, `type`, `verification_status`, `featured_source_type`, `featured_source_id`, `featured_media_id`) and new indexes. |
+
+### Migration Details
+
+- **Initial report updates created:** 54 (for incidents that had no timeline updates).
+- **Existing updates marked as `type = 'report'`:** 58 (earliest update per incident).
+- **Sources linked to initial report update:** 14.
+- **Media linked to initial report update:** 12.
+- **Verification query after migration:** 0 sources without update, 0 media without update, 0 updates without type, 0 updates without verification status.
+
+### Commands Run
+
+```bash
+sudo -u postgres psql -d geowatch_dev -v ON_ERROR_STOP=1 -f docs/migrations/005_incident_detail_evidence.sql
+```
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| Migration applied cleanly | ✅ Transaction committed without errors. |
+| Backfill integrity | ✅ Verify query returned zero orphaned sources/media/updates. |
+| Sample incident data | ✅ Sources and media correctly attached to the initial report update. |
+
+### Git Commit Suggestion
+
+```
+feat(db): add per-update evidence, featured/pinned/archive, and hero image columns
+```
+
+*End of Phase 1*

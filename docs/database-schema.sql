@@ -90,6 +90,7 @@ CREATE TABLE incidents (
     end_date TIMESTAMP WITH TIME ZONE,
     location_context TEXT,
     verification_override VARCHAR(20) CHECK (verification_override IN ('unverified', 'verified', 'confirmed', 'contested')),
+    hero_image_url TEXT,
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -103,6 +104,7 @@ CREATE TABLE incidents (
 CREATE TABLE incident_sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+    update_id UUID NOT NULL REFERENCES incident_updates(id) ON DELETE CASCADE,
     source_type VARCHAR(30) NOT NULL CHECK (source_type IN ('x_post', 'news_article', 'image', 'video', 'admin_note')),
     source_url TEXT,
     embed_html TEXT,
@@ -110,6 +112,11 @@ CREATE TABLE incident_sources (
     description TEXT,
     verification_status VARCHAR(20) NOT NULL DEFAULT 'unverified' CHECK (verification_status IN ('unverified', 'verified', 'disputed', 'debunked')),
     display_order INTEGER NOT NULL DEFAULT 0,
+    pinned BOOLEAN NOT NULL DEFAULT false,
+    archived BOOLEAN NOT NULL DEFAULT false,
+    archive_media_id UUID REFERENCES incident_media(id) ON DELETE SET NULL,
+    archive_reason TEXT,
+    archived_at TIMESTAMPTZ,
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -124,6 +131,11 @@ CREATE TABLE incident_updates (
     update_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     source_url TEXT,
     embed_html TEXT,
+    type VARCHAR(20) NOT NULL DEFAULT 'update' CHECK (type IN ('report', 'update')),
+    verification_status VARCHAR(20) NOT NULL DEFAULT 'unverified' CHECK (verification_status IN ('unverified', 'verified', 'disputed', 'debunked')),
+    featured_source_type VARCHAR(30) CHECK (featured_source_type IS NULL OR featured_source_type IN ('media', 'x_post', 'news_article', 'admin_note')),
+    featured_source_id UUID REFERENCES incident_sources(id) ON DELETE SET NULL,
+    featured_media_id UUID REFERENCES incident_media(id) ON DELETE SET NULL,
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -134,6 +146,7 @@ CREATE TABLE incident_updates (
 CREATE TABLE incident_media (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+    update_id UUID NOT NULL REFERENCES incident_updates(id) ON DELETE CASCADE,
     original_name VARCHAR(500) NOT NULL,
     stored_name VARCHAR(500) NOT NULL,
     file_type VARCHAR(20) NOT NULL,
@@ -146,6 +159,8 @@ CREATE TABLE incident_media (
     is_processed BOOLEAN DEFAULT true,
     processing_error TEXT,
     display_order INTEGER DEFAULT 0,
+    pinned BOOLEAN NOT NULL DEFAULT false,
+    caption TEXT,
     uploaded_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -225,8 +240,13 @@ CREATE INDEX idx_incidents_status ON incidents(status);
 CREATE INDEX idx_incidents_query ON incidents(status, start_date, end_date, category_id, severity);
 CREATE INDEX idx_incidents_created_by ON incidents(created_by);
 CREATE INDEX idx_incident_sources_incident_id ON incident_sources(incident_id);
+CREATE INDEX idx_incident_sources_update_id ON incident_sources(update_id);
+CREATE INDEX idx_incident_sources_archive_media_id ON incident_sources(archive_media_id);
+CREATE INDEX idx_incident_sources_pinned ON incident_sources(pinned) WHERE pinned = true;
 CREATE INDEX idx_incident_updates_incident_id ON incident_updates(incident_id);
 CREATE INDEX idx_media_incident ON incident_media(incident_id);
+CREATE INDEX idx_incident_media_update_id ON incident_media(update_id);
+CREATE INDEX idx_incident_media_pinned ON incident_media(pinned) WHERE pinned = true;
 CREATE INDEX idx_media_created ON incident_media(created_at DESC);
 CREATE INDEX idx_media_type ON incident_media(incident_id, file_type);
 CREATE INDEX idx_user_saved_incidents_user_id ON user_saved_incidents(user_id);
