@@ -8276,3 +8276,44 @@ feat(backend): per-update evidence APIs — timeline bundles, featured/pinned it
 ```
 
 *End of Phase 2*
+
+
+---
+
+## 📅 2026-06-16 — Phase 3: react-router-dom v7 Upgrade (admin-web + superadmin-web)
+
+### Summary
+Upgraded `react-router-dom` in `src/admin-web` and `src/superadmin-web` from v6.24.0 to v7.15.0 so shared components can safely use the same router APIs as `src/user-web`. Verified builds and dev-server startup for both apps after the upgrade.
+
+### Files Changed
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/package.json` | Bumped `react-router-dom` from `^6.24.0` to `^7.15.0`. |
+| `src/superadmin-web/package.json` | Bumped `react-router-dom` from `^6.24.0` to `^7.15.0`. |
+| `package-lock.json` | Updated lockfile after `npm install`; root `react-router-dom` resolved to `7.17.0`. |
+
+### Verified Behavior
+
+| Scenario | Result |
+|:--|:--|
+| `npm install` at root | ✅ Completed, audited 276 packages. |
+| `npm run build:admin-web` | ✅ Production build succeeded, no router errors. |
+| `npm run build:superadmin-web` | ✅ Production build succeeded, no router errors. |
+| `npm run build:user-web` | ✅ Still succeeds after shared dependency update. |
+| Dev server `http://localhost:5174` | ✅ Returns HTTP 200. |
+| Dev server `http://localhost:5175` | ✅ Returns HTTP 200. |
+| Confirmed installed version | ✅ `react-router-dom@7.17.0` in root `node_modules`. |
+
+### Notes
+
+- Existing router usage in both apps (`BrowserRouter`, `Routes`, `Route`, `Navigate`, `Outlet`, `useNavigate`, `useLocation`, `useSearchParams`) is fully compatible with v7.
+- Stale dev-server processes on ports 5174/5175 were cleaned up; both services now start cleanly on their canonical ports.
+
+### Git Commit Suggestion
+
+```
+chore(deps): upgrade admin-web and superadmin-web to react-router-dom v7
+```
+
+*End of Phase 3*
