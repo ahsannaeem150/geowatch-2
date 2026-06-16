@@ -95,8 +95,23 @@ The audit log is an immutable record of every significant action on the platform
 | `incident_updated` | Incident edited |
 | `incident_deleted` | Incident removed |
 | `incident_resolved` | Marked as resolved |
-| `timeline_updated` | Timeline entry added/edited |
+| `incident_restored` | Restored from Recycle Bin |
+| `incident_purged` | Permanently deleted from Recycle Bin |
+| `timeline_added` | Timeline entry created |
+| `timeline_updated` | Timeline entry edited |
+| `timeline_deleted` | Timeline entry removed |
+| `timeline_featured_set` | Featured evidence selected for an update |
+| `timeline_featured_cleared` | Featured evidence removed |
 | `source_added` | Source link attached |
+| `source_updated` | Source edited or archived |
+| `source_deleted` | Source removed |
+| `source_pinned` / `source_unpinned` | Source pin toggled |
+| `source_archived` / `source_unarchived` | X-post archive/unarchive |
+| `media_added` | Media file uploaded |
+| `media_updated` | Media caption/pin/link changed |
+| `media_deleted` | Media file removed |
+| `media_pinned` / `media_unpinned` | Media pin toggled |
+| `incident_hero_image_updated` | Hero image changed |
 | `setting_updated` | Domain/category changed |
 
 ### Filtering
@@ -161,6 +176,40 @@ Zones are **polygon incidents** (e.g., No-Fly Zones, Curfews, Maritime Exclusion
 3. Click the **trash** icon to delete (blocked if any zone incident references it)
 
 > ⚠️ Deleting a zone category that is in use will fail with a conflict error. Reassign or delete those zones first.
+
+---
+
+## Incident Map & Detail
+
+The map page (`/superadmin/map`) is the operational view for reviewing and curating incidents.
+
+### Map Controls
+- **Date range** — filter markers by start/end date
+- **Domain/category filters** — narrow by taxonomy
+- **Viewport filtering** — when more than 100 incidents match the current range, only visible map area events are loaded
+- **Location search** — type a place name to fly the map there
+- **Drawing tools** — create polygon zones or edit existing zone geometry
+
+### Incident Detail Sidebar
+Click any marker to open the shared incident-detail sidebar on the right.
+
+| Control | What It Does |
+|:--------|:-------------|
+| **Edit** | Change title, description, severity, location context, or hero image |
+| **Resolve** | Mark the incident as resolved and set its end date |
+| **Delete** | Soft-delete the incident (moves it to the Recycle Bin) |
+| **Restore / Purge** | Superadmin-only actions for deleted incidents |
+| **Add update** | Create a new timeline entry with type and verification status |
+| **Feature** | Set a source/media item as the featured evidence for an update |
+| **Pin** | Pin an item to the top of its section |
+| **Archive X post** | Upload a screenshot to replace the live embed with an archived fallback |
+| **Audit log** | Open the incident's audit history inline |
+| **View creator** | Open the profile drawer for the user who created the incident |
+
+### Full Incident Page
+Click **View full details** (or navigate directly to `/superadmin/incident/:id`) to see the two-column full-page layout: timeline on the left, evidence rail on the right. All curation controls from the sidebar are available here too.
+
+> 💡 Deleted or purged incidents from the Recycle Bin still render the legacy read-only detail panel because their timeline data is not preserved in the recycle bin.
 
 ---
 
