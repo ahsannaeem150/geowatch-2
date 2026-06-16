@@ -1,6 +1,6 @@
 # GeoWatch — Trial Sidebar & Incident Page Implementation Plan
 
-> **Status:** Phase 3 complete. Ready for Phase 4 (shared component refactor).  
+> **Status:** Phase 4 complete. Ready for Phase 5 (admin-web integration).  
 > **Goal:** Port the trial sidebars (`/sidebarTrial2/*`) and full incident pages (`/incident-trial/*`) into the live admin-web, user-web, and superadmin-web apps, with all features working end-to-end.
 
 ---

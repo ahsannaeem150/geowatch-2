@@ -8317,3 +8317,58 @@ chore(deps): upgrade admin-web and superadmin-web to react-router-dom v7
 ```
 
 *End of Phase 3*
+
+
+---
+
+## 📅 2026-06-16 — Phase 4: Shared Incident-Detail Component Refactor
+
+### Summary
+Moved the trial incident-detail components into a self-contained shared package under `src/shared/components/incident-detail/`. The new components are fully prop-driven, role-aware via a `mode` prop, and free of mock data. Original trial files in `src/admin-web/src/components/DesignTrial/` were kept untouched for reference until the migration is fully verified.
+
+### Files Created
+
+| File | Purpose |
+|:--|:--|
+| `src/shared/components/incident-detail/IncidentDetailSidebar.jsx` | Sidebar card design with per-update featured block, evidence drawer, and admin/superadmin controls. |
+| `src/shared/components/incident-detail/IncidentDetailPage.jsx` | Full-page design with left timeline + right evidence rail. |
+| `src/shared/components/incident-detail/EvidenceBundle.jsx` | Evidence drawer tabs and category sections. |
+| `src/shared/components/incident-detail/EvidenceRail.jsx` | Sticky evidence rail used by the full page. |
+| `src/shared/components/incident-detail/XPostCompactList.jsx` | Compact X-post list, `XEmbed`, `ArchivedPost`, `ArchiveLightbox`, `XPostCard`. |
+| `src/shared/components/incident-detail/SourceCards.jsx` | `ArticleCard`, `AdminNoteCard`, editable variants, `MediaThumb`, `MediaGrid`, `AdminMediaThumb`. |
+| `src/shared/components/incident-detail/IncidentBadges.jsx` | `Badge`, `SeverityBadge`, `VerificationBadge`, `StatusBadge`. |
+| `src/shared/components/incident-detail/IncidentIcons.jsx` | Inline SVG `Icons`, source-type icons and labels. |
+| `src/shared/components/incident-detail/IncidentUtils.js` | Pure helpers: date/time formatting, counting, sorting, coordinates. |
+| `src/shared/components/incident-detail/Lightbox.jsx` | Image lightbox with keyboard navigation. |
+| `src/shared/components/incident-detail/StatusHistory.jsx` | Lifecycle/status history timeline. |
+| `src/shared/components/incident-detail/DebugMetadata.jsx` | Debug metadata panel for superadmins. |
+| `src/shared/components/incident-detail/SummaryCard.jsx` | Incident summary card. |
+| `src/shared/components/incident-detail/TimelineItem.jsx` | Timeline item wrapper and `UpdateHeader`. |
+| `src/shared/components/incident-detail/index.js` | Public exports for the incident-detail package. |
+| `src/shared/index.js` | Top-level `@shared` re-export. |
+| `src/shared/styles/incident-detail.css` | Merged trial CSS (`IncidentDetailTrial.css`, `SidebarTrial2Option1.css`, `XPostCompactList.css`). |
+
+### Key Refactor Decisions
+
+- **No mock data.** All data and callbacks are passed via props.
+- **Role-aware `mode` prop.** `user` is read-only; `admin` and `superadmin` show curation controls; `superadmin` additionally shows audit links, view-creator, status history, and debug metadata.
+- **Callback-driven mutations.** `onUpdateIncident`, `onResolveIncident`, `onDeleteIncident`, `onRestoreIncident`, `onPurgeIncident`, `onAddUpdate`, `onEditUpdate`, `onDeleteUpdate`, `onAddEvidence`, `onEditEvidence`, `onDeleteEvidence`, `onPinEvidence`, `onFeatureEvidence`, `onClearFeatureEvidence`, `onArchiveSource`, `onOpenAudit`, `onViewCreator`.
+- **Removed fake map placeholder** from the sidebar; it will live inside existing app layouts.
+- **Preserved BEM class names** (`id-*`) to avoid CSS conflicts.
+- **CSS auto-imported** when any incident-detail component is imported from `@shared`.
+
+### Verified Builds
+
+| App | Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+| `npm run build:superadmin-web` | ✅ |
+| `npm run build:user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+refactor(shared): move trial incident-detail components into shared package
+```
+
+*End of Phase 4*
