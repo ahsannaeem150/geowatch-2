@@ -7,15 +7,14 @@ import { adminWriteLimiter } from '../middleware/rate-limiter.js';
 import {
   createSourceSchema,
   updateSourceSchema,
-  updateSourceVerificationSchema,
   pinSourceSchema,
 } from '../validators/source.schema.js';
 import {
   createSourceController,
   updateSourceController,
   deleteSourceController,
-  updateSourceVerificationController,
   pinSourceController,
+  checkSourceController,
 } from '../controllers/source.controller.js';
 
 const router = Router({ mergeParams: true });
@@ -46,13 +45,12 @@ router.delete(
   asyncHandler(deleteSourceController)
 );
 
-router.patch(
-  '/:sourceId/verification',
+router.post(
+  '/:sourceId/check',
   authenticate,
   requireRole(['admin', 'super_admin']),
   adminWriteLimiter,
-  validateRequest(updateSourceVerificationSchema, 'body'),
-  asyncHandler(updateSourceVerificationController)
+  asyncHandler(checkSourceController)
 );
 
 router.patch(

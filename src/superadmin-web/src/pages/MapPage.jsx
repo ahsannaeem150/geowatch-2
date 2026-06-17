@@ -21,6 +21,7 @@ import {
   updateSource,
   deleteSource,
   pinSource,
+  checkSource,
   uploadMedia,
   updateMedia,
   deleteMedia,
@@ -289,7 +290,7 @@ export default function MapPage() {
   const filteredIncidents = useMemo(() => {
     let result = incidents;
     if (filters.verifiedOnly) {
-      result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
+      result = result.filter((i) => i.verification_status === 'verified');
     }
     if (activeDomainFilters.size > 0) {
       result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
@@ -680,8 +681,8 @@ export default function MapPage() {
         ...(patch.description !== undefined && { description: patch.description }),
         ...(patch.locationContext !== undefined && { locationContext: patch.locationContext }),
         ...(patch.severity !== undefined && { severity: patch.severity }),
-        ...(patch.verification !== undefined && { verificationOverride: patch.verification }),
-        ...(patch.heroImageUrl !== undefined && { heroImageUrl: patch.heroImageUrl }),
+        ...(patch.verification !== undefined && { verificationStatus: patch.verification }),
+        ...(patch.heroImageUrl && { heroImageUrl: patch.heroImageUrl }),
       };
       await updateIncident(selectedIncident.id, body);
     }),
@@ -723,7 +724,7 @@ export default function MapPage() {
         details: form.details,
         updateDate: form.timestamp || form.updateDate || new Date().toISOString(),
         type: form.type || 'update',
-        verificationStatus: form.verification || 'verified',
+        verificationStatus: form.verification || 'unverified',
       });
     }),
     [selectedIncident?.id, withDetailRefresh]
@@ -907,9 +908,10 @@ export default function MapPage() {
   const handleArchiveSource = useCallback(
     withDetailRefresh(async (eventId, item) => {
       if (item.archived) {
+        // Unarchive removes the archived flag but keeps the captured snapshot so it can be
+        // used as a fallback if the post becomes unavailable again later.
         await updateSource(selectedIncident.id, item.id, {
           archived: false,
-          archiveMediaId: null,
           archiveReason: null,
         });
         return;
@@ -917,6 +919,16 @@ export default function MapPage() {
 
       const reason = window.prompt('Reason for archiving this X post?');
       if (reason === null) return;
+
+      // If the system already captured a snapshot, reuse it instead of asking for a manual upload.
+      if (item.archiveMediaId) {
+        await updateSource(selectedIncident.id, item.id, {
+          archived: true,
+          archiveMediaId: item.archiveMediaId,
+          archiveReason: reason,
+        });
+        return;
+      }
 
       const file = await pickScreenshotFile();
       if (!file) {
@@ -934,6 +946,13 @@ export default function MapPage() {
         archiveMediaId: mediaId,
         archiveReason: reason,
       });
+    }),
+    [selectedIncident?.id, withDetailRefresh]
+  );
+
+  const handleCheckSource = useCallback(
+    withDetailRefresh(async (eventId, item) => {
+      await checkSource(selectedIncident.id, item.id);
     }),
     [selectedIncident?.id, withDetailRefresh]
   );
@@ -2339,6 +2358,8 @@ export default function MapPage() {
                       onFeatureEvidence={handleFeatureEvidence}
                       onClearFeatureEvidence={handleClearFeatureEvidence}
                       onArchiveSource={handleArchiveSource}
+                      onCheckSource={handleCheckSource}
+                      onAutoCheck={handleCheckSource}
                       onOpenAudit={handleOpenAudit}
                       onViewCreator={handleViewCreator}
                       auditLogs={auditLogs}

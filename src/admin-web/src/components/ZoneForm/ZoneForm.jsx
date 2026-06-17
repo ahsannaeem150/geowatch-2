@@ -55,7 +55,7 @@ export default function ZoneForm({
       : ''
   );
   const [sources, setSources] = useState([
-    { sourceType: 'admin_note', sourceUrl: '', description: '', verificationStatus: 'unverified' },
+    { sourceType: 'admin_note', sourceUrl: '', description: '' },
   ]);
 
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function ZoneForm({
   const areaKm2 = calculatePolygonArea(ring);
 
   const handleAddSource = () => {
-    setSources([...sources, { sourceType: 'admin_note', sourceUrl: '', description: '', verificationStatus: 'unverified' }]);
+    setSources([...sources, { sourceType: 'admin_note', sourceUrl: '', description: '' }]);
   };
 
   const handleSourceChange = (index, field, value) => {
@@ -108,7 +108,6 @@ export default function ZoneForm({
               .filter((s) => s.sourceUrl?.trim() || s.description?.trim())
               .map((s) => ({
                 sourceType: s.sourceType,
-                verificationStatus: s.verificationStatus || 'unverified',
                 ...(s.sourceUrl?.trim() ? { sourceUrl: s.sourceUrl.trim() } : {}),
                 ...(s.description?.trim() ? { description: s.description.trim() } : {}),
               })),
@@ -326,16 +325,6 @@ export default function ZoneForm({
                   placeholder="URL (optional)"
                   style={inputBase}
                 />
-                <select
-                  value={source.verificationStatus}
-                  onChange={(e) => handleSourceChange(index, 'verificationStatus', e.target.value)}
-                  style={{ ...inputBase, flex: '0 0 130px' }}
-                >
-                  <option value="unverified">Unverified</option>
-                  <option value="verified">Verified</option>
-                  <option value="disputed">Disputed</option>
-                  <option value="debunked">Debunked</option>
-                </select>
                 <button
                   type="button"
                   onClick={() => handleRemoveSource(index)}

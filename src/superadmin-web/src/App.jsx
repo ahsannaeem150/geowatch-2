@@ -14,6 +14,7 @@ import ZoneCategoriesPage from './pages/ZoneCategoriesPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import RecycleBinPage from './pages/RecycleBinPage.jsx';
+import XArchiveDebugPage from './pages/XArchiveDebugPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
@@ -130,6 +131,7 @@ function AppRoutes() {
           <Route path="/superadmin/system" element={<SystemPage />} />
           <Route path="/superadmin/export" element={<ExportPage />} />
           <Route path="/superadmin/recycle-bin" element={<RecycleBinPage />} />
+          <Route path="/superadmin/x-archive-debug" element={<XArchiveDebugPage />} />
           <Route path="/superadmin/incident/:id" element={<IncidentDetailPage />} />
         </Route>
       </Route>

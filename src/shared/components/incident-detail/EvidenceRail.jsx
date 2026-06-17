@@ -222,6 +222,8 @@ export default function EvidenceRail({
   onFeatureEvidence,
   onClearFeature,
   onArchiveSource,
+  onCheckSource,
+  onAutoCheck,
   featuredItem,
   extraTabs = [],
 }) {
@@ -322,6 +324,8 @@ export default function EvidenceRail({
             onPinItem={(itemId) => onPinEvidence?.(event.id, 'x_post', itemId)}
             onFeatureItem={isAdmin ? (itemId) => onFeatureEvidence?.(event.id, { sourceType: 'x_post', sourceId: itemId }) : undefined}
             onArchiveSource={onArchiveSource ? (item) => onArchiveSource?.(event.id, item) : undefined}
+            onCheckSource={onCheckSource ? (item) => onCheckSource?.(event.id, item) : undefined}
+            onAutoCheck={onAutoCheck ? (item) => onAutoCheck?.(event.id, item) : undefined}
             featuredId={featuredPostId}
           />
         ),

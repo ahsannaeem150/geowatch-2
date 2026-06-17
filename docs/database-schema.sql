@@ -89,7 +89,7 @@ CREATE TABLE incidents (
     start_date TIMESTAMP WITH TIME ZONE NOT NULL,
     end_date TIMESTAMP WITH TIME ZONE,
     location_context TEXT,
-    verification_override VARCHAR(20) CHECK (verification_override IN ('unverified', 'verified', 'confirmed', 'contested')),
+    verification_status VARCHAR(20) NOT NULL DEFAULT 'unverified' CHECK (verification_status IN ('unverified', 'verified', 'disputed', 'debunked')),
     hero_image_url TEXT,
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -99,24 +99,41 @@ CREATE TABLE incidents (
 );
 
 -- ============================================
+-- SOURCE ACCOUNTS
+-- ============================================
+CREATE TABLE source_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    platform VARCHAR(20) NOT NULL,
+    username TEXT NOT NULL,
+    display_name TEXT,
+    profile_url TEXT,
+    is_suspended BOOLEAN NOT NULL DEFAULT false,
+    last_fetched_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE (platform, username)
+);
+
+-- ============================================
 -- INCIDENT SOURCES
 -- ============================================
 CREATE TABLE incident_sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     update_id UUID NOT NULL REFERENCES incident_updates(id) ON DELETE CASCADE,
+    account_id UUID REFERENCES source_accounts(id) ON DELETE SET NULL,
     source_type VARCHAR(30) NOT NULL CHECK (source_type IN ('x_post', 'news_article', 'image', 'video', 'admin_note')),
     source_url TEXT,
     embed_html TEXT,
     media_url TEXT,
     description TEXT,
-    verification_status VARCHAR(20) NOT NULL DEFAULT 'unverified' CHECK (verification_status IN ('unverified', 'verified', 'disputed', 'debunked')),
     display_order INTEGER NOT NULL DEFAULT 0,
     pinned BOOLEAN NOT NULL DEFAULT false,
     archived BOOLEAN NOT NULL DEFAULT false,
     archive_media_id UUID REFERENCES incident_media(id) ON DELETE SET NULL,
     archive_reason TEXT,
     archived_at TIMESTAMPTZ,
+    last_checked_at TIMESTAMPTZ,
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );

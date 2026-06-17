@@ -8,7 +8,7 @@ const INCIDENT_COLUMNS = `
   i.location_context,
   i.category_id,
   i.zone_category_id,
-  i.verification_override,
+  i.verification_status,
   i.hero_image_url,
   c.name AS category_name, c.slug AS category_slug,
   d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
@@ -32,21 +32,6 @@ const INCIDENT_FROM = `
 `;
 
 // ─── Helpers ───
-
-function computeVerificationStatus(sources, override) {
-  if (override) return override;
-  if (!sources || sources.length === 0) return 'unverified';
-
-  const statuses = sources.map((s) => s.verification_status);
-  const verifiedCount = statuses.filter((s) => s === 'verified').length;
-  const hasDisputed = statuses.includes('disputed');
-  const hasDebunked = statuses.includes('debunked');
-
-  if (hasDebunked || hasDisputed) return 'contested';
-  if (verifiedCount >= 2) return 'confirmed';
-  if (verifiedCount >= 1) return 'verified';
-  return 'unverified';
-}
 
 function buildIncidentWhereClause(filters, options = {}) {
   const conditions = ["i.status != 'hidden'"];
@@ -145,29 +130,8 @@ export async function listIncidents(filters) {
 
   const result = await query(sql, params);
 
-  // Fetch sources for verification computation
-  const incidentIds = result.rows.map((r) => r.id);
-  let sourcesMap = new Map();
-  if (incidentIds.length > 0) {
-    const sourcesResult = await query(
-      `SELECT incident_id, verification_status FROM incident_sources WHERE incident_id = ANY($1)`,
-      [incidentIds]
-    );
-    for (const src of sourcesResult.rows) {
-      if (!sourcesMap.has(src.incident_id)) {
-        sourcesMap.set(src.incident_id, []);
-      }
-      sourcesMap.get(src.incident_id).push(src);
-    }
-  }
-
-  const incidents = result.rows.map((row) => ({
-    ...row,
-    verification_status: computeVerificationStatus(sourcesMap.get(row.id) || [], row.verification_override),
-  }));
-
   return {
-    incidents,
+    incidents: result.rows,
     count,
     hasMore: count > 300,
   };
@@ -216,29 +180,8 @@ export async function searchIncidents(filters) {
 
   const result = await query(sql, [...params, searchQuery, limit, offset]);
 
-  // Fetch sources for verification computation
-  const incidentIds = result.rows.map((r) => r.id);
-  let sourcesMap = new Map();
-  if (incidentIds.length > 0) {
-    const sourcesResult = await query(
-      `SELECT incident_id, verification_status FROM incident_sources WHERE incident_id = ANY($1)`,
-      [incidentIds]
-    );
-    for (const src of sourcesResult.rows) {
-      if (!sourcesMap.has(src.incident_id)) {
-        sourcesMap.set(src.incident_id, []);
-      }
-      sourcesMap.get(src.incident_id).push(src);
-    }
-  }
-
-  const incidents = result.rows.map((row) => ({
-    ...row,
-    verification_status: computeVerificationStatus(sourcesMap.get(row.id) || [], row.verification_override),
-  }));
-
   return {
-    incidents,
+    incidents: result.rows,
     count,
     limit,
     offset,
@@ -261,12 +204,21 @@ export async function getEventById(id) {
   const [sourcesResult, mediaResult, timelineResult] = await Promise.all([
     query(
       `SELECT s.id, s.incident_id, s.update_id, s.source_type, s.source_url, s.embed_html,
-              s.media_url, s.description, s.display_order, s.verification_status,
+              s.media_url, s.description, s.display_order,
               s.pinned, s.archived, s.archive_media_id, s.archive_reason, s.archived_at,
+              s.last_checked_at, s.account_id,
+              sa.username AS account_username,
+              sa.display_name AS account_display_name,
+              sa.profile_url AS account_profile_url,
+              sa.is_suspended AS account_is_suspended,
               s.created_by, s.created_at,
-              u.full_name AS created_by_name
+              u.full_name AS created_by_name,
+              am.file_url AS archive_media_url,
+              am.thumbnail_url AS archive_media_thumbnail_url
        FROM incident_sources s
        LEFT JOIN users u ON s.created_by = u.id
+       LEFT JOIN source_accounts sa ON s.account_id = sa.id
+       LEFT JOIN incident_media am ON s.archive_media_id = am.id
        WHERE s.incident_id = $1
        ORDER BY s.pinned DESC, s.display_order ASC, s.created_at ASC`,
       [id]
@@ -298,7 +250,12 @@ export async function getEventById(id) {
 
   // Group sources and media by update_id for fast lookup
   const sourcesByUpdate = groupSourcesByUpdate(sourcesResult.rows);
-  const mediaByUpdate = groupMediaByUpdate(mediaResult.rows);
+  const archiveMediaIds = new Set(
+    sourcesResult.rows
+      .filter((s) => s.source_type === 'x_post' && s.archive_media_id)
+      .map((s) => s.archive_media_id)
+  );
+  const mediaByUpdate = groupMediaByUpdate(mediaResult.rows, archiveMediaIds);
 
   const timeline = timelineResult.rows.map((update) => ({
     id: update.id,
@@ -317,12 +274,8 @@ export async function getEventById(id) {
     featured_item: buildFeaturedItem(update),
   }));
 
-  // Aggregate all sources for incident-level verification computation
-  const allSources = sourcesResult.rows;
-  const verificationStatus = computeVerificationStatus(allSources, incident.verification_override);
-
   return {
-    incident: { ...incident, verification_status: verificationStatus },
+    incident,
     timeline,
   };
 }
@@ -338,9 +291,10 @@ function groupSourcesByUpdate(sources) {
   return grouped;
 }
 
-function groupMediaByUpdate(media) {
+function groupMediaByUpdate(media, archiveMediaIds = new Set()) {
   const grouped = {};
   for (const item of media) {
+    if (archiveMediaIds.has(item.id)) continue;
     if (!grouped[item.update_id]) grouped[item.update_id] = [];
     grouped[item.update_id].push(item);
   }
@@ -372,7 +326,7 @@ export async function createIncident(data, createdBy) {
     startDate,
     endDate,
     locationContext,
-    verificationOverride,
+    verificationStatus,
     heroImageUrl,
   } = data;
 
@@ -390,23 +344,23 @@ export async function createIncident(data, createdBy) {
     sql = `
       INSERT INTO incidents (
         title, description, geometry_type, geom,
-        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override, hero_image_url
+        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_status, hero_image_url
       ) VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), 4326), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`;
     params = [
       title, description || null, geometryType, JSON.stringify(geometry),
-      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null, heroImageUrl || null,
+      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationStatus || 'unverified', heroImageUrl || null,
     ];
   } else {
     sql = `
       INSERT INTO incidents (
         title, description, geometry_type, geom, latitude, longitude,
-        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_override, hero_image_url
+        category_id, zone_category_id, severity, start_date, end_date, status, created_by, location_context, verification_status, hero_image_url
       ) VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`;
     params = [
       title, description || null, geometryType, longitude, latitude, latitude, longitude,
-      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationOverride || null, heroImageUrl || null,
+      categoryId || null, zoneCategoryId || null, severity, startDate, endDate || null, status, createdBy, locationContext || null, verificationStatus || 'unverified', heroImageUrl || null,
     ];
   }
 
@@ -434,7 +388,7 @@ export async function updateIncident(id, data) {
   addField('start_date', data.startDate);
   addField('end_date', data.endDate);
   addField('location_context', data.locationContext);
-  addField('verification_override', data.verificationOverride);
+  addField('verification_status', data.verificationStatus);
   addField('hero_image_url', data.heroImageUrl);
 
   if (data.endDate === null) {
@@ -613,7 +567,7 @@ export async function listDeletedIncidents(filters = {}) {
       i.geometry_type,
       i.severity, i.status, i.start_date, i.end_date,
       i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
-      i.location_context, i.category_id, i.verification_override, i.hero_image_url,
+      i.location_context, i.category_id, i.verification_status, i.hero_image_url,
       c.name AS category_name, c.slug AS category_slug,
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
       l.deleted_at, l.deleted_by, l.original_status,
@@ -651,7 +605,7 @@ export async function getDeletedIncidentById(id) {
       i.geometry_type,
       i.severity, i.status, i.start_date, i.end_date,
       i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
-      i.location_context, i.category_id, i.verification_override, i.hero_image_url,
+      i.location_context, i.category_id, i.verification_status, i.hero_image_url,
       c.name AS category_name, c.slug AS category_slug,
       d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color,
       l.deleted_at, l.deleted_by, l.original_status,

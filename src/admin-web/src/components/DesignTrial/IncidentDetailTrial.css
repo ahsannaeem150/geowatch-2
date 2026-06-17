@@ -14,6 +14,63 @@
   font-family: var(--font-sans);
 }
 
+.id-trial-page.has-left-panel {
+  grid-template-columns: 630px 630px;
+  justify-content: center;
+}
+
+.id-trial-page.has-left-panel .id-fake-map {
+  display: none;
+}
+
+/* ─── Trial create-incident panel ─── */
+.id-create-panel {
+  width: 630px;
+  height: 100%;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.id-create-panel__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px;
+}
+
+.id-create-panel__scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.id-create-panel__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.id-create-panel__scroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.id-create-panel__scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* When the create panel is reused inside the admin dashboard right panel,
+   let it fill the slide-in width instead of forcing 630px and clipping. */
+.dashboard-right-panel .id-create-panel {
+  width: 100%;
+  border-right: none;
+}
+
+.id-create-source-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
 .id-fake-map {
   position: relative;
   width: 100%;

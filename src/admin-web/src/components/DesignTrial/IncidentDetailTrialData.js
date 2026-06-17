@@ -16,7 +16,6 @@ export const INCIDENT = {
   severity: 3,
   status: 'active',
   verification: 'verified',
-  verificationOverride: '',
   startDate: '2026-06-13T12:03:00Z',
   endDate: null,
   createdAt: '2026-06-13T11:58:00Z',

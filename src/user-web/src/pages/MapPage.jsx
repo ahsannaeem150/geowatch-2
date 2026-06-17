@@ -661,14 +661,14 @@ export default function MapPage() {
   // Filter point incidents by verification status (domain filter already applied in pointIncidents)
   const visibleIncidents = useMemo(() => {
     if (!filters.verifiedOnly) return pointIncidents;
-    return pointIncidents.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
+    return pointIncidents.filter((i) => i.verification_status === 'verified');
   }, [pointIncidents, filters.verifiedOnly]);
 
   // Filter saved incidents with same rules
   const visibleSavedIncidents = useMemo(() => {
     let result = savedIncidents;
     if (filters.verifiedOnly) {
-      result = result.filter((i) => i.verification_status === 'verified' || i.verification_status === 'confirmed');
+      result = result.filter((i) => i.verification_status === 'verified');
     }
     if (activeDomainFilters.size > 0) {
       result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));

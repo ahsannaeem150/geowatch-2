@@ -89,6 +89,8 @@ export default function EvidenceBundle({
   onPinEvidence,
   onFeatureEvidence,
   onArchiveSource,
+  onCheckSource,
+  onAutoCheck,
   featuredItem,
 }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
@@ -200,6 +202,8 @@ export default function EvidenceBundle({
             onPinItem={(item) => onPinEvidence?.(event.id, 'x_post', item.id, !item.pinned)}
             onFeatureItem={(itemId) => onFeatureEvidence?.(event.id, { sourceType: 'x_post', sourceId: itemId })}
             onArchiveSource={onArchiveSource ? (item) => onArchiveSource?.(event.id, item) : undefined}
+            onCheckSource={onCheckSource ? (item) => onCheckSource?.(event.id, item) : undefined}
+            onAutoCheck={onAutoCheck ? (item) => onAutoCheck?.(event.id, item) : undefined}
             featuredId={featuredItem?.sourceType === 'x_post' ? featuredItem.sourceId || featuredItem.itemId : null}
           />
         ) : type === 'news_article' ? (

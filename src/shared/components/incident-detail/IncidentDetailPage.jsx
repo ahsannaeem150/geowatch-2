@@ -481,6 +481,8 @@ export default function IncidentDetailPage({
   onFeatureEvidence,
   onClearFeatureEvidence,
   onArchiveSource,
+  onCheckSource,
+  onAutoCheck,
   onOpenAudit,
   onViewCreator,
   rightSidebar,
@@ -751,6 +753,8 @@ export default function IncidentDetailPage({
               onFeatureEvidence={setFeaturedItem}
               onClearFeature={clearFeaturedItem}
               onArchiveSource={onArchiveSource}
+              onCheckSource={onCheckSource}
+              onAutoCheck={onAutoCheck}
               featuredItem={featuredItems[activeEvent?.id] || activeEvent?.featuredItem}
               extraTabs={railExtraTabs}
             />

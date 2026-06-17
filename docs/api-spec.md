@@ -163,7 +163,6 @@ Response:
               "sourceUrl": "https://x.com/...",
               "embedHtml": "<blockquote...>",
               "description": "Context from admin",
-              "verificationStatus": "verified",
               "displayOrder": 0,
               "pinned": false,
               "archived": false,
@@ -226,14 +225,13 @@ Body:
   "startDate": "2024-01-15T10:00:00Z",
   "endDate": null,
   "locationContext": "Punjab, Pakistan",
-  "verificationOverride": null,
+  "verificationStatus": "unverified",
   "heroImageUrl": null,
   "sources": [
     {
       "sourceType": "x_post",
       "sourceUrl": "https://x.com/user/status/123456",
-      "description": "Official statement",
-      "verificationStatus": "verified"
+      "description": "Official statement"
     }
   ]
 }
@@ -334,8 +332,7 @@ Body:
   "sourceType": "x_post",
   "sourceUrl": "https://x.com/...",
   "description": "...",
-  "displayOrder": 1,
-  "verificationStatus": "verified"
+  "displayOrder": 1
 }
 ```
 Note: `updateId` is required. The source is attached to the specified timeline update.
@@ -349,7 +346,6 @@ Body:
   "sourceUrl": "https://x.com/...",
   "description": "...",
   "displayOrder": 1,
-  "verificationStatus": "verified",
   "archived": true,
   "archiveMediaId": "uuid",
   "archiveReason": "Post deleted by author"
@@ -360,10 +356,6 @@ Note: When `archived` is `true`, `archiveMediaId` must be provided. To unarchive
 ### DELETE /incidents/:id/sources/:sourceId
 Access: `admin` / `super_admin`  
 Response: `{ data: { deleted: true } }`
-
-### PATCH /incidents/:id/sources/:sourceId/verification
-Access: `admin` / `super_admin`  
-Body: `{ verificationStatus: 'verified' | 'disputed' | 'debunked' | 'unverified' }`
 
 ### PATCH /incidents/:id/sources/:sourceId/pin
 Access: `admin` / `super_admin`  

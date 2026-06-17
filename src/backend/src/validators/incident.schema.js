@@ -38,14 +38,14 @@ export const createIncidentSchema = z.object({
   startDate: z.string().datetime(),
   endDate: z.string().datetime().optional().nullable(),
   locationContext: z.string().max(255).optional(),
-  verificationOverride: z.enum(['unverified', 'verified', 'confirmed', 'contested']).optional().nullable(),
+  verificationStatus: z.enum(['unverified', 'verified', 'disputed', 'debunked']).optional(),
   heroImageUrl: z.string().url().optional().nullable(),
   sources: z.array(
     z.object({
       sourceType: z.enum(['x_post', 'news_article', 'image', 'video', 'admin_note']),
       sourceUrl: z.string().url().optional(),
       description: z.string().optional(),
-      verificationStatus: z.enum(['unverified', 'verified', 'disputed', 'debunked']).optional(),
+
     })
   ).optional(),
 }).refine(
@@ -99,7 +99,7 @@ export const updateIncidentSchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional().nullable(),
   locationContext: z.string().max(255).optional(),
-  verificationOverride: z.enum(['unverified', 'verified', 'confirmed', 'contested']).optional().nullable(),
+  verificationStatus: z.enum(['unverified', 'verified', 'disputed', 'debunked']).optional(),
   heroImageUrl: z.string().url().optional().nullable(),
 }).refine(
   (data) => {

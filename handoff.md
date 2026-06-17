@@ -340,14 +340,14 @@ app.use('/api/v1/incidents/:id/media', mediaRoutes);     // ← mergeParams: tru
 4. Every map pan/zoom re-fetches ONLY when viewportFiltering is true
 ```
 
-### Incident → Source Verification Cascade
-The backend auto-computes `incident.verification_status` from its sources:
-- No sources → `unverified`
-- All unverified → `unverified`
-- ≥1 verified, no disputes → `verified`
-- ≥2 independent verified → `confirmed`
-- Any disputed/debunked → `contested`
-Admin can override via `verification_override` column.
+### Incident Verification
+Verification is manual at the incident and timeline-update level only.
+Allowed values for `verification_status`:
+- `unverified`
+- `verified`
+- `disputed`
+- `debunked`
+There is no per-source verification and no auto-compute cascade. New incidents and updates default to `unverified`.
 
 ### Date Visibility Logic
 - Active incidents: visible until `end_date`

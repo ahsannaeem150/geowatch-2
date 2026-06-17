@@ -17,6 +17,7 @@ import {
   updateSource,
   deleteSource,
   pinSource,
+  checkSource,
   uploadMedia,
   updateMedia,
   deleteMedia,
@@ -202,8 +203,8 @@ export default function IncidentDetailPage() {
         ...(patch.description !== undefined && { description: patch.description }),
         ...(patch.locationContext !== undefined && { locationContext: patch.locationContext }),
         ...(patch.severity !== undefined && { severity: patch.severity }),
-        ...(patch.verification !== undefined && { verificationOverride: patch.verification }),
-        ...(patch.heroImageUrl !== undefined && { heroImageUrl: patch.heroImageUrl }),
+        ...(patch.verification !== undefined && { verificationStatus: patch.verification }),
+        ...(patch.heroImageUrl && { heroImageUrl: patch.heroImageUrl }),
       };
       await updateIncident(id, body);
     }),
@@ -245,7 +246,7 @@ export default function IncidentDetailPage() {
         details: form.details,
         updateDate: form.timestamp || form.updateDate || new Date().toISOString(),
         type: form.type || 'update',
-        verificationStatus: form.verification || 'verified',
+        verificationStatus: form.verification || 'unverified',
       });
     }),
     [id, withRefresh]
@@ -425,9 +426,10 @@ export default function IncidentDetailPage() {
   const handleArchiveSource = useCallback(
     withRefresh(async (eventId, item) => {
       if (item.archived) {
+        // Unarchive removes the archived flag but keeps the captured snapshot so it can be
+        // used as a fallback if the post becomes unavailable again later.
         await updateSource(id, item.id, {
           archived: false,
-          archiveMediaId: null,
           archiveReason: null,
         });
         return;
@@ -435,6 +437,16 @@ export default function IncidentDetailPage() {
 
       const reason = window.prompt('Reason for archiving this X post?');
       if (reason === null) return;
+
+      // If the system already captured a snapshot, reuse it instead of asking for a manual upload.
+      if (item.archiveMediaId) {
+        await updateSource(id, item.id, {
+          archived: true,
+          archiveMediaId: item.archiveMediaId,
+          archiveReason: reason,
+        });
+        return;
+      }
 
       const file = await pickScreenshotFile();
       if (!file) {
@@ -452,6 +464,13 @@ export default function IncidentDetailPage() {
         archiveMediaId: mediaId,
         archiveReason: reason,
       });
+    }),
+    [id, withRefresh]
+  );
+
+  const handleCheckSource = useCallback(
+    withRefresh(async (eventId, item) => {
+      await checkSource(id, item.id);
     }),
     [id, withRefresh]
   );
@@ -514,6 +533,8 @@ export default function IncidentDetailPage() {
         onFeatureEvidence={handleFeatureEvidence}
         onClearFeatureEvidence={handleClearFeatureEvidence}
         onArchiveSource={handleArchiveSource}
+        onCheckSource={handleCheckSource}
+        onAutoCheck={handleCheckSource}
         onOpenAudit={handleOpenAudit}
         onViewCreator={handleViewCreator}
         auditLogs={auditLogs}

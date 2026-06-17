@@ -1498,8 +1498,8 @@ export function DebugMetadata({ incident }) {
               <span>{incident.geometryType || 'Point'}</span>
             </div>
             <div className="id-debug-meta__field">
-              <span>Verification override</span>
-              <span>{incident.verificationOverride || 'none'}</span>
+              <span>Verification status</span>
+              <span>{incident.verification || 'none'}</span>
             </div>
           </div>
           <div className="id-debug-meta__raw">

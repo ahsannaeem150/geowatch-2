@@ -1015,7 +1015,7 @@ function evidenceDefaults(type) {
   }
 }
 
-function EvidenceModal({ type, item, onClose, onSave }) {
+export function EvidenceModal({ type, item, onClose, onSave }) {
   const isEdit = !!item;
   const [form, setForm] = useState(item ? { ...item } : evidenceDefaults(type));
   const patch = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -1068,6 +1068,7 @@ function EvidenceModal({ type, item, onClose, onSave }) {
         type: 'image',
         url: item.dataUrl,
         caption: item.caption,
+        name: item.name,
         pinned: false,
       }));
       onSave(newItems);

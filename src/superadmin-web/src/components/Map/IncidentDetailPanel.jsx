@@ -13,7 +13,6 @@ import TimelineEntry from '@shared/components/TimelineEntry.jsx';
 import {
   SEVERITY_SCALE,
   VERIFICATION_CONFIG,
-  SOURCE_VERIFICATION_CONFIG,
   SOURCE_TYPES,
 } from '@shared/constants.js';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -141,7 +140,7 @@ export default function IncidentDetailPanel({
       startDate: inc.start_date ? inc.start_date.slice(0, 10) : '',
       endDate: inc.end_date ? inc.end_date.slice(0, 10) : '',
       locationContext: inc.location_context || '',
-      verificationOverride: inc.verification_override || '',
+      verificationStatus: inc.verification_status || 'unverified',
     });
     setMode('edit');
     setActionError('');
@@ -159,7 +158,7 @@ export default function IncidentDetailPanel({
         startDate: editForm.startDate ? `${editForm.startDate}T00:00:00Z` : undefined,
         endDate: editForm.endDate ? `${editForm.endDate}T00:00:00Z` : null,
         locationContext: editForm.locationContext,
-        verificationOverride: editForm.verificationOverride || null,
+        verificationStatus: editForm.verificationStatus || 'unverified',
       };
       await updateIncident(incident.id, payload);
       setMode('view');
@@ -701,7 +700,7 @@ export default function IncidentDetailPanel({
                   {inc.resolved_by && <RawIdRow label="Resolved by ID" value={inc.resolved_by} />}
                   <RawIdRow label="Category ID" value={inc.category_id} />
                   <RawIdRow label="Zone category ID" value={inc.zone_category_id || '—'} />
-                  <RawIdRow label="Verification override" value={inc.verification_override || 'none'} />
+                  <RawIdRow label="Verification status" value={inc.verification_status || 'none'} />
                   {isDeleted && (
                     <>
                       <RawIdRow label="Deleted by ID" value={inc.deleted_by} />
@@ -1045,8 +1044,8 @@ function getEventLabel(log) {
 
   if (log.action === 'incident_updated' && details?.changedFields?.length > 0) {
     const fields = details.changedFields;
-    if (fields.length === 1 && fields[0] === 'verificationOverride') {
-      return 'Verification override updated';
+    if (fields.length === 1 && fields[0] === 'verificationStatus') {
+      return 'Verification status updated';
     }
     const fieldStr = fields.map((f) => String(f).replace(/_/g, ' ')).join(', ');
     return `Edited · ${fieldStr}`;
@@ -1055,9 +1054,6 @@ function getEventLabel(log) {
   if ((log.action === 'source_added' || log.action === 'source_updated') && details?.sourceType) {
     const label = cfg?.label || log.action.replace(/_/g, ' ');
     const typeLabel = details.sourceType.replace(/_/g, ' ');
-    if (details?.verificationStatus) {
-      return `${label} · ${typeLabel} · ${details.verificationStatus}`;
-    }
     return `${label} · ${typeLabel}`;
   }
 
@@ -1378,7 +1374,6 @@ function SourceTypePills({ counts }) {
 }
 
 function SourceCard({ source }) {
-  const svCfg = source.verification_status ? SOURCE_VERIFICATION_CONFIG[source.verification_status] : null;
   const type = source.source_type || 'unknown';
 
   const typeConfig = {
@@ -1442,11 +1437,6 @@ function SourceCard({ source }) {
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>· {domain}</span>
           )}
         </div>
-        {svCfg && (
-          <span style={{ fontSize: 10, fontWeight: 700, color: svCfg.color, background: `${svCfg.color}18`, padding: '2px 8px', borderRadius: 'var(--radius-sm)' }}>
-            {svCfg.label}
-          </span>
-        )}
       </div>
 
       {/* Body */}
@@ -1705,13 +1695,11 @@ function EditForm({ form, onChange, categories, onSave, onCancel, loading }) {
       </div>
 
       <div>
-        <div style={labelStyle}>Verification Override</div>
-        <select value={form.verificationOverride} onChange={(e) => update('verificationOverride', e.target.value)} style={inputStyle}>
-          <option value="">— Auto-computed —</option>
-          <option value="unverified">Unverified</option>
-          <option value="verified">Verified</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="contested">Contested</option>
+        <div style={labelStyle}>Verification Status</div>
+        <select value={form.verificationStatus} onChange={(e) => update('verificationStatus', e.target.value)} style={inputStyle}>
+          {Object.entries(VERIFICATION_CONFIG).map(([key, cfg]) => (
+            <option key={key} value={key}>{cfg.label}</option>
+          ))}
         </select>
       </div>
 

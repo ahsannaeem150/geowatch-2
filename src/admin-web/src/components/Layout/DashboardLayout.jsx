@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
+import CreateIncidentSidebar from '../CreateIncidentSidebar/CreateIncidentSidebar.jsx';
 import { IncidentDetailSidebar } from '@shared';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
@@ -1343,7 +1344,39 @@ export default function DashboardLayout() {
     ? selectedIncident
     : null;
 
-  const handleSubmit = async (payload, { heroImageFile } = {}) => {
+  const finishCreateIncident = (newIncident) => {
+    setSelectedIncident(newIncident);
+    setPanelMode('detail');
+    setMarkerCoords(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('incident', newIncident.id);
+      return next;
+    });
+
+    let graceToastShown = false;
+    if (newIncident.end_date) {
+      const graceEnd = new Date(new Date(newIncident.end_date).getTime() + 24 * 60 * 60 * 1000);
+      if (graceEnd < new Date()) {
+        setToast({
+          message: 'Incident added successfully. It has already ended — use the date range picker to view it on the map.',
+          type: 'info',
+        });
+        graceToastShown = true;
+      }
+    }
+
+    if (!graceToastShown) {
+      setToast({
+        message: 'Incident created successfully.',
+        type: 'success',
+      });
+    }
+
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleSubmit = async (payload) => {
     setSubmitting(true);
     try {
       if (isEditing && selectedIncident) {
@@ -1351,64 +1384,8 @@ export default function DashboardLayout() {
         setSelectedIncident((prev) => ({ ...prev, ...payload, start_date: payload.startDate, end_date: payload.endDate }));
         setIsEditing(false);
         setPanelMode('detail');
-      } else {
-        const res = await api.createIncident(payload);
-        let newIncident = res.data.incident;
-
-        // Upload hero image if provided and attach it to the incident.
-        if (heroImageFile) {
-          try {
-            const detailRes = await api.getIncident(newIncident.id);
-            const initialReport = detailRes.data.timeline?.find((u) => u.type === 'report');
-            const uploadRes = await api.uploadMedia(newIncident.id, heroImageFile, {
-              updateId: initialReport?.id,
-              caption: payload.title,
-            });
-            await api.updateIncident(newIncident.id, {
-              heroImageUrl: uploadRes.data.media.file_url,
-            });
-            newIncident = { ...newIncident, hero_image_url: uploadRes.data.media.file_url };
-          } catch (err) {
-            console.warn('Hero image upload failed', err);
-            setToast({
-              message: 'Incident created, but hero image upload failed: ' + (err.message || 'Unknown error'),
-              type: 'error',
-            });
-          }
-        }
-
-        // Open the newly created incident in the sidebar, but do NOT fly the map
-        // — it's already centered where the user double-clicked.
-        setSelectedIncident(newIncident);
-        setPanelMode('detail');
-        setMarkerCoords(null);
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('incident', newIncident.id);
-          return next;
-        });
-
-        let graceToastShown = false;
-        if (newIncident.end_date) {
-          const graceEnd = new Date(new Date(newIncident.end_date).getTime() + 24 * 60 * 60 * 1000);
-          if (graceEnd < new Date()) {
-            setToast({
-              message: 'Incident added successfully. It has already ended — use the date range picker to view it on the map.',
-              type: 'info',
-            });
-            graceToastShown = true;
-          }
-        }
-
-        // Hint user that media can now be uploaded (unless grace warning took precedence)
-        if (!graceToastShown) {
-          setToast({
-            message: 'Incident created. Add photos and videos in the detail panel.',
-            type: 'success',
-          });
-        }
+        setRefreshKey((k) => k + 1);
       }
-      setRefreshKey((k) => k + 1);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -1530,8 +1507,8 @@ export default function DashboardLayout() {
         ...(patch.description !== undefined && { description: patch.description }),
         ...(patch.locationContext !== undefined && { locationContext: patch.locationContext }),
         ...(patch.severity !== undefined && { severity: patch.severity }),
-        ...(patch.verification !== undefined && { verificationOverride: patch.verification }),
-        ...(patch.heroImageUrl !== undefined && { heroImageUrl: patch.heroImageUrl }),
+        ...(patch.verification !== undefined && { verificationStatus: patch.verification }),
+        ...(patch.heroImageUrl && { heroImageUrl: patch.heroImageUrl }),
       };
       await api.updateIncident(selectedIncident.id, body);
     }),
@@ -1575,7 +1552,7 @@ export default function DashboardLayout() {
         details: form.details,
         updateDate: form.timestamp || form.updateDate || new Date().toISOString(),
         type: form.type || 'update',
-        verificationStatus: form.verification || 'verified',
+        verificationStatus: form.verification || 'unverified',
       });
     }),
     [selectedIncident?.id, withDetailRefresh]
@@ -1721,67 +1698,9 @@ export default function DashboardLayout() {
     [selectedIncident?.id, withDetailRefresh]
   );
 
-  function pickScreenshotFile() {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.style.display = 'none';
-      document.body.appendChild(input);
-      let resolved = false;
-      const cleanup = () => {
-        if (input.parentNode) input.parentNode.removeChild(input);
-      };
-      input.addEventListener('change', () => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
-        resolve(input.files?.[0] || null);
-      });
-      const onFocus = () => {
-        setTimeout(() => {
-          if (!resolved) {
-            resolved = true;
-            cleanup();
-            resolve(null);
-          }
-        }, 300);
-      };
-      window.addEventListener('focus', onFocus, { once: true });
-      input.click();
-    });
-  }
-
-  const handleArchiveSource = useCallback(
+  const handleCheckSource = useCallback(
     withDetailRefresh(async (eventId, item) => {
-      if (item.archived) {
-        await api.archiveSource(selectedIncident.id, item.id, {
-          archived: false,
-          archiveMediaId: null,
-          archiveReason: null,
-        });
-        return;
-      }
-
-      const reason = window.prompt('Reason for archiving this X post?');
-      if (reason === null) return;
-
-      const file = await pickScreenshotFile();
-      if (!file) {
-        throw new Error('A screenshot is required to archive an X post.');
-      }
-
-      const uploadRes = await api.uploadMedia(selectedIncident.id, file, { updateId: eventId, caption: reason });
-      const mediaId = uploadRes?.data?.media?.id;
-      if (!mediaId) {
-        throw new Error('Screenshot upload failed: no media id returned.');
-      }
-
-      await api.archiveSource(selectedIncident.id, item.id, {
-        archived: true,
-        archiveMediaId: mediaId,
-        archiveReason: reason,
-      });
+      await api.checkSource(selectedIncident.id, item.id);
     }),
     [selectedIncident?.id, withDetailRefresh]
   );
@@ -1849,7 +1768,7 @@ export default function DashboardLayout() {
           onPinEvidence={handlePinEvidence}
           onFeatureEvidence={handleFeatureEvidence}
           onClearFeatureEvidence={handleClearFeatureEvidence}
-          onArchiveSource={handleArchiveSource}
+          onAutoCheck={handleCheckSource}
           onOpenAudit={() => {}}
           onViewCreator={() => {}}
         />
@@ -1857,13 +1776,22 @@ export default function DashboardLayout() {
     }
 
     if (panelMode === 'form') {
+      if (isEditing && selectedIncident) {
+        return (
+          <IncidentForm
+            initialCoords={markerCoords}
+            initialData={selectedIncident}
+            onSubmit={handleSubmit}
+            onCancel={handleClosePanel}
+            submitting={submitting}
+          />
+        );
+      }
       return (
-        <IncidentForm
+        <CreateIncidentSidebar
           initialCoords={markerCoords}
-          initialData={isEditing ? selectedIncident : null}
-          onSubmit={handleSubmit}
+          onSuccess={finishCreateIncident}
           onCancel={handleClosePanel}
-          submitting={submitting}
         />
       );
     }
@@ -2308,7 +2236,7 @@ export default function DashboardLayout() {
             style={{
               width: '630px',
               overflowY: 'auto',
-              padding: panelMode === 'detail' ? 0 : '20px',
+              padding: panelMode === 'detail' || (panelMode === 'form' && !isEditing) ? 0 : '20px',
               boxSizing: 'border-box',
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--border-subtle)',

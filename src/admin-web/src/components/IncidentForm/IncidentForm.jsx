@@ -23,7 +23,7 @@ export default function IncidentForm({
   const [domainId, setDomainId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [severity, setSeverity] = useState(initialData?.severity?.toString() || '3');
-  const [verificationOverride, setVerificationOverride] = useState(initialData?.verification_override || '');
+  const [verificationStatus, setVerificationStatus] = useState(initialData?.verification_status || 'unverified');
   const [startDate, setStartDate] = useState(
     initialData?.start_date
       ? format(new Date(initialData.start_date), "yyyy-MM-dd'T'HH:mm")
@@ -34,7 +34,7 @@ export default function IncidentForm({
       ? format(new Date(initialData.end_date), "yyyy-MM-dd'T'HH:mm")
       : ''
   );
-  const [sources, setSources] = useState([{ sourceType: 'admin_note', sourceUrl: '', description: '', verificationStatus: 'unverified' }]);
+  const [sources, setSources] = useState([{ sourceType: 'admin_note', sourceUrl: '', description: '' }]);
   const [heroImageFile, setHeroImageFile] = useState(null);
 
   // Set initial domain/category for edit mode once categories load
@@ -90,7 +90,7 @@ export default function IncidentForm({
   }, [initialCoords]);
 
   const handleAddSource = () => {
-    setSources([...sources, { sourceType: 'admin_note', sourceUrl: '', description: '', verificationStatus: 'unverified' }]);
+    setSources([...sources, { sourceType: 'admin_note', sourceUrl: '', description: '' }]);
   };
 
   const handleSourceChange = (index, field, value) => {
@@ -115,12 +115,12 @@ export default function IncidentForm({
       startDate: new Date(startDate).toISOString(),
       endDate: endDate ? new Date(endDate).toISOString() : null,
       locationContext: locationContext || undefined,
-      verificationOverride: verificationOverride || undefined,
+      verificationStatus,
       sources: sources
         .filter((s) => s.sourceUrl?.trim() || s.description?.trim())
         .map((s) => ({
           sourceType: s.sourceType,
-          verificationStatus: s.verificationStatus || 'unverified',
+
           ...(s.sourceUrl?.trim() ? { sourceUrl: s.sourceUrl.trim() } : {}),
           ...(s.description?.trim() ? { description: s.description.trim() } : {}),
         })),
@@ -318,16 +318,15 @@ export default function IncidentForm({
             </select>
           </div>
           <div>
-            <label style={labelBase}>Verification Override</label>
+            <label style={labelBase}>Verification</label>
             <select
-              value={verificationOverride}
-              onChange={(e) => setVerificationOverride(e.target.value)}
+              value={verificationStatus}
+              onChange={(e) => setVerificationStatus(e.target.value)}
               style={{ ...inputBase, cursor: 'pointer' }}
             >
-              <option value="">🤖 Auto-compute from sources</option>
               {Object.entries(VERIFICATION_CONFIG).map(([key, cfg]) => (
                 <option key={key} value={key}>
-                  {cfg.icon} {cfg.label}
+                  {cfg.label}
                 </option>
               ))}
             </select>

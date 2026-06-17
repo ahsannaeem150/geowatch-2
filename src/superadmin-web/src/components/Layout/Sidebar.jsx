@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Shield,
   Eye,
+  Archive,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { path: '/superadmin/zone-categories', label: 'Zone Categories', icon: Hexagon },
   { path: '/superadmin/system', label: 'System', icon: Activity },
   { path: '/superadmin/export', label: 'Export', icon: Download },
+  { path: '/superadmin/x-archive-debug', label: 'X Archive Debug', icon: Archive },
 ];
 
 export default function Sidebar() {

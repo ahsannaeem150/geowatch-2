@@ -13,17 +13,17 @@ export default function IncidentDetailPage() {
   const [toast, setToast] = useState(null);
   const esRef = useRef(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (opts = {}) => {
     if (!id) return;
-    setLoading(true);
+    if (!opts.silent) setLoading(true);
     try {
       const res = await api.getIncident(id);
       setData(mapIncidentForShared(res.data));
       setError('');
     } catch (err) {
-      setError(err.message || 'Failed to load incident');
+      if (!opts.silent) setError(err.message || 'Failed to load incident');
     } finally {
-      setLoading(false);
+      if (!opts.silent) setLoading(false);
     }
   }, [id]);
 
@@ -119,6 +119,18 @@ export default function IncidentDetailPage() {
     navigate('/map');
   }, [navigate]);
 
+  const handleCheckSource = useCallback(
+    async (eventId, item) => {
+      try {
+        await api.checkSource(id, item.id);
+        await fetchData({ silent: true });
+      } catch (err) {
+        console.error('[handleCheckSource] failed:', err);
+      }
+    },
+    [id, fetchData]
+  );
+
   if (loading) {
     return (
       <div style={{ padding: 40, color: 'var(--text-secondary)', textAlign: 'center' }}>
@@ -145,6 +157,7 @@ export default function IncidentDetailPage() {
         timeline={data.timeline}
         onBack={handleBack}
         onCopyIncidentLink={handleCopyIncidentLink}
+        onAutoCheck={handleCheckSource}
       />
       {toast && (
         <div

@@ -6,7 +6,7 @@ const INCIDENT_COLUMNS = `
   i.created_by, i.created_at, i.updated_at, i.resolved_at, i.resolved_by,
   i.location_context,
   i.category_id,
-  i.verification_override,
+  i.verification_status,
   c.name AS category_name, c.slug AS category_slug,
   d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color
 `;

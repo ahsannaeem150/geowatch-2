@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons, SOURCE_TYPE_ICONS } from './IncidentIcons.jsx';
 import { relativeTime, sortPinned } from './IncidentUtils.js';
@@ -31,7 +31,7 @@ function getTweetId(url) {
   return null;
 }
 
-export function XEmbed({ post }) {
+export function XEmbed({ post, onRender }) {
   const ref = useRef(null);
   const [loaded, setLoaded] = useState(false);
   const tweetId = getTweetId(post.tweetUrl);
@@ -57,6 +57,10 @@ export function XEmbed({ post }) {
       cancelled = true;
     };
   }, [post.tweetUrl]);
+
+  useEffect(() => {
+    if (loaded) onRender?.();
+  }, [loaded, onRender]);
 
   return (
     <div className="id-x-embed">
@@ -150,6 +154,8 @@ export default function XPostCompactList({
   onPinItem,
   onFeatureItem,
   onArchiveSource,
+  onCheckSource,
+  onAutoCheck,
   featuredId,
   archivedLightboxPortal = false,
 }) {
@@ -161,6 +167,44 @@ export default function XPostCompactList({
   const [copiedId, setCopiedId] = useState(null);
   const [page, setPage] = useState(1);
   const [lightbox, setLightbox] = useState(null);
+  const [checkingIds, setCheckingIds] = useState(new Set());
+  const [autoCheckedIds, setAutoCheckedIds] = useState(new Set());
+  const checkTimers = useRef(new Map());
+  const checkerRef = useRef(onAutoCheck ?? onCheckSource);
+  checkerRef.current = onAutoCheck ?? onCheckSource;
+  const openIdsRef = useRef(openIds);
+  openIdsRef.current = openIds;
+
+  const startRenderTimeout = useCallback((post) => {
+    if (checkTimers.current.has(post.id)) return;
+    setCheckingIds((prev) => new Set(prev).add(post.id));
+    const timer = setTimeout(() => {
+      checkTimers.current.delete(post.id);
+      setCheckingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(post.id);
+        return next;
+      });
+      if (openIdsRef.current.has(post.id) && !post.archived) {
+        setAutoCheckedIds((prev) => new Set(prev).add(post.id));
+        checkerRef.current?.(post);
+      }
+    }, 7000);
+    checkTimers.current.set(post.id, timer);
+  }, []);
+
+  const clearRenderTimeout = (postId) => {
+    const timer = checkTimers.current.get(postId);
+    if (timer) {
+      clearTimeout(timer);
+      checkTimers.current.delete(postId);
+    }
+    setCheckingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(postId);
+      return next;
+    });
+  };
 
   const filtered = useMemo(
     () =>
@@ -175,7 +219,10 @@ export default function XPostCompactList({
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const pagePosts = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const pagePosts = useMemo(
+    () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filtered, safePage, pageSize]
+  );
   const allPageOpen = pagePosts.length > 0 && pagePosts.every((p) => openIds.has(p.id));
 
   useEffect(() => {
@@ -185,6 +232,52 @@ export default function XPostCompactList({
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    const TTL_MS = 60 * 60 * 1000;
+    const activeIds = new Set();
+
+    for (const post of pagePosts) {
+      if (!openIds.has(post.id)) continue;
+      activeIds.add(post.id);
+
+      const age = post.lastCheckedAt
+        ? Date.now() - new Date(post.lastCheckedAt).getTime()
+        : Infinity;
+
+      if (checkerRef.current && age > TTL_MS) {
+        // Existing stale-data check
+        setAutoCheckedIds((prev) => new Set(prev).add(post.id));
+        checkerRef.current(post);
+      } else if (checkerRef.current && !post.archived) {
+        // If the live embed hasn't rendered within 7 seconds, force a check
+        // regardless of TTL. This catches tweets that were deleted shortly
+        // after they were added, before the next scheduled check.
+        startRenderTimeout(post);
+      }
+    }
+
+    // Cancel timers for posts that are no longer open or have been archived
+    for (const [postId, timer] of checkTimers.current.entries()) {
+      if (!activeIds.has(postId)) {
+        clearTimeout(timer);
+        checkTimers.current.delete(postId);
+      }
+    }
+
+    setCheckingIds((prev) => {
+      const next = new Set(prev);
+      for (const id of prev) {
+        if (!activeIds.has(id)) next.delete(id);
+      }
+      return next;
+    });
+
+    return () => {
+      for (const timer of checkTimers.current.values()) clearTimeout(timer);
+      checkTimers.current.clear();
+    };
+  }, [openIds, pagePosts, startRenderTimeout]);
 
   useEffect(() => {
     const priorityIds = sortedPosts.filter((p) => p.pinned || p.id === featuredId).map((p) => p.id);
@@ -327,7 +420,13 @@ export default function XPostCompactList({
 
               {renderedIds.has(post.id) && !post.archived && (
                 <div className="id-x-compact__embed">
-                  <XEmbed post={post} />
+                  <XEmbed post={post} onRender={() => clearRenderTimeout(post.id)} />
+                  {checkingIds.has(post.id) && (
+                    <div className="id-x-checking-notice">
+                      <span className="id-x-checking-notice__spinner" />
+                      Checking for an archived snapshot if this tweet doesn't load…
+                    </div>
+                  )}
                   {isOpen && (
                     <div className="id-x-compact__actions">
                       <a className="id-x-compact__action" href={post.tweetUrl} target="_blank" rel="noreferrer">
@@ -351,6 +450,12 @@ export default function XPostCompactList({
 
               {isOpen && post.archived && (
                 <div className="id-x-compact__embed">
+                  {autoCheckedIds.has(post.id) && (
+                    <div className="id-x-archive-notice">
+                      {Icons.info}
+                      Original tweet is unavailable · showing archived snapshot
+                    </div>
+                  )}
                   <ArchivedPost post={post} onOpen={() => setLightbox(post)} />
                   <div className="id-x-compact__actions">
                     <a className="id-x-compact__action" href={post.tweetUrl} target="_blank" rel="noreferrer">
@@ -359,6 +464,14 @@ export default function XPostCompactList({
                     <button className="id-x-compact__action" onClick={() => copyLink(post)}>
                       {Icons.link} {copiedId === post.id ? 'Copied!' : 'Copy link'}
                     </button>
+                    {onCheckSource && (
+                      <button
+                        className="id-x-compact__action"
+                        onClick={() => onCheckSource(post)}
+                      >
+                        {Icons.refresh} Check status
+                      </button>
+                    )}
                     {onArchiveSource && (
                       <button
                         className="id-x-compact__action"

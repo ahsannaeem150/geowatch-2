@@ -147,8 +147,8 @@ export default function IncidentDetailPage() {
         ...(patch.locationContext !== undefined && { locationContext: patch.locationContext }),
         ...(patch.severity !== undefined && { severity: patch.severity }),
         // status changes are handled by dedicated endpoints (resolve/delete/restore/purge)
-        ...(patch.verification !== undefined && { verificationOverride: patch.verification }),
-        ...(patch.heroImageUrl !== undefined && { heroImageUrl: patch.heroImageUrl }),
+        ...(patch.verification !== undefined && { verificationStatus: patch.verification }),
+        ...(patch.heroImageUrl && { heroImageUrl: patch.heroImageUrl }),
       };
       await api.updateIncident(id, body);
     }),
@@ -190,7 +190,7 @@ export default function IncidentDetailPage() {
         details: form.details,
         updateDate: form.timestamp || form.updateDate || new Date().toISOString(),
         type: form.type || 'update',
-        verificationStatus: form.verification || 'verified',
+        verificationStatus: form.verification || 'unverified',
       });
     }),
     [id, withRefresh]
@@ -337,67 +337,9 @@ export default function IncidentDetailPage() {
     [id, withRefresh]
   );
 
-  function pickScreenshotFile() {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.style.display = 'none';
-      document.body.appendChild(input);
-      let resolved = false;
-      const cleanup = () => {
-        if (input.parentNode) input.parentNode.removeChild(input);
-      };
-      input.addEventListener('change', () => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
-        resolve(input.files?.[0] || null);
-      });
-      const onFocus = () => {
-        setTimeout(() => {
-          if (!resolved) {
-            resolved = true;
-            cleanup();
-            resolve(null);
-          }
-        }, 300);
-      };
-      window.addEventListener('focus', onFocus, { once: true });
-      input.click();
-    });
-  }
-
-  const handleArchiveSource = useCallback(
+  const handleCheckSource = useCallback(
     withRefresh(async (eventId, item) => {
-      if (item.archived) {
-        await api.archiveSource(id, item.id, {
-          archived: false,
-          archiveMediaId: null,
-          archiveReason: null,
-        });
-        return;
-      }
-
-      const reason = window.prompt('Reason for archiving this X post?');
-      if (reason === null) return;
-
-      const file = await pickScreenshotFile();
-      if (!file) {
-        throw new Error('A screenshot is required to archive an X post.');
-      }
-
-      const uploadRes = await api.uploadMedia(id, file, { updateId: eventId, caption: reason });
-      const mediaId = uploadRes?.data?.media?.id;
-      if (!mediaId) {
-        throw new Error('Screenshot upload failed: no media id returned.');
-      }
-
-      await api.archiveSource(id, item.id, {
-        archived: true,
-        archiveMediaId: mediaId,
-        archiveReason: reason,
-      });
+      await api.checkSource(id, item.id);
     }),
     [id, withRefresh]
   );
@@ -451,7 +393,7 @@ export default function IncidentDetailPage() {
         onPinEvidence={handlePinEvidence}
         onFeatureEvidence={handleFeatureEvidence}
         onClearFeatureEvidence={handleClearFeatureEvidence}
-        onArchiveSource={handleArchiveSource}
+        onAutoCheck={handleCheckSource}
         onOpenAudit={() => {}}
         onViewCreator={() => {}}
       />

@@ -3,12 +3,13 @@ import {
   updateSource,
   deleteSource,
   pinSource,
-  updateSourceVerification,
+  getSourceById,
 } from '../services/source.service.js';
 import { getEventById } from '../services/incident.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import { checkXPostAvailability } from '../services/x-availability.service.js';
 
 async function broadcastIncidentUpdate(incidentId) {
   const enriched = await getEventById(incidentId);
@@ -23,7 +24,6 @@ export async function createSourceController(req, res) {
   await auditLog(req, AUDIT_ACTIONS.SOURCE_ADDED, 'source', source.id, {
     incidentId: req.params.id,
     sourceType: source.source_type,
-    verificationStatus: source.verification_status,
   });
 
   res.apiSuccess({ source }, 'Source added successfully');
@@ -62,21 +62,29 @@ export async function deleteSourceController(req, res) {
   res.apiSuccess({ deleted: true }, 'Source deleted successfully');
 }
 
-export async function updateSourceVerificationController(req, res) {
-  const source = await updateSourceVerification(req.params.sourceId, req.body.verificationStatus);
+export async function checkSourceController(req, res) {
+  const source = await getSourceById(req.params.sourceId);
   if (!source) {
     return res.apiError('Source not found', 'NOT_FOUND', 404);
   }
+  if (source.source_type !== 'x_post' || !source.source_url) {
+    return res.apiError('Availability check only supported for X posts', 'VALIDATION_ERROR', 400);
+  }
+
+  const result = await checkXPostAvailability(
+    source.id,
+    source.source_url,
+    source.account_id
+  );
 
   await broadcastIncidentUpdate(req.params.id);
 
-  await auditLog(req, AUDIT_ACTIONS.SOURCE_UPDATED, 'source', source.id, {
-    incidentId: req.params.id,
-    sourceType: source.source_type,
-    verificationStatus: source.verification_status,
-  });
+  res.apiSuccess({ source: await getSourceById(source.id), ...result });
+}
 
-  res.apiSuccess({ source }, 'Source verification updated');
+// Public, unauthenticated variant used by the public user web frontend.
+export async function checkPublicSourceController(req, res) {
+  return checkSourceController(req, res);
 }
 
 export async function pinSourceController(req, res) {

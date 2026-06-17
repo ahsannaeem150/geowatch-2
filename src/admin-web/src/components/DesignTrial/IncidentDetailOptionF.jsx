@@ -580,7 +580,7 @@ function EvidenceModal({ type, item, onClose, onSave }) {
   );
 }
 
-export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onViewCreator }) {
+export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onViewCreator, leftPanel }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const isSuper = mode === 'superadmin';
   const navigate = useNavigate();
@@ -827,19 +827,22 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
   const isReadOnly = isDeleted || isPurged;
 
   return (
-    <div className={`id-trial-page ${isSuper ? 'id-trial-page--superadmin' : ''}`}>
-      <div className="id-fake-map">
-        <div className="id-fake-map-grid" />
-        <div className="id-fake-map-markers">
-          <span style={{ left: '24%', top: '34%' }} />
-          <span style={{ left: '42%', top: '28%' }} />
-          <span style={{ left: '54%', top: '46%' }} />
-          <span style={{ left: '66%', top: '30%' }} />
-          <span style={{ left: '44%', top: '62%' }} />
-          <span style={{ left: '72%', top: '58%' }} />
+    <div className={`id-trial-page ${isSuper ? 'id-trial-page--superadmin' : ''} ${leftPanel ? 'has-left-panel' : ''}`}>
+      {leftPanel}
+      {!leftPanel && (
+        <div className="id-fake-map">
+          <div className="id-fake-map-grid" />
+          <div className="id-fake-map-markers">
+            <span style={{ left: '24%', top: '34%' }} />
+            <span style={{ left: '42%', top: '28%' }} />
+            <span style={{ left: '54%', top: '46%' }} />
+            <span style={{ left: '66%', top: '30%' }} />
+            <span style={{ left: '44%', top: '62%' }} />
+            <span style={{ left: '72%', top: '58%' }} />
+          </div>
+          <div className="id-fake-map-label">Selected incident</div>
         </div>
-        <div className="id-fake-map-label">Selected incident</div>
-      </div>
+      )}
 
       <aside className="id-sidebar">
         <div className="id-sidebar__scroll">
@@ -964,20 +967,24 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
             />
           </TimelineItem>
 
-          <div className="id-section-title">Updates</div>
-          {updates.map((event, idx) => (
-            <TimelineItem key={event.id} event={event} index={idx + 1} total={events.length}>
-              <UpdateCard
-                event={event}
-                isAdmin={isAdmin}
-                featuredItem={featuredItems[event.id]}
-                onSetFeature={openDrawer}
-                onClearFeature={() => clearFeaturedItem(event.id)}
-                onOpenDrawer={openDrawer}
-                onOpenLightbox={openLightbox}
-              />
-            </TimelineItem>
-          ))}
+          {updates.length > 0 && (
+            <>
+              <div className="id-section-title">Updates</div>
+              {updates.map((event, idx) => (
+                <TimelineItem key={event.id} event={event} index={idx + 1} total={events.length}>
+                  <UpdateCard
+                    event={event}
+                    isAdmin={isAdmin}
+                    featuredItem={featuredItems[event.id]}
+                    onSetFeature={openDrawer}
+                    onClearFeature={() => clearFeaturedItem(event.id)}
+                    onOpenDrawer={openDrawer}
+                    onOpenLightbox={openLightbox}
+                  />
+                </TimelineItem>
+              ))}
+            </>
+          )}
 
           <div style={{ height: 40 }} />
         </div>

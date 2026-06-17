@@ -62,26 +62,36 @@ function mapMediaItem(item) {
   };
 }
 
+const X_LOGO_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>'
+)}`;
+
 function mapXPostSource(source, mediaList = []) {
   if (!source) return null;
   const archiveUrl = source.archived && source.archive_media_id
-    ? mediaList.find((m) => m.id === source.archive_media_id)?.file_url || ''
+    ? source.archive_media_url || mediaList.find((m) => m.id === source.archive_media_id)?.url || ''
     : '';
   const description = source.description || '';
-  const author = description.split(' ')[0] || 'X';
+  const username = source.account_username || '';
+  const displayName = source.account_display_name || username || 'X';
+  const handle = username ? `@${username}` : '@x';
+
   return {
     id: source.id,
     tweetUrl: source.source_url || '',
     text: description,
-    author,
-    handle: '@x',
-    authorAvatar: '',
+    author: displayName,
+    handle,
+    authorAvatar: X_LOGO_SVG,
     timestamp: source.created_at || source.updated_at,
     pinned: !!source.pinned,
     archived: !!source.archived,
+    archiveReason: source.archive_reason || null,
+    accountSuspended: !!source.account_is_suspended,
+    lastCheckedAt: source.last_checked_at || null,
+    archiveMediaId: source.archive_media_id || null,
     archiveUrl,
     embedHtml: source.embed_html,
-    verificationStatus: source.verification_status,
   };
 }
 
@@ -95,7 +105,6 @@ function mapNewsArticleSource(source) {
     url: source.source_url || '',
     pinned: !!source.pinned,
     archived: !!source.archived,
-    verificationStatus: source.verification_status,
   };
 }
 
@@ -107,17 +116,22 @@ function mapAdminNoteSource(source, createdByName) {
     text: source.description || '',
     pinned: !!source.pinned,
     archived: !!source.archived,
-    verificationStatus: source.verification_status,
   };
 }
 
 function mapSourcesForShared(sources, updateMedia = [], mediaList = []) {
   const raw = sources || {};
+  const archiveMediaIds = new Set(
+    (raw.x_post || []).map((s) => s.archive_media_id).filter(Boolean)
+  );
   const combinedMedia = [
     ...(raw.image || []),
     ...(raw.video || []),
     ...(updateMedia || []),
-  ].map(mapMediaItem).filter(Boolean);
+  ]
+    .filter((m) => !archiveMediaIds.has(m.id))
+    .map(mapMediaItem)
+    .filter(Boolean);
 
   return {
     x_post: (raw.x_post || []).map((s) => mapXPostSource(s, mediaList)).filter(Boolean),
@@ -183,7 +197,7 @@ export function mapIncidentForShared(data) {
       description: incident.description || '',
       status: incident.status || 'active',
       severity: incident.severity ?? 3,
-      verification: incident.verification_status || incident.verification_override || 'unverified',
+      verification: incident.verification_status || 'unverified',
       heroImageUrl: incident.hero_image_url || '',
       locationContext: incident.location_context || '',
       latitude: incident.latitude,
@@ -525,6 +539,10 @@ export function pinSource(incidentId, sourceId, pinned) {
   });
 }
 
+export function checkSource(incidentId, sourceId) {
+  return request(`/incidents/${incidentId}/sources/${sourceId}/check`, { method: 'POST' });
+}
+
 // ─── Media ───
 
 export function uploadMedia(incidentId, file, options = {}) {
@@ -557,5 +575,38 @@ export function pinMedia(incidentId, mediaId, pinned) {
   return request(`/incidents/${incidentId}/media/${mediaId}/pin`, {
     method: 'PATCH',
     body: JSON.stringify({ pinned }),
+  });
+}
+
+// ─── X Archive Debug ───
+
+export function getXArchiveDebug(filters = {}) {
+  const qs = new URLSearchParams();
+  if (filters.accountId) qs.set('accountId', filters.accountId);
+  if (filters.archived !== undefined && filters.archived !== '') qs.set('archived', filters.archived);
+  if (filters.archiveReason) qs.set('archiveReason', filters.archiveReason);
+  const query = qs.toString();
+  return request(`/x-archive-debug${query ? `?${query}` : ''}`);
+}
+
+export function setAccountSuspended(accountId, isSuspended) {
+  return request(`/x-archive-debug/accounts/${accountId}/suspended`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isSuspended }),
+  });
+}
+
+export function checkXArchiveSource(sourceId) {
+  return request(`/x-archive-debug/sources/${sourceId}/check`, { method: 'POST' });
+}
+
+export function snapshotXArchiveSource(sourceId) {
+  return request(`/x-archive-debug/sources/${sourceId}/snapshot`, { method: 'POST' });
+}
+
+export function archiveXArchiveSource(sourceId, body) {
+  return request(`/x-archive-debug/sources/${sourceId}/archive`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
   });
 }

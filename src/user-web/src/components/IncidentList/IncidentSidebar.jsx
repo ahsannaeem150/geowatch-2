@@ -28,18 +28,30 @@ export default function IncidentSidebar({
   const [detailError, setDetailError] = useState('');
   const { domains, getCategoriesByDomain } = useCategories();
 
-  const fetchDetail = async (incidentId) => {
+  const fetchDetail = async (incidentId, opts = {}) => {
     if (!incidentId) return;
-    setDetailLoading(true);
+    if (!opts.silent) setDetailLoading(true);
     setDetailError('');
     try {
       const res = await api.getIncident(incidentId);
       setDetail(mapIncidentForShared(res.data));
     } catch (err) {
-      setDetailError(err.message || 'Failed to load incident details');
-      setDetail(null);
+      if (!opts.silent) {
+        setDetailError(err.message || 'Failed to load incident details');
+        setDetail(null);
+      }
     } finally {
-      setDetailLoading(false);
+      if (!opts.silent) setDetailLoading(false);
+    }
+  };
+
+  const handleCheckSource = async (eventId, item) => {
+    if (!selectedIncident?.id) return;
+    try {
+      await api.checkSource(selectedIncident.id, item.id);
+      await fetchDetail(selectedIncident.id, { silent: true });
+    } catch (err) {
+      console.error('[handleCheckSource] failed:', err);
     }
   };
 
@@ -143,6 +155,7 @@ export default function IncidentSidebar({
               timeline={detail.timeline}
               onNavigateToFullPage={handleNavigateToFullPage}
               onCopyIncidentLink={handleCopyIncidentLink}
+              onAutoCheck={handleCheckSource}
             />
           ) : null}
         </div>

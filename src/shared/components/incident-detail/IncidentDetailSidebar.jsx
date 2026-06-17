@@ -836,6 +836,8 @@ export default function IncidentDetailSidebar({
   onFeatureEvidence,
   onClearFeatureEvidence,
   onArchiveSource,
+  onCheckSource,
+  onAutoCheck,
   onOpenAudit,
   onViewCreator,
   auditLogs,
@@ -855,17 +857,17 @@ export default function IncidentDetailSidebar({
   const notify = useCallback((message) => setToast({ message }), []);
 
   const setFeaturedItem = useCallback(
-    (eventId, sourceType, itemId) => {
+    (eventId, { sourceType, sourceId }) => {
       setFeaturedItems((prev) => {
         const current = prev[eventId];
-        if (current && current.sourceType === sourceType && (current.sourceId === itemId || current.itemId === itemId)) {
+        if (current && current.sourceType === sourceType && (current.sourceId === sourceId || current.itemId === sourceId)) {
           const next = { ...prev };
           delete next[eventId];
           return next;
         }
-        return { ...prev, [eventId]: { sourceType, sourceId: itemId } };
+        return { ...prev, [eventId]: { sourceType, sourceId } };
       });
-      onFeatureEvidence?.(eventId, { sourceType, sourceId: itemId });
+      onFeatureEvidence?.(eventId, { sourceType, sourceId });
     },
     [onFeatureEvidence]
   );
@@ -1234,6 +1236,8 @@ export default function IncidentDetailSidebar({
                 onPinEvidence={onPinEvidence}
                 onFeatureEvidence={setFeaturedItem}
                 onArchiveSource={onArchiveSource}
+                onCheckSource={onCheckSource}
+                onAutoCheck={onAutoCheck}
                 featuredItem={featuredItems[drawerEvent.id] || drawerEvent.featuredItem}
               />
             </div>

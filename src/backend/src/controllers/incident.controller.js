@@ -12,6 +12,7 @@ import {
   getDeletedIncidentById,
 } from '../services/incident.service.js';
 import { createEventSource } from '../services/source.service.js';
+import { createTimelineUpdate } from '../services/timeline.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
@@ -110,7 +111,6 @@ export async function createIncidentController(req, res) {
           sourceUrl: src.sourceUrl,
           description: src.description,
           displayOrder: src.displayOrder,
-          verificationStatus: src.verificationStatus,
         },
         req.user.id
       );
@@ -118,7 +118,7 @@ export async function createIncidentController(req, res) {
       await auditLog(req, AUDIT_ACTIONS.SOURCE_ADDED, 'source', source.id, {
         incidentId: incident.id,
         sourceType: source.source_type,
-        verificationStatus: source.verification_status,
+        sourceType: source.source_type,
       });
     }
   }
@@ -168,7 +168,7 @@ function computeChangedFields(original, body) {
     startDate: 'start_date',
     endDate: 'end_date',
     locationContext: 'location_context',
-    verificationOverride: 'verification_override',
+    verificationStatus: 'verification_status',
     heroImageUrl: 'hero_image_url',
     latitude: 'latitude',
     longitude: 'longitude',
