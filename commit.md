@@ -9049,3 +9049,200 @@ feat(user-web): align zone-create evidence flow with admin marker sidebar
 ```
 
 *End of fix*
+
+---
+
+## 📅 2026-06-18 — Feature: Neon-Fade Zone Style in Admin Map
+
+### Summary
+Integrated the chosen neon-fade zone style from `/trial/zone-styles` into the admin-web map. Zones now render with a soft colored fill, an outer blurred glow line, an inner glow line, and a thin colored stroke — all in the zone's own category color. Selection and hover no longer switch to amber; they intensify the zone's own glow instead. The centroid dot was not present in the admin map, so no dot was removed.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Replaced the flat `zone-fills` + `zone-outlines` layers with a four-layer neon-fade stack: `zone-fills` (soft own-color fill), `zone-glow-outer` (wide blurred halo), `zone-glow-inner` (medium blurred glow), and `zone-outlines` (thin crisp stroke). Removed the amber `#f59e0b` selection override; selected/hover states now boost the zone's own color opacity and glow width. Updated the `zones` feature builder to use `strokeWidth: 1.5` and `opacity: 0.06`. Updated the hover/click `zoneLayers` query list to include the glow layers. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/admin-web` | ✅ |
+
+### Notes
+- Ghost-zone layers exist only in `SuperadminMap`, so they were not touched in this admin-only pass.
+- The drawing-preview and edit-zone layers keep their existing blue/amber interaction styling.
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): apply neon-fade zone style to map layers
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Feature: SVG Neon-Fade Zone Overlay in Admin Map
+
+### Summary
+Replaced the MapLibre-only neon approximation with an SVG overlay that matches the `/trial/zone-styles` treatment exactly: per-zone radial gradients, shared glow filter, thin colored stroke, and no centroid dot. An invisible `zone-hit` MapLibre layer remains for robust hover/click detection.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Replaced the multi-layer MapLibre glow stack with a single invisible `zone-hit` layer for interaction. Added `ZoneSvgOverlay` helper that projects each zone's GeoJSON vertices to screen space on every map move and renders them with SVG radial gradients + glow filter identical to the trial. Added `hoveredZoneId` React state and updated the hover handler to drive the SVG visual hover state. Removed zone feature-state styling. Updated the context-menu zone query to use `zone-hit`. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/admin-web` | ✅ |
+
+### Notes
+- SVG overlay follows map pan/zoom via `map.project()` and the `move` event. It approximates projected polygon edges as straight screen-space lines, which is accurate at typical zone-view zooms.
+- Drawing-preview and edit-zone layers still use MapLibre; only rendered zones switched to SVG.
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): render zones with SVG neon-fade overlay
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Feature: Neon-Fade + Inner Shadow Zone Style
+
+### Summary
+Added a new zone style variant `"Neon fade + inner shadow"` to `/trial/zone-styles`. It copies the existing neon-fade treatment and adds a dark inner shadow ring just inside the colored border before the fill fades to transparent at the center.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneStylesTrialPage.jsx` | Added `neon-fade-shadow` to `VARIANTS`. Added a dedicated radial-gradient stop sequence that creates a darker opacity peak around 90% (the inner shadow) before fading inward to transparent. Reused the neon-fade layer composition (fill + thin glow stroke). |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): add neon-fade + inner shadow zone style trial
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Fix: Shape-Adaptive Inner Shadow for Zone Style
+
+### Summary
+Updated the `"Neon fade + inner shadow"` variant in `/trial/zone-styles` so the inner shadow follows the shape's edges instead of being a circular radial gradient. It now uses an SVG mask + thick blurred stroke clipped to the inside of the shape, making the shadow conform to hexagons, triangles, diamonds, pentagons, and circles.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneStylesTrialPage.jsx` | Reverted the `neon-fade-shadow` gradient to the standard neon-fade stops. Added an SVG `<mask>` of the shape and a dedicated blur filter. For `neon-fade-shadow`, the layer stack is now: subtle radial fill → masked thick blurred inner stroke (the shape-adaptive shadow) → thin outer glow stroke. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(user-web): make neon-fade-shadow inner shadow shape-adaptive
+```
+
+*End of fix*
+
+---
+
+## 📅 2026-06-18 — Fix: True Inner Shadow Filter for Zone Style
+
+### Summary
+Replaced the masked blurred-stroke inner shadow with a proper SVG inner-shadow filter for the `"Neon fade + inner shadow"` variant in `/trial/zone-styles`. The filter blurs the shape's alpha, subtracts it from the original shape to isolate the inner edge, colors that edge with the zone color, and multiplies it onto the fill. This produces a dark shadow between the bright border and the transparent-center fill for any shape.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneStylesTrialPage.jsx` | Removed the mask-based thick stroke. Added an inner-shadow filter using `feGaussianBlur` + `feComposite arithmetic` + `feFlood` + `feBlend multiply`. Applied the filter to the fill shape only, keeping the thin outer glow stroke separate. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(user-web): use real inner-shadow filter for neon-fade-shadow
+```
+
+*End of fix*
+
+---
+
+## 📅 2026-06-18 — Fix: Darken Inner Shadow for Zone Style
+
+### Summary
+Fixed the `"Neon fade + inner shadow"` filter so the shadow is visibly darker than the fill. The filter now darkens the source graphic by 75% and composites that darkened fill only in the inner-edge ring, producing a clear dark shadow between the bright border and the transparent-center fill.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneStylesTrialPage.jsx` | Replaced the same-color flood + multiply with a `feColorMatrix` that darkens the source fill, clipped to the inner-edge ring. Widened the blur to `stdDeviation='6'` for a more visible shadow band. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(user-web): darken inner shadow for neon-fade-shadow
+```
+
+*End of fix*
+
+---
+
+## 📅 2026-06-18 — Fix: Visible Shape-Adaptive Inner Shadow
+
+### Summary
+Replaced the subtle filter-based inner shadow with a clear, shape-adaptive masked stroke for the `"Neon fade + inner shadow"` variant in `/trial/zone-styles`. A thick, blurred stroke in a darkened zone color is drawn and clipped to the inside of the shape, producing a visible dark band between the bright outer border and the transparent-center fill. The fill gradient was also lightened so the shadow stands out.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneStylesTrialPage.jsx` | Added `darkenHex()` helper. Restored the SVG mask. For `neon-fade-shadow`, the layer stack is now: lighter radial fill → masked thick blurred dark stroke (inner shadow) → thin bright outer glow stroke. Removed the arithmetic-composite filter approach. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(user-web): make neon-fade-shadow inner shadow clearly visible
+```
+
+*End of fix*

@@ -14,6 +14,16 @@ const COLORS = {
 
 const COLOR_KEYS = Object.keys(COLORS);
 
+function darkenHex(hex, amount = 0.45) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const dr = Math.max(0, Math.floor(r * amount));
+  const dg = Math.max(0, Math.floor(g * amount));
+  const db = Math.max(0, Math.floor(b * amount));
+  return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+}
+
 const SHAPES = {
   hexagon: {
     type: 'polygon',
@@ -51,6 +61,7 @@ const VARIANTS = {
   'edge-heavy': 'Edge-heavy gradient',
   neon: 'Neon glow',
   'neon-fade': 'Neon fade',
+  'neon-fade-shadow': 'Neon fade + inner shadow',
   dashed: 'Dashed warning',
   double: 'Double border',
   outline: 'Clean outline',
@@ -89,6 +100,8 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
   const gradId = `grad-${svgKey}`;
   const glowId = `glow-${svgKey}`;
   const strokeGradId = `stroke-${svgKey}`;
+  const innerShadowMaskId = `inner-shadow-mask-${svgKey}`;
+  const innerShadowFilterId = `inner-shadow-filter-${svgKey}`;
 
   const isCircle = shape?.type === 'circle';
   const cx = isCircle ? shape.cx : 180;
@@ -96,10 +109,21 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
 
   const fillGradient = (
     <radialGradient id={gradId} cx='50%' cy='50%' r='50%' fx='50%' fy='50%'>
-      <stop offset='0%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0' : '0.05'} />
-      <stop offset='55%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0.06' : '0.22'} />
-      <stop offset='85%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0.14' : '0.55'} />
-      <stop offset='100%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0.22' : '0.75'} />
+      {variant === 'neon-fade-shadow' ? (
+        <>
+          <stop offset='0%' stopColor={c.fill} stopOpacity='0' />
+          <stop offset='55%' stopColor={c.fill} stopOpacity='0.04' />
+          <stop offset='85%' stopColor={c.fill} stopOpacity='0.09' />
+          <stop offset='100%' stopColor={c.fill} stopOpacity='0.12' />
+        </>
+      ) : (
+        <>
+          <stop offset='0%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0' : '0.05'} />
+          <stop offset='55%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0.06' : '0.22'} />
+          <stop offset='85%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0.14' : '0.55'} />
+          <stop offset='100%' stopColor={c.fill} stopOpacity={variant === 'neon-fade' ? '0.22' : '0.75'} />
+        </>
+      )}
     </radialGradient>
   );
 
@@ -112,6 +136,20 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
         values='1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7'
         result='goo'
       />
+      <feMerge>
+        <feMergeNode in='blur' />
+        <feMergeNode in='SourceGraphic' />
+      </feMerge>
+    </filter>
+  );
+
+  const innerShadowMask = variant === 'neon-fade-shadow' && (
+    <mask id={innerShadowMaskId}>{renderShape(shapeId, { fill: 'white', stroke: 'none' })}</mask>
+  );
+
+  const innerShadowFilter = variant === 'neon-fade-shadow' && (
+    <filter id={innerShadowFilterId} x='-50%' y='-50%' width='200%' height='200%'>
+      <feGaussianBlur in='SourceGraphic' stdDeviation='1' result='blur' />
       <feMerge>
         <feMergeNode in='blur' />
         <feMergeNode in='SourceGraphic' />
@@ -152,6 +190,23 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
       layers = (
         <>
           {renderShape(shapeId, { ...baseFill, stroke: 'none' })}
+          {renderShape(shapeId, { fill: 'none', stroke: c.stroke, strokeWidth: 1, filter: `url(#${glowId})` })}
+        </>
+      );
+      break;
+    case 'neon-fade-shadow':
+      layers = (
+        <>
+          {renderShape(shapeId, { ...baseFill, stroke: 'none' })}
+          <g mask={`url(#${innerShadowMaskId})`}>
+            {renderShape(shapeId, {
+              fill: 'none',
+              stroke: darkenHex(c.stroke, 0.2),
+              strokeWidth: 3,
+              filter: `url(#${innerShadowFilterId})`,
+              opacity: 0.95,
+            })}
+          </g>
           {renderShape(shapeId, { fill: 'none', stroke: c.stroke, strokeWidth: 1, filter: `url(#${glowId})` })}
         </>
       );
@@ -231,6 +286,8 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
       <defs>
         {fillGradient}
         {glowFilter}
+        {innerShadowMask}
+        {innerShadowFilter}
         {strokeGradient}
       </defs>
 

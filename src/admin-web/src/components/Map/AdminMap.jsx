@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE } from '@shared/constants.js';
@@ -61,6 +61,112 @@ function getMaxZoomForCenter(lng, lat) {
   const [minLng, minLat, maxLng, maxLat] = HOT_BBOX;
   const inside = lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
   return inside ? 14 : 10;
+}
+
+function buildZoneScreenPath(mapInstance, geometry) {
+  if (!geometry?.coordinates?.[0]?.length) return null;
+  const ring = geometry.coordinates[0];
+  const points = ring.map((coord) => {
+    const p = mapInstance.project(coord);
+    return [p.x, p.y];
+  });
+  return `M ${points.map((p) => p.join(' ')).join(' L ')} Z`;
+}
+
+function ZoneSvgOverlay({ mapInstance, zones, selectedZoneId, hoveredZoneId }) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!mapInstance) return;
+    const onMove = () => setTick((t) => t + 1);
+    mapInstance.on('move', onMove);
+    mapInstance.on('resize', onMove);
+    return () => {
+      mapInstance.off('move', onMove);
+      mapInstance.off('resize', onMove);
+    };
+  }, [mapInstance]);
+
+  const renderedZones = useMemo(() => {
+    if (!mapInstance) return [];
+    return zones
+      .map((zone) => {
+        const d = buildZoneScreenPath(mapInstance, zone.geometry);
+        if (!d) return null;
+        return {
+          id: String(zone.id),
+          d,
+          color: zone.zone_category_color || '#6366f1',
+        };
+      })
+      .filter(Boolean);
+  }, [mapInstance, zones, tick]);
+
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        zIndex: 1,
+      }}
+    >
+      <defs>
+        <filter id="zone-neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {renderedZones.map((zone) => (
+          <radialGradient
+            key={zone.id}
+            id={`zone-neon-grad-${zone.id}`}
+            cx="50%"
+            cy="50%"
+            r="50%"
+            fx="50%"
+            fy="50%"
+          >
+            <stop offset="0%" stopColor={zone.color} stopOpacity="0" />
+            <stop offset="35%" stopColor={zone.color} stopOpacity="0.03" />
+            <stop offset="60%" stopColor={zone.color} stopOpacity="0.08" />
+            <stop offset="85%" stopColor={zone.color} stopOpacity="0.14" />
+            <stop offset="100%" stopColor={zone.color} stopOpacity="0.22" />
+          </radialGradient>
+        ))}
+      </defs>
+      {renderedZones.map((zone) => {
+        const isSelected = String(selectedZoneId) === zone.id;
+        const isHovered = String(hoveredZoneId) === zone.id;
+        const fillOpacity = isSelected ? 1 : isHovered ? 0.9 : 0.75;
+        const strokeOpacity = isSelected ? 0.95 : isHovered ? 0.85 : 0.70;
+        const strokeWidth = isSelected ? 2.5 : isHovered ? 2 : 1.5;
+        return (
+          <g key={zone.id}>
+            <path
+              d={zone.d}
+              fill={`url(#zone-neon-grad-${zone.id})`}
+              stroke="none"
+              opacity={fillOpacity}
+            />
+            <path
+              d={zone.d}
+              fill="none"
+              stroke={zone.color}
+              strokeWidth={strokeWidth}
+              strokeLinejoin="round"
+              filter="url(#zone-neon-glow)"
+              opacity={strokeOpacity}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
 const AdminMap = forwardRef(function AdminMap({
@@ -162,6 +268,7 @@ const AdminMap = forwardRef(function AdminMap({
   const [styleVersion, setStyleVersion] = useState(0);
 
   const [hoveredDrawVertexIndex, setHoveredDrawVertexIndex] = useState(null);
+  const [hoveredZoneId, setHoveredZoneId] = useState(null);
   const isDraggingDrawVertex = useRef(false);
   const draggedDrawVertexIndex = useRef(null);
   const didDragDrawVertex = useRef(false);
@@ -282,36 +389,16 @@ const AdminMap = forwardRef(function AdminMap({
           promoteId: 'id',
         });
       }
-      if (!mapInstance.getLayer('zone-fills')) {
+      // Invisible hit layer for zone hover/click detection.
+      // Visuals are rendered via the ZoneSvgOverlay component.
+      if (!mapInstance.getLayer('zone-hit')) {
         mapInstance.addLayer({
-          id: 'zone-fills',
+          id: 'zone-hit',
           type: 'fill',
           source: 'zones',
           paint: {
-            'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
-            'fill-opacity': [
-              'case',
-              ['boolean', ['feature-state', 'hover'], false], 0.12,
-              ['boolean', ['feature-state', 'selected'], false], 0.10,
-              ['get', 'opacity'],
-            ],
-          },
-        });
-      }
-      if (!mapInstance.getLayer('zone-outlines')) {
-        mapInstance.addLayer({
-          id: 'zone-outlines',
-          type: 'line',
-          source: 'zones',
-          paint: {
-            'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
-            'line-width': ['get', 'strokeWidth'],
-            'line-opacity': [
-              'case',
-              ['boolean', ['feature-state', 'hover'], false], 0.8,
-              ['boolean', ['feature-state', 'selected'], false], 0.9,
-              0.6,
-            ],
+            'fill-color': '#000',
+            'fill-opacity': 0,
           },
         });
       }
@@ -862,8 +949,8 @@ const AdminMap = forwardRef(function AdminMap({
                 name: zone.title || zone.name,
                 fillColor: color,
                 strokeColor: color,
-                strokeWidth: 2,
-                opacity: 0.08,
+                strokeWidth: 1.5,
+                opacity: 0.06,
               },
             };
           })
@@ -876,20 +963,17 @@ const AdminMap = forwardRef(function AdminMap({
   useEffect(() => {
     if (!map.current) return;
     const mapInstance = map.current;
-    const zoneLayers = ['zone-fills', 'zone-outlines'];
-    let hoveredZoneId = null;
+    const zoneLayers = ['zone-hit'];
+    let currentHoverId = null;
 
-    const layersReady = () =>
-      mapInstance.getLayer('zone-fills') && mapInstance.getLayer('zone-outlines');
+    const layersReady = () => mapInstance.getLayer('zone-hit');
 
     const onMouseMove = (e) => {
       // Skip zone hover when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) {
-        if (hoveredZoneId !== null) {
-          try {
-            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
-          } catch {}
-          hoveredZoneId = null;
+        if (currentHoverId !== null) {
+          setHoveredZoneId(null);
+          currentHoverId = null;
         }
         return;
       }
@@ -900,30 +984,20 @@ const AdminMap = forwardRef(function AdminMap({
       try {
         features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
       } catch {
-        // layers not ready yet
         return;
       }
 
       if (features.length > 0) {
         const featureId = String(features[0].id);
-        if (hoveredZoneId !== featureId) {
-          if (hoveredZoneId !== null) {
-            try {
-              mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
-            } catch {}
-          }
-          hoveredZoneId = featureId;
-          try {
-            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
-          } catch {}
+        if (currentHoverId !== featureId) {
+          currentHoverId = featureId;
+          setHoveredZoneId(featureId);
           mapInstance.getCanvas().style.cursor = 'pointer';
         }
       } else {
-        if (hoveredZoneId !== null) {
-          try {
-            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
-          } catch {}
-          hoveredZoneId = null;
+        if (currentHoverId !== null) {
+          currentHoverId = null;
+          setHoveredZoneId(null);
         }
         mapInstance.getCanvas().style.cursor = '';
       }
@@ -955,21 +1029,6 @@ const AdminMap = forwardRef(function AdminMap({
       mapInstance.off('click', onClick);
     };
   }, [onZoneClick]);
-
-  // ─── Zone selection state ───
-  useEffect(() => {
-    if (!map.current) return;
-    const source = map.current.getSource('zones');
-    if (!source) return;
-
-    zones.forEach((zone) => {
-      if (String(zone.id) === String(editingZoneId)) return;
-      map.current.setFeatureState(
-        { source: 'zones', id: String(zone.id) },
-        { selected: String(zone.id) === String(selectedZoneId) }
-      );
-    });
-  }, [selectedZoneId, zones, editingZoneId, styleVersion]);
 
   // ─── Update edit zone sources when editing ───
   useEffect(() => {
@@ -1348,7 +1407,7 @@ const AdminMap = forwardRef(function AdminMap({
       ];
       let zoneFeatures = [];
       try {
-        zoneFeatures = mapInstance.queryRenderedFeatures(box, { layers: ['zone-fills'] });
+        zoneFeatures = mapInstance.queryRenderedFeatures(box, { layers: ['zone-hit'] });
       } catch {
         zoneFeatures = [];
       }
@@ -1565,6 +1624,12 @@ const AdminMap = forwardRef(function AdminMap({
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      <ZoneSvgOverlay
+        mapInstance={map.current}
+        zones={zones}
+        selectedZoneId={selectedZoneId}
+        hoveredZoneId={hoveredZoneId}
+      />
 
       {/* Drawing area indicator */}
       {mapMode === 'polygon' && drawVertices.length > 0 && (
