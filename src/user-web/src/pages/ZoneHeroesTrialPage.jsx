@@ -663,13 +663,12 @@ function HudTagCard({ label, value, color, icon: Icon }) {
   return (
     <div className="zh-hud-module" style={{ '--module-color': color }}>
       <div className="zh-hud-module__accent" />
-      <div className="zh-hud-module__header">
-        <Icon size={14} style={{ color }} />
-        <span>{label}</span>
-        <span className="zh-hud-module__dot" style={{ background: color }} />
-      </div>
-      <div className="zh-hud-module__value" style={{ color }}>
-        {value}
+      <div className="zh-hud-module__content">
+        <Icon size={12} style={{ color }} />
+        <span className="zh-hud-module__label">{label}</span>
+        <span className="zh-hud-module__value" style={{ color }}>
+          {value}
+        </span>
       </div>
     </div>
   );

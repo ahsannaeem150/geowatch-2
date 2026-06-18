@@ -64,6 +64,7 @@
 | Mobile responsiveness | Basic | Desktop-primary; mobile adaptive is post-MVP |
 | Self-hosted fonts | Using MapLibre CDN | Future enhancement |
 | Sidebar/page visual polish | In progress | Aligning implemented sidebars with trial designs; see `sidebarImplementationPlan.md` |
+| Zone / polygon detail UI | Active trial | Designing the public zone detail experience in `/trial/zone*`. See **Current Focus** section below and `trialRoutes.md` |
 
 ### ❌ Explicitly Deprioritized or Removed
 
@@ -423,19 +424,111 @@ chore: description
 | Martin manual restart | Known | `start-geowatch.sh` handles this automatically |
 | Self-hosted fonts | Future | Using MapLibre's free font CDN |
 | Sidebar / full-page visual alignment | Active | Tweaking widths, scroll behavior, spacing against trial routes in `src/admin-web/src/components/DesignTrial/` |
+| Zone detail UI trial | Active | Experimenting with polygon rendering style, hero layouts, effective-window meters, and sidebar/full-page organization in `src/user-web/src/pages/ZoneTrial*.jsx` |
+| Google Sign-In 403 | Pre-existing | Localhost origin is not authorized in the Google OAuth console; unrelated to zone trials |
+| `XPostCompactList` DOM nesting warning | Known | Admin toolbar buttons rendered inside a `<button>` summary — non-blocking, needs `src/shared/components/incident-detail/XPostCompactList.jsx` fix |
+| Vite chunk size warning | Known | JS bundle > 500 KB; can be addressed later with dynamic imports/manual chunks |
 
 ---
 
 ## 9. What's Next (Priority Order)
 
-1. **Production Migration (Cloudflare R2)** — Flip `STORAGE_PROVIDER=r2`, write `r2.storage.js`
-2. **Marker Clustering** — Supercluster for dense marker situations
-3. **Heatmap Layer** — Density visualization at low zoom
-4. **Mobile Responsiveness** — Full mobile-adaptive layouts
-5. **Video Processing** — ffmpeg compression + poster frames
-6. **Notifications** — Push/webhook notifications for new incidents
+1. **Finalize zone / polygon detail UI** — Lock the chosen visual style from `/trial/zone*`, then integrate it into `user-web` and `admin-web` zone views
+2. **Production Migration (Cloudflare R2)** — Flip `STORAGE_PROVIDER=r2`, write `r2.storage.js`
+3. **Marker Clustering** — Supercluster for dense marker situations
+4. **Heatmap Layer** — Density visualization at low zoom
+5. **Mobile Responsiveness** — Full mobile-adaptive layouts
+6. **Video Processing** — ffmpeg compression + poster frames
+7. **Notifications** — Push/webhook notifications for new incidents
 
 ---
 
 *Last updated: 2026-06-13*  
 *Next agent: Read this file first, then `PROJECT.md`, then `commit.md` for full history.*
+
+---
+
+## 10. Current Focus — Zone / Polygon Detail UI Trials
+
+> **What we are doing right now:** designing the public zone/polygon detail experience inside isolated `/trial/zone*` pages so we can pick a visual direction before wiring it into the real `user-web` and `admin-web` zone views.
+
+### Chosen Visual Direction
+
+- **Polygon render style:** *Neon fade* — thin 1 px colored stroke, soft outer glow, radial gradient fill that is almost transparent in the center and faintly visible at the edges.
+- **Shared component:** `ZoneNeonMap` in `src/user-web/src/pages/ZoneTrialCommon.jsx` is now used by the sidebar mini-map, the full-page hero, and the hero laboratory.
+- **Meter style:** the effective-window meter container was made transparent/borderless so the bar reads as a clean time-line rather than a card.
+
+### Active Trial Pages
+
+All live under `src/user-web/src/pages/` and are routed from `src/user-web/src/App.jsx`:
+
+| Route | File | Purpose |
+|:--|:--|:--|
+| `/trial/zone-sidebar` | `ZoneTrialSidebarPage.jsx` | 630 px sidebar with polygon preview, full meter, and per-update evidence drawer |
+| `/trial/zone` | `ZoneTrialLayoutB.jsx` | Full-page zone layout trial using the chosen customized HUD hero (top pills, centered title/description, countdown, side tags, Copy link + Save actions) + timeline + rail |
+| `/trial/zone-meter` | `ZoneTrialMeterPage.jsx` | Meter component laboratory |
+| `/trial/zone-styles` | `ZoneStylesTrialPage.jsx` | Shape + treatment gallery (hexagon, circle, triangle, diamond, pentagon) |
+| `/trial/zone-heroes` | `ZoneHeroesTrialPage.jsx` | Hero header laboratory — currently limited to the original HUD command center and the customized HUD version |
+| `/trial/zone-sidebar-animations` | `ZoneSidebarAnimationTrialPage.jsx` | Sidebar mini-map animation laboratory — six treatments for the polygon preview card |
+
+### Shared Trial Infrastructure
+
+| File | Responsibility |
+|:--|:--|
+| `src/user-web/src/pages/ZoneTrialCommon.jsx` | `ZoneNeonMap`, `EffectiveWindowMeter`, `useZoneTimeState`, badges, stat grid, actions, timeline event, evidence drawer/modal helpers |
+| `src/user-web/src/pages/zoneTrialData.js` | Mock zone + timeline data (NOTAM and Curfew variants) |
+| `src/user-web/src/pages/ZoneTrial.css` | Shared trial styles |
+| `src/user-web/src/pages/ZoneStylesTrial.css` | Shape/style gallery styles |
+| `src/user-web/src/pages/ZoneHeroesTrial.css` | Hero laboratory styles |
+
+### Recent Decisions
+
+- The four side glass module cards in the customized HUD hero were restyled as compact, minimalist tag pills that mirror the top HUD pills. They keep a colored left accent line and a subtle dark translucent background, removing the previous gradient fill, large value text, and pulsing dot.
+- The chosen customized HUD hero from `/trial/zone-heroes` was moved into `/trial/zone`, replacing the previous floating glass metadata card header. A temporary trial-only top bar now holds the NOTAM/Curfew demo toggle. The hero shows Copy link and Save actions under the countdown.
+- The hero polygon background is rendered with `padding={200}` and `preserveAspectRatio="xMidYMid slice"` so the zone fills more of the hero while staying clear of the edges.
+- Zones with no end date now display an elapsed-time counter ("Active for") in the same block format as the remaining-time counter, using the new `elapsedMs` value from `useZoneTimeState`.
+- The sidebar mini-map animation laboratory at `/trial/zone-sidebar-animations` shows a single full-screen preview of an inward-traveling neon pulse. The base polygon matches the `/trial/zone-styles` neon-fade treatment (two-layer fill + stroke with the same gradient stops and glow filter), the preview stage has a full-black background, and the rings originate exactly at the polygon edge. Each pulse now takes **6 s** to reach the core, with the next pulse sent as the previous one arrives. This treatment has been integrated into `/trial/zone-sidebar` via the new `animated` prop on `PolygonMiniMap` / `ZoneNeonMap`.
+- A new polygon-incident creation sidebar trial is live at `/trial/zone-create`. It is a 630 px left sidebar with all admin-style fields (title, description, zone category, severity, status, verification, start/end dates, sources), a dummy polygon preview using the animated neon-fade mini-map, and console-only submit. The evidence flow now mirrors the active admin create-incident sidebar: media supports multi-file upload with caption editing or image-URL entry; X post only needs the tweet URL; news article uses title/publisher/URL; admin note is a single note field.
+- A full-page integration attempt was made and then reverted; the standalone trial pages remain the source of truth until a direction is finalized.
+- Build command `npm run build:user-web` must pass after any trial change.
+
+### Active Warnings (Non-Blocking)
+
+- Google Sign-In 403 on localhost (pre-existing OAuth origin issue).
+- `XPostCompactList` DOM nesting warning (admin toolbar buttons inside a `<button>` summary).
+- Vite chunk-size warning (> 500 KB JS bundle).
+
+---
+
+## 11. New Chat Onboarding Prompt
+
+Copy and paste the following prompt into the next chat to hand off cleanly:
+
+```
+You are continuing work on GeoWatch, a map-based global conflict and major-events visualization platform (React + Vite + MapLibre, Node/Express + PostgreSQL/PostGIS, npm workspaces).
+
+**START HERE:**
+1. Read `/media/ahsan/Linux_Work/GlassGhost/01-Projects/geowatch/handoff.md` fully — it is the single source of truth for project status, architecture, file map, and current focus.
+2. Read `/media/ahsan/Linux_Work/GlassGhost/01-Projects/geowatch/trialRoutes.md` to see every trial route and its purpose.
+3. Explore the codebase to understand context: backend services, shared components, and especially the user-web zone trial files under `src/user-web/src/pages/ZoneTrial*.jsx`, `zoneTrialData.js`, and `src/user-web/src/App.jsx`.
+
+**CURRENT FOCUS:**
+We are designing polygon/zone detail UI trial pages (`/trial/zone*`) so we can later integrate the chosen visual style into the real user-web and admin-web zone views. The chosen polygon style is "neon fade" (thin colored stroke + soft glow + transparent radial fill). The shared component is `ZoneNeonMap` in `src/user-web/src/pages/ZoneTrialCommon.jsx`.
+
+**BEFORE MAKING CHANGES:**
+- Run `npm run build:user-web` and ensure it passes.
+- Ask the user clarifying questions if requirements are ambiguous.
+- Make minimal changes and follow the existing code style.
+- Update `handoff.md` and `trialRoutes.md` if you change project status, add routes, or make architectural decisions.
+
+**KNOWN NON-BLOCKING ISSUES:**
+- Google Sign-In 403 on localhost (pre-existing).
+- `XPostCompactList` DOM nesting warning.
+- Vite JS chunk > 500 KB warning.
+
+Tell me what you find and what you recommend doing next.
+```
+
+---
+
+*Last updated: 2026-06-16*

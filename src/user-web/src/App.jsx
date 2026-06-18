@@ -12,6 +12,8 @@ import ZoneTrialLayoutB from './pages/ZoneTrialLayoutB.jsx';
 import ZoneTrialMeterPage from './pages/ZoneTrialMeterPage.jsx';
 import ZoneStylesTrialPage from './pages/ZoneStylesTrialPage.jsx';
 import ZoneHeroesTrialPage from './pages/ZoneHeroesTrialPage.jsx';
+import ZoneSidebarAnimationTrialPage from './pages/ZoneSidebarAnimationTrialPage.jsx';
+import ZoneTrialCreatePage from './pages/ZoneTrialCreatePage.jsx';
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -56,6 +58,8 @@ function AnimatedRoutes() {
           <Route path="/trial/zone-meter" element={<ZoneTrialMeterPage />} />
           <Route path="/trial/zone-styles" element={<ZoneStylesTrialPage />} />
           <Route path="/trial/zone-heroes" element={<ZoneHeroesTrialPage />} />
+          <Route path="/trial/zone-sidebar-animations" element={<ZoneSidebarAnimationTrialPage />} />
+          <Route path="/trial/zone-create" element={<ZoneTrialCreatePage />} />
         </Routes>
       </motion.div>
     </AnimatePresence>

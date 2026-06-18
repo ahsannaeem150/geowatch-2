@@ -302,6 +302,43 @@
   backdrop-filter: blur(4px);
 }
 
+.zone-mini-map--animated {
+  background: #000;
+}
+
+.zone-mini-map__base {
+  opacity: 0.95;
+}
+
+.zone-mini-map__ring {
+  opacity: 0;
+  transform: scale(1);
+  animation: zoneMiniMapPulseInward var(--pulse-duration, 18s) ease-out infinite;
+  animation-delay: var(--pulse-delay, 0s);
+  pointer-events: none;
+}
+
+@keyframes zoneMiniMapPulseInward {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+    stroke-width: 2;
+  }
+  15% {
+    opacity: 0.2;
+  }
+  33.3% {
+    opacity: 0;
+    transform: scale(0.05);
+    stroke-width: 0.3;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.05);
+    stroke-width: 0.3;
+  }
+}
+
 /* ───────────────── Stats grid ───────────────── */
 .zone-stats-grid {
   display: grid;
@@ -1447,5 +1484,174 @@
 
   .zone-layout-c__top {
     flex-direction: column;
+  }
+}
+
+
+/* ───────────────── Trial-only HUD hero adaptations ───────────────── */
+
+.zone-demo-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.zone-demo-topbar__label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.zone-demo-topbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+}
+
+.zone-demo-topbar__toggle button {
+  all: unset;
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.zone-demo-topbar__toggle button:hover {
+  color: var(--text-primary);
+}
+
+.zone-demo-topbar__toggle button.active {
+  background: var(--text-primary);
+  color: var(--bg-deep);
+}
+
+.zone-layout-b__hero--hud {
+  height: 68vh;
+  min-height: 460px;
+  max-height: 680px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.zh-hud-no-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+}
+
+.zh-duration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.zh-duration__label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.zh-hud-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.zh-hud-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.zh-hud-action:hover {
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+}
+
+.zh-hud-action.saved {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.zh-hud-action.saved:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+@media (max-width: 980px) {
+  .zone-layout-b__hero--hud {
+    height: auto;
+    min-height: 520px;
+    padding: 80px 0;
+  }
+
+  .zh-hero__side-hud {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .zone-demo-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .zone-layout-b__hero--hud {
+    min-height: 480px;
+  }
+
+  .zh-hud-actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .zh-hud-action {
+    width: 100%;
   }
 }

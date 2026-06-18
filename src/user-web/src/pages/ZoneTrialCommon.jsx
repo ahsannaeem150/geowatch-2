@@ -125,6 +125,7 @@ export function useZoneTimeState(startDate, endDate) {
     }
 
     const totalMs = start && end ? end.getTime() - start.getTime() : null;
+    const elapsedMs = start ? Math.max(0, nowDate.getTime() - start.getTime()) : null;
     let elapsedProgress = 0;
     let remainingProgress = 0;
 
@@ -144,7 +145,7 @@ export function useZoneTimeState(startDate, endDate) {
       remainingProgress = Math.min(100, Math.max(0, (remaining / totalMs) * 100));
     }
 
-    return { state, start, end, relative, remainingMs, elapsedProgress, remainingProgress };
+    return { state, start, end, relative, remainingMs, elapsedMs, elapsedProgress, remainingProgress };
   }, [startDate, endDate, now]);
 }
 
@@ -226,6 +227,11 @@ export function ZoneNeonMap({
   strokeWidth = 1.5,
   className,
   preserveAspectRatio = 'xMidYMid meet',
+  showGrid = true,
+  showCentroid = true,
+  animated = false,
+  ringCount = 3,
+  pulseDuration = 6,
 }) {
   const uid = useId().replace(/:/g, '');
   const ring = geometry?.coordinates?.[0];
@@ -236,74 +242,129 @@ export function ZoneNeonMap({
 
   if (!projection) return null;
 
+  const pathId = `zone-neon-path-${uid}`;
   const gradId = `zone-neon-grad-${uid}`;
   const glowId = `zone-neon-glow-${uid}`;
   const gridId = `zone-neon-grid-${uid}`;
   const cx = projection.width / 2;
   const cy = projection.height / 2;
   const r = Math.max(projection.width, projection.height) / 2;
+  const [centroidX, centroidY] = projection.centroid;
+  const totalDuration = ringCount * pulseDuration;
 
   return (
     <svg
-      className={className}
+      className={`${className || ''} ${animated ? 'zone-neon-map--animated' : ''}`.trim()}
       viewBox={projection.viewBox}
       preserveAspectRatio={preserveAspectRatio}
     >
       <defs>
+        {animated && <path id={pathId} d={projection.path} />}
         <radialGradient
           id={gradId}
-          cx={cx}
-          cy={cy}
-          r={r}
-          gradientUnits="userSpaceOnUse"
+          cx={animated ? '50%' : cx}
+          cy={animated ? '50%' : cy}
+          r={animated ? '50%' : r}
+          gradientUnits={animated ? 'objectBoundingBox' : 'userSpaceOnUse'}
         >
-          <stop offset="0%" stopColor={color} stopOpacity="0.03" />
-          <stop offset="55%" stopColor={color} stopOpacity="0.06" />
-          <stop offset="85%" stopColor={color} stopOpacity="0.14" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.22" />
+          {animated ? (
+            <>
+              <stop offset="0%" stopColor={color} stopOpacity="0" />
+              <stop offset="35%" stopColor={color} stopOpacity="0.02" />
+              <stop offset="60%" stopColor={color} stopOpacity="0.06" />
+              <stop offset="85%" stopColor={color} stopOpacity="0.10" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.14" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor={color} stopOpacity="0.03" />
+              <stop offset="55%" stopColor={color} stopOpacity="0.06" />
+              <stop offset="85%" stopColor={color} stopOpacity="0.14" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.22" />
+            </>
+          )}
         </radialGradient>
         <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation={glowStd} result="coloredBlur" />
+          <feGaussianBlur stdDeviation={animated ? 2.5 : glowStd} result="coloredBlur" />
           <feMerge>
             <feMergeNode in="coloredBlur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <pattern id={gridId} width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
-          <path
-            d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
-            fill="none"
-            stroke="rgba(255,255,255,0.04)"
-            strokeWidth={1}
-          />
-        </pattern>
+        {showGrid && (
+          <pattern id={gridId} width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
+            <path
+              d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
+              fill="none"
+              stroke="rgba(255,255,255,0.04)"
+              strokeWidth={1}
+            />
+          </pattern>
+        )}
       </defs>
-      <rect width="100%" height="100%" fill={`url(#${gridId})`} />
-      <path
-        d={projection.path}
-        fill={`url(#${gradId})`}
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinejoin="round"
-        filter={`url(#${glowId})`}
-        className="zone-mini-map__path"
-      />
-      <circle
-        cx={projection.centroid[0]}
-        cy={projection.centroid[1]}
-        r={Math.max(3, strokeWidth * 2)}
-        fill={color}
-        stroke="#fff"
-        strokeWidth={1.5}
-        className="zone-mini-map__centroid"
-      />
+
+      {showGrid && <rect width="100%" height="100%" fill={`url(#${gridId})`} />}
+
+      {animated ? (
+        <>
+          <use href={`#${pathId}`} fill={`url(#${gradId})`} stroke="none" />
+          <use
+            href={`#${pathId}`}
+            fill="none"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+            filter={`url(#${glowId})`}
+            className="zone-mini-map__base"
+          />
+          {Array.from({ length: ringCount }, (_, i) => (
+            <use
+              key={i}
+              href={`#${pathId}`}
+              fill="none"
+              stroke={color}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              filter={`url(#${glowId})`}
+              className="zone-mini-map__ring"
+              style={{
+                '--pulse-delay': `${i * pulseDuration}s`,
+                '--pulse-duration': `${totalDuration}s`,
+                transformOrigin: `${centroidX}px ${centroidY}px`,
+              }}
+            />
+          ))}
+        </>
+      ) : (
+        <path
+          d={projection.path}
+          fill={`url(#${gradId})`}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+          filter={`url(#${glowId})`}
+          className="zone-mini-map__path"
+        />
+      )}
+
+      {showCentroid && !animated && (
+        <circle
+          cx={centroidX}
+          cy={centroidY}
+          r={Math.max(3, strokeWidth * 2)}
+          fill={color}
+          stroke="#fff"
+          strokeWidth={1.5}
+          className="zone-mini-map__centroid"
+        />
+      )}
     </svg>
   );
 }
 
-export function PolygonMiniMap({ geometry, color = '#6366f1', title, large = false }) {
+export function PolygonMiniMap({ geometry, color = '#6366f1', title, large = false, animated = false }) {
   return (
-    <div className={`zone-mini-map ${large ? 'zone-mini-map--large' : ''}`}>
+    <div className={`zone-mini-map ${large ? 'zone-mini-map--large' : ''} ${animated ? 'zone-mini-map--animated' : ''}`}>
       <ZoneNeonMap
         geometry={geometry}
         color={color}
@@ -314,6 +375,11 @@ export function PolygonMiniMap({ geometry, color = '#6366f1', title, large = fal
         glowStd={large ? 5 : 4}
         strokeWidth={1.5}
         className="zone-mini-map__svg"
+        showGrid={!animated}
+        showCentroid={!animated}
+        animated={animated}
+        ringCount={3}
+        pulseDuration={6}
       />
       {title && <div className="zone-mini-map__title">{title}</div>}
     </div>

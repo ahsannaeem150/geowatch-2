@@ -92,7 +92,7 @@ export default function ZoneTrialSidebarPage() {
 
             <EffectiveWindowMeter startDate={zone.startDate} endDate={zone.endDate} />
 
-            <PolygonMiniMap geometry={zone.geometry} color={zone.zoneCategoryColor} />
+            <PolygonMiniMap geometry={zone.geometry} color={zone.zoneCategoryColor} animated />
 
             <ZoneStatGrid
               areaSqM={zone.areaSqM}

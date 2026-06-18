@@ -8695,3 +8695,357 @@ fix(admin,shared): admin sidebar padding and EvidenceRail missing imports
 
 *End of fix*
 
+
+---
+
+## 📅 2026-06-18 — Style: Minimalist HUD Hero Side Tags
+
+### Summary
+Refined the chosen customized HUD hero in the zone hero laboratory. The four side glass-module cards looked too heavy compared with the rest of the minimalist hero, so they were restyled to match the compact top HUD pills while keeping their colored left accent line.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneHeroesTrialPage.jsx` | Simplified `HudTagCard` to a single-row tag layout: icon + label + value, removing the separate header/value stacking and pulsing dot. |
+| `src/user-web/src/pages/ZoneHeroesTrial.css` | Rewrote `.zh-hud-module` styles: compact pill shape, dark translucent background, thin border, colored left accent line, and understated uppercase typography. Removed the gradient background, large value text, and pulse animation. |
+| `handoff.md` | Updated the recent-decisions note to reflect the new minimalist side-tag style. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(user-web): make HUD hero side tags minimalist like top pills
+```
+
+*End of style update*
+
+---
+
+## 📅 2026-06-18 — Feature: Move Chosen HUD Hero into /trial/zone
+
+### Summary
+Replaced the existing hero header on `/trial/zone` with the chosen customized HUD hero from `/trial/zone-heroes`. The demo NOTAM/Curfew toggle was moved into a temporary trial-only top bar. The hero now includes Copy link and Save actions under the countdown and gracefully handles zones with no end date.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneTrialLayoutB.jsx` | Rewrote the hero section to use the HUD command-center layout: polygon background with grid/radar sweep, top HUD pills, centered title/description, countdown (or "no scheduled end" fallback), Copy link + Save actions, and four minimalist side tags. Moved the NOTAM/Curfew demo toggle into a new `DemoTopBar` component above the hero. Imported `ZoneHeroesTrial.css` for the shared hero styles. |
+| `src/user-web/src/pages/ZoneTrial.css` | Added trial-only styles: `.zone-demo-topbar`, `.zone-layout-b__hero--hud`, `.zh-hud-actions`, `.zh-hud-action`, `.zh-hud-no-end`, and responsive rules. |
+| `handoff.md` | Updated the `/trial/zone` route description and recent-decisions note to reflect the new HUD hero integration. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): replace /trial/zone hero with chosen HUD hero and trial topbar
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Fix: Contain Hero Polygon + Elapsed Time for Open-Ended Zones
+
+### Summary
+Addressed two issues on the new `/trial/zone` HUD hero: the background polygon was overflowing the hero bounds, and open-ended zones only showed a static "no scheduled end" message instead of useful elapsed time.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneTrialCommon.jsx` | Extended `useZoneTimeState` to return `elapsedMs` (time since `startDate`) for all states. |
+| `src/user-web/src/pages/ZoneTrialLayoutB.jsx` | Increased `ZoneNeonMap` padding from 120 to 280 and switched `preserveAspectRatio` to `xMidYMid meet` so the polygon stays fully contained. Replaced the static no-end pill with an elapsed-time block counter labeled **"Active for"**. Added a **"Time remaining"** label above the normal countdown for consistency. |
+| `src/user-web/src/pages/ZoneTrial.css` | Added `.zh-duration` and `.zh-duration__label` styles. |
+| `handoff.md` | Updated recent-decisions note with the polygon containment and elapsed-time counter details. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(user-web): contain hero polygon and show elapsed time for open-ended zones
+```
+
+*End of fix*
+
+---
+
+## 📅 2026-06-18 — Tweak: Enlarge Hero Polygon Background
+
+### Summary
+The previous containment fix made the `/trial/zone` hero polygon too small. Re-tuned the padding and `preserveAspectRatio` so the zone is larger and more present without overflowing the hero edges.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneTrialLayoutB.jsx` | Changed `ZoneNeonMap` padding from `280` back to `200` and `preserveAspectRatio` from `xMidYMid meet` to `xMidYMid slice`. |
+| `handoff.md` | Updated the recent-decisions note to reflect the new padding/slice settings. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(user-web): enlarge /trial/zone hero polygon while keeping it contained
+```
+
+*End of tweak*
+
+---
+
+## 📅 2026-06-18 — Feature: Sidebar Mini-Map Animation Laboratory
+
+### Summary
+Created a new trial route `/trial/zone-sidebar-animations` that shows six animation treatments for the zone sidebar polygon preview card, so the user can pick one before integrating it into `/trial/zone-sidebar`.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneSidebarAnimationTrialPage.jsx` | New page rendering six mini-map variants: Default, Soft breathing glow, Rotating radar sweep, Sonar rings from centroid, Marching-ants perimeter, and Slow grid drift. Includes a NOTAM/Curfew demo toggle. |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrial.css` | Styles for the animation gallery cards and the six animation treatments. |
+| `src/user-web/src/App.jsx` | Added `/trial/zone-sidebar-animations` route. |
+| `trialRoutes.md` | Added the new route and key files. |
+| `handoff.md` | Added the new route to the active trial pages and recent-decisions note. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): add /trial/zone-sidebar-animations mini-map animation gallery
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Feature: Add Laser-Draw Animation to Sidebar Gallery
+
+### Summary
+Added a seventh mini-map animation variant to `/trial/zone-sidebar-animations`: a glowing point travels the polygon perimeter and draws a neon boundary line behind it.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneSidebarAnimationTrialPage.jsx` | Added `LaserDrawMiniMap` component using SVG `<animateMotion>` + `<mpath>` to move a glowing dot along the projected polygon path, synchronized with a `stroke-dashoffset` reveal animation on the neon stroke. |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrial.css` | Added `.zone-laser-path` and `.zone-laser-dot` keyframe animations. |
+| `trialRoutes.md` | Updated the animation gallery route description to seven treatments. |
+| `handoff.md` | Updated the recent-decisions note to include the laser-draw variant. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): add laser-draw mini-map animation to sidebar gallery
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Feature: Single-Focus Sidebar Mini-Map Pulse Preview
+
+### Summary
+Replaced the multi-variant animation gallery at `/trial/zone-sidebar-animations` with a single full-screen preview of the chosen treatment: a neon-fade polygon with inward-traveling edge pulses, no centroid dot.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneSidebarAnimationTrialPage.jsx` | Rewrote as a single `PulsePreview` page. Removed all other animation variants. The preview renders the polygon with neon-fade fill, thin colored stroke, soft glow, and three staggered pulse rings that scale from the edge toward the center. |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrial.css` | Replaced gallery styles with a single large-stage layout and the `zonePulseInward` keyframe animation. |
+| `trialRoutes.md` | Updated the route description to reflect the single pulse preview. |
+| `handoff.md` | Updated the recent-decisions note to describe the inward-traveling neon pulse treatment. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): replace sidebar animation gallery with single inward pulse preview
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Fix: Refine Sidebar Mini-Map Pulse Style
+
+### Summary
+Refined the single pulse preview at `/trial/zone-sidebar-animations` based on feedback: slower pulse, full-black background, no jump at the start, and an exact match to the neon-fade style from `/trial/zone-styles`.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneSidebarAnimationTrialPage.jsx` | Replaced the custom gradient/filter with the exact neon-fade gradient stops and glow filter from `ZoneStylesTrialPage.jsx`. Split the base polygon into fill-only and stroke-only layers. Removed the grid background and centroid dot. Increased rings from 3 to 4 and set pulse rings to start at `scale(1)` so they originate exactly at the polygon edge. |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrial.css` | Changed stage background to `#000`. Slowed the inward pulse to `6.4s` duration with `1.6s` stagger. Rings now scale from `1` to `0.05` without an initial overshoot. |
+| `handoff.md` | Updated the recent-decisions note to mention the slower, edge-origin pulse and full-black background. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(user-web): slow sidebar pulse, black background, exact neon-fade match
+```
+
+*End of fix*
+
+---
+
+## 📅 2026-06-18 — Fix: Sequential Inward Pulse + Softer Neon Gradient
+
+### Summary
+Refined the `/trial/zone-sidebar-animations` pulse prototype based on feedback: pulses are now sequential (one every 8 s, each taking 8 s to reach the core), the neon-fade gradient is softer with reduced edge glow, and pulse rings fade out earlier as they travel inward.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneSidebarAnimationTrialPage.jsx` | Softer radial gradient (edge opacity 0.14, larger transparent center). Simplified glow filter (`stdDeviation` reduced from 4 to 2.5, removed goo matrix). Pulse rings reduced from 4 to 3, delay set to `i * 8s` so each new pulse starts when the previous reaches the core. |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrial.css` | Pulse `animation-duration` increased to `24s` (active phase = first 33.3% = 8s). Rings now fade from opacity 0.7 to 0.2 by 15% of the active phase, then fully transparent at the core. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(user-web): sequential inward pulse, softer neon gradient
+```
+
+*End of fix*
+
+---
+
+## 📅 2026-06-18 — Feature: Integrate Approved Pulse Mini-Map into `/trial/zone-sidebar`
+
+### Summary
+Finalized the sidebar mini-map pulse timing (6 s per pulse, 18 s total cycle) and integrated the approved neon-fade inward pulse animation into `/trial/zone-sidebar`, replacing the static `PolygonMiniMap`.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneSidebarAnimationTrialPage.jsx` | Pulse delay reduced from `8 s` to `6 s`. |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrial.css` | Pulse `animation-duration` reduced from `24 s` to `18 s` to match the 6 s per-pulse timing. |
+| `src/user-web/src/pages/ZoneTrialCommon.jsx` | Extended `ZoneNeonMap` with `showGrid`, `showCentroid`, `animated`, `ringCount`, and `pulseDuration` props. When `animated` is true the component renders the approved neon-fade gradient (softer edges, transparent center), simplified glow filter, no grid, no centroid dot, and inward-traveling pulse rings. Updated `PolygonMiniMap` to forward the `animated` prop. |
+| `src/user-web/src/pages/ZoneTrialSidebarPage.jsx` | Replaced `<PolygonMiniMap ... />` with `<PolygonMiniMap animated ... />`. |
+| `src/user-web/src/pages/ZoneTrial.css` | Added `.zone-mini-map--animated` black background, `.zone-mini-map__base`, `.zone-mini-map__ring`, and the `zoneMiniMapPulseInward` keyframes. |
+| `handoff.md` | Updated the sidebar mini-map note to reflect the finalized 6 s pulse and its integration into `/trial/zone-sidebar`. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): integrate approved inward pulse mini-map in trial sidebar
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Feature: Polygon Zone Create Sidebar Trial
+
+### Summary
+Created a new user-web trial route `/trial/zone-create` with a 630 px left sidebar for creating polygon incidents. The form includes all admin fields (title, description, category, severity, status, verification, start/end dates, sources) and previews the dummy polygon with the approved animated neon-fade mini-map.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneTrialCreatePage.jsx` | New create-zone page. Form state, mock zone categories, dummy polygon, all classification/timing fields, add/edit/delete source modal for media / X post / news article / admin note, and console-log submit. |
+| `src/user-web/src/pages/ZoneTrialCreatePage.css` | New styles for the 630 px create sidebar, form sections, polygon preview, source list, source toolbar, modal, and responsive collapse. |
+| `src/user-web/src/App.jsx` | Registered the new `/trial/zone-create` route. |
+| `handoff.md` | Added a note about the new polygon create sidebar trial. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): add polygon zone create sidebar trial
+```
+
+*End of feature*
+
+---
+
+## 📅 2026-06-18 — Fix: Match Polygon Create Evidence Flow to Admin Marker Sidebar
+
+### Summary
+Updated the `/trial/zone-create` evidence section to match the active admin create-incident sidebar for normal markers: media supports multiple file uploads with caption editing or image-URL entry; X post only requires the tweet URL; news article uses title/publisher/URL; admin note is a single note field.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/ZoneTrialCreatePage.jsx` | Added `readFileAsDataUrl` helper. Rewrote `SourceModal` to mirror the admin `EvidenceModal`: file/URL mode switch, multi-file upload, per-file caption editing, and field parity for x_post/news_article/admin_note. `saveSource` now accepts arrays for batch media uploads. Updated `SourceListItem` to show file name fallback for uploaded media and author/text for admin notes. |
+| `src/user-web/src/pages/ZoneTrialCreatePage.css` | Added styles for the media mode switch, file-upload summary, and responsive file-upload caption grid. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build -w src/user-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(user-web): align zone-create evidence flow with admin marker sidebar
+```
+
+*End of fix*

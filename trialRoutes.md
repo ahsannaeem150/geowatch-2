@@ -1,11 +1,13 @@
 # GeoWatch — Trial Routes Reference
 
-> Quick reference for the admin-web trial pages used to compare against the implemented incident-detail UI.
-> All routes run on the admin dashboard dev server (`http://localhost:5174` by default).
+> Quick reference for the design/trial pages used to compare concepts before integrating them into the main apps.
+>
+> Admin/incident trials run on the admin dashboard dev server (`http://localhost:5174` by default).  
+> User-web zone trials run on the public site dev server (`http://localhost:5173` by default).
 
 ---
 
-## Trial Routes
+## Admin-Web Incident / Sidebar Trials
 
 | Route | Purpose |
 |:--|:--|
@@ -23,6 +25,19 @@
 
 ---
 
+## User-Web Zone Trials
+
+| Route | Purpose |
+|:--|:--|
+| `/trial/zone-sidebar` | Zone detail sidebar trial — 630 px sidebar with polygon preview, full-status effective-window meter, and a second drawer for per-update evidence |
+| `/trial/zone` | Full-page zone layout trial — immersive map hero with floating glass metadata panel; timeline cards open a clean sources modal |
+| `/trial/zone-meter` | Effective-window / time-remaining component laboratory — visual variations of the meter for side-by-side comparison |
+| `/trial/zone-styles` | Zone shape + treatment gallery on a grid background — used to pick the final map overlay style |
+| `/trial/zone-heroes` | Zone-detail hero header laboratory — currently narrowed to the original HUD command center and the customized tag + countdown version |
+| `/trial/zone-sidebar-animations` | Sidebar mini-map pulse laboratory — full-screen preview of the chosen inward-traveling neon pulse animation for the polygon preview card |
+
+---
+
 ## Implemented Routes (for comparison)
 
 | Platform | Route |
@@ -33,16 +48,23 @@
 
 ---
 
-## User-web Zone Trials
+## Key Zone Trial Files
 
-| Route | Purpose |
+| File | What it contains |
 |:--|:--|
-| `/trial/zone-sidebar` | Zone detail sidebar trial — 630px sidebar with polygon preview, full-status effective-window meter, and a second drawer for per-update evidence |
-| `/trial/zone` | Full-page zone layout — immersive map hero with floating glass metadata panel; timeline cards open a clean sources modal |
-| `/trial/zone-meter` | 20 visual variations of the effective-window / time-remaining component for side-by-side comparison |
-| `/trial/zone-styles` | Zone shape + treatment gallery on a grid background for picking the final map overlay style |
-| `/trial/zone-heroes` | Six animated zone-detail hero header concepts to choose from |
+| `src/user-web/src/pages/ZoneTrialLayoutB.jsx` | `/trial/zone` full-page layout |
+| `src/user-web/src/pages/ZoneTrialSidebarPage.jsx` | `/trial/zone-sidebar` sidebar layout |
+| `src/user-web/src/pages/ZoneTrialMeterPage.jsx` | `/trial/zone-meter` meter laboratory |
+| `src/user-web/src/pages/ZoneStylesTrialPage.jsx` | `/trial/zone-styles` shape/style gallery |
+| `src/user-web/src/pages/ZoneHeroesTrialPage.jsx` | `/trial/zone-heroes` hero concepts |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrialPage.jsx` | `/trial/zone-sidebar-animations` mini-map pulse preview |
+| `src/user-web/src/pages/ZoneTrialCommon.jsx` | Shared zone helpers: `ZoneNeonMap`, `EffectiveWindowMeter`, `useZoneTimeState`, badges, evidence drawer/modal |
+| `src/user-web/src/pages/ZoneTrial.css` | Shared styles for zone trial pages |
+| `src/user-web/src/pages/ZoneStylesTrial.css` | Shape/style gallery specific styles |
+| `src/user-web/src/pages/ZoneHeroesTrial.css` | Hero laboratory specific styles |
+| `src/user-web/src/pages/ZoneSidebarAnimationTrial.css` | Mini-map animation gallery specific styles |
+| `src/user-web/src/pages/zoneTrialData.js` | Mock zone + timeline data for the trials |
 
 ---
 
-*Last updated: Zone UI trial refined to the chosen full-page layout + new evidence drawer/modal + redesigned effective-window meter.*
+*Last updated: 2026-06-16 — Zone hero laboratory trimmed to two HUD variants; zone trial files listed above are the current reference set.*
