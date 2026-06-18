@@ -73,6 +73,14 @@ function buildZoneScreenPath(mapInstance, geometry) {
   return `M ${points.map((p) => p.join(' ')).join(' L ')} Z`;
 }
 
+function darkenHex(hex, amount = 0.3) {
+  const clean = hex.replace('#', '');
+  const r = Math.max(0, Math.floor(parseInt(clean.slice(0, 2), 16) * amount));
+  const g = Math.max(0, Math.floor(parseInt(clean.slice(2, 4), 16) * amount));
+  const b = Math.max(0, Math.floor(parseInt(clean.slice(4, 6), 16) * amount));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
 function ZoneSvgOverlay({ mapInstance, zones, selectedZoneId, hoveredZoneId }) {
   const [tick, setTick] = useState(0);
 
@@ -121,22 +129,34 @@ function ZoneSvgOverlay({ mapInstance, zones, selectedZoneId, hoveredZoneId }) {
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <filter id="zone-inner-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
         {renderedZones.map((zone) => (
-          <radialGradient
-            key={zone.id}
-            id={`zone-neon-grad-${zone.id}`}
-            cx="50%"
-            cy="50%"
-            r="50%"
-            fx="50%"
-            fy="50%"
-          >
-            <stop offset="0%" stopColor={zone.color} stopOpacity="0" />
-            <stop offset="35%" stopColor={zone.color} stopOpacity="0.03" />
-            <stop offset="60%" stopColor={zone.color} stopOpacity="0.08" />
-            <stop offset="85%" stopColor={zone.color} stopOpacity="0.14" />
-            <stop offset="100%" stopColor={zone.color} stopOpacity="0.22" />
-          </radialGradient>
+          <React.Fragment key={`defs-${zone.id}`}>
+            <radialGradient
+              id={`zone-neon-grad-${zone.id}`}
+              cx="50%"
+              cy="50%"
+              r="50%"
+              fx="50%"
+              fy="50%"
+            >
+              <stop offset="0%" stopColor={zone.color} stopOpacity="0" />
+              <stop offset="35%" stopColor={zone.color} stopOpacity="0.03" />
+              <stop offset="60%" stopColor={zone.color} stopOpacity="0.08" />
+              <stop offset="85%" stopColor={zone.color} stopOpacity="0.14" />
+              <stop offset="100%" stopColor={zone.color} stopOpacity="0.22" />
+            </radialGradient>
+            <mask id={`zone-inner-mask-${zone.id}`} maskUnits="userSpaceOnUse">
+              <path d={zone.d} fill="white" />
+              <path d={zone.d} fill="none" stroke="black" strokeWidth="2.5" strokeLinejoin="round" />
+            </mask>
+          </React.Fragment>
         ))}
       </defs>
       {renderedZones.map((zone) => {
@@ -145,6 +165,7 @@ function ZoneSvgOverlay({ mapInstance, zones, selectedZoneId, hoveredZoneId }) {
         const fillOpacity = isSelected ? 1 : isHovered ? 0.9 : 0.75;
         const strokeOpacity = isSelected ? 0.95 : isHovered ? 0.85 : 0.70;
         const strokeWidth = isSelected ? 2.5 : isHovered ? 2 : 1.5;
+        const shadowColor = darkenHex(zone.color, 0.25);
         return (
           <g key={zone.id}>
             <path
@@ -152,6 +173,16 @@ function ZoneSvgOverlay({ mapInstance, zones, selectedZoneId, hoveredZoneId }) {
               fill={`url(#zone-neon-grad-${zone.id})`}
               stroke="none"
               opacity={fillOpacity}
+            />
+            <path
+              d={zone.d}
+              fill="none"
+              stroke={shadowColor}
+              strokeWidth="5"
+              strokeLinejoin="round"
+              opacity="0.8"
+              filter="url(#zone-inner-shadow)"
+              mask={`url(#zone-inner-mask-${zone.id})`}
             />
             <path
               d={zone.d}

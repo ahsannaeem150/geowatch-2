@@ -144,7 +144,10 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
   );
 
   const innerShadowMask = variant === 'neon-fade-shadow' && (
-    <mask id={innerShadowMaskId}>{renderShape(shapeId, { fill: 'white', stroke: 'none' })}</mask>
+    <mask id={innerShadowMaskId} maskUnits='userSpaceOnUse'>
+      {renderShape(shapeId, { fill: 'white', stroke: 'none' })}
+      {renderShape(shapeId, { fill: 'none', stroke: 'black', strokeWidth: 2.5 })}
+    </mask>
   );
 
   const innerShadowFilter = variant === 'neon-fade-shadow' && (
@@ -201,13 +204,13 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
           <g mask={`url(#${innerShadowMaskId})`}>
             {renderShape(shapeId, {
               fill: 'none',
-              stroke: darkenHex(c.stroke, 0.2),
-              strokeWidth: 3,
+              stroke: darkenHex(c.stroke, 0.15),
+              strokeWidth: 5,
               filter: `url(#${innerShadowFilterId})`,
-              opacity: 0.95,
+              opacity: 0.8,
             })}
           </g>
-          {renderShape(shapeId, { fill: 'none', stroke: c.stroke, strokeWidth: 1, filter: `url(#${glowId})` })}
+          {renderShape(shapeId, { fill: 'none', stroke: c.stroke, strokeWidth: 1.5, filter: `url(#${glowId})` })}
         </>
       );
       break;
