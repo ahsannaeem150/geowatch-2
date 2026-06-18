@@ -4,6 +4,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { useTheme } from '@shared/useTheme.js';
+import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
+import { smallestZoneFeature } from '@shared/utils/zoneGeometry.js';
 import { format } from 'date-fns';
 
 // Hard boundary for z14 tile coverage.
@@ -32,6 +34,7 @@ const UserMap = forwardRef(function UserMap({
   fitBounds,
   initialViewport,
   ghostIncident,
+  ghostZone,
   showZones = true,
   onMarkerContextMenu,
   onZoneContextMenu,
@@ -137,6 +140,7 @@ const UserMap = forwardRef(function UserMap({
   const showZonesRef = useRef(showZones);
   showZonesRef.current = showZones;
   const [styleVersion, setStyleVersion] = useState(0);
+  const [hoveredZoneId, setHoveredZoneId] = useState(null);
 
   // Initialize map once
   useEffect(() => {
@@ -150,6 +154,8 @@ const UserMap = forwardRef(function UserMap({
     const ensureLayers = (mapInstance) => {
       if (!mapInstance || !mapInstance.getStyle()) return;
 
+      // Zone source — visuals are rendered via ZoneSvgOverlay; this source
+      // only provides an invisible hit layer for hover/click detection.
       if (!mapInstance.getSource('zones')) {
         mapInstance.addSource('zones', {
           type: 'geojson',
@@ -158,37 +164,14 @@ const UserMap = forwardRef(function UserMap({
         });
       }
 
-      if (!mapInstance.getLayer('zone-fills')) {
+      if (!mapInstance.getLayer('zone-hit')) {
         mapInstance.addLayer({
-          id: 'zone-fills',
+          id: 'zone-hit',
           type: 'fill',
           source: 'zones',
           paint: {
-            'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'fillColor']],
-            'fill-opacity': [
-              'case',
-              ['boolean', ['feature-state', 'hover'], false], 0.12,
-              ['boolean', ['feature-state', 'selected'], false], 0.10,
-              ['get', 'opacity'],
-            ],
-          },
-        });
-      }
-
-      if (!mapInstance.getLayer('zone-outlines')) {
-        mapInstance.addLayer({
-          id: 'zone-outlines',
-          type: 'line',
-          source: 'zones',
-          paint: {
-            'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#f59e0b', ['get', 'strokeColor']],
-            'line-width': ['get', 'strokeWidth'],
-            'line-opacity': [
-              'case',
-              ['boolean', ['feature-state', 'hover'], false], 0.8,
-              ['boolean', ['feature-state', 'selected'], false], 0.9,
-              0.6,
-            ],
+            'fill-color': '#000',
+            'fill-opacity': 0,
           },
         });
       }
@@ -330,42 +313,37 @@ const UserMap = forwardRef(function UserMap({
   }, [fitBounds]);
 
   // Update zone source data when zones prop changes
+  // Only the invisible hit layer reads from this source; visuals are handled
+  // by ZoneSvgOverlay.
   useEffect(() => {
     if (!map.current) return;
     const source = map.current.getSource('zones');
     if (!source) return;
 
     const features = showZones
-      ? zones.map((zone) => {
-          const color = zone.zone_category_color || '#6366f1';
-          return {
-            type: 'Feature',
-            id: String(zone.id),
-            geometry: zone.geometry,
-            properties: {
-              id: zone.id,
-              name: zone.title || zone.name,
-              fillColor: color,
-              strokeColor: color,
-              strokeWidth: 2,
-              opacity: 0.08,
-            },
-          };
-        })
+      ? zones.map((zone) => ({
+          type: 'Feature',
+          id: String(zone.id),
+          geometry: zone.geometry,
+          properties: {
+            id: zone.id,
+            name: zone.title || zone.name,
+          },
+        }))
       : [];
 
     source.setData({ type: 'FeatureCollection', features });
   }, [zones, showZones, styleVersion]);
 
   // Zone hover and click interactions
+  // The invisible `zone-hit` layer is queried; visuals are rendered by ZoneSvgOverlay.
   useEffect(() => {
     if (!map.current) return;
     const mapInstance = map.current;
-    const zoneLayers = ['zone-fills', 'zone-outlines'];
-    let hoveredZoneId = null;
+    const zoneLayers = ['zone-hit'];
+    let currentHoverId = null;
 
-    const layersReady = () =>
-      mapInstance.getLayer('zone-fills') && mapInstance.getLayer('zone-outlines');
+    const layersReady = () => mapInstance.getLayer('zone-hit');
 
     const onMouseMove = (e) => {
       if (!layersReady()) return;
@@ -373,30 +351,21 @@ const UserMap = forwardRef(function UserMap({
       try {
         features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
       } catch {
-        // layers not ready yet
         return;
       }
 
-      if (features.length > 0) {
-        const featureId = String(features[0].id);
-        if (hoveredZoneId !== featureId) {
-          if (hoveredZoneId !== null) {
-            try {
-              mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
-            } catch {}
-          }
-          hoveredZoneId = featureId;
-          try {
-            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: true });
-          } catch {}
+      const topFeature = smallestZoneFeature(features);
+      if (topFeature) {
+        const featureId = String(topFeature.id);
+        if (currentHoverId !== featureId) {
+          currentHoverId = featureId;
+          setHoveredZoneId(featureId);
           mapInstance.getCanvas().style.cursor = 'pointer';
         }
       } else {
-        if (hoveredZoneId !== null) {
-          try {
-            mapInstance.setFeatureState({ source: 'zones', id: hoveredZoneId }, { hover: false });
-          } catch {}
-          hoveredZoneId = null;
+        if (currentHoverId !== null) {
+          currentHoverId = null;
+          setHoveredZoneId(null);
         }
         mapInstance.getCanvas().style.cursor = '';
       }
@@ -410,8 +379,9 @@ const UserMap = forwardRef(function UserMap({
       } catch {
         return;
       }
-      if (features.length > 0) {
-        const zoneId = String(features[0].id || features[0].properties?.id);
+      const topFeature = smallestZoneFeature(features);
+      if (topFeature) {
+        const zoneId = String(topFeature.id || topFeature.properties?.id);
         const zone = zones.find((z) => String(z.id) === zoneId);
         if (zone) onZoneClickRef.current?.(zone);
       }
@@ -442,12 +412,13 @@ const UserMap = forwardRef(function UserMap({
       ];
       let zoneFeatures = [];
       try {
-        zoneFeatures = mapInstance.queryRenderedFeatures(box, { layers: ['zone-fills'] });
+        zoneFeatures = mapInstance.queryRenderedFeatures(box, { layers: ['zone-hit'] });
       } catch {
         zoneFeatures = [];
       }
-      if (zoneFeatures.length > 0) {
-        onZoneContextMenuRef.current?.(zoneFeatures[0], { x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+      const topZoneFeature = smallestZoneFeature(zoneFeatures);
+      if (topZoneFeature) {
+        onZoneContextMenuRef.current?.(topZoneFeature, { x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
       } else {
         onMapContextMenuRef.current?.({ x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
       }
@@ -458,20 +429,6 @@ const UserMap = forwardRef(function UserMap({
       mapInstance.off('contextmenu', onContextMenuEvent);
     };
   }, []);
-
-  // Update zone selection state
-  useEffect(() => {
-    if (!map.current) return;
-    const source = map.current.getSource('zones');
-    if (!source) return;
-
-    zones.forEach((zone) => {
-      map.current.setFeatureState(
-        { source: 'zones', id: String(zone.id) },
-        { selected: String(zone.id) === String(selectedZoneId) }
-      );
-    });
-  }, [selectedZoneId, zones, styleVersion]);
 
   // Switch map style when theme changes
   useEffect(() => {
@@ -628,6 +585,14 @@ const UserMap = forwardRef(function UserMap({
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      <ZoneSvgOverlay
+        mapInstance={map.current}
+        zones={zones}
+        selectedZoneId={selectedZoneId}
+        hoveredZoneId={hoveredZoneId}
+        ghostZone={ghostZone}
+        showZones={showZones}
+      />
       <style>{`
         @keyframes ghost-pulse {
           0% { transform: scale(1); opacity: 0.4; }

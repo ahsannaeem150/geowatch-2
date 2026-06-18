@@ -4,6 +4,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { useTheme } from '@shared/useTheme.js';
+import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
+import { ringArea, smallestZoneFeature } from '@shared/utils/zoneGeometry.js';
 import { format } from 'date-fns';
 
 // Hard boundary for z14 tile coverage.
@@ -63,143 +65,6 @@ function getMaxZoomForCenter(lng, lat) {
   return inside ? 14 : 10;
 }
 
-function buildZoneScreenPath(mapInstance, geometry) {
-  if (!geometry?.coordinates?.[0]?.length) return null;
-  const ring = geometry.coordinates[0];
-  const points = ring.map((coord) => {
-    const p = mapInstance.project(coord);
-    return [p.x, p.y];
-  });
-  return `M ${points.map((p) => p.join(' ')).join(' L ')} Z`;
-}
-
-function darkenHex(hex, amount = 0.3) {
-  const clean = hex.replace('#', '');
-  const r = Math.max(0, Math.floor(parseInt(clean.slice(0, 2), 16) * amount));
-  const g = Math.max(0, Math.floor(parseInt(clean.slice(2, 4), 16) * amount));
-  const b = Math.max(0, Math.floor(parseInt(clean.slice(4, 6), 16) * amount));
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-function ZoneSvgOverlay({ mapInstance, zones, selectedZoneId, hoveredZoneId }) {
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (!mapInstance) return;
-    const onMove = () => setTick((t) => t + 1);
-    mapInstance.on('move', onMove);
-    mapInstance.on('resize', onMove);
-    return () => {
-      mapInstance.off('move', onMove);
-      mapInstance.off('resize', onMove);
-    };
-  }, [mapInstance]);
-
-  const renderedZones = useMemo(() => {
-    if (!mapInstance) return [];
-    return zones
-      .map((zone) => {
-        const d = buildZoneScreenPath(mapInstance, zone.geometry);
-        if (!d) return null;
-        return {
-          id: String(zone.id),
-          d,
-          color: zone.zone_category_color || '#6366f1',
-        };
-      })
-      .filter(Boolean);
-  }, [mapInstance, zones, tick]);
-
-  return (
-    <svg
-      width="100%"
-      height="100%"
-      style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: 'none',
-        zIndex: 1,
-      }}
-    >
-      <defs>
-        <filter id="zone-neon-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        <filter id="zone-inner-shadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        {renderedZones.map((zone) => (
-          <React.Fragment key={`defs-${zone.id}`}>
-            <radialGradient
-              id={`zone-neon-grad-${zone.id}`}
-              cx="50%"
-              cy="50%"
-              r="50%"
-              fx="50%"
-              fy="50%"
-            >
-              <stop offset="0%" stopColor={zone.color} stopOpacity="0" />
-              <stop offset="35%" stopColor={zone.color} stopOpacity="0.03" />
-              <stop offset="60%" stopColor={zone.color} stopOpacity="0.08" />
-              <stop offset="85%" stopColor={zone.color} stopOpacity="0.14" />
-              <stop offset="100%" stopColor={zone.color} stopOpacity="0.22" />
-            </radialGradient>
-            <mask id={`zone-inner-mask-${zone.id}`} maskUnits="userSpaceOnUse">
-              <path d={zone.d} fill="white" />
-              <path d={zone.d} fill="none" stroke="black" strokeWidth="2.5" strokeLinejoin="round" />
-            </mask>
-          </React.Fragment>
-        ))}
-      </defs>
-      {renderedZones.map((zone) => {
-        const isSelected = String(selectedZoneId) === zone.id;
-        const isHovered = String(hoveredZoneId) === zone.id;
-        const fillOpacity = isSelected ? 1 : isHovered ? 0.9 : 0.75;
-        const strokeOpacity = isSelected ? 0.95 : isHovered ? 0.85 : 0.70;
-        const strokeWidth = isSelected ? 2.5 : isHovered ? 2 : 1.5;
-        const shadowColor = darkenHex(zone.color, 0.25);
-        return (
-          <g key={zone.id}>
-            <path
-              d={zone.d}
-              fill={`url(#zone-neon-grad-${zone.id})`}
-              stroke="none"
-              opacity={fillOpacity}
-            />
-            <path
-              d={zone.d}
-              fill="none"
-              stroke={shadowColor}
-              strokeWidth="5"
-              strokeLinejoin="round"
-              opacity="0.8"
-              filter="url(#zone-inner-shadow)"
-              mask={`url(#zone-inner-mask-${zone.id})`}
-            />
-            <path
-              d={zone.d}
-              fill="none"
-              stroke={zone.color}
-              strokeWidth={strokeWidth}
-              strokeLinejoin="round"
-              filter="url(#zone-neon-glow)"
-              opacity={strokeOpacity}
-            />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
 const AdminMap = forwardRef(function AdminMap({
   incidents = [],
   zones = [],
@@ -214,6 +79,7 @@ const AdminMap = forwardRef(function AdminMap({
   initialViewport,
   markerCoords,
   ghostIncident,
+  ghostZone,
   newIncidentIds = new Set(),
   mapMode = 'pan',
   drawVertices = [],
@@ -1018,8 +884,9 @@ const AdminMap = forwardRef(function AdminMap({
         return;
       }
 
-      if (features.length > 0) {
-        const featureId = String(features[0].id);
+      const topFeature = smallestZoneFeature(features);
+      if (topFeature) {
+        const featureId = String(topFeature.id);
         if (currentHoverId !== featureId) {
           currentHoverId = featureId;
           setHoveredZoneId(featureId);
@@ -1044,8 +911,9 @@ const AdminMap = forwardRef(function AdminMap({
       } catch {
         return;
       }
-      if (features.length > 0) {
-        const zoneId = String(features[0].id || features[0].properties?.id);
+      const topFeature = smallestZoneFeature(features);
+      if (topFeature) {
+        const zoneId = String(topFeature.id || topFeature.properties?.id);
         if (zoneId && zoneId !== 'undefined') {
           onZoneClick?.(zoneId);
         }
@@ -1442,8 +1310,9 @@ const AdminMap = forwardRef(function AdminMap({
       } catch {
         zoneFeatures = [];
       }
-      if (zoneFeatures.length > 0) {
-        onZoneContextMenuRef.current?.(zoneFeatures[0], { x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
+      const topZoneFeature = smallestZoneFeature(zoneFeatures);
+      if (topZoneFeature) {
+        onZoneContextMenuRef.current?.(topZoneFeature, { x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
       } else {
         onMapContextMenuRef.current?.({ x: clientX, y: clientY }, { lng: e.lngLat.lng, lat: e.lngLat.lat });
       }
@@ -1660,6 +1529,8 @@ const AdminMap = forwardRef(function AdminMap({
         zones={zones}
         selectedZoneId={selectedZoneId}
         hoveredZoneId={hoveredZoneId}
+        ghostZone={ghostZone}
+        showZones={showZones}
       />
 
       {/* Drawing area indicator */}

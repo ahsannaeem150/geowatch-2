@@ -62,6 +62,8 @@ const VARIANTS = {
   neon: 'Neon glow',
   'neon-fade': 'Neon fade',
   'neon-fade-shadow': 'Neon fade + inner shadow',
+  'neon-fade-shadow-alt': 'Neon fade + inner shadow alt',
+  'neon-fade-no-shadow': 'Neon fade no shadow',
   dashed: 'Dashed warning',
   double: 'Double border',
   outline: 'Clean outline',
@@ -109,7 +111,7 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
 
   const fillGradient = (
     <radialGradient id={gradId} cx='50%' cy='50%' r='50%' fx='50%' fy='50%'>
-      {variant === 'neon-fade-shadow' ? (
+      {variant === 'neon-fade-shadow' || variant === 'neon-fade-shadow-alt' || variant === 'neon-fade-no-shadow' ? (
         <>
           <stop offset='0%' stopColor={c.fill} stopOpacity='0' />
           <stop offset='55%' stopColor={c.fill} stopOpacity='0.04' />
@@ -143,10 +145,10 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
     </filter>
   );
 
-  const innerShadowMask = variant === 'neon-fade-shadow' && (
+  const innerShadowMask = (variant === 'neon-fade-shadow' || variant === 'neon-fade-shadow-alt') && (
     <mask id={innerShadowMaskId} maskUnits='userSpaceOnUse'>
       {renderShape(shapeId, { fill: 'white', stroke: 'none' })}
-      {renderShape(shapeId, { fill: 'none', stroke: 'black', strokeWidth: 2.5 })}
+      {variant === 'neon-fade-shadow' && renderShape(shapeId, { fill: 'none', stroke: 'black', strokeWidth: 2.5 })}
     </mask>
   );
 
@@ -210,6 +212,31 @@ function ZoneSvg({ shapeId, colorKey, variant, svgKey, className = '', showGrid 
               opacity: 0.8,
             })}
           </g>
+          {renderShape(shapeId, { fill: 'none', stroke: c.stroke, strokeWidth: 1.5, filter: `url(#${glowId})` })}
+        </>
+      );
+      break;
+    case 'neon-fade-shadow-alt':
+      layers = (
+        <>
+          {renderShape(shapeId, { ...baseFill, stroke: 'none' })}
+          <g mask={`url(#${innerShadowMaskId})`}>
+            {renderShape(shapeId, {
+              fill: 'none',
+              stroke: darkenHex(c.stroke, 0.2),
+              strokeWidth: 3,
+              filter: `url(#${innerShadowFilterId})`,
+              opacity: 0.95,
+            })}
+          </g>
+          {renderShape(shapeId, { fill: 'none', stroke: c.stroke, strokeWidth: 1, filter: `url(#${glowId})` })}
+        </>
+      );
+      break;
+    case 'neon-fade-no-shadow':
+      layers = (
+        <>
+          {renderShape(shapeId, { ...baseFill, stroke: 'none' })}
           {renderShape(shapeId, { fill: 'none', stroke: c.stroke, strokeWidth: 1.5, filter: `url(#${glowId})` })}
         </>
       );

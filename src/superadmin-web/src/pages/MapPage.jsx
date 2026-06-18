@@ -1800,8 +1800,12 @@ export default function MapPage() {
     setDateRange({ from: incidentDate, to: incidentDate });
   };
 
-  // Ghost incident
+  // Ghost incident / zone (selected item outside current date range)
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
+    ? selectedIncident
+    : null;
+  const dateGhostZone = selectedIncident?.geometry_type === 'polygon' &&
+    !polygonIncidents.find((z) => z.id === selectedIncident.id)
     ? selectedIncident
     : null;
 
@@ -1997,7 +2001,7 @@ export default function MapPage() {
                 : null
             }
             ghostIncident={ghostIncident}
-            ghostZone={ghostZone}
+            ghostZone={ghostZone || dateGhostZone}
             adminMode={true}
             mapMode={mapMode}
             drawVertices={drawVertices}

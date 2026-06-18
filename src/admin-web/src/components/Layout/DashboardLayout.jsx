@@ -1399,6 +1399,24 @@ export default function DashboardLayout() {
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
     ? selectedIncident
     : null;
+  const ghostZone = selectedIncident?.geometry_type === 'polygon' &&
+    !polygonIncidents.find((z) => z.id === selectedIncident.id)
+    ? selectedIncident
+    : null;
+
+  // Fly to ghost zones that are outside the current date range
+  useEffect(() => {
+    if (!ghostZone?.geometry?.coordinates?.[0]) return;
+    const coords = ghostZone.geometry.coordinates[0];
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    coords.forEach(([lng, lat]) => {
+      minLng = Math.min(minLng, lng);
+      minLat = Math.min(minLat, lat);
+      maxLng = Math.max(maxLng, lng);
+      maxLat = Math.max(maxLat, lat);
+    });
+    setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+  }, [ghostZone?.id]);
 
   const finishCreateIncident = (newIncident) => {
     setSelectedIncident(newIncident);
@@ -1977,6 +1995,7 @@ export default function DashboardLayout() {
             }
             markerCoords={markerCoords}
             ghostIncident={ghostIncident}
+            ghostZone={ghostZone}
             newIncidentIds={newIncidentIds}
             fitBounds={fitBounds}
             mapMode={mapMode}

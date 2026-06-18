@@ -108,3 +108,43 @@ export function countVertices(ring) {
   const closed = first[0] === last[0] && first[1] === last[1];
   return closed ? ring.length - 1 : ring.length;
 }
+
+export function ringArea(ring) {
+  let area = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[(i + 1) % ring.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(area) / 2;
+}
+
+export function smallestZoneFeature(features) {
+  if (!features || features.length === 0) return null;
+  let smallest = features[0];
+  let smallestArea = Infinity;
+  features.forEach((feature) => {
+    const ring = feature.geometry?.coordinates?.[0];
+    if (!ring) return;
+    const area = ringArea(ring);
+    if (area < smallestArea) {
+      smallestArea = area;
+      smallest = feature;
+    }
+  });
+  return smallest;
+}
+
+/**
+ * Project a GeoJSON Polygon to screen pixels using a MapLibre map instance.
+ * Returns an SVG path data string, or null if the geometry is invalid.
+ */
+export function buildZoneScreenPath(mapInstance, geometry) {
+  if (!geometry?.coordinates?.[0]?.length) return null;
+  const ring = geometry.coordinates[0];
+  const points = ring.map((coord) => {
+    const p = mapInstance.project(coord);
+    return [p.x, p.y];
+  });
+  return `M ${points.map((p) => p.join(' ')).join(' L ')} Z`;
+}

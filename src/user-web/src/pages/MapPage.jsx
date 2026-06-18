@@ -736,6 +736,10 @@ export default function MapPage() {
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
     ? selectedIncident
     : null;
+  const ghostZone = selectedIncident?.geometry_type === 'polygon' &&
+    !polygonIncidents.find((z) => z.id === selectedIncident.id)
+    ? selectedIncident
+    : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
@@ -770,6 +774,7 @@ export default function MapPage() {
                 : null
             }
             ghostIncident={ghostIncident}
+            ghostZone={ghostZone}
             showZones={showZones}
             onMarkerContextMenu={handleMarkerContextMenu}
             onZoneContextMenu={handleZoneContextMenu}
