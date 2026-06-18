@@ -11,6 +11,7 @@ export default function IncidentSidebar({
   selectedIncident,
   onSelectEvent,
   onBack,
+  onNavigateToFullPage,
   loading,
   filters,
   onFilterChange,
@@ -77,7 +78,11 @@ export default function IncidentSidebar({
   };
 
   const handleNavigateToFullPage = (incidentId) => {
-    navigate(`/incident/${incidentId}`);
+    if (onNavigateToFullPage) {
+      onNavigateToFullPage(incidentId);
+    } else {
+      navigate(`/incident/${incidentId}`);
+    }
   };
 
   const filteredIncidents = searchQuery.trim()

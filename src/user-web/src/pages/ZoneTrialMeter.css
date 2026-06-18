@@ -1,0 +1,732 @@
+/* GeoWatch — Zone effective-window meter explorations */
+
+.zone-meter-page {
+  width: 100%;
+  padding: 32px 28px 64px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.zone-meter-page__header {
+  margin-bottom: 28px;
+}
+
+.zone-meter-page__header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.zone-meter-page__header p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.zone-meter-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.meter-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.meter-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+}
+
+.meter-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.meter-card__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.meter-card__body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: 80px;
+}
+
+/* ───────── Badge ───────── */
+.meter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.meter-badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.meter-badge__status {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.meter-badge__countdown {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ───────── Ring ───────── */
+.meter-ring {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+}
+
+.meter-ring__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meter-ring__countdown {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.meter-ring__status {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ───────── Segmented ───────── */
+.meter-segmented {
+  width: 100%;
+}
+
+.meter-segmented__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.meter-segmented__grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+}
+
+.meter-segmented__cell {
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ───────── Blocks ───────── */
+.meter-blocks {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.meter-blocks__block {
+  flex: 1;
+  text-align: center;
+  padding: 10px 6px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid;
+}
+
+.meter-blocks__value {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+
+.meter-blocks__label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+/* ───────── Timeline ───────── */
+.meter-timeline {
+  width: 100%;
+}
+
+.meter-timeline__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.meter-timeline__track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 10px;
+}
+
+.meter-timeline__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  opacity: 0.35;
+}
+
+.meter-timeline__knob {
+  position: absolute;
+  top: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-elevated);
+  transform: translateX(-50%);
+}
+
+.meter-timeline__countdown {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+/* ───────── Battery ───────── */
+.meter-battery {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.meter-battery__body {
+  position: relative;
+  flex: 1;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.meter-battery__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  opacity: 0.25;
+}
+
+.meter-battery__text {
+  position: relative;
+  z-index: 1;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.meter-battery__cap {
+  width: 6px;
+  height: 14px;
+  border-radius: 0 3px 3px 0;
+  background: var(--border-subtle);
+}
+
+/* ───────── Dashboard ───────── */
+.meter-dashboard {
+  width: 100%;
+  text-align: center;
+}
+
+.meter-dashboard__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+.meter-dashboard__value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.meter-dashboard__bar {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.meter-dashboard__bar > div {
+  height: 100%;
+  transition: width 1s ease;
+}
+
+/* ───────── Arrow ───────── */
+.meter-arrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.meter-arrow__track {
+  position: relative;
+  flex: 1;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.meter-arrow__fill {
+  height: 100%;
+  opacity: 0.35;
+}
+
+.meter-arrow__head {
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 12px solid;
+  opacity: 0.5;
+}
+
+.meter-arrow__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ───────── Pulse dot ───────── */
+.meter-pulse {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.meter-pulse__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  animation: meterPulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+}
+
+@keyframes meterPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.25);
+  }
+}
+
+.meter-pulse__status {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.meter-pulse__countdown {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+/* ───────── Digits ───────── */
+.meter-digits {
+  width: 100%;
+}
+
+.meter-digits__screen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 10px;
+}
+
+.meter-digits__status {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.meter-digits__time {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.meter-digits__bar {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.meter-digits__bar > div {
+  height: 100%;
+  transition: width 1s ease;
+}
+
+/* ───────── Calendar ───────── */
+.meter-calendar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.meter-calendar__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+}
+
+.meter-calendar__body {
+  flex: 1;
+}
+
+.meter-calendar__status {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 2px;
+}
+
+.meter-calendar__countdown {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.meter-calendar__date {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ───────── Donut ───────── */
+.meter-donut {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.meter-donut__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ───────── Minimal ───────── */
+.meter-minimal {
+  width: 100%;
+}
+
+.meter-minimal__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.meter-minimal__track {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.meter-minimal__track > div {
+  height: 100%;
+  transition: width 1s ease;
+}
+
+.meter-minimal__dates {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ───────── Gantt ───────── */
+.meter-gantt {
+  width: 100%;
+}
+
+.meter-gantt__header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.meter-gantt__bar {
+  position: relative;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.meter-gantt__elapsed,
+.meter-gantt__remaining {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+}
+
+.meter-gantt__remaining {
+  opacity: 0.35;
+}
+
+.meter-gantt__marker {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+}
+
+.meter-gantt__footer {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ───────── Thermometer ───────── */
+.meter-thermometer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.meter-thermometer__track {
+  position: relative;
+  width: 16px;
+  height: 90px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.meter-thermometer__fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  transition: height 1s ease;
+}
+
+.meter-thermometer__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ───────── Steps ───────── */
+.meter-steps {
+  width: 100%;
+}
+
+.meter-steps__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.meter-steps__row {
+  display: flex;
+  gap: 6px;
+}
+
+.meter-steps__pill {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 0.3s ease;
+}
+
+/* ───────── Hourglass ───────── */
+.meter-hourglass {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.meter-hourglass__status {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.meter-hourglass__countdown {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.meter-hourglass__bar {
+  width: 80px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.meter-hourglass__bar > div {
+  height: 100%;
+  transition: width 1s ease;
+}
+
+/* ───────── Neon strip ───────── */
+.meter-neon {
+  width: 100%;
+}
+
+.meter-neon__bar {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.meter-neon__dim {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.meter-neon__text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ───────── Terminal ───────── */
+.meter-terminal {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.meter-terminal__bar {
+  margin-top: 2px;
+  letter-spacing: 1px;
+}

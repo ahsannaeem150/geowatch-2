@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import UserMap from '../components/Map/UserMap.jsx';
@@ -28,7 +28,18 @@ function setLastSeen(ts) {
 
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const incidentIdFromUrl = searchParams.get('incident');
+  const latParam = searchParams.get('lat');
+  const lngParam = searchParams.get('lng');
+  const zoomParam = searchParams.get('zoom');
+  const hasViewportParams =
+    latParam &&
+    lngParam &&
+    zoomParam &&
+    Number.isFinite(parseFloat(latParam)) &&
+    Number.isFinite(parseFloat(lngParam)) &&
+    Number.isFinite(parseFloat(zoomParam));
 
   // ─── Date & filters ───
   const now = new Date();
@@ -37,7 +48,11 @@ export default function MapPage() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState(null);
-  const [flyToCoords, setFlyToCoords] = useState(null);
+  const [flyToCoords, setFlyToCoords] = useState(
+    hasViewportParams
+      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: parseFloat(zoomParam) }
+      : null
+  );
   const [filters, setFilters] = useState({
     categoryId: searchParams.get('categoryId') || '',
     severity: '',
@@ -173,7 +188,7 @@ export default function MapPage() {
 
     const inList = incidents.find((i) => i.id === incidentIdFromUrl);
     if (inList) {
-      handleSelectIncident(inList);
+      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
       ghostFetchAttempted.current = true;
       return;
     }
@@ -185,7 +200,7 @@ export default function MapPage() {
         .getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            handleSelectIncident(res.data.incident);
+            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams });
           }
         })
         .catch(() => {
@@ -265,9 +280,23 @@ export default function MapPage() {
   }, []);
 
   // ─── Handle viewport bounds changes from the map ───
-  const handleViewportChange = useCallback((bounds) => {
+  const handleViewportChange = useCallback(({ bounds, center, zoom }) => {
     closeMapMenu();
     viewportBoundsRef.current = bounds;
+
+    // Persist viewport in the URL so back-navigation restores the map view
+    if (center && Number.isFinite(zoom)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('lat', center.lat.toFixed(6));
+          next.set('lng', center.lng.toFixed(6));
+          next.set('zoom', zoom.toFixed(2));
+          return next;
+        },
+        { replace: true }
+      );
+    }
 
     // If viewport filtering is already active, re-fetch points and zones with new bounds
     if (viewportFilteringRef.current === true) {
@@ -293,7 +322,7 @@ export default function MapPage() {
         })
         .catch(() => setIncidents([]));
     }
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, setSearchParams]);
 
   // ─── SSE Connection ───
   useEffect(() => {
@@ -442,28 +471,32 @@ export default function MapPage() {
 
   // ─── Handlers ───
   const handleSelectIncident = useCallback(
-    (incident) => {
+    (incident, opts = {}) => {
       setSelectedIncident(incident);
       setFitBounds(null);
 
-      if (incident.geometry_type === 'polygon') {
-        if (incident.geometry?.coordinates?.[0]) {
-          const coords = incident.geometry.coordinates[0];
-          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-          coords.forEach(([lng, lat]) => {
-            minLng = Math.min(minLng, lng);
-            minLat = Math.min(minLat, lat);
-            maxLng = Math.max(maxLng, lng);
-            maxLat = Math.max(maxLat, lat);
+      if (!opts.skipFlyTo) {
+        if (incident.geometry_type === 'polygon') {
+          if (incident.geometry?.coordinates?.[0]) {
+            const coords = incident.geometry.coordinates[0];
+            let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+            coords.forEach(([lng, lat]) => {
+              minLng = Math.min(minLng, lng);
+              minLat = Math.min(minLat, lat);
+              maxLng = Math.max(maxLng, lng);
+              maxLat = Math.max(maxLat, lat);
+            });
+            setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+          }
+        } else {
+          setFlyToCoords({
+            lat: parseFloat(incident.latitude),
+            lng: parseFloat(incident.longitude),
+            zoom: 10,
           });
-          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
         }
       } else {
-        setFlyToCoords({
-          lat: parseFloat(incident.latitude),
-          lng: parseFloat(incident.longitude),
-          zoom: 10,
-        });
+        setFlyToCoords(null);
       }
 
       // Update URL to make incident shareable, preserving other params
@@ -511,6 +544,29 @@ export default function MapPage() {
       return next;
     });
   }, [setSearchParams]);
+
+  const handleNavigateToFullPage = useCallback(
+    (incidentId) => {
+      // Capture the current map viewport so the back button returns to the same view
+      const map = mapRef.current?.getMap?.();
+      if (map) {
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('lat', center.lat.toFixed(6));
+            next.set('lng', center.lng.toFixed(6));
+            next.set('zoom', zoom.toFixed(2));
+            return next;
+          },
+          { replace: true }
+        );
+      }
+      navigate(`/incident/${incidentId}`);
+    },
+    [navigate, setSearchParams]
+  );
 
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });
@@ -708,6 +764,11 @@ export default function MapPage() {
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
             fitBounds={fitBounds}
+            initialViewport={
+              hasViewportParams
+                ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
+                : null
+            }
             ghostIncident={ghostIncident}
             showZones={showZones}
             onMarkerContextMenu={handleMarkerContextMenu}
@@ -912,6 +973,7 @@ export default function MapPage() {
             selectedIncident={selectedIncident}
             onSelectEvent={handleSelectIncident}
             onBack={handleBack}
+            onNavigateToFullPage={handleNavigateToFullPage}
             loading={loading}
             filters={filters}
             onFilterChange={setFilters}

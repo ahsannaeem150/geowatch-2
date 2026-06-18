@@ -1,0 +1,301 @@
+/* ───────────────── Zone style laboratory ───────────────── */
+
+.zone-styles-page {
+  flex: 1;
+  padding: 28px 32px 48px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    var(--bg-deep);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+  min-height: calc(100vh - 64px);
+}
+
+.zone-styles-header {
+  max-width: 1400px;
+  margin: 0 auto 24px;
+}
+
+.zone-styles-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.zone-styles-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+/* ───────────────── Shared controls ───────────────── */
+
+.zone-style-chip {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.zone-style-chip:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.zone-style-chip--active {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--bg-deep);
+}
+
+.zone-color-swatch {
+  all: unset;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--swatch-color);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  transition: transform 0.15s ease;
+}
+
+.zone-color-swatch:hover {
+  transform: scale(1.12);
+}
+
+.zone-color-swatch--active {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+    0 0 0 2px var(--bg-deep),
+    0 0 0 4px var(--text-primary);
+}
+
+/* ───────────────── Stage / selected preview ───────────────── */
+
+.zone-styles-stage {
+  max-width: 1400px;
+  margin: 0 auto 28px;
+  display: grid;
+  grid-template-columns: minmax(280px, 520px) 1fr;
+  gap: 28px;
+  align-items: center;
+}
+
+.zone-styles-stage__grid {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    rgba(0, 0, 0, 0.25);
+  background-size: 20px 20px, 20px 20px, 100% 100%;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.45);
+  aspect-ratio: 360 / 290;
+  overflow: hidden;
+}
+
+.zone-styles-stage__svg,
+.zone-shape-card__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.zone-style-grid-lines line {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1;
+}
+
+.zone-styles-stage__details {
+  padding: 8px 4px;
+}
+
+.zone-styles-stage__label {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.zone-styles-stage__name {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.zone-styles-stage__desc {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.zone-styles-stage__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.zone-styles-stage__control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.zone-styles-stage__control-label,
+.zone-shape-card__control-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-muted);
+}
+
+.zone-styles-stage__chips,
+.zone-shape-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zone-styles-stage__swatches,
+.zone-shape-card__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ───────────────── Gallery grid ───────────────── */
+
+.zone-styles-gallery {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.zone-shape-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.zone-shape-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+  border-color: var(--border-hover);
+}
+
+.zone-shape-card--selected {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--text-primary);
+}
+
+.zone-shape-card__grid {
+  position: relative;
+  flex: 1;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    rgba(0, 0, 0, 0.2);
+  background-size: 18px 18px, 18px 18px, 100% 100%;
+  aspect-ratio: 360 / 290;
+}
+
+.zone-shape-card__body {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.zone-shape-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.zone-shape-card__name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.zone-shape-card__style {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.zone-shape-card__control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ───────────────── Animations ───────────────── */
+
+.zone-style-pulse {
+  animation: zonePulse 2.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes zonePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+/* ───────────────── Responsive ───────────────── */
+
+@media (max-width: 920px) {
+  .zone-styles-page {
+    padding: 20px 18px 40px;
+  }
+
+  .zone-styles-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .zone-styles-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}

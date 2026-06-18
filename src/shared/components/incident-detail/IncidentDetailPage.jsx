@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Icons } from './IncidentIcons.jsx';
 import { SEVERITY_LABELS, VERIFICATION, formatDate, formatTime } from './IncidentUtils.js';
 import { Badge } from './IncidentBadges.jsx';
-import EvidenceRail, { RailFeaturedSection } from './EvidenceRail.jsx';
+import EvidenceRail from './EvidenceRail.jsx';
 import Lightbox from './Lightbox.jsx';
 
 const DEFAULT_HERO_IMAGE =
@@ -513,7 +513,7 @@ export default function IncidentDetailPage({
 
   const notify = (message) => setToast({ message });
 
-  const setFeaturedItem = (eventId, sourceType, sourceId) => {
+  const setFeaturedItem = (eventId, { sourceType, sourceId }) => {
     setFeaturedItems((prev) => ({ ...prev, [eventId]: { sourceType, sourceId } }));
     onFeatureEvidence?.(eventId, { sourceType, sourceId });
   };
@@ -724,15 +724,6 @@ export default function IncidentDetailPage({
                     </div>
                     <h3 className="opt1-event-title">{event.summary}</h3>
                     <p className="opt1-event-desc">{event.details}</p>
-                    {event.sources && (
-                      <RailFeaturedSection
-                        event={event}
-                        featuredItem={featuredItems[event.id] || event.featuredItem}
-                        onMediaClick={handleMediaClick}
-                        onClearFeature={() => clearFeaturedItem(event.id)}
-                        isAdmin={isAdmin}
-                      />
-                    )}
                   </div>
                 );
               })}

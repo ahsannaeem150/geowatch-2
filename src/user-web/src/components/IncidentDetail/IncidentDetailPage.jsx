@@ -116,7 +116,11 @@ export default function IncidentDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    navigate('/map');
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/map');
+    }
   }, [navigate]);
 
   const handleCheckSource = useCallback(

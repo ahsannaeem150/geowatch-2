@@ -9,7 +9,7 @@ import StatusHistory from './StatusHistory.jsx';
 import DebugMetadata from './DebugMetadata.jsx';
 import { ArticleCard, AdminNoteCard } from './SourceCards.jsx';
 import { VerificationBadge } from './IncidentBadges.jsx';
-import XPostCompactList, { XEmbed } from './XPostCompactList.jsx';
+import XPostCompactList, { XEmbed, ArchivedPost, ArchiveLightbox } from './XPostCompactList.jsx';
 
 function toDatetimeLocal(iso) {
   if (!iso) return '';
@@ -572,7 +572,7 @@ function findItemByFeature(sources, featured) {
   return list?.find((x) => x.id === (featured.sourceId || featured.itemId)) || null;
 }
 
-function FeaturedItemContent({ sourceType, item, onMediaClick }) {
+function FeaturedItemContent({ sourceType, item, onMediaClick, onArchivedOpen }) {
   if (sourceType === 'media') {
     return (
       <button type="button" className="id-featured-media" onClick={() => onMediaClick?.([item], 0)}>
@@ -582,6 +582,13 @@ function FeaturedItemContent({ sourceType, item, onMediaClick }) {
     );
   }
   if (sourceType === 'x_post') {
+    if (item.archived) {
+      return (
+        <div className="id-featured-embed">
+          <ArchivedPost post={item} onOpen={() => onArchivedOpen?.(item)} />
+        </div>
+      );
+    }
     return (
       <div className="id-featured-embed">
         <XEmbed post={item} />
@@ -627,6 +634,7 @@ function SourceCountChips({ sources, counts: countsProp }) {
 
 function FeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, isAdmin, onOpenDrawer }) {
   const item = findItemByFeature(event.sources, featuredItem);
+  const [archivedLightbox, setArchivedLightbox] = useState(null);
   if (!item) return null;
   return (
     <>
@@ -659,7 +667,12 @@ function FeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, is
           )}
         </div>
         <div className="id-featured-block__body">
-          <FeaturedItemContent sourceType={featuredItem.sourceType} item={item} onMediaClick={onMediaClick} />
+          <FeaturedItemContent
+            sourceType={featuredItem.sourceType}
+            item={item}
+            onMediaClick={onMediaClick}
+            onArchivedOpen={setArchivedLightbox}
+          />
         </div>
       </div>
       <div className="id-featured-meta">
@@ -675,6 +688,9 @@ function FeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, is
           Inspect {Icons.chevronRight}
         </button>
       </div>
+      {archivedLightbox && (
+        <ArchiveLightbox post={archivedLightbox} onClose={() => setArchivedLightbox(null)} portal />
+      )}
     </>
   );
 }

@@ -245,7 +245,7 @@ export default function XPostCompactList({
         ? Date.now() - new Date(post.lastCheckedAt).getTime()
         : Infinity;
 
-      if (checkerRef.current && age > TTL_MS) {
+      if (checkerRef.current && !post.archived && age > TTL_MS) {
         // Existing stale-data check
         setAutoCheckedIds((prev) => new Set(prev).add(post.id));
         checkerRef.current(post);

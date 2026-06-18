@@ -87,6 +87,13 @@ export default function MapPage() {
   const latParam = searchParams.get('lat');
   const lngParam = searchParams.get('lng');
   const zoomParam = searchParams.get('zoom');
+  const hasViewportParams =
+    latParam &&
+    lngParam &&
+    zoomParam &&
+    Number.isFinite(parseFloat(latParam)) &&
+    Number.isFinite(parseFloat(lngParam)) &&
+    Number.isFinite(parseFloat(zoomParam));
   const refParam = searchParams.get('ref');
   const actorParam = searchParams.get('actor');
   const returnToParam = searchParams.get('returnTo');
@@ -145,6 +152,7 @@ export default function MapPage() {
 
   // ─── Map context menu ───
   const mapRef = useRef(null);
+  const prevIncidentIdRef = useRef(null);
   const {
     isOpen: mapMenuOpen,
     position: mapMenuPosition,
@@ -310,14 +318,19 @@ export default function MapPage() {
 
   // ─── Handle zone ID from URL — deep-linking ───
   const zoneDeepLinkProcessed = useRef(false);
+  const prevZoneIdRef = useRef(null);
   useEffect(() => {
-    if (!zoneIdFromUrl) {
+    if (prevZoneIdRef.current !== zoneIdFromUrl) {
       zoneDeepLinkProcessed.current = false;
+      prevZoneIdRef.current = zoneIdFromUrl;
+    }
+
+    if (!zoneIdFromUrl) {
       return;
     }
 
     const zone = polygonIncidents.find((z) => z.id === zoneIdFromUrl);
-    if (zone) {
+    if (zone && !zoneDeepLinkProcessed.current) {
       setSelectedZoneId(zone.id);
       setSelectedIncident(zone);
       if (zone.geometry?.coordinates?.[0]) {
@@ -450,9 +463,22 @@ export default function MapPage() {
   }, [domains]);
 
   // Viewport change handler
-  const handleViewportChange = useCallback((bounds) => {
+  const handleViewportChange = useCallback(({ bounds, center, zoom }) => {
     closeMapMenu();
     viewportBoundsRef.current = bounds;
+
+    if (center && Number.isFinite(zoom)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('lat', center.lat.toFixed(6));
+          next.set('lng', center.lng.toFixed(6));
+          next.set('zoom', zoom.toFixed(2));
+          return next;
+        },
+        { replace: true }
+      );
+    }
 
     if (viewportFilteringRef.current === true) {
       const params = {
@@ -471,10 +497,10 @@ export default function MapPage() {
         })
         .catch(() => setIncidents([]));
     }
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, closeMapMenu]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, closeMapMenu, setSearchParams]);
 
   // Select incident
-  const handleSelectIncident = useCallback((incident) => {
+  const handleSelectIncident = useCallback((incident, opts = {}) => {
     setSelectedIncident(incident);
     setEditingZoneId(null);
     setEditingZoneVertices([]);
@@ -482,29 +508,39 @@ export default function MapPage() {
 
     if (incident?.geometry_type === 'polygon') {
       setSelectedZoneId(incident.id);
-      setFlyToCoords(null);
-      if (incident.geometry?.coordinates?.[0]) {
-        const coords = incident.geometry.coordinates[0];
-        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-        coords.forEach(([lng, lat]) => {
-          minLng = Math.min(minLng, lng);
-          minLat = Math.min(minLat, lat);
-          maxLng = Math.max(maxLng, lng);
-          maxLat = Math.max(maxLat, lat);
-        });
-        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      if (!opts.skipFlyTo) {
+        setFlyToCoords(null);
+        if (incident.geometry?.coordinates?.[0]) {
+          const coords = incident.geometry.coordinates[0];
+          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+          coords.forEach(([lng, lat]) => {
+            minLng = Math.min(minLng, lng);
+            minLat = Math.min(minLat, lat);
+            maxLng = Math.max(maxLng, lng);
+            maxLat = Math.max(maxLat, lat);
+          });
+          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        } else {
+          setFitBounds(null);
+        }
       } else {
+        setFlyToCoords(null);
         setFitBounds(null);
       }
     } else {
       setSelectedZoneId(null);
-      setFitBounds(null);
-      const lat = parseFloat(incident?.latitude);
-      const lng = parseFloat(incident?.longitude);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        setFlyToCoords({ lat, lng, zoom: 10 });
+      if (!opts.skipFlyTo) {
+        setFitBounds(null);
+        const lat = parseFloat(incident?.latitude);
+        const lng = parseFloat(incident?.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          setFlyToCoords({ lat, lng, zoom: 10 });
+        } else {
+          setFlyToCoords(null);
+        }
       } else {
         setFlyToCoords(null);
+        setFitBounds(null);
       }
     }
 
@@ -538,13 +574,15 @@ export default function MapPage() {
   }, [setSearchParams]);
 
   // ─── Shared incident detail fetch & refresh ───
-  const fetchSelectedIncidentDetail = useCallback(async () => {
+  const fetchSelectedIncidentDetail = useCallback(async (opts = {}) => {
     if (!selectedIncident?.id) return;
     if (selectedIncident.isDeleted || selectedIncident.isPurged || selectedIncident.status === 'hidden') {
       setSelectedIncidentDetail(null);
       return;
     }
-    setDetailLoading(true);
+    if (opts.loading !== false) {
+      setDetailLoading(true);
+    }
     setDetailError('');
     try {
       const res = await getIncident(selectedIncident.id);
@@ -558,12 +596,14 @@ export default function MapPage() {
   }, [selectedIncident]);
 
   useEffect(() => {
-    fetchSelectedIncidentDetail();
-  }, [fetchSelectedIncidentDetail]);
+    const isNewIncident = prevIncidentIdRef.current !== selectedIncident?.id;
+    prevIncidentIdRef.current = selectedIncident?.id || null;
+    fetchSelectedIncidentDetail({ loading: isNewIncident });
+  }, [fetchSelectedIncidentDetail, selectedIncident?.id]);
 
   useEffect(() => {
     if (refreshKey > 0 && selectedIncident?.id) {
-      fetchSelectedIncidentDetail();
+      fetchSelectedIncidentDetail({ loading: false });
     }
   }, [refreshKey, selectedIncident?.id, fetchSelectedIncidentDetail]);
 
@@ -644,7 +684,7 @@ export default function MapPage() {
         if (!selectedIncident?.id) return;
         try {
           await fn(...args);
-          await fetchSelectedIncidentDetail();
+          await fetchSelectedIncidentDetail({ loading: false });
           setRefreshKey((k) => k + 1);
           setGhostZone(null);
         } catch (err) {
@@ -655,10 +695,24 @@ export default function MapPage() {
   );
 
   const handleNavigateToFullPage = useCallback(() => {
-    if (selectedIncident?.id) {
-      navigate(`/superadmin/incident/${selectedIncident.id}`);
+    if (!selectedIncident?.id) return;
+    const map = mapRef.current?.getMap?.();
+    if (map) {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('lat', center.lat.toFixed(6));
+          next.set('lng', center.lng.toFixed(6));
+          next.set('zoom', zoom.toFixed(2));
+          return next;
+        },
+        { replace: true }
+      );
     }
-  }, [navigate, selectedIncident?.id]);
+    navigate(`/superadmin/incident/${selectedIncident.id}`);
+  }, [navigate, selectedIncident?.id, setSearchParams]);
 
   const handleCopyIncidentLink = useCallback(() => {
     if (!selectedIncident?.id) return;
@@ -1064,7 +1118,7 @@ export default function MapPage() {
 
     const inList = incidents.find((i) => i.id === incidentIdFromUrl);
     if (inList) {
-      handleSelectIncident(inList);
+      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
       ghostFetchAttempted.current = true;
       return;
     }
@@ -1074,7 +1128,7 @@ export default function MapPage() {
       getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res?.incident) {
-            handleSelectIncident(res.incident);
+            handleSelectIncident(res.incident, { skipFlyTo: hasViewportParams });
           }
         })
         .catch((err) => {
@@ -1132,7 +1186,7 @@ export default function MapPage() {
           }
         });
     }
-  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, setSearchParams]);
+  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, hasViewportParams, setSearchParams]);
 
   // ─── Zone selection ───
   const handleZoneClick = useCallback((zoneId) => {
@@ -1937,6 +1991,11 @@ export default function MapPage() {
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
             fitBounds={fitBounds}
+            initialViewport={
+              hasViewportParams
+                ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
+                : null
+            }
             ghostIncident={ghostIncident}
             ghostZone={ghostZone}
             adminMode={true}

@@ -74,6 +74,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   onViewportChange,
   flyToCoords,
   fitBounds,
+  initialViewport,
   markerCoords,
   ghostIncident,
   ghostZone,
@@ -496,8 +497,8 @@ const SuperadminMap = forwardRef(function SuperadminMap({
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: styleUrl,
-      center: [20, 30],
-      zoom: 2,
+      center: initialViewport?.center ?? [20, 30],
+      zoom: initialViewport?.zoom ?? 2,
       attributionControl: false,
       doubleClickZoom: false,
     });
@@ -536,9 +537,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
         return;
       }
       if (!map.current) return;
-      const bounds = map.current.getBounds();
-      const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
-      onViewportChangeRef.current?.(viewport);
+      reportViewport();
     });
 
     // Mouse-wheel and double-click zoom don't always fire moveend; clamp here too
@@ -562,15 +561,25 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       }
     });
 
+    const reportViewport = () => {
+      if (!map.current || !onViewportChangeRef.current) return;
+      const bounds = map.current.getBounds();
+      const center = map.current.getCenter();
+      const zoom = map.current.getZoom();
+      onViewportChangeRef.current({
+        bounds: `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`,
+        center: { lat: center.lat, lng: center.lng },
+        zoom,
+      });
+    };
+
     // Report initial bounds once the map is loaded
     map.current.on('load', () => {
       if (!map.current) return;
       ensureLayers(map.current);
       setStyleVersion((v) => v + 1);
 
-      const bounds = map.current.getBounds();
-      const viewport = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
-      onViewportChangeRef.current?.(viewport);
+      reportViewport();
       // Set initial maxZoom based on starting center
       const center = map.current.getCenter();
       map.current.setMaxZoom(getMaxZoomForCenter(center.lng, center.lat));

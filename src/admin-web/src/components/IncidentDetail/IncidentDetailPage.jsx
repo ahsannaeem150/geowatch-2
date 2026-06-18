@@ -25,17 +25,17 @@ export default function IncidentDetailPage() {
   const [toast, setToast] = useState(null);
   const esRef = useRef(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (opts = {}) => {
     if (!id) return;
-    setLoading(true);
+    if (!opts.silent) setLoading(true);
     try {
       const res = await api.getIncident(id);
       setData(mapIncidentForShared(res.data));
-      setError('');
+      if (!opts.silent) setError('');
     } catch (err) {
-      setError(err.message || 'Failed to load incident');
+      if (!opts.silent) setError(err.message || 'Failed to load incident');
     } finally {
-      setLoading(false);
+      if (!opts.silent) setLoading(false);
     }
   }, [id]);
 
@@ -131,7 +131,7 @@ export default function IncidentDetailPage() {
       async (...args) => {
         try {
           await fn(...args);
-          await fetchData();
+          await fetchData({ silent: true });
         } catch (err) {
           showError(err.message || 'Action failed');
         }
@@ -350,7 +350,11 @@ export default function IncidentDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    navigate('/');
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
   }, [navigate]);
 
   if (loading) {

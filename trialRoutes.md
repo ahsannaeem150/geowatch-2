@@ -33,4 +33,16 @@
 
 ---
 
-*Last updated: Phase 9 cleanup — trial routes restored for comparison.*
+## User-web Zone Trials
+
+| Route | Purpose |
+|:--|:--|
+| `/trial/zone-sidebar` | Zone detail sidebar trial — 630px sidebar with polygon preview, full-status effective-window meter, and a second drawer for per-update evidence |
+| `/trial/zone` | Full-page zone layout — immersive map hero with floating glass metadata panel; timeline cards open a clean sources modal |
+| `/trial/zone-meter` | 20 visual variations of the effective-window / time-remaining component for side-by-side comparison |
+| `/trial/zone-styles` | Zone shape + treatment gallery on a grid background for picking the final map overlay style |
+| `/trial/zone-heroes` | Six animated zone-detail hero header concepts to choose from |
+
+---
+
+*Last updated: Zone UI trial refined to the chosen full-page layout + new evidence drawer/modal + redesigned effective-window meter.*

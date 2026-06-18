@@ -625,7 +625,7 @@
   position: absolute;
   inset: 0;
   background: var(--backdrop);
-  z-index: 10;
+  z-index: 199;
   animation: idFadeIn 0.2s ease;
 }
 
@@ -642,7 +642,7 @@
     0 0 50px var(--accent-glow);
   display: flex;
   flex-direction: column;
-  z-index: 11;
+  z-index: 200;
   animation: idSlideIn 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1760,6 +1760,14 @@
 .id-trial-page--superadmin .id-status-dot,
 .id-sidebar--superadmin .id-status-dot {
   background: var(--accent-light);
+}
+
+/* In superadmin the sidebar panel is position:relative, which traps the
+   absolute drawer overlay inside the 630px panel. Make the overlay fixed
+   so clicks on the map/feed close the drawer, matching user/admin. */
+.id-sidebar--superadmin .id-drawer-overlay {
+  position: fixed;
+  z-index: 40;
 }
 
 /* ─── Summary stats + meta ─── */

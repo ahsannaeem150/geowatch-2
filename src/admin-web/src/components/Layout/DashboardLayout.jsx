@@ -87,6 +87,26 @@ export default function DashboardLayout() {
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
+  // ─── URL Sharing (Deep-linking) ───
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const incidentIdFromUrl = searchParams.get('incident');
+  const zoneIdFromUrl = searchParams.get('zone');
+  const latParam = searchParams.get('lat');
+  const lngParam = searchParams.get('lng');
+  const zoomParam = searchParams.get('zoom');
+  const hasViewportParams =
+    latParam &&
+    lngParam &&
+    zoomParam &&
+    Number.isFinite(parseFloat(latParam)) &&
+    Number.isFinite(parseFloat(lngParam)) &&
+    Number.isFinite(parseFloat(zoomParam));
+  const ghostFetchAttempted = useRef(false);
+  const zoneDeepLinkProcessed = useRef(false);
+  const prevZoneIdRef = useRef(null);
+
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [incidents, setEvents] = useState([]);
   const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form' | 'zones' | 'zone-detail'
@@ -98,7 +118,11 @@ export default function DashboardLayout() {
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
-  const [flyToCoords, setFlyToCoords] = useState(null);
+  const [flyToCoords, setFlyToCoords] = useState(
+    hasViewportParams
+      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: parseFloat(zoomParam) }
+      : null
+  );
   const [submitting, setSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState(null);
@@ -215,15 +239,6 @@ export default function DashboardLayout() {
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
-  // ─── URL Sharing (Deep-linking) ───
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const incidentIdFromUrl = searchParams.get('incident');
-  const zoneIdFromUrl = searchParams.get('zone');
-  const ghostFetchAttempted = useRef(false);
-  const zoneDeepLinkProcessed = useRef(false);
-
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
@@ -331,54 +346,6 @@ export default function DashboardLayout() {
     };
   }, [dateRange.from, dateRange.to, refreshKey, activeDomainFilter]);
 
-  // ─── Handle incident ID from URL — deep-linking with ghost support ───
-  useEffect(() => {
-    if (!incidentIdFromUrl) {
-      ghostFetchAttempted.current = false;
-      return;
-    }
-
-    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
-    if (inList) {
-      setSelectedIncident(inList);
-      setIsEditing(false);
-      setPanelMode('detail');
-      setFlyToCoords({ lat: parseFloat(inList.latitude), lng: parseFloat(inList.longitude) });
-      setMarkerCoords(null);
-      ghostFetchAttempted.current = true;
-      return;
-    }
-
-    // Incident not in current list — fetch as ghost after initial load completes
-    if (incidents.length > 0 && !ghostFetchAttempted.current) {
-      ghostFetchAttempted.current = true;
-      api
-        .getIncident(incidentIdFromUrl)
-        .then((res) => {
-          if (res.data?.incident) {
-            const incident = res.data.incident;
-            setSelectedIncident(incident);
-            setIsEditing(false);
-            setPanelMode('detail');
-            setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
-            setMarkerCoords(null);
-          }
-        })
-        .catch(() => {
-          // Incident not found or deleted — clean up URL
-          setSearchParams((prev) => {
-            const next = new URLSearchParams(prev);
-            next.delete('incident');
-            return next;
-          });
-          setToast({
-            message: 'Incident not found or has been deleted',
-            type: 'error',
-          });
-        });
-    }
-  }, [incidentIdFromUrl, incidents.length]);
-
   // ─── Handle zone focus from ZonesPage or ?zone=<id> deep-link ───
   useEffect(() => {
     const focusZoneFromState = location.state?.focusZone;
@@ -435,13 +402,17 @@ export default function DashboardLayout() {
       return;
     }
 
-    if (!zoneIdFromUrl) {
+    if (prevZoneIdRef.current !== zoneIdFromUrl) {
       zoneDeepLinkProcessed.current = false;
+      prevZoneIdRef.current = zoneIdFromUrl;
+    }
+
+    if (!zoneIdFromUrl) {
       return;
     }
 
     const zone = polygonIncidents.find((z) => z.id === zoneIdFromUrl);
-    if (zone) {
+    if (zone && !zoneDeepLinkProcessed.current) {
       setSelectedZoneId(zone.id);
       setSelectedIncident(zone);
       setPanelMode('detail');
@@ -471,15 +442,23 @@ export default function DashboardLayout() {
     }
   }, [location.state, location.pathname, location.search, zoneIdFromUrl, polygonIncidents, navigate, setSearchParams]);
 
+  const prevIncidentIdRef = useRef(null);
+
   // Fetch full incident detail whenever a sidebar incident is selected
   useEffect(() => {
     if (!selectedIncident) {
       setSelectedIncidentDetail(null);
+      prevIncidentIdRef.current = null;
       return;
     }
 
+    const isNewIncident = prevIncidentIdRef.current !== selectedIncident.id;
+    prevIncidentIdRef.current = selectedIncident.id;
+
     let cancelled = false;
-    setSelectedIncidentDetailLoading(true);
+    if (isNewIncident) {
+      setSelectedIncidentDetailLoading(true);
+    }
     api.getIncident(selectedIncident.id)
       .then((res) => {
         if (cancelled) return;
@@ -539,9 +518,22 @@ export default function DashboardLayout() {
   }, []);
 
   // Handle viewport bounds changes from the map
-  const handleViewportChange = useCallback((bounds) => {
+  const handleViewportChange = useCallback(({ bounds, center, zoom }) => {
     closeMapMenu();
     viewportBoundsRef.current = bounds;
+
+    if (center && Number.isFinite(zoom)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('lat', center.lat.toFixed(6));
+          next.set('lng', center.lng.toFixed(6));
+          next.set('zoom', zoom.toFixed(2));
+          return next;
+        },
+        { replace: true }
+      );
+    }
 
     if (viewportFilteringRef.current === true) {
       const params = {
@@ -556,7 +548,7 @@ export default function DashboardLayout() {
         })
         .catch(() => setEvents([]));
     }
-  }, [dateRange.from, dateRange.to, closeMapMenu]);
+  }, [dateRange.from, dateRange.to, closeMapMenu, setSearchParams]);
 
   // ─── SSE Connection ───
   useEffect(() => {
@@ -766,11 +758,16 @@ export default function DashboardLayout() {
     });
   }, [setSearchParams]);
 
-  const handleEventClick = useCallback((incident) => {
+  const handleEventClick = useCallback((incident, opts = {}) => {
     setSelectedIncident(incident);
     setIsEditing(false);
     setPanelMode('detail');
-    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
+    setFitBounds(null);
+    if (!opts.skipFlyTo) {
+      setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
+    } else {
+      setFlyToCoords(null);
+    }
     setMarkerCoords(null);
     // Clear zone selection and editing when an incident is selected
     setSelectedZoneId(null);
@@ -781,9 +778,67 @@ export default function DashboardLayout() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('incident', incident.id);
+      next.delete('zone');
       return next;
     });
   }, [setSearchParams]);
+
+  // ─── Handle incident ID from URL — deep-linking with ghost support ───
+  useEffect(() => {
+    if (!incidentIdFromUrl) {
+      ghostFetchAttempted.current = false;
+      return;
+    }
+
+    // If a zone is currently selected (by URL or by user click), it takes
+    // precedence; do not auto-switch back to a stale incident id.
+    if (zoneIdFromUrl) {
+      return;
+    }
+
+    // Already selected this incident, or a zone is selected; no need to reapply.
+    const currentSelection = selectedIncidentRef.current;
+    if (
+      currentSelection?.id === incidentIdFromUrl &&
+      currentSelection?.geometry_type !== 'polygon'
+    ) {
+      return;
+    }
+    if (currentSelection?.geometry_type === 'polygon') {
+      return;
+    }
+
+    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
+    if (inList) {
+      handleEventClick(inList, { skipFlyTo: hasViewportParams });
+      ghostFetchAttempted.current = true;
+      return;
+    }
+
+    // Incident not in current list — fetch as ghost after initial load completes
+    if (incidents.length > 0 && !ghostFetchAttempted.current) {
+      ghostFetchAttempted.current = true;
+      api
+        .getIncident(incidentIdFromUrl)
+        .then((res) => {
+          if (res.data?.incident) {
+            handleEventClick(res.data.incident, { skipFlyTo: hasViewportParams });
+          }
+        })
+        .catch(() => {
+          // Incident not found or deleted — clean up URL
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('incident');
+            return next;
+          });
+          setToast({
+            message: 'Incident not found or has been deleted',
+            type: 'error',
+          });
+        });
+    }
+  }, [incidentIdFromUrl, incidents.length, handleEventClick, hasViewportParams, zoneIdFromUrl]);
 
   const handleZoneClick = useCallback((zoneId) => {
     const zone = polygonIncidents.find((z) => z.id === zoneId);
@@ -811,6 +866,7 @@ export default function DashboardLayout() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('zone', zone.id);
+      next.delete('incident');
       return next;
     });
   }, [polygonIncidents, setSearchParams]);
@@ -1500,6 +1556,26 @@ export default function DashboardLayout() {
     setToast({ message: 'Link copied to clipboard', type: 'success' });
   }, [selectedIncident?.id]);
 
+  const handleNavigateToFullPage = useCallback(() => {
+    if (!selectedIncident?.id) return;
+    const map = mapRef.current?.getMap?.();
+    if (map) {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('lat', center.lat.toFixed(6));
+          next.set('lng', center.lng.toFixed(6));
+          next.set('zoom', zoom.toFixed(2));
+          return next;
+        },
+        { replace: true }
+      );
+    }
+    navigate(`/incident/${selectedIncident.id}`);
+  }, [navigate, selectedIncident?.id, setSearchParams]);
+
   const handleUpdateIncident = useCallback(
     withDetailRefresh(async (patch) => {
       const body = {
@@ -1752,7 +1828,7 @@ export default function DashboardLayout() {
           mode="admin"
           incident={selectedIncidentDetail.incident}
           timeline={selectedIncidentDetail.timeline}
-          onNavigateToFullPage={() => navigate(`/incident/${selectedIncident.id}`)}
+          onNavigateToFullPage={handleNavigateToFullPage}
           onCopyIncidentLink={handleCopyIncidentLink}
           onUpdateIncident={handleUpdateIncident}
           onResolveIncident={handleResolveIncidentDetail}
@@ -1858,7 +1934,7 @@ export default function DashboardLayout() {
         </div>
       )}
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
         {/* Left — Live Activity Feed */}
         <AdminLiveFeed
           activities={activities}
@@ -1894,6 +1970,11 @@ export default function DashboardLayout() {
             onMapDblClick={handleMapDblClick}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
+            initialViewport={
+              hasViewportParams
+                ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
+                : null
+            }
             markerCoords={markerCoords}
             ghostIncident={ghostIncident}
             newIncidentIds={newIncidentIds}

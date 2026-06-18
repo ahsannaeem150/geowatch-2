@@ -7,6 +7,11 @@ import HomePage from './pages/HomePage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
+import ZoneTrialSidebarPage from './pages/ZoneTrialSidebarPage.jsx';
+import ZoneTrialLayoutB from './pages/ZoneTrialLayoutB.jsx';
+import ZoneTrialMeterPage from './pages/ZoneTrialMeterPage.jsx';
+import ZoneStylesTrialPage from './pages/ZoneStylesTrialPage.jsx';
+import ZoneHeroesTrialPage from './pages/ZoneHeroesTrialPage.jsx';
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -46,6 +51,11 @@ function AnimatedRoutes() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/incident/:id" element={<IncidentDetailPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/trial/zone-sidebar" element={<ZoneTrialSidebarPage />} />
+          <Route path="/trial/zone" element={<ZoneTrialLayoutB />} />
+          <Route path="/trial/zone-meter" element={<ZoneTrialMeterPage />} />
+          <Route path="/trial/zone-styles" element={<ZoneStylesTrialPage />} />
+          <Route path="/trial/zone-heroes" element={<ZoneHeroesTrialPage />} />
         </Routes>
       </motion.div>
     </AnimatePresence>
