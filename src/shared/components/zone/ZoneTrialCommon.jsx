@@ -931,7 +931,8 @@ export function ZoneEvidenceRail({
           onCheck={onCheck}
           onEditUpdate={onEditUpdate}
           onDeleteUpdate={onDeleteUpdate}
-          wideCarousel
+          mediaLayout="grid-carousel"
+          autoScrollFeatured={false}
           showUpdateHeader={false}
         />
 
@@ -1306,6 +1307,8 @@ function ZoneEvidenceView({
   onEditUpdate,
   onDeleteUpdate,
   wideCarousel,
+  mediaLayout,
+  autoScrollFeatured = true,
   showUpdateHeader = true,
 }) {
   const [activeTab, setActiveTab] = useState('all');
@@ -1389,6 +1392,8 @@ function ZoneEvidenceView({
           onAutoCheck={onCheck}
           featuredItem={featuredItem}
           mediaItemWidth={wideCarousel ? null : 300}
+          mediaLayout={mediaLayout}
+          autoScrollFeatured={autoScrollFeatured}
         />
       </div>
       {lightbox && <Lightbox items={lightbox.items} startIndex={lightbox.idx} onClose={() => setLightbox(null)} />}

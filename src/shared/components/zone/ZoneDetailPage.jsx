@@ -301,10 +301,6 @@ export default function ZoneDetailPage({
     const bodyEl = document.querySelector('.zone-layout-b__body--rail');
     const railEl = document.querySelector('.zone-evidence-rail');
     if (bodyEl && railEl && railTopRef.current != null) {
-      const railTopDoc = railTopRef.current;
-      const railTarget = Math.max(0, railTopDoc - 80);
-      targetScroll = Math.max(targetScroll, railTarget);
-
       const bodyRect = bodyEl.getBoundingClientRect();
       const bodyTopDoc = bodyRect.top + window.scrollY;
       const bodyBottomPadding = parseFloat(window.getComputedStyle(bodyEl).paddingBottom) || 0;

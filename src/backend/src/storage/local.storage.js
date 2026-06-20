@@ -5,9 +5,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 let UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../../../uploads');
-// Resolve relative paths from the project root (parent of src/backend).
+// Resolve relative paths from the project root (four levels above src/backend/src/storage).
 if (!isAbsolute(UPLOAD_DIR)) {
-  UPLOAD_DIR = join(__dirname, '../../../', UPLOAD_DIR);
+  UPLOAD_DIR = join(__dirname, '../../../../', UPLOAD_DIR);
 }
 const BASE_URL = process.env.API_URL || 'http://localhost:3000';
 

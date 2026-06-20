@@ -116,6 +116,7 @@ export default function DashboardLayout() {
   const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
   const [selectedIncidentDetailLoading, setSelectedIncidentDetailLoading] = useState(false);
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
+  const [editInfoOpen, setEditInfoOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(
@@ -762,6 +763,7 @@ export default function DashboardLayout() {
     setSelectedIncident(incident);
     setIsEditing(false);
     setPanelMode('detail');
+    setEditInfoOpen(false);
     setFitBounds(null);
     if (!opts.skipFlyTo) {
       setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
@@ -798,13 +800,14 @@ export default function DashboardLayout() {
 
     // Already selected this incident, or a zone is selected; no need to reapply.
     const currentSelection = selectedIncidentRef.current;
+    const currentIsPolygon = currentSelection?.geometry_type === 'polygon' || currentSelection?.geometryType === 'polygon';
     if (
       currentSelection?.id === incidentIdFromUrl &&
-      currentSelection?.geometry_type !== 'polygon'
+      !currentIsPolygon
     ) {
       return;
     }
-    if (currentSelection?.geometry_type === 'polygon') {
+    if (currentIsPolygon) {
       return;
     }
 
@@ -846,6 +849,7 @@ export default function DashboardLayout() {
     setSelectedZoneId(zoneId);
     setSelectedIncident(zone);
     setPanelMode('detail');
+    setEditInfoOpen(false);
     // Clear editing state when selecting a different zone
     setEditingZoneId(null);
     setEditingZoneVertices([]);
@@ -1012,6 +1016,7 @@ export default function DashboardLayout() {
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
     setSelectedZoneId(null);
+    setEditInfoOpen(false);
     setFitBounds(null);
     // Clear selected incident/zone from URL while preserving other params
     setSearchParams((prev) => {
@@ -1174,6 +1179,7 @@ export default function DashboardLayout() {
     setDrawVertices([]);
     setIsPolygonClosed(false);
     setShowZoneCreatePanel(false);
+    setEditInfoOpen(false);
 
     const coords = [...zone.geometry.coordinates[0]];
     // Remove closing duplicate vertex if present
@@ -1193,12 +1199,14 @@ export default function DashboardLayout() {
     setSelectedEditVertexIndex(null);
     editHistoryRef.current = [coords.map((v) => [...v])];
     editHistoryIndexRef.current = 0;
-    setPanelMode('empty');
+    // Keep the zone detail sidebar visible while editing shape
+    setPanelMode('detail');
   }, [selectedZoneId, polygonIncidents]);
 
   const handleZoneInfoEdit = useCallback((explicitZone) => {
     const zone = explicitZone || selectedIncident;
-    if (!zone || zone.geometryType !== 'polygon') return;
+    const isPolygon = zone?.geometryType === 'polygon' || zone?.geometry_type === 'polygon';
+    if (!zone || !isPolygon) return;
 
     // Clear any active geometry drawing/editing state
     setMapMode('pan');
@@ -1212,7 +1220,9 @@ export default function DashboardLayout() {
 
     setSelectedIncident(zone);
     setSelectedZoneId(zone.id);
-    setPanelMode('zone-edit');
+    // Keep the zone detail sidebar visible and open the info editor as an overlay
+    setPanelMode('detail');
+    setEditInfoOpen(true);
   }, [selectedIncident]);
 
   const buildZoneMenuItems = useCallback((zone) => {
@@ -1232,6 +1242,7 @@ export default function DashboardLayout() {
       setSubmitting(true);
       try {
         await api.updateIncident(selectedIncident.id, payload);
+        setEditInfoOpen(false);
         setPanelMode('detail');
         setToast({ message: 'Zone updated successfully', type: 'success' });
         setRefreshKey((k) => k + 1);
@@ -1308,6 +1319,7 @@ export default function DashboardLayout() {
     setSelectedEditVertexIndex(null);
     editHistoryRef.current = [];
     editHistoryIndexRef.current = -1;
+    setEditInfoOpen(false);
     setPanelMode('detail');
   }, []);
 
@@ -1331,6 +1343,7 @@ export default function DashboardLayout() {
       setSelectedEditVertexIndex(null);
       editHistoryRef.current = [];
       editHistoryIndexRef.current = -1;
+      setEditInfoOpen(false);
       setPanelMode('detail');
 
       setToast({ message: 'Zone updated successfully', type: 'success' });
@@ -1494,6 +1507,7 @@ export default function DashboardLayout() {
         setSelectedIncident(incidentData);
         setIsEditing(false);
         setPanelMode('detail');
+        setEditInfoOpen(false);
         setFlyToCoords({ lat: parseFloat(incidentData.latitude), lng: parseFloat(incidentData.longitude) });
         setMarkerCoords(null);
         return;
@@ -1503,6 +1517,7 @@ export default function DashboardLayout() {
         setSelectedIncident(found);
         setIsEditing(false);
         setPanelMode('detail');
+        setEditInfoOpen(false);
         setFlyToCoords({ lat: parseFloat(found.latitude), lng: parseFloat(found.longitude) });
         setMarkerCoords(null);
         return;
@@ -1514,6 +1529,7 @@ export default function DashboardLayout() {
             setSelectedIncident(res.data.incident);
             setIsEditing(false);
             setPanelMode('detail');
+            setEditInfoOpen(false);
             setFlyToCoords({ lat: parseFloat(res.data.incident.latitude), lng: parseFloat(res.data.incident.longitude) });
             setMarkerCoords(null);
           }
@@ -1532,6 +1548,7 @@ export default function DashboardLayout() {
         setSelectedIncident(found);
         setIsEditing(true);
         setPanelMode('form');
+        setEditInfoOpen(false);
         setFlyToCoords({ lat: parseFloat(found.latitude), lng: parseFloat(found.longitude) });
         setMarkerCoords(null);
       }
@@ -1835,18 +1852,6 @@ export default function DashboardLayout() {
       );
     }
 
-    if (panelMode === 'zone-edit' && selectedIncident && selectedIncidentDetail) {
-      return (
-        <ZoneEditorSidebar
-          geometry={selectedIncidentDetail.incident.geometry}
-          initialData={selectedIncidentDetail.incident}
-          onSubmit={handleZoneInfoSubmit}
-          onCancel={() => setPanelMode('detail')}
-          submitting={submitting}
-        />
-      );
-    }
-
     if (panelMode === 'detail' && selectedIncident) {
       if (selectedIncidentDetailLoading) {
         return (
@@ -1864,7 +1869,8 @@ export default function DashboardLayout() {
         );
       }
 
-      if (selectedIncident.geometry_type === 'polygon') {
+      const isPolygonZone = selectedIncident.geometry_type === 'polygon' || selectedIncident.geometryType === 'polygon';
+      if (isPolygonZone) {
         return (
           <ZoneDetailSidebar
             incident={selectedIncidentDetail.incident}
@@ -1875,7 +1881,7 @@ export default function DashboardLayout() {
             onSave={() => {}}
             isSaved={false}
             onEditZoneInfo={() => handleZoneInfoEdit(selectedIncidentDetail?.incident)}
-            onEditZoneShape={() => handleEditZone(selectedIncidentDetail?.incident)}
+            onEditZoneShape={editingZoneId ? undefined : () => handleEditZone(selectedIncidentDetail?.incident)}
             onResolve={() =>
               setConfirmDialog({
                 type: 'resolve',
@@ -2101,6 +2107,33 @@ export default function DashboardLayout() {
             onEditUndo={handleEditUndo}
             onEditCancel={handleZoneEditCancel}
           />
+
+          {editInfoOpen && selectedIncidentDetail && (
+            <div
+              className="dashboard-zone-edit-overlay"
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '520px',
+                height: '100%',
+                zIndex: 10,
+                background: 'var(--bg-surface)',
+                borderLeft: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-lg)',
+                overflowY: 'auto',
+                animation: 'slideInRight 0.25s ease-out',
+              }}
+            >
+              <ZoneEditorSidebar
+                geometry={selectedIncidentDetail.incident.geometry}
+                initialData={selectedIncidentDetail.incident}
+                onSubmit={handleZoneInfoSubmit}
+                onCancel={() => setEditInfoOpen(false)}
+                submitting={submitting}
+              />
+            </div>
+          )}
 
           {editingZoneId ? (
             <div

@@ -4,6 +4,14 @@ import { sortPinned, countSources, sourceCounts } from './IncidentUtils.js';
 import { AdminMediaThumb, MediaThumb, MediaGrid, EditableArticleCard, EditableAdminNoteCard, ArticleCard, AdminNoteCard } from './SourceCards.jsx';
 import XPostCompactList from './XPostCompactList.jsx';
 
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
+}
+
 function Carousel({ items, renderItem, itemWidth, gap = 10, keyboard = true }) {
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
@@ -77,6 +85,85 @@ function Carousel({ items, renderItem, itemWidth, gap = 10, keyboard = true }) {
   );
 }
 
+function GridCarousel({ items, renderItem, pageSize = 4, keyboard = true }) {
+  const [page, setPage] = useState(0);
+  const [hovered, setHovered] = useState(false);
+  const pages = useMemo(() => chunk(items, pageSize), [items, pageSize]);
+
+  const goNext = () => setPage((p) => (p + 1) % pages.length);
+  const goPrev = () => setPage((p) => (p - 1 + pages.length) % pages.length);
+
+  useEffect(() => {
+    setPage(0);
+  }, [items.length]);
+
+  useEffect(() => {
+    if (!keyboard || !hovered) return;
+    const onKey = (e) => {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goNext();
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goPrev();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [keyboard, hovered, pages.length]);
+
+  if (!items?.length) return null;
+
+  return (
+    <div className="id-grid-carousel" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div className="id-grid-carousel__track" style={{ transform: `translateX(-${page * 100}%)` }}>
+        {pages.map((pageItems, i) => {
+          const gridClass = `id-twitter-grid id-twitter-grid--${pageItems.length >= 4 ? '4' : pageItems.length}`;
+          return (
+            <div key={i} className="id-grid-carousel__page">
+              <div className={gridClass}>
+                {pageItems.map((item, idx) => (
+                  <div key={item.id ?? idx} className="id-twitter-grid__cell">
+                    {renderItem(item, items.indexOf(item))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {pages.length > 1 && (
+        <>
+          <button
+            className="id-carousel__btn id-carousel__btn--prev"
+            onClick={(e) => {
+              e.stopPropagation();
+              goPrev();
+            }}
+            aria-label="Previous"
+          >
+            {Icons.chevronLeft}
+          </button>
+          <button
+            className="id-carousel__btn id-carousel__btn--next"
+            onClick={(e) => {
+              e.stopPropagation();
+              goNext();
+            }}
+            aria-label="Next"
+          >
+            {Icons.chevronRight}
+          </button>
+          <div className="id-carousel__counter">
+            {page + 1} / {pages.length}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EvidenceBundle({
   event,
   activeTab,
@@ -94,6 +181,7 @@ export default function EvidenceBundle({
   featuredItem,
   mediaItemWidth = 300,
   mediaLayout = 'carousel',
+  autoScrollFeatured = true,
 }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const sources = event.sources || {};
@@ -198,6 +286,81 @@ export default function EvidenceBundle({
                 )
               )}
             </div>
+          ) : mediaLayout === 'grid-carousel' ? (
+            <GridCarousel
+              items={items}
+              pageSize={4}
+              renderItem={(item) => {
+                const idx = items.indexOf(item);
+                const featured = isFeatured('media', item);
+                return isAdmin ? (
+                  <div className="id-twitter-grid__cell">
+                    <button
+                      type="button"
+                      className="id-media-thumb"
+                      onClick={() => onMediaClick?.(items, idx)}
+                    >
+                      <img src={item.url} alt={item.caption} loading="lazy" />
+                      {featured && (
+                        <span className="id-featured-badge">
+                          {Icons.star} Featured
+                        </span>
+                      )}
+                      {item.pinned && !featured && (
+                        <span className="id-pinned-badge">
+                          {Icons.pin} Pinned
+                        </span>
+                      )}
+                      {item.caption && <div className="id-media-thumb__caption">{item.caption}</div>}
+                    </button>
+                    <div className="id-admin-media__toolbar">
+                      {onFeatureEvidence && (
+                        <button
+                          type="button"
+                          className={featured ? 'feature active' : 'feature'}
+                          onClick={() => onFeatureEvidence?.(event.id, { sourceType: 'media', sourceId: item.id })}
+                          title={featured ? 'Remove from update card' : 'Feature in update card'}
+                        >
+                          {Icons.star}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={item.pinned ? 'pin active' : 'pin'}
+                        onClick={() => onPinEvidence?.(event.id, 'media', item.id, !item.pinned)}
+                        title={item.pinned ? 'Unpin from top' : 'Pin to top'}
+                      >
+                        {Icons.pin}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEditEvidence?.(event.id, 'media', item)}
+                        title="Edit"
+                      >
+                        {Icons.edit}
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() => onDeleteEvidence?.(event.id, 'media', item.id)}
+                        title="Delete"
+                      >
+                        {Icons.trash}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="id-twitter-grid__cell"
+                    onClick={() => onMediaClick?.(items, idx)}
+                  >
+                    <img src={item.url} alt={item.caption} loading="lazy" />
+                    {item.caption && <div className="id-media-thumb__caption">{item.caption}</div>}
+                  </button>
+                );
+              }}
+            />
           ) : (
             <Carousel
               items={items}
@@ -275,13 +438,13 @@ export default function EvidenceBundle({
   };
 
   useEffect(() => {
-    if (!featuredItem) return;
+    if (!autoScrollFeatured || !featuredItem) return;
     const timer = setTimeout(() => {
       const el = document.querySelector('[data-featured="true"]');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 50);
     return () => clearTimeout(timer);
-  }, [featuredItem?.sourceType, featuredItem?.sourceId, activeTab]);
+  }, [autoScrollFeatured, featuredItem?.sourceType, featuredItem?.sourceId, activeTab]);
 
   return (
     <div>

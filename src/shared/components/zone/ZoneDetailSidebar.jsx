@@ -121,10 +121,12 @@ export default function ZoneDetailSidebar({
               <Edit3 size={12} />
               Edit info
             </button>
-            <button type="button" className="zone-btn" onClick={onEditZoneShape}>
-              <MapPin size={12} />
-              Edit shape
-            </button>
+            {onEditZoneShape && (
+              <button type="button" className="zone-btn" onClick={onEditZoneShape}>
+                <MapPin size={12} />
+                Edit shape
+              </button>
+            )}
             {incident.status !== 'resolved' && (
               <button type="button" className="zone-btn zone-btn--success" onClick={onResolve}>
                 <CheckCircle size={12} />
