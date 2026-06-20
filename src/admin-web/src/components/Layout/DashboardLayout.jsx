@@ -4,12 +4,12 @@ import TopBar from './TopBar.jsx';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
 import CreateIncidentSidebar from '../CreateIncidentSidebar/CreateIncidentSidebar.jsx';
-import { IncidentDetailSidebar } from '@shared';
+import { IncidentDetailSidebar, ZoneDetailSidebar, ZoneEditorSidebar } from '@shared';
 import LocationSearch from '../LocationSearch/LocationSearch.jsx';
 import SearchModal from '../SearchModal/SearchModal.jsx';
 import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
-import ZoneForm from '../ZoneForm/ZoneForm.jsx';
+
 import MapContextMenu from '../Map/MapContextMenu.jsx';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
@@ -1101,12 +1101,12 @@ export default function DashboardLayout() {
     ];
   }, [handleEventClick, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
 
-  const handleZoneCreateSubmit = useCallback(async (payload) => {
+  const handleZoneCreateSubmit = useCallback(async ({ payload, mediaFiles }) => {
     setSubmitting(true);
     try {
       const res = await api.createIncident(payload);
-      const newZone = res.data?.incident;
-      setToast({ message: 'Zone created successfully' });
+      let newZone = res.data?.incident;
+      setToast({ message: 'Zone created successfully', type: 'success' });
       setMapMode('pan');
       setDrawVertices([]);
       setIsPolygonClosed(false);
@@ -1116,6 +1116,24 @@ export default function DashboardLayout() {
       historyIndexRef.current = 0;
 
       if (newZone) {
+        // Upload any file-based media evidence to the initial report.
+        if (mediaFiles?.length > 0) {
+          try {
+            const detailRes = await api.getIncident(newZone.id);
+            const initialReport = detailRes.data.timeline?.find((u) => u.type === 'report');
+            const updateId = initialReport?.id;
+            for (const item of mediaFiles) {
+              const file = dataUrlToFile(item.url, item.name || 'upload.png');
+              await api.uploadMedia(newZone.id, file, { updateId, caption: item.caption || '' });
+            }
+            const refreshed = await api.getIncident(newZone.id);
+            newZone = refreshed.data?.incident || newZone;
+          } catch (err) {
+            console.warn('Failed to upload zone media evidence', err);
+            setToast({ message: 'Zone created, but some media uploads failed', type: 'warning' });
+          }
+        }
+
         // Select the newly created zone and fly the map to it
         setSelectedIncident(newZone);
         setSelectedZoneId(newZone.id);
@@ -1141,7 +1159,7 @@ export default function DashboardLayout() {
 
       setRefreshKey((k) => k + 1);
     } catch (err) {
-      setToast({ message: err.message || 'Failed to create zone' });
+      setToast({ message: err.message || 'Failed to create zone', type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -1175,11 +1193,12 @@ export default function DashboardLayout() {
     setSelectedEditVertexIndex(null);
     editHistoryRef.current = [coords.map((v) => [...v])];
     editHistoryIndexRef.current = 0;
+    setPanelMode('empty');
   }, [selectedZoneId, polygonIncidents]);
 
   const handleZoneInfoEdit = useCallback((explicitZone) => {
     const zone = explicitZone || selectedIncident;
-    if (!zone || zone.geometry_type !== 'polygon') return;
+    if (!zone || zone.geometryType !== 'polygon') return;
 
     // Clear any active geometry drawing/editing state
     setMapMode('pan');
@@ -1208,7 +1227,7 @@ export default function DashboardLayout() {
     ];
   }, [handleZoneClick, handleEditZone, handleZoneInfoEdit, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
   const handleZoneInfoSubmit = useCallback(
-    async (payload) => {
+    async ({ payload }) => {
       if (!selectedIncident) return;
       setSubmitting(true);
       try {
@@ -1289,6 +1308,7 @@ export default function DashboardLayout() {
     setSelectedEditVertexIndex(null);
     editHistoryRef.current = [];
     editHistoryIndexRef.current = -1;
+    setPanelMode('detail');
   }, []);
 
   const handleZoneEditSubmit = useCallback(async () => {
@@ -1311,6 +1331,7 @@ export default function DashboardLayout() {
       setSelectedEditVertexIndex(null);
       editHistoryRef.current = [];
       editHistoryIndexRef.current = -1;
+      setPanelMode('detail');
 
       setToast({ message: 'Zone updated successfully', type: 'success' });
       setRefreshKey((k) => k + 1);
@@ -1569,10 +1590,11 @@ export default function DashboardLayout() {
   );
 
   const handleCopyIncidentLink = useCallback(() => {
-    const url = `${window.location.origin}/incident/${selectedIncident?.id}`;
+    const isZone = selectedIncident?.geometry_type === 'polygon';
+    const url = `${window.location.origin}/${isZone ? 'zone' : 'incident'}/${selectedIncident?.id}`;
     navigator.clipboard.writeText(url).catch(() => {});
     setToast({ message: 'Link copied to clipboard', type: 'success' });
-  }, [selectedIncident?.id]);
+  }, [selectedIncident?.id, selectedIncident?.geometry_type]);
 
   const handleNavigateToFullPage = useCallback(() => {
     if (!selectedIncident?.id) return;
@@ -1591,8 +1613,9 @@ export default function DashboardLayout() {
         { replace: true }
       );
     }
-    navigate(`/incident/${selectedIncident.id}`);
-  }, [navigate, selectedIncident?.id, setSearchParams]);
+    const isZone = selectedIncident?.geometry_type === 'polygon';
+    navigate(`/${isZone ? 'zone' : 'incident'}/${selectedIncident.id}`);
+  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams]);
 
   const handleUpdateIncident = useCallback(
     withDetailRefresh(async (patch) => {
@@ -1803,7 +1826,7 @@ export default function DashboardLayout() {
   const renderPanel = () => {
     if (showZoneCreatePanel) {
       return (
-        <ZoneForm
+        <ZoneEditorSidebar
           geometry={{ type: 'Polygon', coordinates: [drawVertices] }}
           onSubmit={handleZoneCreateSubmit}
           onCancel={handleDrawCancel}
@@ -1812,11 +1835,11 @@ export default function DashboardLayout() {
       );
     }
 
-    if (panelMode === 'zone-edit' && selectedIncident) {
+    if (panelMode === 'zone-edit' && selectedIncident && selectedIncidentDetail) {
       return (
-        <ZoneForm
-          geometry={selectedIncident.geometry}
-          initialData={selectedIncident}
+        <ZoneEditorSidebar
+          geometry={selectedIncidentDetail.incident.geometry}
+          initialData={selectedIncidentDetail.incident}
           onSubmit={handleZoneInfoSubmit}
           onCancel={() => setPanelMode('detail')}
           submitting={submitting}
@@ -1838,6 +1861,57 @@ export default function DashboardLayout() {
           <div style={{ padding: 24, color: 'var(--danger)' }}>
             Failed to load incident details.
           </div>
+        );
+      }
+
+      if (selectedIncident.geometry_type === 'polygon') {
+        return (
+          <ZoneDetailSidebar
+            incident={selectedIncidentDetail.incident}
+            timeline={selectedIncidentDetail.timeline}
+            onBack={handleClosePanel}
+            onFullDetails={handleNavigateToFullPage}
+            onShare={handleCopyIncidentLink}
+            onSave={() => {}}
+            isSaved={false}
+            onEditZoneInfo={() => handleZoneInfoEdit(selectedIncidentDetail?.incident)}
+            onEditZoneShape={() => handleEditZone(selectedIncidentDetail?.incident)}
+            onResolve={() =>
+              setConfirmDialog({
+                type: 'resolve',
+                title: 'Resolve zone?',
+                message: 'Mark this zone as resolved.',
+                confirmText: 'Resolve',
+                onConfirm: () => {
+                  setConfirmDialog(null);
+                  handleResolveIncidentDetail();
+                },
+              })
+            }
+            onDelete={() =>
+              setConfirmDialog({
+                type: 'delete',
+                title: 'Delete zone?',
+                message: 'This action cannot be undone.',
+                confirmText: 'Delete',
+                danger: true,
+                onConfirm: () => {
+                  setConfirmDialog(null);
+                  handleDeleteIncidentDetail();
+                },
+              })
+            }
+            onAddUpdate={handleAddUpdate}
+            onEditUpdate={handleEditUpdate}
+            onDeleteUpdate={handleDeleteUpdate}
+            onAddEvidence={handleAddEvidence}
+            onEditEvidence={handleEditEvidence}
+            onDeleteEvidence={handleDeleteEvidence}
+            onPinEvidence={handlePinEvidence}
+            onFeatureEvidence={handleFeatureEvidence}
+            onClearFeatureEvidence={handleClearFeatureEvidence}
+            onCheckSource={handleCheckSource}
+          />
         );
       }
 
@@ -2336,7 +2410,10 @@ export default function DashboardLayout() {
             style={{
               width: '630px',
               overflowY: 'auto',
-              padding: panelMode === 'detail' || (panelMode === 'form' && !isEditing) ? 0 : '20px',
+              padding:
+                panelMode === 'detail' || panelMode === 'zone-edit' || (panelMode === 'form' && !isEditing)
+                  ? 0
+                  : '20px',
               boxSizing: 'border-box',
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--border-subtle)',

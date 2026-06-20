@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const createTimelineSchema = z.object({
   summary: z.string().min(1).max(5000),
+  details: z.string().max(20000).optional(),
   updateDate: z.string().datetime().optional(),
   sourceUrl: z.string().url().optional(),
   type: z.enum(['report', 'update']).optional(),
@@ -10,6 +11,7 @@ export const createTimelineSchema = z.object({
 
 export const updateTimelineSchema = z.object({
   summary: z.string().min(1).max(5000).optional(),
+  details: z.string().max(20000).optional(),
   updateDate: z.string().datetime().optional(),
   sourceUrl: z.string().url().optional().nullable(),
   type: z.enum(['report', 'update']).optional(),

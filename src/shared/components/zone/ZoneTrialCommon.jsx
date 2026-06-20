@@ -26,6 +26,7 @@ import {
   Trash2,
   ChevronDown,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { format, formatDistanceToNowStrict, intervalToDuration } from 'date-fns';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
@@ -41,6 +42,7 @@ import { countSources, sourceCounts, sortPinned } from '@shared/components/incid
 import { Icons } from '@shared/components/incident-detail/IncidentIcons.jsx';
 import { ArticleCard, AdminNoteCard } from '@shared/components/incident-detail/SourceCards.jsx';
 import { XEmbed, ArchivedPost, ArchiveLightbox } from '@shared/components/incident-detail/XPostCompactList.jsx';
+import { VERIFICATION_CONFIG } from '@shared/constants.js';
 
 const ICON_MAP = {
   plane: Plane,
@@ -53,8 +55,60 @@ const ICON_MAP = {
   home: Home,
 };
 
-function defaultAvatar(name) {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'X')}&background=random&color=fff&size=64`;
+export const ALL_SOURCE_TYPES = [
+  { key: 'media', label: 'Media', icon: '🖼️' },
+  { key: 'x_post', label: 'X Post', icon: '𝕏' },
+  { key: 'news_article', label: 'News Article', icon: '📰' },
+  { key: 'admin_note', label: 'Admin Note', icon: '📝' },
+];
+
+export function detectSourceType(item) {
+  if (item.type === 'image' || item.type === 'video' || item.fileType != null) return 'media';
+  if (item.tweetUrl !== undefined) return 'x_post';
+  if (item.publisher !== undefined) return 'news_article';
+  if (item.text !== undefined) return 'admin_note';
+  return 'media';
+}
+
+export function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+export function calculatePolygonAreaKm2(ring) {
+  if (!ring || ring.length < 3) return 0;
+  const closed =
+    ring[ring.length - 1][0] === ring[0][0] && ring[ring.length - 1][1] === ring[0][1]
+      ? ring
+      : [...ring, ring[0]];
+  let area = 0;
+  for (let i = 0; i < closed.length - 1; i++) {
+    const [x1, y1] = closed[i];
+    const [x2, y2] = closed[i + 1];
+    area += x1 * y2 - x2 * y1;
+  }
+  return (Math.abs(area) / 2) * 111.32 * 111.32;
+}
+
+export function toDatetimeLocal(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const offset = d.getTimezoneOffset() * 60000;
+    const local = new Date(d.getTime() - offset);
+    return local.toISOString().slice(0, 16);
+  } catch {
+    return '';
+  }
+}
+
+export function fromDatetimeLocal(value) {
+  if (!value) return null;
+  return new Date(value).toISOString();
 }
 
 export function ZoneCategoryBadge({ name, color, icon = 'hexagon' }) {
@@ -121,6 +175,8 @@ export function useZoneTimeState(startDate, endDate) {
       remainingMs = start.getTime() - nowDate.getTime();
     } else if (state === 'expired' && end) {
       relative = `Expired ${formatDistanceToNowStrict(end, { addSuffix: true })}`;
+    } else if (state === 'expired' && start && end) {
+      relative = `Lasted ${formatDurationCompact(end.getTime() - start.getTime())}`;
     } else if (state === 'indefinite') {
       relative = 'Active · no scheduled end';
     } else if (end) {
@@ -131,13 +187,14 @@ export function useZoneTimeState(startDate, endDate) {
     }
 
     const totalMs = start && end ? end.getTime() - start.getTime() : null;
+    const durationMs = totalMs;
     const elapsedMs = start ? Math.max(0, nowDate.getTime() - start.getTime()) : null;
     let elapsedProgress = 0;
     let remainingProgress = 0;
 
     if (state === 'expired') {
       elapsedProgress = 100;
-      remainingProgress = 0;
+      remainingProgress = 100;
     } else if (state === 'upcoming') {
       elapsedProgress = 0;
       remainingProgress = 100;
@@ -151,7 +208,7 @@ export function useZoneTimeState(startDate, endDate) {
       remainingProgress = Math.min(100, Math.max(0, (remaining / totalMs) * 100));
     }
 
-    return { state, start, end, relative, remainingMs, elapsedMs, elapsedProgress, remainingProgress };
+    return { state, start, end, relative, remainingMs, elapsedMs, durationMs, elapsedProgress, remainingProgress };
   }, [startDate, endDate, now]);
 }
 
@@ -167,7 +224,7 @@ function formatDurationCompact(ms) {
 }
 
 export function EffectiveWindowMeter({ startDate, endDate, compact = false }) {
-  const { state, start, end, relative, remainingMs, remainingProgress } = useZoneTimeState(startDate, endDate);
+  const { state, start, end, remainingMs, durationMs, remainingProgress } = useZoneTimeState(startDate, endDate);
 
   const startLabel = start ? format(start, 'MMM d, h:mm a') : '—';
   const endLabel = end ? format(end, 'MMM d, h:mm a') : 'No expiry';
@@ -180,7 +237,7 @@ export function EffectiveWindowMeter({ startDate, endDate, compact = false }) {
       : '#6b7280';
 
   const statusLabel =
-    state === 'active' ? 'Active' : state === 'upcoming' ? 'Upcoming' : state === 'expired' ? 'Expired' : 'Indefinite';
+    state === 'active' ? 'Active' : state === 'upcoming' ? 'Upcoming' : state === 'expired' ? 'Finished' : 'Indefinite';
 
   const countdown =
     state === 'upcoming' ? (
@@ -190,9 +247,9 @@ export function EffectiveWindowMeter({ startDate, endDate, compact = false }) {
     ) : state === 'indefinite' ? (
       <span>Until further notice</span>
     ) : state === 'expired' ? (
-      <span>Ended</span>
+      <span>Lasted {formatDurationCompact(durationMs)}</span>
     ) : (
-      <span>{relative}</span>
+      <span>{format(start, 'MMM d, h:mm a')}</span>
     );
 
   return (
@@ -207,10 +264,7 @@ export function EffectiveWindowMeter({ startDate, endDate, compact = false }) {
             <span className="zone-meter__countdown">{countdown}</span>
           </div>
           <div className="zone-meter__track">
-            <div
-              className="zone-meter__fill"
-              style={{ width: `${remainingProgress}%`, background: color }}
-            />
+            <div className="zone-meter__fill" style={{ width: `${remainingProgress}%`, background: color }} />
           </div>
           <div className="zone-meter__dates">
             <span>{startLabel}</span>
@@ -240,7 +294,7 @@ export function ZoneNeonMap({
   pulseDuration = 6,
 }) {
   const uid = useId().replace(/:/g, '');
-  const ring = geometry?.coordinates?.[0];
+  const ring = Array.isArray(geometry?.coordinates?.[0]) ? geometry.coordinates[0] : null;
   const projection = useMemo(
     () => (ring ? buildPolygonSvgProjection(ring, width, height, padding) : null),
     [ring, width, height, padding]
@@ -393,7 +447,8 @@ export function PolygonMiniMap({ geometry, color = '#6366f1', title, large = fal
 }
 
 export function ZoneStatGrid({ areaSqM, perimeterM, geometry, radiusM, geometryType = 'polygon' }) {
-  const vertices = useMemo(() => countVertices(geometry?.coordinates?.[0]), [geometry]);
+  const ring = Array.isArray(geometry?.coordinates?.[0]) ? geometry.coordinates[0] : null;
+  const vertices = useMemo(() => countVertices(ring), [ring]);
   const isCircle = geometryType === 'circle' || radiusM != null;
   return (
     <div className="zone-stats-grid">
@@ -432,159 +487,39 @@ export function ZoneActions({ onFullDetails, onShare, onSave, isSaved }) {
   );
 }
 
-/* ───────────────── Evidence helpers ───────────────── */
+/* ───────────────── Featured items hook ───────────────── */
 
-export function toEvidenceSources(sourcesArray = []) {
-  const out = { media: [], x_post: [], news_article: [], admin_note: [] };
-  for (const s of sourcesArray) {
-    const base = { id: s.id || `${s.type}-${Math.random().toString(36).slice(2, 10)}`, pinned: !!s.pinned };
-    switch (s.type) {
-      case 'media':
-        out.media.push({
-          ...base,
-          type: 'image',
-          url: s.url || s.thumbnailUrl || '/uploads/test-static.webp',
-          caption: s.caption || '',
-        });
-        break;
-      case 'x_post':
-        out.x_post.push({
-          ...base,
-          tweetUrl: s.tweetUrl || 'https://x.com/jack/status/20',
-          text: s.text || '',
-          author: s.author || 'Unknown',
-          handle: s.handle || '',
-          authorAvatar: s.avatarUrl || defaultAvatar(s.author),
-          timestamp: s.timestamp || new Date().toISOString(),
-          archived: !!s.archived,
-          archiveUrl: s.archiveUrl,
-        });
-        break;
-      case 'official':
-      case 'news_article':
-        out.news_article.push({
-          ...base,
-          title: s.title || '',
-          publisher: s.publisher || '',
-          url: s.url || '#',
-        });
-        break;
-      case 'admin_note':
-        out.admin_note.push({
-          ...base,
-          author: s.author || 'Admin',
-          text: s.text || '',
-        });
-        break;
-      default:
-        break;
+export function useZoneFeaturedItems(timeline = []) {
+  const [featuredItems, setFeaturedItems] = useState(() => {
+    const map = {};
+    for (const ev of timeline) {
+      if (ev.featuredItem) {
+        map[ev.id] = {
+          sourceType: ev.featuredItem.sourceType,
+          sourceId: ev.featuredItem.sourceId || ev.featuredItem.itemId,
+        };
+      }
     }
-  }
-  return out;
-}
-
-export function buildEvidenceEvent(event) {
-  return { ...event, sources: toEvidenceSources(event.sources) };
-}
-
-function createEvidenceItem(type, fields) {
-  const id = `${type}-${Math.random().toString(36).slice(2, 10)}`;
-  switch (type) {
-    case 'media':
-      return { id, type: 'image', url: fields.url, caption: fields.caption || '', pinned: false };
-    case 'x_post':
-      return {
-        id,
-        tweetUrl: fields.tweetUrl || 'https://x.com/jack/status/20',
-        text: fields.text || '',
-        author: fields.author || 'Unknown',
-        handle: fields.handle || '',
-        authorAvatar: defaultAvatar(fields.author),
-        timestamp: new Date().toISOString(),
-        pinned: false,
-      };
-    case 'news_article':
-      return {
-        id,
-        title: fields.title || '',
-        publisher: fields.publisher || '',
-        url: fields.url || '#',
-        pinned: false,
-      };
-    case 'admin_note':
-      return { id, author: fields.author || 'Admin', text: fields.text || '', pinned: false };
-    default:
-      return null;
-  }
-}
-
-export function useZoneTrialEvents(initialEvents = []) {
-  const [events, setEvents] = useState(() => initialEvents.map(buildEvidenceEvent));
-  const [featuredItems, setFeaturedItems] = useState({});
+    return map;
+  });
 
   useEffect(() => {
-    setEvents(initialEvents.map(buildEvidenceEvent));
-    setFeaturedItems({});
-  }, [initialEvents]);
-
-  const updateEventSources = useCallback((eventId, updater) => {
-    setEvents((prev) =>
-      prev.map((ev) => (ev.id === eventId ? { ...ev, sources: updater(ev.sources) } : ev))
-    );
-  }, []);
-
-  const reset = useCallback((next = []) => {
-    setEvents(next.map(buildEvidenceEvent));
-    setFeaturedItems({});
-  }, []);
-
-  const editEvent = useCallback((eventId, patch) => {
-    setEvents((prev) =>
-      prev.map((ev) =>
-        ev.id === eventId
-          ? {
-              ...ev,
-              ...(patch.summary !== undefined && { summary: patch.summary }),
-              ...(patch.details !== undefined && { details: patch.details }),
-              ...(patch.type !== undefined && { type: patch.type }),
-              ...(patch.verificationStatus !== undefined && { verificationStatus: patch.verificationStatus }),
-              ...(patch.updateDate !== undefined && { updateDate: patch.updateDate }),
-            }
-          : ev
-      )
-    );
-  }, []);
-
-  const deleteEvent = useCallback((eventId) => {
-    setEvents((prev) => prev.filter((ev) => ev.id !== eventId));
-    setFeaturedItems((prev) => {
-      if (!prev[eventId]) return prev;
-      const next = { ...prev };
-      delete next[eventId];
-      return next;
-    });
-  }, []);
-
-  const pin = useCallback(
-    (eventId, sourceType, itemId, pinned) => {
-      updateEventSources(eventId, (sources) => ({
-        ...sources,
-        [sourceType]: sources[sourceType].map((item) =>
-          item.id === itemId ? { ...item, pinned } : item
-        ),
-      }));
-    },
-    [updateEventSources]
-  );
+    const map = {};
+    for (const ev of timeline) {
+      if (ev.featuredItem) {
+        map[ev.id] = {
+          sourceType: ev.featuredItem.sourceType,
+          sourceId: ev.featuredItem.sourceId || ev.featuredItem.itemId,
+        };
+      }
+    }
+    setFeaturedItems(map);
+  }, [timeline]);
 
   const feature = useCallback((eventId, { sourceType, sourceId }) => {
     setFeaturedItems((prev) => {
       const current = prev[eventId];
-      if (
-        current &&
-        current.sourceType === sourceType &&
-        (current.sourceId === sourceId || current.itemId === sourceId)
-      ) {
+      if (current && current.sourceType === sourceType && current.sourceId === sourceId) {
         const next = { ...prev };
         delete next[eventId];
         return next;
@@ -593,112 +528,10 @@ export function useZoneTrialEvents(initialEvents = []) {
     });
   }, []);
 
-  const clearFeature = useCallback((eventId) => {
-    setFeaturedItems((prev) => {
-      if (!prev[eventId]) return prev;
-      const next = { ...prev };
-      delete next[eventId];
-      return next;
-    });
-  }, []);
-
-  const deleteItem = useCallback(
-    (eventId, sourceType, itemId) => {
-      updateEventSources(eventId, (sources) => ({
-        ...sources,
-        [sourceType]: sources[sourceType].filter((item) => item.id !== itemId),
-      }));
-      setFeaturedItems((prev) => {
-        const current = prev[eventId];
-        if (
-          current &&
-          current.sourceType === sourceType &&
-          (current.sourceId === itemId || current.itemId === itemId)
-        ) {
-          const next = { ...prev };
-          delete next[eventId];
-          return next;
-        }
-        return prev;
-      });
-    },
-    [updateEventSources]
-  );
-
-  const add = useCallback(
-    (eventId, sourceType) => {
-      let fields = {};
-      if (sourceType === 'media') {
-        const url = window.prompt('Media URL:', 'https://images.unsplash.com/photo-1500320821405-8fc1732209ca?w=800');
-        if (!url) return;
-        const caption = window.prompt('Caption:') || '';
-        fields = { url, caption };
-      } else if (sourceType === 'x_post') {
-        const tweetUrl = window.prompt('Tweet URL:', 'https://x.com/jack/status/20');
-        if (!tweetUrl) return;
-        const text = window.prompt('Post text:') || '';
-        const author = window.prompt('Author name:') || 'Unknown';
-        const handle = window.prompt('Handle (e.g. @account):') || '';
-        fields = { tweetUrl, text, author, handle };
-      } else if (sourceType === 'news_article') {
-        const title = window.prompt('Article title:');
-        if (!title) return;
-        const publisher = window.prompt('Publisher:') || '';
-        const url = window.prompt('Article URL:') || '#';
-        fields = { title, publisher, url };
-      } else if (sourceType === 'admin_note') {
-        const author = window.prompt('Author:') || 'Admin';
-        const text = window.prompt('Note text:');
-        if (!text) return;
-        fields = { author, text };
-      }
-      const item = createEvidenceItem(sourceType, fields);
-      if (!item) return;
-      updateEventSources(eventId, (sources) => ({
-        ...sources,
-        [sourceType]: [...sources[sourceType], item],
-      }));
-    },
-    [updateEventSources]
-  );
-
-  const edit = useCallback(
-    (eventId, sourceType, item) => {
-      let next = { ...item };
-      if (sourceType === 'media') {
-        const url = window.prompt('Media URL:', item.url);
-        if (url === null) return;
-        const caption = window.prompt('Caption:', item.caption || '') || '';
-        next = { ...item, url, caption };
-      } else if (sourceType === 'x_post') {
-        const tweetUrl = window.prompt('Tweet URL:', item.tweetUrl);
-        if (tweetUrl === null) return;
-        const text = window.prompt('Post text:', item.text) || '';
-        const author = window.prompt('Author name:', item.author) || 'Unknown';
-        const handle = window.prompt('Handle:', item.handle) || '';
-        next = { ...item, tweetUrl, text, author, handle };
-      } else if (sourceType === 'news_article') {
-        const title = window.prompt('Article title:', item.title);
-        if (title === null) return;
-        const publisher = window.prompt('Publisher:', item.publisher) || '';
-        const url = window.prompt('Article URL:', item.url) || '#';
-        next = { ...item, title, publisher, url };
-      } else if (sourceType === 'admin_note') {
-        const author = window.prompt('Author:', item.author) || 'Admin';
-        const text = window.prompt('Note text:', item.text);
-        if (text === null) return;
-        next = { ...item, author, text };
-      }
-      updateEventSources(eventId, (sources) => ({
-        ...sources,
-        [sourceType]: sources[sourceType].map((x) => (x.id === item.id ? next : x)),
-      }));
-    },
-    [updateEventSources]
-  );
-
-  return { events, featuredItems, reset, pin, feature, clearFeature, deleteItem, add, edit, editEvent, deleteEvent };
+  return { featuredItems, feature };
 }
+
+/* ───────────────── Timeline event ───────────────── */
 
 export function findFeaturedItem(sources, featuredItem) {
   if (!featuredItem) return null;
@@ -827,7 +660,7 @@ function ZoneTwitterMediaGrid({ sources, onMediaClick, onOpenDrawer }) {
   );
 }
 
-function ZoneFeaturedSection({ event, featuredItem, onMediaClick, onClearFeature, isAdmin, onOpenDrawer }) {
+function ZoneFeaturedSection({ event, featuredItem, onMediaClick, onFeature, isAdmin, onOpenDrawer }) {
   const featured = findFeaturedItem(event.sources, featuredItem);
   const [archivedLightbox, setArchivedLightbox] = useState(null);
   if (!featured) return null;
@@ -853,7 +686,7 @@ function ZoneFeaturedSection({ event, featuredItem, onMediaClick, onClearFeature
                 className="id-featured-block__remove"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onClearFeature?.();
+                  onFeature?.(event.id, { sourceType: featured.sourceType, sourceId: featured.item.id });
                 }}
               >
                 Remove
@@ -895,13 +728,13 @@ export function TimelineEvent({
   isLast,
   onOpenEvidence,
   featuredItem,
-  onClearFeature,
-  isAdmin = true,
+  isAdmin = false,
   variant = 'sidebar',
   isActive = false,
   onEditUpdate,
   onDeleteUpdate,
   onVerificationChange,
+  onFeature,
 }) {
   const total = countSources(event.sources);
   const featured = useMemo(
@@ -937,17 +770,11 @@ export function TimelineEvent({
         } ${isRail ? 'zone-timeline-event--rail' : ''}`}
         onClick={() => onOpenEvidence?.(event)}
       >
-        {isRail && isAdmin && (
+        {isAdmin && (
           <div className="zone-timeline-event__top">
             <div className="zone-timeline-event__meta">
               <span className="zone-timeline-event__type">
-                {event.type === 'initial'
-                  ? 'Initial report'
-                  : event.type === 'update'
-                  ? 'Update'
-                  : event.type
-                  ? event.type.charAt(0).toUpperCase() + event.type.slice(1)
-                  : 'Update'}
+                {event.type === 'report' || event.type === 'initial' ? 'Initial report' : 'Update'}
               </span>
               <span className="zone-timeline-event__date">
                 <Calendar size={12} />
@@ -996,12 +823,13 @@ export function TimelineEvent({
           </div>
         )}
 
-        {!isRail && (
+        {!isAdmin && (
           <div className="zone-timeline-event__date">
             <Calendar size={12} />
             {format(new Date(event.updateDate), 'MMM d, h:mm a')}
           </div>
         )}
+
         <h3 className="zone-timeline-event__title">{event.summary}</h3>
         <p className="zone-timeline-event__text">{event.details}</p>
 
@@ -1010,7 +838,7 @@ export function TimelineEvent({
             event={event}
             featuredItem={featuredItem}
             onMediaClick={(items, idx) => setLightbox({ items, idx })}
-            onClearFeature={() => onClearFeature?.(event.id)}
+            onFeature={onFeature}
             isAdmin={isAdmin}
             onOpenDrawer={onOpenEvidence}
           />
@@ -1031,73 +859,9 @@ export function TimelineEvent({
       </div>
       {lightbox && <Lightbox items={lightbox.items} startIndex={lightbox.idx} onClose={() => setLightbox(null)} />}
       {editUpdate && (
-        <UpdateFormModal
-          update={event}
-          onClose={() => setEditUpdate(false)}
-          onSave={handleSaveUpdate}
-        />
+        <UpdateFormModal update={event} onClose={() => setEditUpdate(false)} onSave={handleSaveUpdate} />
       )}
     </div>
-  );
-}
-
-/* ───────────────── Evidence drawer / modal ───────────────── */
-
-function ZoneEvidenceView({ event, featuredItem, onPin, onFeature, onDelete, onAdd, onEdit, wideCarousel }) {
-  const [activeTab, setActiveTab] = useState('all');
-  const [lightbox, setLightbox] = useState(null);
-  const [sourceModal, setSourceModal] = useState(null);
-
-  const handleAddEvidence = (eventId, sourceType) => {
-    setSourceModal({ eventId, sourceType });
-  };
-
-  const handleEditEvidence = (eventId, sourceType, item) => {
-    setSourceModal({ eventId, sourceType, item });
-  };
-
-  const handleSaveSource = (itemOrItems) => {
-    if (!sourceModal) return;
-    const { eventId, sourceType, item } = sourceModal;
-    if (item) {
-      onEdit?.(eventId, sourceType, Array.isArray(itemOrItems) ? itemOrItems[0] : itemOrItems);
-    } else {
-      onAdd?.(eventId, sourceType, itemOrItems);
-    }
-    setSourceModal(null);
-  };
-
-  return (
-    <>
-      <div className="zone-evidence-view">
-        <EvidenceBundle
-          event={event}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onMediaClick={(items, idx) => setLightbox({ items, idx })}
-          mode="admin"
-          onAddEvidence={handleAddEvidence}
-          onEditEvidence={handleEditEvidence}
-          onDeleteEvidence={onDelete}
-          onPinEvidence={onPin}
-          onFeatureEvidence={onFeature}
-          featuredItem={featuredItem}
-          mediaItemWidth={wideCarousel ? null : 300}
-          mediaLayout={wideCarousel ? 'carousel' : 'grid'}
-        />
-      </div>
-      {lightbox && (
-        <Lightbox items={lightbox.items} startIndex={lightbox.idx} onClose={() => setLightbox(null)} />
-      )}
-      {sourceModal && (
-        <ZoneSourceModal
-          type={sourceModal.sourceType}
-          item={sourceModal.item}
-          onClose={() => setSourceModal(null)}
-          onSave={handleSaveSource}
-        />
-      )}
-    </>
   );
 }
 
@@ -1113,7 +877,9 @@ export function ZoneEvidenceRail({
   onDelete,
   onAdd,
   onEdit,
-  onClearFeature,
+  onCheck,
+  onEditUpdate,
+  onDeleteUpdate,
 }) {
   const total = countSources(event.sources);
   const featured = findFeaturedItem(event.sources, featuredItem);
@@ -1139,7 +905,7 @@ export function ZoneEvidenceRail({
               <button
                 type="button"
                 className="id-featured-block__remove"
-                onClick={() => onClearFeature?.(event.id)}
+                onClick={() => onFeature?.(event.id, { sourceType: featured.sourceType, sourceId: featured.item.id })}
               >
                 Remove
               </button>
@@ -1162,7 +928,11 @@ export function ZoneEvidenceRail({
           onDelete={onDelete}
           onAdd={onAdd}
           onEdit={onEdit}
+          onCheck={onCheck}
+          onEditUpdate={onEditUpdate}
+          onDeleteUpdate={onDeleteUpdate}
           wideCarousel
+          showUpdateHeader={false}
         />
 
         <div className="zone-evidence-rail__nav">
@@ -1179,7 +949,473 @@ export function ZoneEvidenceRail({
   );
 }
 
-export function ZoneEvidenceDrawer({ event, featuredItem, onClose, ...actions }) {
+/* ───────────────── Evidence source modal (add / edit) ───────────────── */
+
+export function ZoneSourceModal({ type, item, onClose, onSave }) {
+  const isEdit = !!item;
+  const [form, setForm] = useState(() => sourceDefaults(type, item));
+  const [mediaMode, setMediaMode] = useState(isEdit ? 'url' : 'file');
+  const [fileItems, setFileItems] = useState([]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const patch = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const switchBtn = (key, label) => (
+    <button
+      type="button"
+      className={`zone-create-switch ${mediaMode === key ? 'zone-create-switch--active' : ''}`}
+      onClick={() => setMediaMode(key)}
+    >
+      {label}
+    </button>
+  );
+
+  const handleMediaFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const items = await Promise.all(
+      files.map(async (file) => ({
+        dataUrl: await readFileAsDataUrl(file),
+        name: file.name,
+        caption: file.name.replace(/\.[^/.]+$/, ''),
+      }))
+    );
+    setFileItems(items);
+  };
+
+  const updateFileCaption = (idx, caption) => {
+    setFileItems((prev) => prev.map((it, i) => (i === idx ? { ...it, caption } : it)));
+  };
+
+  const handleSave = () => {
+    if (type === 'media' && !isEdit && mediaMode === 'file') {
+      const newItems = fileItems.map((it) => ({
+        type: 'image',
+        url: it.dataUrl,
+        caption: it.caption,
+        name: it.name,
+        pinned: false,
+      }));
+      onSave(newItems);
+      return;
+    }
+    onSave(form);
+  };
+
+  const fields = {
+    media: (
+      <>
+        {!isEdit && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            {switchBtn('file', 'Upload files')}
+            {switchBtn('url', 'Image URL')}
+          </div>
+        )}
+        {isEdit || mediaMode === 'url' ? (
+          <>
+            <ZoneCreateField label="Image URL">
+              <input
+                className="zone-create-input"
+                type="text"
+                value={form.url || ''}
+                onChange={(e) => patch('url', e.target.value)}
+                placeholder="https://..."
+              />
+            </ZoneCreateField>
+            <ZoneCreateField label="Caption">
+              <input
+                className="zone-create-input"
+                type="text"
+                value={form.caption || ''}
+                onChange={(e) => patch('caption', e.target.value)}
+              />
+            </ZoneCreateField>
+          </>
+        ) : (
+          <>
+            <input
+              className="zone-create-input"
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaFiles}
+            />
+            {fileItems.length > 0 && (
+              <>
+                <div className="zone-create-file-summary">
+                  <span className="zone-create-file-summary__badge">✎</span>
+                  {fileItems.length} file{fileItems.length > 1 ? 's' : ''} selected. Add or edit captions below.
+                </div>
+                <div className="zone-create-file-grid">
+                  {fileItems.map((it, idx) => (
+                    <div key={idx} className="zone-create-file-card">
+                      <img src={it.dataUrl} alt={it.name} />
+                      <div className="zone-create-file-card__body">
+                        <label className="zone-create-file-card__label">✎ Caption</label>
+                        <input
+                          type="text"
+                          value={it.caption}
+                          onChange={(e) => updateFileCaption(idx, e.target.value)}
+                          placeholder="Write a caption…"
+                          className="zone-create-file-card__input"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </>
+    ),
+    x_post: (
+      <ZoneCreateField label="Tweet URL">
+        <input
+          className="zone-create-input"
+          type="text"
+          value={form.tweetUrl || ''}
+          onChange={(e) => patch('tweetUrl', e.target.value)}
+          placeholder="https://x.com/..."
+        />
+      </ZoneCreateField>
+    ),
+    news_article: (
+      <>
+        <ZoneCreateField label="Title">
+          <input
+            className="zone-create-input"
+            type="text"
+            value={form.title || ''}
+            onChange={(e) => patch('title', e.target.value)}
+          />
+        </ZoneCreateField>
+        <ZoneCreateField label="Publisher">
+          <input
+            className="zone-create-input"
+            type="text"
+            value={form.publisher || ''}
+            onChange={(e) => patch('publisher', e.target.value)}
+          />
+        </ZoneCreateField>
+        <ZoneCreateField label="URL">
+          <input
+            className="zone-create-input"
+            type="text"
+            value={form.url || ''}
+            onChange={(e) => patch('url', e.target.value)}
+            placeholder="https://..."
+          />
+        </ZoneCreateField>
+      </>
+    ),
+    admin_note: (
+      <ZoneCreateField label="Note">
+        <textarea
+          className="zone-create-input zone-create-input--textarea"
+          value={form.text || ''}
+          onChange={(e) => patch('text', e.target.value)}
+        />
+      </ZoneCreateField>
+    ),
+  };
+
+  const label = ALL_SOURCE_TYPES.find((t) => t.key === type)?.label || 'Source';
+  const canSubmit = type !== 'media' || isEdit || mediaMode === 'url' || fileItems.length > 0;
+
+  const modal = (
+    <div className="zone-modal-overlay" onClick={onClose}>
+      <div className="zone-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="zone-modal__header">
+          <h3 className="zone-modal__title">{isEdit ? 'Edit' : 'Add'} {label}</h3>
+          <button type="button" className="zone-modal__close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="zone-modal__body">{fields[type]}</div>
+        <div className="zone-modal__footer">
+          <button type="button" className="zone-create-btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="zone-create-btn zone-create-btn--primary"
+            onClick={handleSave}
+            disabled={!canSubmit}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
+}
+
+function sourceDefaults(type, item) {
+  if (item) return { ...item };
+  switch (type) {
+    case 'media':
+      return { url: '', caption: '', name: '', fileType: 'image' };
+    case 'x_post':
+      return { tweetUrl: '', text: '', author: '', handle: '' };
+    case 'news_article':
+      return { title: '', publisher: '', url: '' };
+    case 'admin_note':
+      return { author: 'Admin', text: '' };
+    default:
+      return {};
+  }
+}
+
+/* ───────────────── Update form modal ───────────────── */
+
+export function UpdateFormModal({ update, onClose, onSave }) {
+  const isEdit = !!update;
+  const [summary, setSummary] = useState(update?.summary || '');
+  const [details, setDetails] = useState(update?.details || '');
+  const [timestamp, setTimestamp] = useState(
+    toDatetimeLocal(update?.updateDate || new Date().toISOString())
+  );
+  const [type, setType] = useState(update?.type || 'update');
+  const [verification, setVerification] = useState(update?.verificationStatus || 'unverified');
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleSave = () => {
+    onSave({
+      summary: summary.trim(),
+      details: details.trim(),
+      timestamp: fromDatetimeLocal(timestamp) || new Date().toISOString(),
+      type,
+      verification,
+    });
+  };
+
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, []);
+
+  const modal = (
+    <div className="zone-modal-overlay" onClick={onClose}>
+      <div className="zone-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="zone-modal__header">
+          <h3 className="zone-modal__title">{isEdit ? 'Edit update' : 'Add update'}</h3>
+          <button type="button" className="zone-modal__close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="zone-modal__body">
+          <ZoneCreateField label="Summary">
+            <input
+              className="zone-create-input"
+              type="text"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder="Short update headline"
+            />
+          </ZoneCreateField>
+          <ZoneCreateField label="Details">
+            <textarea
+              className="zone-create-input zone-create-input--textarea"
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              placeholder="Update details..."
+            />
+          </ZoneCreateField>
+          <div className="zone-create-row">
+            <ZoneCreateField label="Timestamp">
+              <input
+                className="zone-create-input"
+                type="datetime-local"
+                value={timestamp}
+                onChange={(e) => setTimestamp(e.target.value)}
+              />
+            </ZoneCreateField>
+            <ZoneCreateField label="Type">
+              <select className="zone-create-input" value={type} onChange={(e) => setType(e.target.value)}>
+                <option value="update">Update</option>
+                <option value="report">Report</option>
+              </select>
+            </ZoneCreateField>
+          </div>
+          <ZoneCreateField label="Verification">
+            <select
+              className="zone-create-input"
+              value={verification}
+              onChange={(e) => setVerification(e.target.value)}
+            >
+              {Object.entries(VERIFICATION_CONFIG).map(([key, cfg]) => (
+                <option key={key} value={key}>
+                  {cfg.label}
+                </option>
+              ))}
+            </select>
+          </ZoneCreateField>
+        </div>
+        <div className="zone-modal__footer">
+          <button type="button" className="zone-create-btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="zone-create-btn zone-create-btn--primary"
+            onClick={handleSave}
+            disabled={!summary.trim()}
+          >
+            {isEdit ? 'Save changes' : 'Add update'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
+}
+
+/* ───────────────── Evidence view / drawer / modal ───────────────── */
+
+function ZoneEvidenceView({
+  event,
+  featuredItem,
+  onClose,
+  onPin,
+  onFeature,
+  onDelete,
+  onAdd,
+  onEdit,
+  onCheck,
+  onEditUpdate,
+  onDeleteUpdate,
+  wideCarousel,
+  showUpdateHeader = true,
+}) {
+  const [activeTab, setActiveTab] = useState('all');
+  const [lightbox, setLightbox] = useState(null);
+  const [sourceModal, setSourceModal] = useState(null);
+  const [updateModal, setUpdateModal] = useState(false);
+
+  const handleAdd = (eventId, sourceType) => {
+    setSourceModal({ eventId, sourceType });
+  };
+
+  const handleEdit = (eventId, sourceType, item) => {
+    setSourceModal({ eventId, sourceType, item });
+  };
+
+  const handleSaveSource = (itemOrItems) => {
+    if (!sourceModal) return;
+    const { eventId, sourceType, item } = sourceModal;
+    if (item) {
+      onEdit?.(eventId, sourceType, Array.isArray(itemOrItems) ? itemOrItems[0] : itemOrItems);
+    } else {
+      onAdd?.(eventId, sourceType, itemOrItems);
+    }
+    setSourceModal(null);
+  };
+
+  const handleSaveUpdate = (form) => {
+    onEditUpdate?.(event.id, form);
+    setUpdateModal(false);
+  };
+
+  const handleDeleteUpdate = () => {
+    if (window.confirm('Delete this update? This cannot be undone.')) {
+      onDeleteUpdate?.(event.id);
+      onClose?.();
+    }
+  };
+
+  return (
+    <>
+      <div className="zone-evidence-view">
+        {showUpdateHeader && (
+          <div className="zone-update-header">
+            <div className="zone-update-header__meta">
+              <span className="zone-update-header__date">
+                {format(new Date(event.updateDate), 'MMM d, h:mm a')}
+              </span>
+              <h4 className="zone-update-header__title">{event.summary || 'Update'}</h4>
+            </div>
+            {(onEditUpdate || onDeleteUpdate) && (
+              <div className="zone-update-header__actions">
+                {onEditUpdate && (
+                  <button type="button" className="zone-btn zone-btn--small" onClick={() => setUpdateModal(true)}>
+                    Edit update
+                  </button>
+                )}
+                {onDeleteUpdate && (
+                  <button
+                    type="button"
+                    className="zone-btn zone-btn--small zone-btn--danger"
+                    onClick={handleDeleteUpdate}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        <EvidenceBundle
+          event={event}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onMediaClick={(items, idx) => setLightbox({ items, idx })}
+          mode="admin"
+          onAddEvidence={handleAdd}
+          onEditEvidence={handleEdit}
+          onDeleteEvidence={onDelete}
+          onPinEvidence={onPin}
+          onFeatureEvidence={onFeature}
+          onAutoCheck={onCheck}
+          featuredItem={featuredItem}
+          mediaItemWidth={wideCarousel ? null : 300}
+        />
+      </div>
+      {lightbox && <Lightbox items={lightbox.items} startIndex={lightbox.idx} onClose={() => setLightbox(null)} />}
+      {sourceModal && (
+        <ZoneSourceModal
+          type={sourceModal.sourceType}
+          item={sourceModal.item}
+          onClose={() => setSourceModal(null)}
+          onSave={handleSaveSource}
+        />
+      )}
+      {updateModal && (
+        <UpdateFormModal update={event} onClose={() => setUpdateModal(false)} onSave={handleSaveUpdate} />
+      )}
+    </>
+  );
+}
+
+export function ZoneEvidenceDrawer({
+  event,
+  featuredItem,
+  onClose,
+  onEditUpdate,
+  onDeleteUpdate,
+  ...actions
+}) {
+  const handleClose = () => onClose?.();
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -1191,20 +1427,36 @@ export function ZoneEvidenceDrawer({ event, featuredItem, onClose, ...actions })
     <div className="zone-drawer-overlay" onClick={onClose}>
       <div className="zone-drawer" onClick={(e) => e.stopPropagation()}>
         <div className="zone-drawer__header">
-          <h3 className="zone-drawer__title">Evidence & sources</h3>
+          <h3 className="zone-drawer__title">Update & evidence</h3>
           <button className="zone-drawer__close" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
         <div className="zone-drawer__body">
-          <ZoneEvidenceView event={event} featuredItem={featuredItem} wideCarousel {...actions} />
+          <ZoneEvidenceView
+            event={event}
+            featuredItem={featuredItem}
+            onClose={handleClose}
+            onEditUpdate={onEditUpdate}
+            onDeleteUpdate={onDeleteUpdate}
+            wideCarousel
+            {...actions}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-export function ZoneEvidenceModal({ event, featuredItem, onClose, ...actions }) {
+export function ZoneEvidenceModal({
+  event,
+  featuredItem,
+  onClose,
+  onEditUpdate,
+  onDeleteUpdate,
+  ...actions
+}) {
+  const handleClose = () => onClose?.();
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -1216,17 +1468,103 @@ export function ZoneEvidenceModal({ event, featuredItem, onClose, ...actions }) 
     <div className="zone-modal-overlay" onClick={onClose}>
       <div className="zone-modal zone-modal--evidence" onClick={(e) => e.stopPropagation()}>
         <div className="zone-modal__header">
-          <h3 className="zone-modal__title">Sources & evidence</h3>
+          <h3 className="zone-modal__title">Update & evidence</h3>
           <button className="zone-modal__close" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
         <div className="zone-modal__body">
-          <ZoneEvidenceView event={event} featuredItem={featuredItem} wideCarousel {...actions} />
+          <ZoneEvidenceView
+            event={event}
+            featuredItem={featuredItem}
+            onClose={handleClose}
+            onEditUpdate={onEditUpdate}
+            onDeleteUpdate={onDeleteUpdate}
+            wideCarousel
+            {...actions}
+          />
         </div>
       </div>
     </div>
   );
 }
 
+/* ───────────────── Shared small helpers for create sidebar ───────────────── */
+
+export function ZoneCreateField({ label, children, hint }) {
+  return (
+    <div className="zone-create-field">
+      <label className="zone-create-field__label">{label}</label>
+      {children}
+      {hint && <p className="zone-create-field__hint">{hint}</p>}
+    </div>
+  );
+}
+
+export function ZoneCreateSection({ title, children }) {
+  return (
+    <div className="zone-create-section">
+      {title && (
+        <div className="zone-create-section__header">
+          <div className="zone-create-section__accent" />
+          <h4 className="zone-create-section__title">{title}</h4>
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+export function ZoneSourceListItem({ item, onEdit, onDelete }) {
+  const type = detectSourceType(item);
+  const meta = ALL_SOURCE_TYPES.find((t) => t.key === type) || ALL_SOURCE_TYPES[3];
+
+  let preview = null;
+  if (type === 'media') {
+    preview = (
+      <div className="zone-source-item__preview">
+        <img src={item.url} alt={item.caption} />
+        <span>{item.caption || item.name || 'Untitled media'}</span>
+      </div>
+    );
+  } else if (type === 'x_post') {
+    preview = <span className="zone-source-item__text">{item.tweetUrl || 'X post'}</span>;
+  } else if (type === 'news_article') {
+    preview = (
+      <div className="zone-source-item__preview zone-source-item__preview--stack">
+        <span className="zone-source-item__title">{item.title || 'Untitled article'}</span>
+        <span className="zone-source-item__text">{item.publisher || item.url || 'Unknown publisher'}</span>
+      </div>
+    );
+  } else {
+    preview = (
+      <div className="zone-source-item__preview zone-source-item__preview--stack">
+        {item.author && <span className="zone-source-item__title">{item.author}</span>}
+        <span className="zone-source-item__text">{item.text || 'Empty note'}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="zone-source-item">
+      <div className="zone-source-item__header">
+        <span className="zone-source-item__type">
+          <span>{meta.icon}</span>
+          {meta.label}
+        </span>
+        <div className="zone-source-item__actions">
+          <button type="button" className="zone-source-item__action" onClick={onEdit}>
+            Edit
+          </button>
+          <button type="button" className="zone-source-item__action zone-source-item__action--danger" onClick={onDelete}>
+            Delete
+          </button>
+        </div>
+      </div>
+      {preview}
+    </div>
+  );
+}
+
 export { ArrowLeft, MapPin, Calendar, Ruler };
+export { countVertices, formatArea, formatLength };

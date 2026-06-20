@@ -160,6 +160,21 @@ export const MOCK_TIMELINE = [
         title: 'CAA issues NOTAM for Karachi airspace',
         publisher: 'Dawn News',
       }),
+      buildSource('x_post', {
+        author: 'CAA Pakistan',
+        handle: '@PakistanCAA',
+        text: 'NOTAM A1234/25 is now active for Karachi FIR. Pilots should review the full coordinates before filing.',
+        tweetUrl: 'https://x.com/War_Analysts/status/2068052573756559571',
+      }),
+      buildSource('media', {
+        url: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1200&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&q=60',
+        caption: 'Aircraft on approach to Karachi',
+      }),
+      buildSource('admin_note', {
+        author: 'Ops Desk',
+        text: 'Restriction verified through direct coordination with airport operations.',
+      }),
     ],
   },
   {
@@ -181,10 +196,16 @@ export const MOCK_TIMELINE = [
         author: 'CAA Pakistan',
         handle: '@PakistanCAA',
         text: 'NOTAM A1234/25 extended by 24 hours. Pilots are advised to review coordinates before filing flight plans.',
+        tweetUrl: 'https://x.com/War_Analysts/status/2068052573756559571',
       }),
       buildSource('admin_note', {
         author: 'Ops Desk',
         text: 'Extension confirmed via AIS hotline at 11:30 local.',
+      }),
+      buildSource('media', {
+        url: 'https://images.unsplash.com/photo-1500320821405-8fc1732209ca?w=1200&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1500320821405-8fc1732209ca?w=400&q=60',
+        caption: 'Aerial view of the restricted zone',
       }),
     ],
   },
@@ -203,6 +224,8 @@ export const MOCK_TIMELINE = [
         publisher: 'Geo News',
       }),
       buildSource('media', {
+        url: 'https://images.unsplash.com/photo-1590073242678-cfea53343f1e?w=1200&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1590073242678-cfea53343f1e?w=400&q=60',
         caption: 'Security checkpoint near airport approach',
       }),
     ],

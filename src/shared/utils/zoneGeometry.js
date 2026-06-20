@@ -119,13 +119,50 @@ export function ringArea(ring) {
   return Math.abs(area) / 2;
 }
 
+function averageLatitude(ring) {
+  if (!ring || ring.length === 0) return 0;
+  let sum = 0;
+  for (const [, lat] of ring) sum += lat;
+  return sum / ring.length;
+}
+
+export function estimatePolygonAreaSqM(ring) {
+  if (!Array.isArray(ring) || ring.length < 3) return null;
+  const lat = averageLatitude(ring);
+  const metersPerDegLat = 111132.92 - 559.82 * Math.cos(2 * lat * (Math.PI / 180)) + 1.175 * Math.cos(4 * lat * (Math.PI / 180));
+  const metersPerDegLng = 111412.84 * Math.cos(lat * (Math.PI / 180)) - 93.5 * Math.cos(3 * lat * (Math.PI / 180));
+  let area = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[(i + 1) % ring.length];
+    area += (x1 * metersPerDegLng) * (y2 * metersPerDegLat) - (x2 * metersPerDegLng) * (y1 * metersPerDegLat);
+  }
+  return Math.abs(area) / 2;
+}
+
+export function estimatePolygonPerimeterM(ring) {
+  if (!Array.isArray(ring) || ring.length < 2) return null;
+  const lat = averageLatitude(ring);
+  const metersPerDegLat = 111132.92 - 559.82 * Math.cos(2 * lat * (Math.PI / 180)) + 1.175 * Math.cos(4 * lat * (Math.PI / 180));
+  const metersPerDegLng = 111412.84 * Math.cos(lat * (Math.PI / 180)) - 93.5 * Math.cos(3 * lat * (Math.PI / 180));
+  let perimeter = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[(i + 1) % ring.length];
+    const dx = (x2 - x1) * metersPerDegLng;
+    const dy = (y2 - y1) * metersPerDegLat;
+    perimeter += Math.sqrt(dx * dx + dy * dy);
+  }
+  return perimeter;
+}
+
 export function smallestZoneFeature(features) {
   if (!features || features.length === 0) return null;
   let smallest = features[0];
   let smallestArea = Infinity;
   features.forEach((feature) => {
     const ring = feature.geometry?.coordinates?.[0];
-    if (!ring) return;
+    if (!Array.isArray(ring)) return;
     const area = ringArea(ring);
     if (area < smallestArea) {
       smallestArea = area;
@@ -140,7 +177,7 @@ export function smallestZoneFeature(features) {
  * Returns an SVG path data string, or null if the geometry is invalid.
  */
 export function buildZoneScreenPath(mapInstance, geometry) {
-  if (!geometry?.coordinates?.[0]?.length) return null;
+  if (!Array.isArray(geometry?.coordinates?.[0])) return null;
   const ring = geometry.coordinates[0];
   const points = ring.map((coord) => {
     const p = mapInstance.project(coord);

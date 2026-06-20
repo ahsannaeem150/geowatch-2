@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Icons, SOURCE_TYPE_ICONS, SOURCE_TYPE_LABELS } from './IncidentIcons.jsx';
 import { sortPinned, countSources, sourceCounts } from './IncidentUtils.js';
-import { AdminMediaThumb, MediaThumb, EditableArticleCard, EditableAdminNoteCard, ArticleCard, AdminNoteCard } from './SourceCards.jsx';
+import { AdminMediaThumb, MediaThumb, MediaGrid, EditableArticleCard, EditableAdminNoteCard, ArticleCard, AdminNoteCard } from './SourceCards.jsx';
 import XPostCompactList from './XPostCompactList.jsx';
 
 function Carousel({ items, renderItem, itemWidth, gap = 10, keyboard = true }) {
@@ -92,6 +92,8 @@ export default function EvidenceBundle({
   onCheckSource,
   onAutoCheck,
   featuredItem,
+  mediaItemWidth = 300,
+  mediaLayout = 'carousel',
 }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const sources = event.sources || {};
@@ -173,26 +175,51 @@ export default function EvidenceBundle({
       <div className="id-evidence-section" key={type}>
         <SectionTitle type={type} title={title} count={items.length} featured={hasFeatured} pinned={hasPinned} />
         {type === 'media' ? (
-          <Carousel
-            items={items}
-            itemWidth={300}
-            gap={12}
-            renderItem={(item) =>
-              isAdmin ? (
-                <AdminMediaThumb
-                  item={item}
-                  onClick={() => onMediaClick?.(items, items.indexOf(item))}
-                  onEdit={() => onEditEvidence?.(event.id, 'media', item)}
-                  onDelete={() => onDeleteEvidence?.(event.id, 'media', item.id)}
-                  onPin={() => onPinEvidence?.(event.id, 'media', item.id, !item.pinned)}
-                  onFeature={() => onFeatureEvidence?.(event.id, { sourceType: 'media', sourceId: item.id })}
-                  featured={isFeatured('media', item)}
-                />
-              ) : (
-                <MediaThumb item={item} onClick={() => onMediaClick?.(items, items.indexOf(item))} carousel />
-              )
-            }
-          />
+          mediaLayout === 'grid' ? (
+            <div className="id-media-grid">
+              {items.map((item) =>
+                isAdmin ? (
+                  <AdminMediaThumb
+                    key={item.id}
+                    item={item}
+                    onClick={() => onMediaClick?.(items, items.indexOf(item))}
+                    onEdit={() => onEditEvidence?.(event.id, 'media', item)}
+                    onDelete={() => onDeleteEvidence?.(event.id, 'media', item.id)}
+                    onPin={() => onPinEvidence?.(event.id, 'media', item.id, !item.pinned)}
+                    onFeature={() => onFeatureEvidence?.(event.id, { sourceType: 'media', sourceId: item.id })}
+                    featured={isFeatured('media', item)}
+                  />
+                ) : (
+                  <MediaThumb
+                    key={item.id}
+                    item={item}
+                    onClick={() => onMediaClick?.(items, items.indexOf(item))}
+                  />
+                )
+              )}
+            </div>
+          ) : (
+            <Carousel
+              items={items}
+              itemWidth={mediaItemWidth}
+              gap={12}
+              renderItem={(item) =>
+                isAdmin ? (
+                  <AdminMediaThumb
+                    item={item}
+                    onClick={() => onMediaClick?.(items, items.indexOf(item))}
+                    onEdit={() => onEditEvidence?.(event.id, 'media', item)}
+                    onDelete={() => onDeleteEvidence?.(event.id, 'media', item.id)}
+                    onPin={() => onPinEvidence?.(event.id, 'media', item.id, !item.pinned)}
+                    onFeature={() => onFeatureEvidence?.(event.id, { sourceType: 'media', sourceId: item.id })}
+                    featured={isFeatured('media', item)}
+                  />
+                ) : (
+                  <MediaThumb item={item} onClick={() => onMediaClick?.(items, items.indexOf(item))} carousel />
+                )
+              }
+            />
+          )
         ) : type === 'x_post' ? (
           <XPostCompactList
             posts={items}

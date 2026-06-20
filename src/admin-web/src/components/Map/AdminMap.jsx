@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { useTheme } from '@shared/useTheme.js';
 import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
@@ -904,6 +904,8 @@ const AdminMap = forwardRef(function AdminMap({
     const onClick = (e) => {
       // Skip zone clicks when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) return;
+      // Ignore clicks that originated on a point marker so incidents inside zones open first
+      if (e.originalEvent?.target?.closest('.maplibregl-marker')) return;
       if (!layersReady()) return;
       let features = [];
       try {

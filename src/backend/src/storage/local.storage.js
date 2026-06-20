@@ -1,10 +1,14 @@
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, isAbsolute } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../../../uploads');
+let UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../../../uploads');
+// Resolve relative paths from the project root (parent of src/backend).
+if (!isAbsolute(UPLOAD_DIR)) {
+  UPLOAD_DIR = join(__dirname, '../../../', UPLOAD_DIR);
+}
 const BASE_URL = process.env.API_URL || 'http://localhost:3000';
 
 export class LocalStorage {

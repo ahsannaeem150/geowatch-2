@@ -145,6 +145,7 @@ CREATE TABLE incident_updates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     summary TEXT NOT NULL,
+    details TEXT,
     update_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     source_url TEXT,
     embed_html TEXT,

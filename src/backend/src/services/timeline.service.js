@@ -1,22 +1,22 @@
 import { query } from '../config/database.js';
 import { fetchOembedHtml } from '../utils/oembed.js';
 
-export async function createTimelineUpdate(incidentId, { summary, updateDate, sourceUrl, type = 'update', verificationStatus = 'unverified' }, createdBy) {
+export async function createTimelineUpdate(incidentId, { summary, details, updateDate, sourceUrl, type = 'update', verificationStatus = 'unverified' }, createdBy) {
   let embedHtml = null;
   if (sourceUrl) {
     embedHtml = await fetchOembedHtml(sourceUrl);
   }
 
   const result = await query(
-    `INSERT INTO incident_updates (incident_id, summary, update_date, source_url, embed_html, created_by, type, verification_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING id, summary, update_date, source_url, embed_html, type, verification_status, created_at`,
-    [incidentId, summary, updateDate || new Date().toISOString(), sourceUrl || null, embedHtml, createdBy, type, verificationStatus]
+    `INSERT INTO incident_updates (incident_id, summary, details, update_date, source_url, embed_html, created_by, type, verification_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING id, summary, details, update_date, source_url, embed_html, type, verification_status, created_at`,
+    [incidentId, summary, details || null, updateDate || new Date().toISOString(), sourceUrl || null, embedHtml, createdBy, type, verificationStatus]
   );
   return result.rows[0];
 }
 
-export async function updateTimelineEntry(updateId, { summary, updateDate, sourceUrl, type, verificationStatus }) {
+export async function updateTimelineEntry(updateId, { summary, details, updateDate, sourceUrl, type, verificationStatus }) {
   // If sourceUrl is explicitly provided (including empty string to clear), re-fetch embed
   let embedHtml = undefined;
   if (sourceUrl !== undefined) {
@@ -30,6 +30,10 @@ export async function updateTimelineEntry(updateId, { summary, updateDate, sourc
   if (summary !== undefined) {
     fields.push(`summary = $${idx++}`);
     values.push(summary);
+  }
+  if (details !== undefined) {
+    fields.push(`details = $${idx++}`);
+    values.push(details);
   }
   if (updateDate !== undefined) {
     fields.push(`update_date = $${idx++}`);
@@ -59,7 +63,7 @@ export async function updateTimelineEntry(updateId, { summary, updateDate, sourc
   values.push(updateId);
   const result = await query(
     `UPDATE incident_updates SET ${fields.join(', ')} WHERE id = $${idx}
-     RETURNING id, summary, update_date, source_url, embed_html, type, verification_status, created_at`,
+     RETURNING id, summary, details, update_date, source_url, embed_html, type, verification_status, created_at`,
     values
   );
   return result.rows[0] || null;

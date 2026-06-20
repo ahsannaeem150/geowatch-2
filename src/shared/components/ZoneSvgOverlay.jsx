@@ -1,6 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { buildZoneScreenPath } from '@shared/utils/zoneGeometry.js';
 
+function normalizeGeometry(geometry) {
+  if (!geometry) return null;
+  if (typeof geometry === 'string') {
+    try {
+      const parsed = JSON.parse(geometry);
+      return parsed && Array.isArray(parsed.coordinates) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  if (Array.isArray(geometry.coordinates)) return geometry;
+  if (Array.isArray(geometry)) return { type: 'Polygon', coordinates: geometry };
+  return null;
+}
+
 /**
  * GeoWatch shared zone SVG overlay.
  *
@@ -38,7 +53,7 @@ export default function ZoneSvgOverlay({
     if (!mapInstance || !showZones) return [];
     return zones
       .map((zone) => {
-        const d = buildZoneScreenPath(mapInstance, zone.geometry);
+        const d = buildZoneScreenPath(mapInstance, normalizeGeometry(zone.geometry));
         if (!d) return null;
         return {
           id: String(zone.id),
@@ -51,7 +66,7 @@ export default function ZoneSvgOverlay({
 
   const ghostPath = useMemo(() => {
     if (!mapInstance || !ghostZone?.geometry) return null;
-    const d = buildZoneScreenPath(mapInstance, ghostZone.geometry);
+    const d = buildZoneScreenPath(mapInstance, normalizeGeometry(ghostZone.geometry));
     if (!d) return null;
     return {
       d,

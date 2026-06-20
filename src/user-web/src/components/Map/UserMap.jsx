@@ -372,6 +372,8 @@ const UserMap = forwardRef(function UserMap({
     };
 
     const onClick = (e) => {
+      // Ignore clicks that originated on a point marker so incidents inside zones open first
+      if (e.originalEvent?.target?.closest('.maplibregl-marker')) return;
       if (!layersReady()) return;
       let features = [];
       try {

@@ -28,7 +28,7 @@ export default function ZoneTrialSidebarPage() {
     () => (demoMode === 'notam' ? MOCK_TIMELINE : MOCK_TIMELINE_NO_END),
     [demoMode]
   );
-  const { events, featuredItems, pin, feature, deleteItem, add, edit } = useZoneTrialEvents(baseEvents);
+  const { events, featuredItems, pin, feature, clearFeature, deleteItem, add, edit } = useZoneTrialEvents(baseEvents);
 
   const zone = demoMode === 'notam' ? MOCK_ZONE : MOCK_ZONE_NO_END;
 
@@ -124,6 +124,8 @@ export default function ZoneTrialSidebarPage() {
                 isLast={idx === events.length - 1}
                 onOpenEvidence={setDrawerEvent}
                 featuredItem={featuredItems[event.id]}
+                onClearFeature={clearFeature}
+                isAdmin
               />
             ))}
           </div>

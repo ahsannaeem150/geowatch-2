@@ -10,10 +10,10 @@ import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
 
 export async function createTimelineController(req, res) {
-  const { summary, updateDate, sourceUrl, type, verificationStatus } = req.body;
+  const { summary, details, updateDate, sourceUrl, type, verificationStatus } = req.body;
   const update = await createTimelineUpdate(
     req.params.id,
-    { summary, updateDate, sourceUrl, type, verificationStatus },
+    { summary, details, updateDate, sourceUrl, type, verificationStatus },
     req.user.id
   );
   broadcastEvent({ type: 'timeline_added', incidentId: req.params.id, update });
@@ -28,14 +28,15 @@ export async function createTimelineController(req, res) {
 }
 
 export async function updateTimelineController(req, res) {
-  const { summary, updateDate, sourceUrl, type, verificationStatus } = req.body;
-  const hasField = [summary, updateDate, sourceUrl, type, verificationStatus].some((v) => v !== undefined);
+  const { summary, details, updateDate, sourceUrl, type, verificationStatus } = req.body;
+  const hasField = [summary, details, updateDate, sourceUrl, type, verificationStatus].some((v) => v !== undefined);
   if (!hasField) {
     return res.apiError('At least one field is required', 'VALIDATION_ERROR', 400);
   }
 
   const update = await updateTimelineEntry(req.params.updateId, {
     summary,
+    details,
     updateDate,
     sourceUrl,
     type,

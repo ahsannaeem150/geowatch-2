@@ -4,8 +4,8 @@ function mapMediaItem(item) {
   if (!item) return null;
   return {
     id: item.id,
-    url: item.file_url,
-    thumbnailUrl: item.thumbnail_url,
+    url: item.file_url ?? item.url,
+    thumbnailUrl: item.thumbnail_url ?? item.thumbnailUrl,
     caption: item.caption || '',
     pinned: !!item.pinned,
     fileType: item.file_type,
@@ -109,7 +109,7 @@ function mapTimelineForShared(timeline, mediaList = []) {
       : null;
 
     const updateMedia = (update.media || []).map(mapMediaItem).filter(Boolean);
-    const sources = mapSourcesForShared(update.sources, updateMedia, [...mediaList, ...updateMedia]);
+    const sources = mapSourcesForShared(update.sources, update.media, [...mediaList, ...updateMedia]);
 
     return {
       id: update.id,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './ZoneTrial.css';
 import './ZoneHeroesTrial.css';
 import { MOCK_ZONE, MOCK_TIMELINE, MOCK_ZONE_NO_END, MOCK_TIMELINE_NO_END } from './zoneTrialData.js';
@@ -6,7 +6,7 @@ import {
   EffectiveWindowMeter,
   ZoneStatGrid,
   TimelineEvent,
-  ZoneEvidenceModal,
+  ZoneEvidenceRail,
   useZoneTrialEvents,
   ZoneNeonMap,
   useZoneTimeState,
@@ -15,7 +15,8 @@ import {
   Ruler,
 } from './ZoneTrialCommon.jsx';
 import { formatDate, formatTime } from '@shared/components/incident-detail/IncidentUtils.js';
-import { Hexagon, Activity, Shield, AlertTriangle, Radio, Clock, Link, Bookmark } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Hexagon, Activity, Shield, AlertTriangle, Radio, Clock, Link, Bookmark, ArrowLeft } from 'lucide-react';
 
 function CountdownBlocks({ remainingMs }) {
   const totalSeconds = Math.max(0, Math.floor((remainingMs || 0) / 1000));
@@ -54,6 +55,18 @@ function HudTagCard({ label, value, color, icon: Icon }) {
           {value}
         </span>
       </div>
+    </div>
+  );
+}
+
+function ZoneTrialBackBar() {
+  const navigate = useNavigate();
+  return (
+    <div className="zone-trial-backbar">
+      <button className="zone-trial-backbar__btn" onClick={() => navigate('/map')}>
+        <ArrowLeft size={16} />
+        Back to map
+      </button>
     </div>
   );
 }
@@ -166,14 +179,103 @@ function ZoneTrialHero({ zone, saved, onSave, onCopyLink }) {
 export default function ZoneTrialLayoutB() {
   const [saved, setSaved] = useState(false);
   const [demoMode, setDemoMode] = useState('notam');
-  const [modalEvent, setModalEvent] = useState(null);
 
   const zone = demoMode === 'notam' ? MOCK_ZONE : MOCK_ZONE_NO_END;
   const baseEvents = useMemo(
     () => (demoMode === 'notam' ? MOCK_TIMELINE : MOCK_TIMELINE_NO_END),
     [demoMode]
   );
-  const { events, featuredItems, pin, feature, deleteItem, add, edit } = useZoneTrialEvents(baseEvents);
+  const {
+    events,
+    featuredItems,
+    pin,
+    feature,
+    clearFeature,
+    deleteItem,
+    add,
+    edit,
+    editEvent,
+    deleteEvent,
+  } = useZoneTrialEvents(baseEvents);
+
+  const [selectedEventId, setSelectedEventId] = useState(() => events[0]?.id);
+
+  useEffect(() => {
+    setSelectedEventId(events[0]?.id);
+  }, [events]);
+
+  useEffect(() => {
+    let wrapper = document.querySelector('.zone-full-page')?.parentElement;
+    while (wrapper) {
+      const overflowY = window.getComputedStyle(wrapper).overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') break;
+      wrapper = wrapper.parentElement;
+    }
+    if (!wrapper) return;
+    const original = wrapper.style.overflow;
+    wrapper.style.overflow = 'visible';
+    return () => {
+      wrapper.style.overflow = original;
+    };
+  }, []);
+
+  const activeIndex = useMemo(() => events.findIndex((e) => e.id === selectedEventId), [events, selectedEventId]);
+  const activeEvent = events[activeIndex] || events[0];
+  const hasPrev = activeIndex > 0;
+  const hasNext = activeIndex >= 0 && activeIndex < events.length - 1;
+  const eventRefs = useRef({});
+  const railTopRef = useRef(null);
+
+  useEffect(() => {
+    const rail = document.querySelector('.zone-evidence-rail');
+    if (rail) {
+      railTopRef.current = rail.getBoundingClientRect().top + window.scrollY;
+    }
+    const onResize = () => {
+      const r = document.querySelector('.zone-evidence-rail');
+      if (r) {
+        railTopRef.current = r.getBoundingClientRect().top + window.scrollY;
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const scrollToEvent = (event) => {
+    const el = eventRefs.current[event.id];
+    if (!el) return;
+    const itemTarget = window.scrollY + el.getBoundingClientRect().top - window.innerHeight * 0.35;
+    let targetScroll = itemTarget;
+
+    const bodyEl = document.querySelector('.zone-layout-b__body--rail');
+    const railEl = document.querySelector('.zone-evidence-rail');
+    if (bodyEl && railEl && railTopRef.current != null) {
+      const railTopDoc = railTopRef.current;
+      const railTarget = Math.max(0, railTopDoc - 80);
+      targetScroll = Math.max(targetScroll, railTarget);
+
+      const bodyRect = bodyEl.getBoundingClientRect();
+      const bodyTopDoc = bodyRect.top + window.scrollY;
+      const bodyBottomPadding = parseFloat(window.getComputedStyle(bodyEl).paddingBottom) || 0;
+      const gridAreaBottomDoc = bodyTopDoc + bodyEl.offsetHeight - bodyBottomPadding;
+      const maxScroll = Math.max(0, gridAreaBottomDoc - railEl.offsetHeight - 80);
+      targetScroll = Math.min(targetScroll, maxScroll);
+    }
+
+    window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+  };
+
+  const goTo = (idx) => {
+    const ev = events[idx];
+    if (!ev) return;
+    setSelectedEventId(ev.id);
+    scrollToEvent(ev);
+  };
+
+  const handleSelectEvent = (event) => {
+    setSelectedEventId(event.id);
+    scrollToEvent(event);
+  };
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}/trial/zone`;
@@ -182,6 +284,7 @@ export default function ZoneTrialLayoutB() {
 
   return (
     <div className="zone-full-page">
+      <ZoneTrialBackBar />
       <DemoTopBar demoMode={demoMode} setDemoMode={setDemoMode} />
       <ZoneTrialHero
         zone={zone}
@@ -190,70 +293,90 @@ export default function ZoneTrialLayoutB() {
         onCopyLink={handleCopyLink}
       />
 
-      <div className="zone-layout-b__body">
-        <div className="zone-full-timeline">
+      <div className="zone-layout-b__body zone-layout-b__body--rail">
+        <div className="zone-full-timeline zone-full-timeline--rail">
           <h2 className="zone-full-section-title">Restriction timeline</h2>
           {events.map((event, idx) => (
-            <TimelineEvent
+            <div
               key={event.id}
-              event={event}
-              isLast={idx === events.length - 1}
-              onOpenEvidence={setModalEvent}
-              featuredItem={featuredItems[event.id]}
-            />
+              ref={(el) => {
+                eventRefs.current[event.id] = el;
+              }}
+            >
+              <TimelineEvent
+                event={event}
+                isLast={idx === events.length - 1}
+                onOpenEvidence={handleSelectEvent}
+                featuredItem={featuredItems[event.id]}
+                onClearFeature={clearFeature}
+                isAdmin
+                variant="rail"
+                isActive={event.id === selectedEventId}
+                onEditUpdate={editEvent}
+                onDeleteUpdate={deleteEvent}
+                onVerificationChange={(id, status) => editEvent(id, { verificationStatus: status })}
+              />
+            </div>
           ))}
         </div>
 
-        <aside className="zone-rail">
-          <h2 className="zone-full-section-title">Zone overview</h2>
-          <div className="zone-rail-card">
-            <h3 className="zone-rail-card__title">Effective window</h3>
-            <EffectiveWindowMeter startDate={zone.startDate} endDate={zone.endDate} />
-          </div>
-
-          <div className="zone-rail-card">
-            <h3 className="zone-rail-card__title">Geometry</h3>
-            <ZoneStatGrid
-              areaSqM={zone.areaSqM}
-              perimeterM={zone.perimeterM}
-              geometry={zone.geometry}
-              radiusM={zone.radiusM}
-              geometryType={zone.geometryType}
+        {activeEvent && (
+          <div className="zone-evidence-rail">
+            <h2 className="zone-full-section-title">Selected update</h2>
+            <ZoneEvidenceRail
+              event={activeEvent}
+              featuredItem={featuredItems[activeEvent.id]}
+              onPrev={() => goTo(activeIndex - 1)}
+              onNext={() => goTo(activeIndex + 1)}
+              hasPrev={hasPrev}
+              hasNext={hasNext}
+              onPin={pin}
+              onFeature={feature}
+              onDelete={deleteItem}
+              onAdd={add}
+              onEdit={edit}
+              onClearFeature={clearFeature}
             />
           </div>
+        )}
 
+        <aside className="zone-rail zone-rail--overview">
+          <h2 className="zone-full-section-title">Zone overview</h2>
           <div className="zone-rail-card">
-            <h3 className="zone-rail-card__title">Location</h3>
-            <div className="zone-rail-row">
-              <MapPin size={15} />
-              <span className="zone-rail-row__value">{zone.locationContext}</span>
+              <h3 className="zone-rail-card__title">Effective window</h3>
+              <EffectiveWindowMeter startDate={zone.startDate} endDate={zone.endDate} />
             </div>
-            <div className="zone-rail-row">
-              <Calendar size={15} />
-              <span className="zone-rail-row__value">
-                Reported {formatDate(zone.startDate)} · {formatTime(zone.startDate)}
-              </span>
-            </div>
-            <div className="zone-rail-row">
-              <Ruler size={15} />
-              <span className="zone-rail-row__value">Polygon boundary · WGS84</span>
-            </div>
-          </div>
-        </aside>
-      </div>
 
-      {modalEvent && (
-        <ZoneEvidenceModal
-          event={modalEvent}
-          featuredItem={featuredItems[modalEvent.id]}
-          onClose={() => setModalEvent(null)}
-          onPin={pin}
-          onFeature={feature}
-          onDelete={deleteItem}
-          onAdd={add}
-          onEdit={edit}
-        />
-      )}
+            <div className="zone-rail-card">
+              <h3 className="zone-rail-card__title">Geometry</h3>
+              <ZoneStatGrid
+                areaSqM={zone.areaSqM}
+                perimeterM={zone.perimeterM}
+                geometry={zone.geometry}
+                radiusM={zone.radiusM}
+                geometryType={zone.geometryType}
+              />
+            </div>
+
+            <div className="zone-rail-card">
+              <h3 className="zone-rail-card__title">Location</h3>
+              <div className="zone-rail-row">
+                <MapPin size={15} />
+                <span className="zone-rail-row__value">{zone.locationContext}</span>
+              </div>
+              <div className="zone-rail-row">
+                <Calendar size={15} />
+                <span className="zone-rail-row__value">
+                  Reported {formatDate(zone.startDate)} · {formatTime(zone.startDate)}
+                </span>
+              </div>
+              <div className="zone-rail-row">
+                <Ruler size={15} />
+                <span className="zone-rail-row__value">Polygon boundary · WGS84</span>
+              </div>
+            </div>
+          </aside>
+      </div>
     </div>
   );
 }

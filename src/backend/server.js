@@ -1,7 +1,7 @@
 import './src/config/env.js';
 import express from 'express';
 import cors from 'cors';
-import { join, dirname } from 'path';
+import { join, dirname, isAbsolute } from 'path';
 import { fileURLToPath } from 'url';
 
 import { responseWrapper } from './src/middleware/response-wrapper.js';
@@ -85,7 +85,11 @@ app.get('/api/v1/incidents/stream', authenticate, (req, res) => {
 
 // ─── Static File Serving (uploads) ───
 // Serve user-generated content BEFORE rate limiting so images don't count toward API limits
-const UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../uploads');
+let UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../uploads');
+// If the configured upload dir is relative, resolve it from the project root.
+if (!isAbsolute(UPLOAD_DIR)) {
+  UPLOAD_DIR = join(__dirname, '../..', UPLOAD_DIR);
+}
 app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '1d',
   immutable: true,

@@ -235,7 +235,7 @@ export async function getEventById(id) {
       [id]
     ),
     query(
-      `SELECT eu.id, eu.incident_id, eu.summary, eu.update_date, eu.source_url, eu.embed_html,
+      `SELECT eu.id, eu.incident_id, eu.summary, eu.details, eu.update_date, eu.source_url, eu.embed_html,
               eu.type, eu.verification_status,
               eu.featured_source_type, eu.featured_source_id, eu.featured_media_id,
               eu.created_by, eu.created_at,
@@ -261,6 +261,7 @@ export async function getEventById(id) {
     id: update.id,
     incident_id: update.incident_id,
     summary: update.summary,
+    details: update.details,
     update_date: update.update_date,
     source_url: update.source_url,
     embed_html: update.embed_html,

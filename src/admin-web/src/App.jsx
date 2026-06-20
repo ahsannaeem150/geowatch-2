@@ -16,6 +16,7 @@ import SidebarTrial2SuperAdmin from './components/DesignTrial/SidebarTrial2Super
 
 import ZonesPage from './pages/ZonesPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
+import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -67,6 +68,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ZonesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/zone/:id"
+        element={
+          <ProtectedRoute>
+            <ZoneDetailPage />
           </ProtectedRoute>
         }
       />
