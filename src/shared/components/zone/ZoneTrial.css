@@ -365,11 +365,12 @@
 }
 
 .zone-stat__value {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 5px;
   font-family: var(--font-mono);
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2083,6 +2084,15 @@
 .zone-evidence-rail__nav-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Tighter stat boxes inside the narrow overview rail */
+.zone-rail--overview .zone-stat {
+  padding: 10px 4px;
+}
+
+.zone-rail--overview .zone-stat__value {
+  font-size: 13px;
 }
 
 /* Ensure the overview rail stays sticky as well */

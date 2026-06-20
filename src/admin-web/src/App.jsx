@@ -39,57 +39,53 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
-function AppRoutes() {
+const loginRoute = <Route path="/login" element={<LoginPage />} />;
+const trialRoute = <Route path="/trial" element={<DesignTrial />} />;
+const sidebarTrialRoute = <Route path="/sidebarTrial" element={<SidebarTrial />} />;
+const sidebarTrial2Route = <Route path="/sidebarTrial2" element={<IncidentDetailOptionF />} />;
+const sidebarTrial2OptionFRoute = <Route path="/sidebarTrial2/optionF" element={<IncidentDetailOptionF />} />;
+const sidebarTrial2XGalleryRoute = <Route path="/sidebarTrial2/xGallery" element={<IncidentDetailOptionFXGallery />} />;
+const sidebarTrial2AdminRoute = <Route path="/sidebarTrial2/admin" element={<SidebarTrial2Admin />} />;
+const sidebarTrial2SuperadminRoute = <Route path="/sidebarTrial2/superadmin" element={<SidebarTrial2SuperAdmin />} />;
+const xPostOptionsRoute = <Route path="/xPostOptions" element={<XPostOptionsPage />} />;
+const incidentTrialUserRoute = <Route path="/incident-trial/user" element={<SidebarTrial2Option1User />} />;
+const incidentTrialAdminRoute = <Route path="/incident-trial/admin" element={<SidebarTrial2Option1Admin />} />;
+const incidentTrialSuperadminRoute = <Route path="/incident-trial/superadmin" element={<SidebarTrial2Option1SuperAdmin />} />;
+const incidentRoute = (
+  <Route path="/incident/:id" element={<ProtectedRoute><IncidentDetailPage /></ProtectedRoute>} />
+);
+const zonesRoute = (
+  <Route path="/zones" element={<ProtectedRoute><ZonesPage /></ProtectedRoute>} />
+);
+const zoneRoute = (
+  <Route path="/zone/:id" element={<ProtectedRoute><ZoneDetailPage /></ProtectedRoute>} />
+);
+const dashboardRoute = (
+  <Route path="/*" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />
+);
+
+const AppRoutes = React.memo(function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/trial" element={<DesignTrial />} />
-      <Route path="/sidebarTrial" element={<SidebarTrial />} />
-      <Route path="/sidebarTrial2" element={<IncidentDetailOptionF />} />
-      <Route path="/sidebarTrial2/optionF" element={<IncidentDetailOptionF />} />
-      <Route path="/sidebarTrial2/xGallery" element={<IncidentDetailOptionFXGallery />} />
-      <Route path="/sidebarTrial2/admin" element={<SidebarTrial2Admin />} />
-      <Route path="/sidebarTrial2/superadmin" element={<SidebarTrial2SuperAdmin />} />
-
-      <Route path="/xPostOptions" element={<XPostOptionsPage />} />
-      <Route path="/incident-trial/user" element={<SidebarTrial2Option1User />} />
-      <Route path="/incident-trial/admin" element={<SidebarTrial2Option1Admin />} />
-      <Route path="/incident-trial/superadmin" element={<SidebarTrial2Option1SuperAdmin />} />
-      <Route
-        path="/incident/:id"
-        element={
-          <ProtectedRoute>
-            <IncidentDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/zones"
-        element={
-          <ProtectedRoute>
-            <ZonesPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/zone/:id"
-        element={
-          <ProtectedRoute>
-            <ZoneDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      />
+      {loginRoute}
+      {trialRoute}
+      {sidebarTrialRoute}
+      {sidebarTrial2Route}
+      {sidebarTrial2OptionFRoute}
+      {sidebarTrial2XGalleryRoute}
+      {sidebarTrial2AdminRoute}
+      {sidebarTrial2SuperadminRoute}
+      {xPostOptionsRoute}
+      {incidentTrialUserRoute}
+      {incidentTrialAdminRoute}
+      {incidentTrialSuperadminRoute}
+      {incidentRoute}
+      {zonesRoute}
+      {zoneRoute}
+      {dashboardRoute}
     </Routes>
   );
-}
+});
 
 export default function App() {
   return (

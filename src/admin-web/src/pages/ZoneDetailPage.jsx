@@ -84,7 +84,7 @@ export default function ZoneDetailPage() {
             payload.type === 'timeline_added' ||
             payload.type === 'timeline_deleted'
           ) {
-            fetchData();
+            fetchData({ silent: true });
           }
 
           if (payload.type === 'incident_deleted') {
@@ -381,7 +381,7 @@ export default function ZoneDetailPage() {
   if (!data) return null;
 
   return (
-    <>
+    <div>
       <SharedZoneDetailPage
         incident={data.incident}
         timeline={data.timeline}
@@ -431,6 +431,6 @@ export default function ZoneDetailPage() {
           {toast.message}
         </div>
       )}
-    </>
+    </div>
   );
 }

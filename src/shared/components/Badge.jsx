@@ -26,6 +26,10 @@ export function Badge({ children, color, status, style = {} }) {
         letterSpacing: '0.6px',
         textTransform: 'uppercase',
         fontFamily: 'var(--font-sans)',
+        maxWidth: '100%',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
         ...preset,
         ...style,
       }}

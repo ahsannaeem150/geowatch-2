@@ -57,6 +57,10 @@ export function SeverityBadge({ level, wide = false, style = {} }) {
           textTransform: 'uppercase',
           letterSpacing: wide ? '1.2px' : '0.8px',
           color: sev.color,
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}
       >
         {sev.label}

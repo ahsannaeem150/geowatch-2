@@ -1265,4 +1265,8 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-family: var(--font-mono);
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

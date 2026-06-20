@@ -251,23 +251,14 @@ export default function ZoneDetailPage({
   const railTopRef = useRef(null);
 
   useEffect(() => {
-    setSelectedEventId(timeline[0]?.id);
+    setSelectedEventId((prev) => {
+      const keep = prev && timeline.some((e) => e.id === prev);
+      if (keep) return prev;
+      return timeline[0]?.id;
+    });
   }, [timeline]);
 
-  useEffect(() => {
-    let wrapper = document.querySelector('.zone-full-page')?.parentElement;
-    while (wrapper) {
-      const overflowY = window.getComputedStyle(wrapper).overflowY;
-      if (overflowY === 'auto' || overflowY === 'scroll') break;
-      wrapper = wrapper.parentElement;
-    }
-    if (!wrapper) return;
-    const original = wrapper.style.overflow;
-    wrapper.style.overflow = 'visible';
-    return () => {
-      wrapper.style.overflow = original;
-    };
-  }, []);
+  // No parent overflow hacks — they can reset scroll position on remount.
 
   useEffect(() => {
     const rail = document.querySelector('.zone-evidence-rail');
@@ -363,7 +354,7 @@ export default function ZoneDetailPage({
   const hasAdminActions = onEditZoneInfo || onEditZoneShape || onResolve || onDelete || onAddUpdate;
 
   return (
-    <div className="zone-full-page">
+    <div className="zone-full-page" data-selected-event-id={selectedEventId}>
       {(onBack || hasAdminActions) && (
         <ZoneAdminTopBar
           onBack={onBack}
