@@ -376,6 +376,28 @@
   text-overflow: ellipsis;
 }
 
+.zone-stat__value-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.zone-stat__value-wrap .zone-stat__value {
+  margin-bottom: 0;
+}
+
+.zone-stat__unit {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
 .zone-stat__label {
   font-size: 10px;
   font-weight: 700;

@@ -106,6 +106,7 @@ export default function DashboardLayout() {
   const ghostFetchAttempted = useRef(false);
   const zoneDeepLinkProcessed = useRef(false);
   const prevZoneIdRef = useRef(null);
+  const skipNextZoneFitRef = useRef(false);
 
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [incidents, setEvents] = useState([]);
@@ -119,11 +120,7 @@ export default function DashboardLayout() {
   const [editInfoOpen, setEditInfoOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [markerCoords, setMarkerCoords] = useState(null);
-  const [flyToCoords, setFlyToCoords] = useState(
-    hasViewportParams
-      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: parseFloat(zoomParam) }
-      : null
-  );
+  const [flyToCoords, setFlyToCoords] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState(null);
@@ -135,6 +132,55 @@ export default function DashboardLayout() {
     () => incidents.filter((i) => i.geometry_type === 'polygon'),
     [incidents]
   );
+
+  // Restore exact map view and selected zone when returning from a full-page detail view
+  useEffect(() => {
+    const returningZoneId = sessionStorage.getItem('geowatch_admin_selected_zone');
+    if (returningZoneId) {
+      sessionStorage.removeItem('geowatch_admin_selected_zone');
+      setSelectedZoneId(returningZoneId);
+    }
+
+    if (sessionStorage.getItem('geowatch_admin_returning') !== '1') return;
+    sessionStorage.removeItem('geowatch_admin_returning');
+    skipNextZoneFitRef.current = true;
+    const raw = sessionStorage.getItem('geowatch_admin_return_view');
+    sessionStorage.removeItem('geowatch_admin_return_view');
+    if (!raw) return;
+    try {
+      const { lat, lng, zoom } = JSON.parse(raw);
+      if (
+        Number.isFinite(lat) &&
+        Number.isFinite(lng) &&
+        Number.isFinite(zoom)
+      ) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('lat', Number(lat).toFixed(6));
+            next.set('lng', Number(lng).toFixed(6));
+            next.set('zoom', Number(zoom).toFixed(2));
+            return next;
+          },
+          { replace: true }
+        );
+      }
+    } catch {
+      // ignore malformed stored view
+    }
+  }, [setSearchParams]);
+
+  // Restore the selected zone sidebar (without refitting the map) when returning
+  // from a full-page zone detail view.
+  useEffect(() => {
+    if (!selectedZoneId) return;
+    if (selectedIncident?.id === selectedZoneId) return;
+    const zone = polygonIncidents.find((z) => z.id === selectedZoneId);
+    if (zone) {
+      setSelectedIncident(zone);
+      setPanelMode('detail');
+    }
+  }, [selectedZoneId, polygonIncidents, selectedIncident?.id]);
 
   // ─── Zone Drawing ───
   const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
@@ -370,7 +416,11 @@ export default function DashboardLayout() {
           maxLng = Math.max(maxLng, lng);
           maxLat = Math.max(maxLat, lat);
         });
-        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        if (skipNextZoneFitRef.current) {
+          skipNextZoneFitRef.current = false;
+        } else {
+          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        }
       }
       // Clear any stale incident/zone URL params so they don't fight this selection
       setSearchParams((prev) => {
@@ -426,7 +476,11 @@ export default function DashboardLayout() {
           maxLng = Math.max(maxLng, lng);
           maxLat = Math.max(maxLat, lat);
         });
-        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        if (skipNextZoneFitRef.current) {
+          skipNextZoneFitRef.current = false;
+        } else {
+          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        }
       }
       zoneDeepLinkProcessed.current = true;
       return;
@@ -1025,6 +1079,7 @@ export default function DashboardLayout() {
       next.delete('zone');
       return next;
     });
+    sessionStorage.removeItem('geowatch_admin_selected_zone');
   };
   const handleDeleteIncident = useCallback(async (id) => {
     try {
@@ -1616,9 +1671,23 @@ export default function DashboardLayout() {
   const handleNavigateToFullPage = useCallback(() => {
     if (!selectedIncident?.id) return;
     const map = mapRef.current?.getMap?.();
-    if (map) {
+
+    const navigateToFullPage = () => {
+      const isZone = selectedIncident?.geometry_type === 'polygon';
+      navigate(`/${isZone ? 'zone' : 'incident'}/${selectedIncident.id}`);
+    };
+
+    const saveMapViewAndNavigate = () => {
+      if (!map) {
+        navigateToFullPage();
+        return;
+      }
       const center = map.getCenter();
       const zoom = map.getZoom();
+      const view = { lat: center.lat, lng: center.lng, zoom };
+      sessionStorage.setItem('geowatch_admin_return_view', JSON.stringify(view));
+      sessionStorage.setItem('geowatch_admin_returning', '1');
+      sessionStorage.setItem('geowatch_admin_selected_zone', selectedIncident.id);
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -1629,9 +1698,14 @@ export default function DashboardLayout() {
         },
         { replace: true }
       );
+      navigateToFullPage();
+    };
+
+    if (map && map.isMoving()) {
+      map.once('moveend', saveMapViewAndNavigate);
+    } else {
+      saveMapViewAndNavigate();
     }
-    const isZone = selectedIncident?.geometry_type === 'polygon';
-    navigate(`/${isZone ? 'zone' : 'incident'}/${selectedIncident.id}`);
   }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams]);
 
   const handleUpdateIncident = useCallback(
@@ -1976,7 +2050,7 @@ export default function DashboardLayout() {
   const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
+    <div className="dashboard-layout page-enter--dashboard" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
       <TopBar
         onAddEvent={handleAddIncident}
         onAddZone={handleAddZone}

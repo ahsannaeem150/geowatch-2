@@ -558,6 +558,7 @@ const UserMap = forwardRef(function UserMap({
     if (ghostIncident) {
       const lat = parseFloat(ghostIncident.latitude);
       const lng = parseFloat(ghostIncident.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       const size = 10;
 
       const el = buildMarkerElement(ghostIncident, { size, isGhost: true });

@@ -2,9 +2,11 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { api } from '../../services/api.js';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
+import { useSignInModal } from '../../contexts/SignInModalContext.jsx';
 
 export default function SaveButton({ incidentId, initialSaved = false, size = 16, onChange }) {
   const { isAuthenticated } = usePublicAuth();
+  const { openSignInModal } = useSignInModal();
   const [saved, setSaved] = useState(initialSaved);
   const [loading, setLoading] = useState(false);
 
@@ -16,7 +18,12 @@ export default function SaveButton({ incidentId, initialSaved = false, size = 16
   const handleToggle = useCallback(
     async (e) => {
       e.stopPropagation();
-      if (!isAuthenticated || loading) return;
+      if (loading) return;
+
+      if (!isAuthenticated) {
+        openSignInModal();
+        return;
+      }
 
       setLoading(true);
       try {
@@ -35,10 +42,8 @@ export default function SaveButton({ incidentId, initialSaved = false, size = 16
         setLoading(false);
       }
     },
-    [isAuthenticated, loading, saved, incidentId, onChange]
+    [isAuthenticated, loading, saved, incidentId, onChange, openSignInModal]
   );
-
-  if (!isAuthenticated) return null;
 
   return (
     <button

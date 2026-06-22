@@ -381,7 +381,7 @@ export default function ZoneDetailPage() {
   if (!data) return null;
 
   return (
-    <div>
+    <div className="zone-full-page-wrapper page-enter--fullpage">
       <SharedZoneDetailPage
         incident={data.incident}
         timeline={data.timeline}

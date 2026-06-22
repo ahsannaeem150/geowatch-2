@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
+import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
 import ZoneTrialSidebarPage from './pages/ZoneTrialSidebarPage.jsx';
 import ZoneTrialLayoutB from './pages/ZoneTrialLayoutB.jsx';
 import ZoneTrialMeterPage from './pages/ZoneTrialMeterPage.jsx';
@@ -52,6 +53,7 @@ function AnimatedRoutes() {
           <Route path="/" element={<HomePage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/incident/:id" element={<IncidentDetailPage />} />
+          <Route path="/zone/:id" element={<ZoneDetailPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/trial/zone-sidebar" element={<ZoneTrialSidebarPage />} />
           <Route path="/trial/zone" element={<ZoneTrialLayoutB />} />

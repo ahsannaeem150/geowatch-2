@@ -559,3 +559,33 @@ body,
 .media-lightbox-dims {
   font-variant-numeric: tabular-nums;
 }
+
+/* ─── Route page transition animations ─── */
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pageSlideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-enter--dashboard {
+  animation: pageFadeIn 0.3s ease-out;
+}
+
+.page-enter--fullpage {
+  animation: pageSlideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}

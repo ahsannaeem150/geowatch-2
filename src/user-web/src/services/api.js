@@ -1,3 +1,5 @@
+import { estimatePolygonAreaSqM, estimatePolygonPerimeterM } from '@shared/utils/zoneGeometry.js';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 function mapMediaItem(item) {
@@ -126,10 +128,32 @@ function mapTimelineForShared(timeline, mediaList = []) {
   });
 }
 
+function parseGeometry(geometry) {
+  if (!geometry) return null;
+  if (typeof geometry === 'string') {
+    try {
+      const parsed = JSON.parse(geometry);
+      return parsed && parsed.coordinates ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  if (geometry.coordinates) return geometry;
+  if (Array.isArray(geometry)) {
+    return { type: 'Polygon', coordinates: geometry };
+  }
+  return null;
+}
+
 export function mapIncidentForShared(data) {
   if (!data) return null;
   const incident = data.incident || {};
   const timeline = data.timeline || [];
+
+  const parsedGeometry = parseGeometry(incident.geometry);
+  const polygonRing = parsedGeometry?.coordinates?.[0];
+  const fallbackAreaSqM = estimatePolygonAreaSqM(polygonRing);
+  const fallbackPerimeterM = estimatePolygonPerimeterM(polygonRing);
 
   const allMedia = [];
   timeline.forEach((update) => {
@@ -172,9 +196,10 @@ export function mapIncidentForShared(data) {
       resolvedByName: incident.resolved_by_name,
       resolvedByEmail: incident.resolved_by_email,
       geometryType: incident.geometry_type,
-      geometry: incident.geometry,
-      areaSqM: incident.area_sq_m,
-      perimeterM: incident.perimeter_m,
+      geometry: parsedGeometry,
+      areaSqM: Number.isFinite(Number(incident.area_sq_m)) ? Number(incident.area_sq_m) : fallbackAreaSqM,
+      perimeterM: Number.isFinite(Number(incident.perimeter_m)) ? Number(incident.perimeter_m) : fallbackPerimeterM,
+      zoneCategoryId: incident.zone_category_id,
       zoneCategoryName: incident.zone_category_name,
       zoneCategoryColor: incident.zone_category_color,
       zoneCategoryIcon: incident.zone_category_icon,
@@ -237,7 +262,15 @@ export const api = {
     if (params.geometryType) qs.append('geometryType', params.geometryType);
     if (params.viewport) qs.append('viewport', params.viewport);
     const query = qs.toString();
-    return request(`/incidents${query ? '?' + query : ''}`);
+    return request(`/incidents${query ? '?' + query : ''}`).then((res) => {
+      if (res.data?.incidents) {
+        res.data.incidents = res.data.incidents.map((incident) => ({
+          ...incident,
+          geometry: parseGeometry(incident.geometry),
+        }));
+      }
+      return res;
+    });
   },
   searchIncidents: (params = {}) => {
     const qs = new URLSearchParams();
@@ -251,7 +284,13 @@ export const api = {
     const query = qs.toString();
     return request(`/incidents/search${query ? '?' + query : ''}`);
   },
-  getIncident: (id) => request(`/incidents/${id}`),
+  getIncident: (id) =>
+    request(`/incidents/${id}`).then((res) => {
+      if (res.data?.incident) {
+        res.data.incident.geometry = parseGeometry(res.data.incident.geometry);
+      }
+      return res;
+    }),
 
   // Public user auth
   publicLogin: (idToken) => request('/auth/public/google', {

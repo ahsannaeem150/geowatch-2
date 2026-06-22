@@ -13,6 +13,7 @@ import MapLegend from '@shared/components/MapLegend.jsx';
 import MapContextMenu from '@shared/components/MapContextMenu.jsx';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
+import { useSignInModal } from '../contexts/SignInModalContext.jsx';
 
 const LS_KEY = 'geowatch_last_seen';
 const MAX_ACTIVITIES = 50;
@@ -26,10 +27,20 @@ function setLastSeen(ts) {
   localStorage.setItem(LS_KEY, String(ts));
 }
 
+function uniqueById(items) {
+  const seen = new Set();
+  return (items || []).filter((item) => {
+    if (!item || !item.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const incidentIdFromUrl = searchParams.get('incident');
+  const zoneIdFromUrl = searchParams.get('zone');
   const latParam = searchParams.get('lat');
   const lngParam = searchParams.get('lng');
   const zoomParam = searchParams.get('zoom');
@@ -82,6 +93,7 @@ export default function MapPage() {
 
   // ─── Saved Incidents ───
   const { isAuthenticated } = usePublicAuth();
+  const { openSignInModal } = useSignInModal();
   const [savedIncidents, setSavedIncidents] = useState([]);
   const [savedIds, setSavedIds] = useState(new Set());
 
@@ -106,6 +118,8 @@ export default function MapPage() {
 
   const esRef = useRef(null);
   const selectedIncidentRef = useRef(null);
+  const skipNextZoneFitRef = useRef(false);
+  const zoneGhostFetchAttempted = useRef(false);
 
   // Detail refresh key — increments when SSE triggers an update for selected incident
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
@@ -178,41 +192,6 @@ export default function MapPage() {
       cancelled = true;
     };
   }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu]);
-
-  // ─── Handle incident ID from URL — robust deep-linking with ghost support ───
-  useEffect(() => {
-    if (!incidentIdFromUrl) {
-      ghostFetchAttempted.current = false;
-      return;
-    }
-
-    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
-    if (inList) {
-      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
-      ghostFetchAttempted.current = true;
-      return;
-    }
-
-    // Incident not in current list — fetch as ghost after initial load completes
-    if (incidents.length > 0 && !ghostFetchAttempted.current) {
-      ghostFetchAttempted.current = true;
-      api
-        .getIncident(incidentIdFromUrl)
-        .then((res) => {
-          if (res.data?.incident) {
-            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams });
-          }
-        })
-        .catch(() => {
-          // Incident not found or deleted — clean up URL
-          setSearchParams((prev) => {
-            const next = new URLSearchParams(prev);
-            next.delete('incident');
-            return next;
-          });
-        });
-    }
-  }, [incidentIdFromUrl, incidents.length]);
 
   // Fetch domains for legend
   useEffect(() => {
@@ -292,6 +271,12 @@ export default function MapPage() {
           next.set('lat', center.lat.toFixed(6));
           next.set('lng', center.lng.toFixed(6));
           next.set('zoom', zoom.toFixed(2));
+          // If the user just cleared the selection, don't let a lingering map
+          // animation restore the incident/zone param.
+          if (!selectedIncidentRef.current) {
+            next.delete('incident');
+            next.delete('zone');
+          }
           return next;
         },
         { replace: true }
@@ -475,9 +460,13 @@ export default function MapPage() {
       setSelectedIncident(incident);
       setFitBounds(null);
 
+      const isPolygon = incident.geometry_type === 'polygon';
+
       if (!opts.skipFlyTo) {
-        if (incident.geometry_type === 'polygon') {
-          if (incident.geometry?.coordinates?.[0]) {
+        if (isPolygon) {
+          if (skipNextZoneFitRef.current) {
+            skipNextZoneFitRef.current = false;
+          } else if (incident.geometry?.coordinates?.[0]) {
             const coords = incident.geometry.coordinates[0];
             let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
             coords.forEach(([lng, lat]) => {
@@ -499,10 +488,16 @@ export default function MapPage() {
         setFlyToCoords(null);
       }
 
-      // Update URL to make incident shareable, preserving other params
+      // Update URL to make incident / zone shareable, preserving other params
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
-        next.set('incident', incident.id);
+        if (isPolygon) {
+          next.set('zone', incident.id);
+          next.delete('incident');
+        } else {
+          next.set('incident', incident.id);
+          next.delete('zone');
+        }
         return next;
       });
     },
@@ -535,38 +530,194 @@ export default function MapPage() {
   );
 
   const handleBack = useCallback(() => {
+    // Stop any in-flight map animation so a viewport update doesn't overwrite
+    // the cleared selection in the same React batch.
+    const map = mapRef.current?.getMap?.();
+    if (map && typeof map.stop === 'function') {
+      map.stop();
+    }
+
+    selectedIncidentRef.current = null;
     setSelectedIncident(null);
     setFitBounds(null);
-    // Clear incident from URL while preserving other params
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('incident');
-      return next;
-    });
-  }, [setSearchParams]);
+    setFlyToCoords(null);
+
+    // Clear incident / zone from URL while preserving other params
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('incident');
+        next.delete('zone');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams, setFitBounds, setFlyToCoords]);
 
   const handleNavigateToFullPage = useCallback(
     (incidentId) => {
       // Capture the current map viewport so the back button returns to the same view
       const map = mapRef.current?.getMap?.();
-      if (map) {
-        const center = map.getCenter();
-        const zoom = map.getZoom();
+      const isZone = selectedIncident?.geometry_type === 'polygon';
+
+      const saveMapViewAndNavigate = () => {
+        if (map) {
+          const center = map.getCenter();
+          const zoom = map.getZoom();
+          sessionStorage.setItem(
+            'geowatch_user_return_view',
+            JSON.stringify({ lat: center.lat, lng: center.lng, zoom })
+          );
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('lat', center.lat.toFixed(6));
+              next.set('lng', center.lng.toFixed(6));
+              next.set('zoom', zoom.toFixed(2));
+              return next;
+            },
+            { replace: true }
+          );
+        }
+        if (isZone) {
+          sessionStorage.setItem('geowatch_user_selected_zone', incidentId);
+        }
+        sessionStorage.setItem('geowatch_user_returning', '1');
+        navigate(isZone ? `/zone/${incidentId}` : `/incident/${incidentId}`);
+      };
+
+      if (map && map.isMoving()) {
+        map.once('moveend', saveMapViewAndNavigate);
+      } else {
+        saveMapViewAndNavigate();
+      }
+    },
+    [navigate, selectedIncident?.geometry_type, setSearchParams]
+  );
+
+  // Restore exact map view and selected zone when returning from a full-page detail view
+  useEffect(() => {
+    const returningZoneId = sessionStorage.getItem('geowatch_user_selected_zone');
+    if (returningZoneId) {
+      sessionStorage.removeItem('geowatch_user_selected_zone');
+      skipNextZoneFitRef.current = true;
+      const zone = incidents.find((i) => i.id === returningZoneId);
+      if (zone) {
+        setSelectedIncident(zone);
+      } else {
+        api.getIncident(returningZoneId)
+          .then((res) => {
+            if (res.data?.incident) {
+              setSelectedIncident(res.data.incident);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
+    if (sessionStorage.getItem('geowatch_user_returning') !== '1') return;
+    sessionStorage.removeItem('geowatch_user_returning');
+    skipNextZoneFitRef.current = true;
+    const raw = sessionStorage.getItem('geowatch_user_return_view');
+    sessionStorage.removeItem('geowatch_user_return_view');
+    if (!raw) return;
+    try {
+      const { lat, lng, zoom } = JSON.parse(raw);
+      if (
+        Number.isFinite(lat) &&
+        Number.isFinite(lng) &&
+        Number.isFinite(zoom)
+      ) {
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev);
-            next.set('lat', center.lat.toFixed(6));
-            next.set('lng', center.lng.toFixed(6));
-            next.set('zoom', zoom.toFixed(2));
+            next.set('lat', Number(lat).toFixed(6));
+            next.set('lng', Number(lng).toFixed(6));
+            next.set('zoom', Number(zoom).toFixed(2));
             return next;
           },
           { replace: true }
         );
       }
-      navigate(`/incident/${incidentId}`);
-    },
-    [navigate, setSearchParams]
-  );
+    } catch {
+      // ignore malformed stored view
+    }
+  }, [incidents, setSearchParams]);
+
+  // ─── Handle incident ID from URL — robust deep-linking with ghost support ───
+  useEffect(() => {
+    if (!incidentIdFromUrl) {
+      ghostFetchAttempted.current = false;
+      return;
+    }
+
+    // If a zone is currently selected, do not auto-switch to a stale incident id
+    if (selectedIncident?.geometry_type === 'polygon') return;
+
+    const inList = incidents.find((i) => i.id === incidentIdFromUrl);
+    if (inList) {
+      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
+      ghostFetchAttempted.current = true;
+      return;
+    }
+
+    // Incident not in current list — fetch as ghost after initial load completes
+    if (incidents.length > 0 && !ghostFetchAttempted.current) {
+      ghostFetchAttempted.current = true;
+      api
+        .getIncident(incidentIdFromUrl)
+        .then((res) => {
+          if (res.data?.incident) {
+            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams });
+          }
+        })
+        .catch(() => {
+          // Incident not found or deleted — clean up URL
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('incident');
+            return next;
+          });
+        });
+    }
+  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, hasViewportParams, setSearchParams]);
+
+  // ─── Handle zone ID from URL — deep-linking with ghost support ───
+  useEffect(() => {
+    if (!zoneIdFromUrl) {
+      zoneGhostFetchAttempted.current = false;
+      return;
+    }
+
+    if (selectedIncident?.id === zoneIdFromUrl && selectedIncident?.geometry_type === 'polygon') {
+      return;
+    }
+
+    const inList = incidents.find((i) => i.id === zoneIdFromUrl);
+    if (inList) {
+      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
+      zoneGhostFetchAttempted.current = true;
+      return;
+    }
+
+    if (incidents.length > 0 && !zoneGhostFetchAttempted.current) {
+      zoneGhostFetchAttempted.current = true;
+      api
+        .getIncident(zoneIdFromUrl)
+        .then((res) => {
+          if (res.data?.incident) {
+            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams });
+          }
+        })
+        .catch(() => {
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('zone');
+            return next;
+          });
+        });
+    }
+  }, [zoneIdFromUrl, incidents.length, handleSelectIncident, hasViewportParams, setSearchParams]);
 
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });
@@ -659,20 +810,40 @@ export default function MapPage() {
     const isSaved = savedIds.has(incident.id);
     return [
       { label: 'View Details', onClick: () => { handleSelectIncident(incident); closeMapMenu(); } },
-      ...(isAuthenticated
-        ? [{ label: isSaved ? 'Unsave Incident' : 'Save Incident', onClick: () => handleToggleSave(incident.id) }]
-        : []),
+      {
+        label: isSaved ? 'Unsave Incident' : 'Save Incident',
+        onClick: () => {
+          if (!isAuthenticated) {
+            openSignInModal();
+          } else {
+            handleToggleSave(incident.id);
+          }
+          closeMapMenu();
+        },
+      },
       { label: 'Share Incident', onClick: () => copyLink('incident', incident.id) },
     ];
-  }, [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu]);
+  }, [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu, openSignInModal]);
 
   const buildZoneMenuItems = useCallback((zone) => {
     if (!zone) return [];
+    const isSaved = savedIds.has(zone.id);
     return [
       { label: 'View Zone Details', onClick: () => { handleSelectIncident(zone); closeMapMenu(); } },
+      {
+        label: isSaved ? 'Unsave Zone' : 'Save Zone',
+        onClick: () => {
+          if (!isAuthenticated) {
+            openSignInModal();
+          } else {
+            handleToggleSave(zone.id);
+          }
+          closeMapMenu();
+        },
+      },
       { label: 'Share Zone', onClick: () => copyLink('zone', zone.id) },
     ];
-  }, [handleSelectIncident, copyLink, closeMapMenu]);
+  }, [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu, openSignInModal]);
 
   const handleLocationSelect = useCallback((result) => {
     const zoom = getZoomForLocation(result.type, result.class);
@@ -732,8 +903,11 @@ export default function MapPage() {
     return result;
   }, [savedIncidents, filters.verifiedOnly, activeDomainFilters]);
 
-  // Determine if selected incident is a "ghost" (outside current date range)
-  const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
+  // Determine if selected incident is a "ghost" (outside current date range).
+  // Points only — polygon ghosts are rendered via the zone SVG overlay.
+  const ghostIncident = selectedIncident &&
+    selectedIncident.geometry_type !== 'polygon' &&
+    !incidents.find((i) => i.id === selectedIncident.id)
     ? selectedIncident
     : null;
   const ghostZone = selectedIncident?.geometry_type === 'polygon' &&
@@ -973,7 +1147,7 @@ export default function MapPage() {
             incidents={
               isAuthenticated && sidebarTab === 'saved'
                 ? visibleSavedIncidents
-                : [...visibleIncidents, ...(showZones ? polygonIncidents : [])]
+                : uniqueById([...visibleIncidents, ...(showZones ? polygonIncidents : [])])
             }
             selectedIncident={selectedIncident}
             onSelectEvent={handleSelectIncident}

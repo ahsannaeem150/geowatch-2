@@ -251,6 +251,19 @@ export default function ZoneDetailPage({
   const railTopRef = useRef(null);
 
   useEffect(() => {
+    setSaved(isSaved);
+  }, [isSaved]);
+
+  const isAdmin = !!(
+    onEditZoneInfo ||
+    onEditZoneShape ||
+    onResolve ||
+    onDelete ||
+    onAddUpdate ||
+    onEditUpdate
+  );
+
+  useEffect(() => {
     setSelectedEventId((prev) => {
       const keep = prev && timeline.some((e) => e.id === prev);
       if (keep) return prev;
@@ -317,11 +330,11 @@ export default function ZoneDetailPage({
 
   const handleSave = () => {
     const next = !saved;
-    setSaved(next);
     onSave?.(next);
   };
 
   const handleFeature = (eventId, payload) => {
+    if (!isAdmin) return;
     const { sourceType, sourceId } = payload;
     feature(eventId, { sourceType, sourceId });
     const current = featuredItems[eventId];
@@ -333,6 +346,7 @@ export default function ZoneDetailPage({
   };
 
   const handleVerificationChange = (eventId, status) => {
+    if (!isAdmin) return;
     onEditUpdate?.(eventId, { verificationStatus: status });
   };
 
@@ -389,7 +403,7 @@ export default function ZoneDetailPage({
                 isLast={idx === timeline.length - 1}
                 onOpenEvidence={handleSelectEvent}
                 featuredItem={featuredItems[event.id]}
-                isAdmin
+                isAdmin={isAdmin}
                 variant="rail"
                 isActive={event.id === selectedEventId}
                 onEditUpdate={onEditUpdate}
@@ -412,13 +426,14 @@ export default function ZoneDetailPage({
               hasPrev={hasPrev}
               hasNext={hasNext}
               onPin={onPinEvidence}
-              onFeature={handleFeature}
+              onFeature={isAdmin ? handleFeature : undefined}
               onDelete={onDeleteEvidence}
               onAdd={onAddEvidence}
               onEdit={onEditEvidence}
               onCheck={onCheckSource}
               onEditUpdate={onEditUpdate}
               onDeleteUpdate={onDeleteUpdate}
+              mode={isAdmin ? 'admin' : 'user'}
             />
           </div>
         )}

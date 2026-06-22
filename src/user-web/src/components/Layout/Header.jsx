@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogOut, Palette } from 'lucide-react';
+import GoogleSignInButton from '../GoogleSignInButton/GoogleSignInButton.jsx';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { useStyle } from '@shared/useStyle.js';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const STYLES = [
   { key: 'tactical', label: 'Tac', short: 'T' },
@@ -20,10 +19,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [styleMenuOpen, setStyleMenuOpen] = useState(false);
   const styleMenuRef = useRef(null);
-  const [googleReady, setGoogleReady] = useState(false);
-  const [googleFailed, setGoogleFailed] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const googleButtonRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -55,60 +51,6 @@ export default function Header() {
     },
     [login]
   );
-
-  useLayoutEffect(() => {
-    if (!GOOGLE_CLIENT_ID || isAuthenticated) return;
-
-    let interval;
-    let timeout;
-
-    const tryRender = () => {
-      if (!googleButtonRef.current) return false;
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleCredentialResponse,
-        });
-        window.google.accounts.id.renderButton(googleButtonRef.current, {
-          theme: 'outline',
-          size: 'medium',
-          text: 'signin_with',
-          shape: 'pill',
-          width: '160',
-        });
-        setGoogleReady(true);
-        setGoogleFailed(false);
-        return true;
-      }
-      return false;
-    };
-
-    // Try immediately in case script is already loaded
-    if (tryRender()) return;
-
-    // Poll every 200ms until Google script loads
-    interval = setInterval(() => {
-      if (tryRender()) {
-        clearInterval(interval);
-        clearTimeout(timeout);
-      }
-    }, 200);
-
-    // Give up after 8 seconds and show fallback
-    timeout = setTimeout(() => {
-      clearInterval(interval);
-      setGoogleFailed(true);
-    }, 8000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-      // Force-remove any Google-rendered DOM to prevent stale buttons
-      if (googleButtonRef.current) {
-        googleButtonRef.current.innerHTML = '';
-      }
-    };
-  }, [isAuthenticated, handleCredentialResponse]);
 
   const navLinks = [
     { path: '/', label: 'Home' },
@@ -376,10 +318,8 @@ export default function Header() {
                 <LogOut size={14} />
               </button>
             </div>
-          ) : GOOGLE_CLIENT_ID ? (
-            <div ref={googleButtonRef} style={{ height: '32px', display: 'flex', alignItems: 'center' }} />
           ) : (
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sign-in not configured</div>
+            <GoogleSignInButton onCredential={handleCredentialResponse} buttonWidth="160" />
           )}
 
           {loginError && (
@@ -392,20 +332,6 @@ export default function Header() {
               }}
             >
               {loginError}
-            </div>
-          )}
-
-          {!isAuthenticated && !authLoading && googleFailed && (
-            <div
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-muted)',
-                maxWidth: '160px',
-                lineHeight: 1.4,
-              }}
-              title="Google Sign-In could not load. Check your ad blocker or network connection."
-            >
-              Sign-in unavailable
             </div>
           )}
         </div>

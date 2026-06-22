@@ -446,6 +446,18 @@ export function PolygonMiniMap({ geometry, color = '#6366f1', title, large = fal
   );
 }
 
+function StatValue({ text }) {
+  if (text == null) return <div className="zone-stat__value">—</div>;
+  const idx = text.indexOf(' ');
+  if (idx === -1) return <div className="zone-stat__value">{text}</div>;
+  return (
+    <div className="zone-stat__value-wrap">
+      <span className="zone-stat__value">{text.slice(0, idx)}</span>
+      <span className="zone-stat__unit">{text.slice(idx + 1)}</span>
+    </div>
+  );
+}
+
 export function ZoneStatGrid({ areaSqM, perimeterM, geometry, radiusM, geometryType = 'polygon' }) {
   const ring = Array.isArray(geometry?.coordinates?.[0]) ? geometry.coordinates[0] : null;
   const vertices = useMemo(() => countVertices(ring), [ring]);
@@ -453,15 +465,15 @@ export function ZoneStatGrid({ areaSqM, perimeterM, geometry, radiusM, geometryT
   return (
     <div className="zone-stats-grid">
       <div className="zone-stat">
-        <div className="zone-stat__value">{formatArea(areaSqM)}</div>
+        <StatValue text={formatArea(areaSqM)} />
         <div className="zone-stat__label">Area</div>
       </div>
       <div className="zone-stat">
-        <div className="zone-stat__value">{formatLength(perimeterM)}</div>
+        <StatValue text={formatLength(perimeterM)} />
         <div className="zone-stat__label">{isCircle ? 'Circumference' : 'Perimeter'}</div>
       </div>
       <div className="zone-stat">
-        <div className="zone-stat__value">{isCircle ? formatLength(radiusM) : vertices}</div>
+        <StatValue text={isCircle ? formatLength(radiusM) : String(vertices)} />
         <div className="zone-stat__label">{isCircle ? 'Radius' : 'Vertices'}</div>
       </div>
     </div>
@@ -880,6 +892,7 @@ export function ZoneEvidenceRail({
   onCheck,
   onEditUpdate,
   onDeleteUpdate,
+  mode = 'user',
 }) {
   const total = countSources(event.sources);
   const featured = findFeaturedItem(event.sources, featuredItem);
@@ -902,13 +915,15 @@ export function ZoneEvidenceRail({
           <div className="id-featured-block" style={{ marginBottom: 16 }}>
             <div className="id-featured-block__header">
               <span className="id-featured-block__label">{Icons.star} Featured</span>
-              <button
-                type="button"
-                className="id-featured-block__remove"
-                onClick={() => onFeature?.(event.id, { sourceType: featured.sourceType, sourceId: featured.item.id })}
-              >
-                Remove
-              </button>
+              {onFeature && (
+                <button
+                  type="button"
+                  className="id-featured-block__remove"
+                  onClick={() => onFeature?.(event.id, { sourceType: featured.sourceType, sourceId: featured.item.id })}
+                >
+                  Remove
+                </button>
+              )}
             </div>
             <div className="id-featured-block__body">
               <ZoneFeaturedItemContent
@@ -931,6 +946,7 @@ export function ZoneEvidenceRail({
           onCheck={onCheck}
           onEditUpdate={onEditUpdate}
           onDeleteUpdate={onDeleteUpdate}
+          mode={mode}
           mediaLayout="grid-carousel"
           autoScrollFeatured={false}
           showUpdateHeader={false}
@@ -1310,7 +1326,9 @@ function ZoneEvidenceView({
   mediaLayout,
   autoScrollFeatured = true,
   showUpdateHeader = true,
+  mode = 'user',
 }) {
+  const isAdmin = mode === 'admin' || mode === 'superadmin';
   const [activeTab, setActiveTab] = useState('all');
   const [lightbox, setLightbox] = useState(null);
   const [sourceModal, setSourceModal] = useState(null);
@@ -1383,12 +1401,12 @@ function ZoneEvidenceView({
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onMediaClick={(items, idx) => setLightbox({ items, idx })}
-          mode="admin"
-          onAddEvidence={handleAdd}
-          onEditEvidence={handleEdit}
-          onDeleteEvidence={onDelete}
-          onPinEvidence={onPin}
-          onFeatureEvidence={onFeature}
+          mode={mode}
+          onAddEvidence={isAdmin ? handleAdd : undefined}
+          onEditEvidence={isAdmin ? handleEdit : undefined}
+          onDeleteEvidence={isAdmin ? onDelete : undefined}
+          onPinEvidence={isAdmin ? onPin : undefined}
+          onFeatureEvidence={isAdmin ? onFeature : undefined}
           onAutoCheck={onCheck}
           featuredItem={featuredItem}
           mediaItemWidth={wideCarousel ? null : 300}

@@ -332,3 +332,37 @@ body,
     transform: translateX(100%);
   }
 }
+
+/* ═══════════════════════════════════════════════
+   Page transition animations
+   ═══════════════════════════════════════════════ */
+
+@keyframes pageEnterDashboard {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pageEnterFullpage {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-enter--dashboard {
+  animation: pageEnterDashboard 0.35s ease-out both;
+}
+
+.page-enter--fullpage {
+  animation: pageEnterFullpage 0.35s ease-out both;
+}

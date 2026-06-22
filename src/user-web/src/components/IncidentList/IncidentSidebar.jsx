@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { useCategories } from '@shared/hooks/useCategories.js';
 import IncidentListItem from './IncidentListItem.jsx';
-import { IncidentDetailSidebar } from '@shared';
+import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
 import { api, mapIncidentForShared } from '../../services/api.js';
+import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
+import { useSignInModal } from '../../contexts/SignInModalContext.jsx';
 
 export default function IncidentSidebar({
   incidents,
@@ -23,6 +25,8 @@ export default function IncidentSidebar({
   savedCount = 0,
 }) {
   const navigate = useNavigate();
+  const { isAuthenticated } = usePublicAuth();
+  const { openSignInModal } = useSignInModal();
   const [searchQuery, setSearchQuery] = useState('');
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -71,17 +75,34 @@ export default function IncidentSidebar({
     }
   }, [detailRefreshKey, selectedIncident?.id]);
 
-  const handleCopyIncidentLink = async (incidentId) => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/incident/${incidentId}`);
-    } catch {}
-  };
-
-  const handleNavigateToFullPage = (incidentId) => {
+  const handleNavigateToFullPage = (incidentId, isZone) => {
     if (onNavigateToFullPage) {
       onNavigateToFullPage(incidentId);
     } else {
-      navigate(`/incident/${incidentId}`);
+      navigate(isZone ? `/zone/${incidentId}` : `/incident/${incidentId}`);
+    }
+  };
+
+  const handleCopyIncidentLink = async (incidentId, isZone) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/${isZone ? 'zone' : 'incident'}/${incidentId}`);
+    } catch {}
+  };
+
+  const handleSaveZone = async (zoneId, nextSaved) => {
+    if (!isAuthenticated) {
+      openSignInModal();
+      return;
+    }
+    try {
+      if (nextSaved) {
+        await api.saveIncident(zoneId);
+      } else {
+        await api.unsaveIncident(zoneId);
+      }
+      onSaveChange?.(zoneId, nextSaved);
+    } catch (err) {
+      console.error('Failed to toggle zone save:', err);
     }
   };
 
@@ -106,45 +127,47 @@ export default function IncidentSidebar({
     >
       {selectedIncident ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div
-            style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              background: 'var(--bg-elevated)',
-              flexShrink: 0,
-            }}
-          >
-            <button
-              onClick={onBack}
+          {selectedIncident?.geometry_type !== 'polygon' && (
+            <div
               style={{
+                padding: '12px 16px',
+                borderBottom: '1px solid var(--border-subtle)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '6px 10px',
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'var(--text-secondary)',
-                background: 'transparent',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--text-primary)';
-                e.currentTarget.style.borderColor = 'var(--accent-light)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--text-secondary)';
-                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                gap: 12,
+                background: 'var(--bg-elevated)',
+                flexShrink: 0,
               }}
             >
-              ← Back to results
-            </button>
-          </div>
+              <button
+                onClick={onBack}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  background: 'transparent',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                  e.currentTarget.style.borderColor = 'var(--accent-light)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                }}
+              >
+                ← Back to results
+              </button>
+            </div>
+          )}
           {detailLoading ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
               Loading incident details…
@@ -154,14 +177,27 @@ export default function IncidentSidebar({
               {detailError}
             </div>
           ) : detail ? (
-            <IncidentDetailSidebar
-              mode="user"
-              incident={detail.incident}
-              timeline={detail.timeline}
-              onNavigateToFullPage={handleNavigateToFullPage}
-              onCopyIncidentLink={handleCopyIncidentLink}
-              onAutoCheck={handleCheckSource}
-            />
+            detail.incident?.geometryType === 'polygon' ? (
+              <ZoneDetailSidebar
+                incident={detail.incident}
+                timeline={detail.timeline}
+                onBack={onBack}
+                onFullDetails={() => handleNavigateToFullPage(detail.incident.id, true)}
+                onShare={() => handleCopyIncidentLink(detail.incident.id, true)}
+                onSave={(nextSaved) => handleSaveZone(detail.incident.id, nextSaved)}
+                isSaved={savedIds?.has(detail.incident.id)}
+                onCheckSource={handleCheckSource}
+              />
+            ) : (
+              <IncidentDetailSidebar
+                mode="user"
+                incident={detail.incident}
+                timeline={detail.timeline}
+                onNavigateToFullPage={() => handleNavigateToFullPage(detail.incident.id, false)}
+                onCopyIncidentLink={() => handleCopyIncidentLink(detail.incident.id, false)}
+                onAutoCheck={handleCheckSource}
+              />
+            )
           ) : null}
         </div>
       ) : (

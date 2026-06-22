@@ -44,7 +44,17 @@ export default function ZoneDetailSidebar({
   const [addUpdateOpen, setAddUpdateOpen] = useState(false);
   const { featuredItems, feature } = useZoneFeaturedItems(timeline);
 
+  const isAdmin = !!(
+    onEditZoneInfo ||
+    onEditZoneShape ||
+    onResolve ||
+    onDelete ||
+    onAddUpdate ||
+    onEditUpdate
+  );
+
   const handleFeature = (eventId, payload) => {
+    if (!isAdmin) return;
     const { sourceType, sourceId } = payload;
     feature(eventId, { sourceType, sourceId });
     const current = featuredItems[eventId];
@@ -56,10 +66,12 @@ export default function ZoneDetailSidebar({
   };
 
   const handleVerificationChange = (eventId, status) => {
+    if (!isAdmin) return;
     onEditUpdate?.(eventId, { verificationStatus: status });
   };
 
   const handleAddUpdateSave = (form) => {
+    if (!isAdmin) return;
     onAddUpdate?.(form);
     setAddUpdateOpen(false);
   };
@@ -116,7 +128,7 @@ export default function ZoneDetailSidebar({
             isSaved={isSaved}
           />
 
-          <div className="zone-admin-actions">
+          {isAdmin && <div className="zone-admin-actions">
             <button type="button" className="zone-btn" onClick={onEditZoneInfo}>
               <Edit3 size={12} />
               Edit info
@@ -137,7 +149,7 @@ export default function ZoneDetailSidebar({
               <Trash2 size={12} />
               Delete
             </button>
-          </div>
+          </div>}
         </div>
 
         {timeline.length > 0 && (
@@ -163,7 +175,7 @@ export default function ZoneDetailSidebar({
                   isLast={idx === timeline.length - 1}
                   onOpenEvidence={setDrawerEvent}
                   featuredItem={featuredItems[event.id]}
-                  isAdmin
+                  isAdmin={isAdmin}
                   variant="sidebar"
                   onEditUpdate={onEditUpdate}
                   onDeleteUpdate={onDeleteUpdate}
@@ -189,6 +201,7 @@ export default function ZoneDetailSidebar({
           onAdd={onAddEvidence}
           onEdit={onEditEvidence}
           onCheck={onCheckSource}
+          mode={isAdmin ? 'admin' : 'user'}
         />
       )}
 

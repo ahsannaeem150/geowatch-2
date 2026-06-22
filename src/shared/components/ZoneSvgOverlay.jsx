@@ -49,9 +49,18 @@ export default function ZoneSvgOverlay({
     };
   }, [mapInstance]);
 
+  const uniqueZones = useMemo(() => {
+    const seen = new Set();
+    return zones.filter((zone) => {
+      if (!zone || !zone.id || seen.has(zone.id)) return false;
+      seen.add(zone.id);
+      return true;
+    });
+  }, [zones]);
+
   const renderedZones = useMemo(() => {
     if (!mapInstance || !showZones) return [];
-    return zones
+    return uniqueZones
       .map((zone) => {
         const d = buildZoneScreenPath(mapInstance, normalizeGeometry(zone.geometry));
         if (!d) return null;

@@ -1,16 +1,21 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { IncidentDetailPage as SharedIncidentDetailPage } from '@shared';
-import { api, mapIncidentForShared } from '../../services/api.js';
+import { ZoneDetailPage as SharedZoneDetailPage } from '@shared';
+import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
+import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
+import { useSignInModal } from '../contexts/SignInModalContext.jsx';
 
-export default function IncidentDetailPage() {
+export default function ZoneDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = usePublicAuth();
+  const { openSignInModal } = useSignInModal();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
+  const [saved, setSaved] = useState(false);
   const esRef = useRef(null);
 
   const fetchData = useCallback(async (opts = {}) => {
@@ -19,9 +24,9 @@ export default function IncidentDetailPage() {
     try {
       const res = await api.getIncident(id);
       setData(mapIncidentForShared(res.data));
-      setError('');
+      if (!opts.silent) setError('');
     } catch (err) {
-      if (!opts.silent) setError(err.message || 'Failed to load incident');
+      if (!opts.silent) setError(err.message || 'Failed to load zone');
     } finally {
       if (!opts.silent) setLoading(false);
     }
@@ -31,12 +36,32 @@ export default function IncidentDetailPage() {
     fetchData();
   }, [fetchData]);
 
-  // Redirect zone incidents to the dedicated zone view
+  // Redirect non-zone incidents to the point incident view
   useEffect(() => {
-    if (data?.incident && data.incident.geometryType === 'polygon') {
-      navigate(`/zone/${id}`, { replace: true });
+    if (data?.incident && data.incident.geometryType !== 'polygon') {
+      navigate(`/incident/${id}`, { replace: true });
     }
   }, [data, id, navigate]);
+
+  // Load saved state for this zone
+  useEffect(() => {
+    if (!id || !isAuthenticated) {
+      setSaved(false);
+      return;
+    }
+    let cancelled = false;
+    api.checkSaved(id)
+      .then((res) => {
+        if (cancelled) return;
+        setSaved(!!res.data?.saved);
+      })
+      .catch(() => {
+        if (!cancelled) setSaved(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthenticated]);
 
   // SSE listener for live updates
   useEffect(() => {
@@ -79,11 +104,11 @@ export default function IncidentDetailPage() {
             payload.type === 'timeline_added' ||
             payload.type === 'timeline_deleted'
           ) {
-            fetchData();
+            fetchData({ silent: true });
           }
 
           if (payload.type === 'incident_deleted') {
-            setToast({ message: 'This incident has been removed', type: 'info' });
+            setToast({ message: 'This zone has been removed', type: 'info' });
             setTimeout(() => navigate('/map'), 2000);
           }
         } catch (err) {
@@ -117,8 +142,8 @@ export default function IncidentDetailPage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const handleCopyIncidentLink = useCallback(() => {
-    const url = `${window.location.origin}/incident/${id}`;
+  const handleCopyLink = useCallback(() => {
+    const url = `${window.location.origin}/zone/${id}`;
     navigator.clipboard.writeText(url).catch(() => {});
   }, [id]);
 
@@ -129,6 +154,26 @@ export default function IncidentDetailPage() {
       navigate('/map');
     }
   }, [navigate]);
+
+  const handleSave = useCallback(
+    async (nextSaved) => {
+      if (!isAuthenticated) {
+        openSignInModal();
+        return;
+      }
+      try {
+        if (nextSaved) {
+          await api.saveIncident(id);
+        } else {
+          await api.unsaveIncident(id);
+        }
+        setSaved(nextSaved);
+      } catch (err) {
+        console.error('Failed to toggle save:', err);
+      }
+    },
+    [id, isAuthenticated, openSignInModal]
+  );
 
   const handleCheckSource = useCallback(
     async (eventId, item) => {
@@ -145,7 +190,7 @@ export default function IncidentDetailPage() {
   if (loading) {
     return (
       <div style={{ padding: 40, color: 'var(--text-secondary)', textAlign: 'center' }}>
-        Loading incident details…
+        Loading zone details…
       </div>
     );
   }
@@ -161,14 +206,15 @@ export default function IncidentDetailPage() {
   if (!data) return null;
 
   return (
-    <>
-      <SharedIncidentDetailPage
-        mode="user"
+    <div className="zone-full-page-wrapper page-enter--fullpage">
+      <SharedZoneDetailPage
         incident={data.incident}
         timeline={data.timeline}
         onBack={handleBack}
-        onCopyIncidentLink={handleCopyIncidentLink}
-        onAutoCheck={handleCheckSource}
+        onCopyLink={handleCopyLink}
+        onSave={handleSave}
+        isSaved={saved}
+        onCheckSource={handleCheckSource}
       />
       {toast && (
         <div
@@ -190,6 +236,6 @@ export default function IncidentDetailPage() {
           {toast.message}
         </div>
       )}
-    </>
+    </div>
   );
 }
