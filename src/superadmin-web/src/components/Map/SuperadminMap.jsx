@@ -184,6 +184,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   const onDrawRedoRef = useRef(onDrawRedo);
   const selectedDrawVertexIndexRef = useRef(selectedDrawVertexIndex);
   const hoveredDrawVertexIndexRef = useRef(hoveredDrawVertexIndex);
+  const markerClickedRef = useRef(false);
   onDrawVertexSelectRef.current = onDrawVertexSelect;
   onDrawVertexMoveRef.current = onDrawVertexMove;
   onDrawVertexDragEndRef.current = onDrawVertexDragEnd;
@@ -566,7 +567,19 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       }
     });
 
+    // Keep the canvas in sync when the surrounding layout changes (sidebar
+    // open/close, full-page back-navigation, etc.). Without this, MapLibre's
+    // reported center can drift horizontally as the container width changes.
+    let resizeObserver;
+    if (typeof ResizeObserver !== 'undefined' && mapContainer.current) {
+      resizeObserver = new ResizeObserver(() => {
+        map.current?.resize();
+      });
+      resizeObserver.observe(mapContainer.current);
+    }
+
     return () => {
+      if (resizeObserver) resizeObserver.disconnect();
       markers.current.forEach((m) => m.remove());
       tempMarker.current?.remove();
       popupRef.current?.remove();
@@ -709,8 +722,9 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       });
       visual.addEventListener('mouseleave', hidePopup);
 
-      // Click: NO stopPropagation — let MapLibre clean up properly
+      // Click: flag so the map-level zone click handler can ignore this event
       el.addEventListener('click', () => {
+        markerClickedRef.current = true;
         hidePopup();
         onEventClick?.(incident);
       });
@@ -816,6 +830,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       });
 
       el.addEventListener('click', () => {
+        markerClickedRef.current = true;
         onEventClick?.(ghostIncident);
       });
 
@@ -901,6 +916,10 @@ const SuperadminMap = forwardRef(function SuperadminMap({
     const onClick = (e) => {
       // Skip zone clicks when in polygon drawing mode or editing mode
       if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) return;
+      if (markerClickedRef.current) {
+        markerClickedRef.current = false;
+        return;
+      }
       if (!layersReady()) return;
       let features = [];
       try {

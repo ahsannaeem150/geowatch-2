@@ -48,6 +48,7 @@ const UserMap = forwardRef(function UserMap({
   const popupRef = useRef(null);
   const popupTimeoutRef = useRef(null);
   const isProgrammaticMove = useRef(false);
+  const markerClickedRef = useRef(false);
   const onZoneClickRef = useRef(onZoneClick);
   onZoneClickRef.current = onZoneClick;
   const isClamping = useRef(false);
@@ -519,8 +520,9 @@ const UserMap = forwardRef(function UserMap({
       });
       visual.addEventListener('mouseleave', hidePopup);
 
-      // Click: NO stopPropagation — let MapLibre clean up properly
+      // Click: flag so the map-level zone click handler can ignore this event
       el.addEventListener('click', () => {
+        markerClickedRef.current = true;
         hidePopup();
         onEventClick?.(incident);
       });
@@ -574,6 +576,7 @@ const UserMap = forwardRef(function UserMap({
       });
 
       el.addEventListener('click', () => {
+        markerClickedRef.current = true;
         onEventClick?.(ghostIncident);
       });
 

@@ -14,6 +14,8 @@ import {
 } from './ZoneTrialCommon.jsx';
 import ZoneEditorSidebar from './ZoneEditorSidebar.jsx';
 import { formatDate, formatTime } from '@shared/components/incident-detail/IncidentUtils.js';
+import StatusHistory from '@shared/components/incident-detail/StatusHistory.jsx';
+import DebugMetadata from '@shared/components/incident-detail/DebugMetadata.jsx';
 import {
   Hexagon,
   Activity,
@@ -29,6 +31,7 @@ import {
   CheckCircle,
   Trash2,
   Plus,
+  ExternalLink,
 } from 'lucide-react';
 import './ZoneTrial.css';
 import './ZoneHeroesTrial.css';
@@ -176,9 +179,21 @@ function ZoneTrialHero({ zone, saved, onSave, onCopyLink }) {
   );
 }
 
-function ZoneAdminTopBar({ onBack, onEditInfo, onEditShape, onResolve, onDelete, onAddUpdate, status }) {
+function ZoneAdminTopBar({
+  onBack,
+  onEditInfo,
+  onEditShape,
+  onResolve,
+  onDelete,
+  onAddUpdate,
+  onOpenAudit,
+  onViewCreator,
+  status,
+  mode = 'user',
+}) {
+  const isSuper = mode === 'superadmin';
   return (
-    <div className="zone-admin-topbar">
+    <div className="zone-admin-topbar" data-role={mode}>
       <button type="button" className="zone-trial-backbar__btn" onClick={onBack}>
         <ArrowLeft size={16} />
         Back
@@ -214,6 +229,17 @@ function ZoneAdminTopBar({ onBack, onEditInfo, onEditShape, onResolve, onDelete,
             Delete
           </button>
         )}
+        {isSuper && onOpenAudit && (
+          <button type="button" className="zone-admin-topbar__btn" onClick={onOpenAudit}>
+            📋 Audit log
+          </button>
+        )}
+        {isSuper && onViewCreator && (
+          <button type="button" className="zone-admin-topbar__btn" onClick={() => onViewCreator()}>
+            <ExternalLink size={14} />
+            View creator
+          </button>
+        )}
       </div>
     </div>
   );
@@ -222,6 +248,7 @@ function ZoneAdminTopBar({ onBack, onEditInfo, onEditShape, onResolve, onDelete,
 export default function ZoneDetailPage({
   incident,
   timeline = [],
+  mode = 'user',
   onBack,
   onCopyLink,
   onSave,
@@ -230,6 +257,8 @@ export default function ZoneDetailPage({
   onEditZoneShape,
   onResolve,
   onDelete,
+  onRestore,
+  onPurge,
   onAddUpdate,
   onEditUpdate,
   onDeleteUpdate,
@@ -240,6 +269,10 @@ export default function ZoneDetailPage({
   onFeatureEvidence,
   onClearFeatureEvidence,
   onCheckSource,
+  onArchiveSource,
+  onOpenAudit,
+  onViewCreator,
+  auditLogs = [],
 }) {
   const [saved, setSaved] = useState(isSaved);
   const [selectedEventId, setSelectedEventId] = useState(() => timeline[0]?.id);
@@ -254,14 +287,16 @@ export default function ZoneDetailPage({
     setSaved(isSaved);
   }, [isSaved]);
 
-  const isAdmin = !!(
-    onEditZoneInfo ||
-    onEditZoneShape ||
-    onResolve ||
-    onDelete ||
-    onAddUpdate ||
-    onEditUpdate
-  );
+  const effectiveMode =
+    mode ||
+    (onEditZoneInfo || onEditZoneShape || onResolve || onDelete || onAddUpdate || onEditUpdate
+      ? 'admin'
+      : 'user');
+  const isAdmin = effectiveMode === 'admin' || effectiveMode === 'superadmin';
+  const isSuper = effectiveMode === 'superadmin';
+  const isDeleted = incident.status === 'deleted';
+  const isPurged = incident.status === 'purged';
+  const isReadOnly = isDeleted || isPurged;
 
   useEffect(() => {
     setSelectedEventId((prev) => {
@@ -369,15 +404,18 @@ export default function ZoneDetailPage({
 
   return (
     <div className="zone-full-page" data-selected-event-id={selectedEventId}>
-      {(onBack || hasAdminActions) && (
+      {(onBack || hasAdminActions || isSuper) && (
         <ZoneAdminTopBar
           onBack={onBack}
-          onEditInfo={onEditZoneInfo ? () => setInfoOpen(true) : undefined}
-          onEditShape={onEditZoneShape}
-          onResolve={onResolve}
-          onDelete={onDelete}
-          onAddUpdate={onAddUpdate ? () => setAddUpdateOpen(true) : undefined}
+          onEditInfo={!isReadOnly && onEditZoneInfo ? () => setInfoOpen(true) : undefined}
+          onEditShape={!isReadOnly && onEditZoneShape ? onEditZoneShape : undefined}
+          onResolve={!isReadOnly && onResolve ? onResolve : undefined}
+          onDelete={!isReadOnly && onDelete ? onDelete : undefined}
+          onAddUpdate={!isReadOnly && onAddUpdate ? () => setAddUpdateOpen(true) : undefined}
+          onOpenAudit={onOpenAudit}
+          onViewCreator={() => onViewCreator?.(incident.createdBy)}
           status={incident.status}
+          mode={effectiveMode}
         />
       )}
 
@@ -431,9 +469,10 @@ export default function ZoneDetailPage({
               onAdd={onAddEvidence}
               onEdit={onEditEvidence}
               onCheck={onCheckSource}
+              onArchiveSource={onArchiveSource}
               onEditUpdate={onEditUpdate}
               onDeleteUpdate={onDeleteUpdate}
-              mode={isAdmin ? 'admin' : 'user'}
+              mode={effectiveMode}
             />
           </div>
         )}
@@ -475,12 +514,23 @@ export default function ZoneDetailPage({
               <span className="zone-rail-row__value">Polygon boundary · WGS84</span>
             </div>
           </div>
+
+          {isSuper && (
+            <div className="zone-rail-card zone-rail-card--flush">
+              <StatusHistory incident={incident} logs={auditLogs} onUserClick={onViewCreator} />
+            </div>
+          )}
+          {isSuper && (
+            <div className="zone-rail-card zone-rail-card--flush">
+              <DebugMetadata incident={incident} />
+            </div>
+          )}
         </aside>
       </div>
 
       {infoOpen && (
         <div className="zone-modal-overlay" style={{ zIndex: 300 }} onClick={() => setInfoOpen(false)}>
-          <div className="zone-modal zone-modal--evidence" onClick={(e) => e.stopPropagation()}>
+          <div className="zone-modal zone-modal--evidence zone-modal--edit" onClick={(e) => e.stopPropagation()}>
             <ZoneEditorSidebar
               geometry={incident.geometry}
               initialData={incident}

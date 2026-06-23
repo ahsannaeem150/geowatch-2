@@ -87,9 +87,9 @@
 
 .zh-hero {
   position: relative;
-  height: 70vh;
-  min-height: 460px;
-  max-height: 720px;
+  height: 55vh;
+  min-height: 360px;
+  max-height: 560px;
   overflow: hidden;
   background: var(--bg-deep);
   border-top: 1px solid var(--border-subtle);

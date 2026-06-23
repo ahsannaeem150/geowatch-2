@@ -890,6 +890,7 @@ export function ZoneEvidenceRail({
   onAdd,
   onEdit,
   onCheck,
+  onArchiveSource,
   onEditUpdate,
   onDeleteUpdate,
   mode = 'user',
@@ -944,6 +945,7 @@ export function ZoneEvidenceRail({
           onAdd={onAdd}
           onEdit={onEdit}
           onCheck={onCheck}
+          onArchiveSource={onArchiveSource}
           onEditUpdate={onEditUpdate}
           onDeleteUpdate={onDeleteUpdate}
           mode={mode}
@@ -1320,6 +1322,7 @@ function ZoneEvidenceView({
   onAdd,
   onEdit,
   onCheck,
+  onArchiveSource,
   onEditUpdate,
   onDeleteUpdate,
   wideCarousel,
@@ -1408,6 +1411,7 @@ function ZoneEvidenceView({
           onPinEvidence={isAdmin ? onPin : undefined}
           onFeatureEvidence={isAdmin ? onFeature : undefined}
           onAutoCheck={onCheck}
+          onArchiveSource={onArchiveSource}
           featuredItem={featuredItem}
           mediaItemWidth={wideCarousel ? null : 300}
           mediaLayout={mediaLayout}

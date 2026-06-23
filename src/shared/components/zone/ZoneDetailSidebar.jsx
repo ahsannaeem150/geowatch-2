@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit3, Trash2, CheckCircle, MapPin, Plus } from 'lucide-react';
+import { Edit3, Trash2, CheckCircle, MapPin, Plus, ExternalLink, RotateCcw } from 'lucide-react';
 import {
   ZoneCategoryBadge,
   VerificationBadge,
@@ -15,11 +15,15 @@ import {
   ArrowLeft,
 } from './ZoneTrialCommon.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
+import { formatDate, formatTime } from '@shared/components/incident-detail/IncidentUtils.js';
+import StatusHistory from '@shared/components/incident-detail/StatusHistory.jsx';
+import DebugMetadata from '@shared/components/incident-detail/DebugMetadata.jsx';
 import './ZoneTrial.css';
 
 export default function ZoneDetailSidebar({
   incident,
   timeline = [],
+  mode = 'user',
   onBack,
   onFullDetails,
   onShare,
@@ -29,6 +33,8 @@ export default function ZoneDetailSidebar({
   onEditZoneShape,
   onResolve,
   onDelete,
+  onRestore,
+  onPurge,
   onAddUpdate,
   onEditUpdate,
   onDeleteUpdate,
@@ -39,19 +45,25 @@ export default function ZoneDetailSidebar({
   onFeatureEvidence,
   onClearFeatureEvidence,
   onCheckSource,
+  onArchiveSource,
+  onOpenAudit,
+  onViewCreator,
+  auditLogs = [],
 }) {
   const [drawerEvent, setDrawerEvent] = useState(null);
   const [addUpdateOpen, setAddUpdateOpen] = useState(false);
   const { featuredItems, feature } = useZoneFeaturedItems(timeline);
 
-  const isAdmin = !!(
-    onEditZoneInfo ||
-    onEditZoneShape ||
-    onResolve ||
-    onDelete ||
-    onAddUpdate ||
-    onEditUpdate
-  );
+  const effectiveMode =
+    mode ||
+    (onEditZoneInfo || onEditZoneShape || onResolve || onDelete || onAddUpdate || onEditUpdate
+      ? 'admin'
+      : 'user');
+  const isAdmin = effectiveMode === 'admin' || effectiveMode === 'superadmin';
+  const isSuper = effectiveMode === 'superadmin';
+  const isDeleted = incident.status === 'deleted';
+  const isPurged = incident.status === 'purged';
+  const isReadOnly = isDeleted || isPurged;
 
   const handleFeature = (eventId, payload) => {
     if (!isAdmin) return;
@@ -79,7 +91,7 @@ export default function ZoneDetailSidebar({
   const zoneColor = incident.zoneCategoryColor || '#6366f1';
 
   return (
-    <aside className="zone-detail-sidebar">
+    <aside className="zone-detail-sidebar" data-role={effectiveMode}>
       <div className="zone-back-bar">
         <button className="zone-back-button" onClick={onBack}>
           <ArrowLeft size={14} />
@@ -128,31 +140,80 @@ export default function ZoneDetailSidebar({
             isSaved={isSaved}
           />
 
-          {isAdmin && <div className="zone-admin-actions">
-            <button type="button" className="zone-btn" onClick={onEditZoneInfo}>
-              <Edit3 size={12} />
-              Edit info
-            </button>
-            {onEditZoneShape && (
-              <button type="button" className="zone-btn" onClick={onEditZoneShape}>
-                <MapPin size={12} />
-                Edit shape
+          {isPurged && (
+            <div className="id-banner id-banner--purged">
+              <div className="id-banner__title">This zone has been permanently deleted.</div>
+              {incident.purgedAt && (
+                <div>
+                  Purged {formatDate(incident.purgedAt)} · {formatTime(incident.purgedAt)}
+                </div>
+              )}
+              {incident.originalStatus && <div>Original status: {incident.originalStatus}</div>}
+            </div>
+          )}
+
+          {isDeleted && (
+            <div className="id-banner id-banner--deleted">
+              <div className="id-banner__title">This zone has been moved to the Recycle Bin.</div>
+              {incident.deletedAt && (
+                <div>
+                  Deleted {formatDate(incident.deletedAt)} · {formatTime(incident.deletedAt)}
+                </div>
+              )}
+              {incident.deletedByName && <div>Deleted by {incident.deletedByName}</div>}
+              {incident.originalStatus && <div>Original status: {incident.originalStatus}</div>}
+              <div className="id-banner__actions">
+                <button type="button" className="id-btn" onClick={() => onRestore?.()}>
+                  <RotateCcw size={12} /> Restore
+                </button>
+                <button type="button" className="id-btn-danger" onClick={() => onPurge?.()}>
+                  <Trash2 size={12} /> Purge permanently
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isAdmin && !isReadOnly && (
+            <div className="zone-admin-actions">
+              <button type="button" className="zone-btn" onClick={() => onEditZoneInfo?.()}>
+                <Edit3 size={12} />
+                Edit info
               </button>
-            )}
-            {incident.status !== 'resolved' && (
-              <button type="button" className="zone-btn zone-btn--success" onClick={onResolve}>
-                <CheckCircle size={12} />
-                Resolve
+              {onEditZoneShape && (
+                <button type="button" className="zone-btn" onClick={() => onEditZoneShape?.()}>
+                  <MapPin size={12} />
+                  Edit shape
+                </button>
+              )}
+              {incident.status !== 'resolved' && (
+                <button type="button" className="zone-btn zone-btn--success" onClick={onResolve}>
+                  <CheckCircle size={12} />
+                  Resolve
+                </button>
+              )}
+              <button type="button" className="zone-btn zone-btn--danger" onClick={onDelete}>
+                <Trash2 size={12} />
+                Delete
               </button>
-            )}
-            <button type="button" className="zone-btn zone-btn--danger" onClick={onDelete}>
-              <Trash2 size={12} />
-              Delete
-            </button>
-          </div>}
+              {isSuper && (
+                <>
+                  <button type="button" className="zone-btn" onClick={() => onOpenAudit?.()}>
+                    📋 Audit log
+                  </button>
+                  <button type="button" className="zone-btn" onClick={() => onViewCreator?.(incident.createdBy)}>
+                    <ExternalLink size={12} />
+                    View creator
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {isSuper && <StatusHistory incident={incident} logs={auditLogs} onUserClick={onViewCreator} />}
+          {isSuper && <DebugMetadata incident={incident} />}
         </div>
 
-        {timeline.length > 0 && (
+        {timeline.length > 0 && !isReadOnly && (
           <>
             <div className="zone-section-title zone-section-title--timeline">
               <span>Restriction timeline</span>
@@ -201,7 +262,8 @@ export default function ZoneDetailSidebar({
           onAdd={onAddEvidence}
           onEdit={onEditEvidence}
           onCheck={onCheckSource}
-          mode={isAdmin ? 'admin' : 'user'}
+          onArchiveSource={onArchiveSource}
+          mode={effectiveMode}
         />
       )}
 

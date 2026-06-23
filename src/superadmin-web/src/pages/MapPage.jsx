@@ -31,7 +31,7 @@ import {
   listAuditLogs,
 } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
-import { IncidentDetailSidebar } from '@shared';
+import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
 import MapControls from '../components/Map/MapControls.jsx';
 import DrawingToolbar from '../components/Map/DrawingToolbar.jsx';
@@ -333,7 +333,9 @@ export default function MapPage() {
     if (zone && !zoneDeepLinkProcessed.current) {
       setSelectedZoneId(zone.id);
       setSelectedIncident(zone);
-      if (zone.geometry?.coordinates?.[0]) {
+      // Only fly to the zone when the URL does not already carry a saved viewport.
+      // This preserves the map position when the user returns from the full-page zone view.
+      if (!hasViewportParams && zone.geometry?.coordinates?.[0]) {
         const coords = zone.geometry.coordinates[0];
         let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
         coords.forEach(([lng, lat]) => {
@@ -356,7 +358,7 @@ export default function MapPage() {
         return next;
       });
     }
-  }, [zoneIdFromUrl, polygonIncidents, setSearchParams]);
+  }, [zoneIdFromUrl, polygonIncidents, hasViewportParams, setSearchParams]);
 
   // Fetch domains for legend
   useEffect(() => {
@@ -468,16 +470,24 @@ export default function MapPage() {
     viewportBoundsRef.current = bounds;
 
     if (center && Number.isFinite(zoom)) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('lat', center.lat.toFixed(6));
-          next.set('lng', center.lng.toFixed(6));
-          next.set('zoom', zoom.toFixed(2));
-          return next;
-        },
-        { replace: true }
-      );
+      const lat = center.lat.toFixed(6);
+      const lng = center.lng.toFixed(6);
+      const z = zoom.toFixed(2);
+      // Avoid overwriting the URL when the reported viewport already matches the
+      // current query params. This prevents a programmatic or load-time report
+      // from changing the saved map position on back-navigation.
+      if (lat !== latParam || lng !== lngParam || z !== zoomParam) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('lat', lat);
+            next.set('lng', lng);
+            next.set('zoom', z);
+            return next;
+          },
+          { replace: true }
+        );
+      }
     }
 
     if (viewportFilteringRef.current === true) {
@@ -497,7 +507,7 @@ export default function MapPage() {
         })
         .catch(() => setIncidents([]));
     }
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, closeMapMenu, setSearchParams]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, closeMapMenu, setSearchParams, latParam, lngParam, zoomParam]);
 
   // Select incident
   const handleSelectIncident = useCallback((incident, opts = {}) => {
@@ -2347,7 +2357,7 @@ export default function MapPage() {
               </div>
             ) : selectedIncident && !(selectedIncident.isDeleted || selectedIncident.isPurged || selectedIncident.status === 'hidden') ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {selectedIncident.geometry_type === 'polygon' && (
+                {selectedIncident.geometry_type === 'polygon' && !selectedIncidentDetail && (
                   <div
                     style={{
                       padding: '12px 16px',
@@ -2400,33 +2410,87 @@ export default function MapPage() {
                   </div>
                 ) : selectedIncidentDetail ? (
                   <div style={{ flex: 1, overflowY: 'auto' }}>
-                    <IncidentDetailSidebar
-                      mode="superadmin"
-                      incident={selectedIncidentDetail.incident}
-                      timeline={selectedIncidentDetail.timeline}
-                      onNavigateToFullPage={handleNavigateToFullPage}
-                      onCopyIncidentLink={handleCopyIncidentLink}
-                      onUpdateIncident={handleUpdateIncident}
-                      onResolveIncident={handleResolveSelectedIncident}
-                      onDeleteIncident={handleDeleteSelectedIncident}
-                      onRestoreIncident={handleRestoreIncident}
-                      onPurgeIncident={handlePurgeIncident}
-                      onAddUpdate={handleAddUpdate}
-                      onEditUpdate={handleEditUpdate}
-                      onDeleteUpdate={handleDeleteUpdate}
-                      onAddEvidence={handleAddEvidence}
-                      onEditEvidence={handleEditEvidence}
-                      onDeleteEvidence={handleDeleteEvidence}
-                      onPinEvidence={handlePinEvidence}
-                      onFeatureEvidence={handleFeatureEvidence}
-                      onClearFeatureEvidence={handleClearFeatureEvidence}
-                      onArchiveSource={handleArchiveSource}
-                      onCheckSource={handleCheckSource}
-                      onAutoCheck={handleCheckSource}
-                      onOpenAudit={handleOpenAudit}
-                      onViewCreator={handleViewCreator}
-                      auditLogs={auditLogs}
-                    />
+                    {(
+                      selectedIncidentDetail.incident.geometryType === 'polygon' ||
+                      selectedIncidentDetail.incident.geometry_type === 'polygon' ||
+                      selectedIncidentDetail.incident.geometry?.type === 'Polygon'
+                    ) ? (
+                      <ZoneDetailSidebar
+                        mode="superadmin"
+                        incident={selectedIncidentDetail.incident}
+                        timeline={selectedIncidentDetail.timeline}
+                        onBack={handleBack}
+                        onFullDetails={() => navigate(`/superadmin/zone/${selectedIncidentDetail.incident.id}`)}
+                        onShare={() => {
+                          const url = `${window.location.origin}/zone/${selectedIncidentDetail.incident.id}`;
+                          navigator.clipboard.writeText(url).catch(() => {});
+                        }}
+                        onEditZoneInfo={() => handleZoneInfoEdit()}
+                        onEditZoneShape={() => handleEditZone()}
+                        onResolve={() => {
+                          if (window.confirm('Resolve zone? This will mark the zone as resolved.')) {
+                            handleResolveSelectedIncident();
+                          }
+                        }}
+                        onDelete={() => {
+                          if (window.confirm('Delete zone? This will move the zone to the Recycle Bin.')) {
+                            handleDeleteSelectedIncident();
+                          }
+                        }}
+                        onRestore={() => {
+                          if (window.confirm('Restore zone? This will return it to the live map.')) {
+                            handleRestoreIncident();
+                          }
+                        }}
+                        onPurge={() => {
+                          if (window.confirm('Purge zone permanently? This cannot be undone.')) {
+                            handlePurgeIncident();
+                          }
+                        }}
+                        onAddUpdate={handleAddUpdate}
+                        onEditUpdate={handleEditUpdate}
+                        onDeleteUpdate={handleDeleteUpdate}
+                        onAddEvidence={handleAddEvidence}
+                        onEditEvidence={handleEditEvidence}
+                        onDeleteEvidence={handleDeleteEvidence}
+                        onPinEvidence={handlePinEvidence}
+                        onFeatureEvidence={handleFeatureEvidence}
+                        onClearFeatureEvidence={handleClearFeatureEvidence}
+                        onCheckSource={handleCheckSource}
+                        onArchiveSource={handleArchiveSource}
+                        onOpenAudit={handleOpenAudit}
+                        onViewCreator={handleViewCreator}
+                        auditLogs={auditLogs}
+                      />
+                    ) : (
+                      <IncidentDetailSidebar
+                        mode="superadmin"
+                        incident={selectedIncidentDetail.incident}
+                        timeline={selectedIncidentDetail.timeline}
+                        onNavigateToFullPage={handleNavigateToFullPage}
+                        onCopyIncidentLink={handleCopyIncidentLink}
+                        onUpdateIncident={handleUpdateIncident}
+                        onResolveIncident={handleResolveSelectedIncident}
+                        onDeleteIncident={handleDeleteSelectedIncident}
+                        onRestoreIncident={handleRestoreIncident}
+                        onPurgeIncident={handlePurgeIncident}
+                        onAddUpdate={handleAddUpdate}
+                        onEditUpdate={handleEditUpdate}
+                        onDeleteUpdate={handleDeleteUpdate}
+                        onAddEvidence={handleAddEvidence}
+                        onEditEvidence={handleEditEvidence}
+                        onDeleteEvidence={handleDeleteEvidence}
+                        onPinEvidence={handlePinEvidence}
+                        onFeatureEvidence={handleFeatureEvidence}
+                        onClearFeatureEvidence={handleClearFeatureEvidence}
+                        onArchiveSource={handleArchiveSource}
+                        onCheckSource={handleCheckSource}
+                        onAutoCheck={handleCheckSource}
+                        onOpenAudit={handleOpenAudit}
+                        onViewCreator={handleViewCreator}
+                        auditLogs={auditLogs}
+                      />
+                    )}
                   </div>
                 ) : null}
               </div>

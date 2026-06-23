@@ -44,14 +44,16 @@ export default function ZoneForm({
   const [zoneCategoryId, setZoneCategoryId] = useState('');
   const [severity, setSeverity] = useState(initialData?.severity?.toString() || '3');
   const [status, setStatus] = useState(initialData?.status || 'active');
+  const startDateRaw = initialData?.start_date || initialData?.startDate;
+  const endDateRaw = initialData?.end_date || initialData?.endDate;
   const [startDate, setStartDate] = useState(
-    initialData?.start_date
-      ? format(new Date(initialData.start_date), "yyyy-MM-dd'T'HH:mm")
+    startDateRaw
+      ? format(new Date(startDateRaw), "yyyy-MM-dd'T'HH:mm")
       : format(new Date(), "yyyy-MM-dd'T'HH:mm")
   );
   const [endDate, setEndDate] = useState(
-    initialData?.end_date
-      ? format(new Date(initialData.end_date), "yyyy-MM-dd'T'HH:mm")
+    endDateRaw
+      ? format(new Date(endDateRaw), "yyyy-MM-dd'T'HH:mm")
       : ''
   );
   const [sources, setSources] = useState([
@@ -59,12 +61,13 @@ export default function ZoneForm({
   ]);
 
   useEffect(() => {
-    if (isEdit && initialData?.zone_category_id != null) {
-      setZoneCategoryId(String(initialData.zone_category_id));
+    const catId = initialData?.zone_category_id ?? initialData?.zoneCategoryId;
+    if (isEdit && catId != null) {
+      setZoneCategoryId(String(catId));
     } else if (!isEdit && categories.length > 0) {
       setZoneCategoryId(String(categories[0].id));
     }
-  }, [isEdit, initialData?.zone_category_id, categories]);
+  }, [isEdit, initialData?.zone_category_id, initialData?.zoneCategoryId, categories]);
 
   useEffect(() => {
     if (isEdit && initialData?.sources) {
