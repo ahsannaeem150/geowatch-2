@@ -51,6 +51,10 @@ export default function HeroMap() {
     mapInstance.on('load', () => {
       // Add incident markers
       incidents.forEach((incident) => {
+        const lat = parseFloat(incident.latitude);
+        const lng = parseFloat(incident.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
         const el = document.createElement('div');
         const size = 6 + incident.severity * 2;
         const color = incident.domain_color || '#ef4444';
