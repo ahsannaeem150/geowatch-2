@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
+import { getBadgeColors, getSeverityBadgeColors } from '@shared/utils/themeColors.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { useTheme } from '@shared/useTheme.js';
 import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
@@ -502,7 +503,7 @@ const UserMap = forwardRef(function UserMap({
           className: 'geowatch-popup',
         })
           .setLngLat([parseFloat(data.longitude), parseFloat(data.latitude)])
-          .setHTML(buildPopupHTML(data))
+          .setHTML(buildPopupHTML(data, theme))
           .addTo(map.current);
       };
 
@@ -629,7 +630,7 @@ const UserMap = forwardRef(function UserMap({
 
 export default UserMap;
 
-function buildPopupHTML(incident) {
+function buildPopupHTML(incident, theme) {
   const vCfg = incident.verification_status ? VERIFICATION_CONFIG[incident.verification_status] : null;
   const sevCfg = SEVERITY_SCALE.find((s) => s.value === incident.severity) || SEVERITY_SCALE[2];
   const dateStr = incident.start_date
@@ -641,16 +642,23 @@ function buildPopupHTML(incident) {
       : incident.description
     : '';
 
+  const domainBadge = getBadgeColors(incident.domain_color || '#6b7280', theme);
+  const sevBadge = getSeverityBadgeColors(sevCfg.color, theme);
+  const verBadge = vCfg ? getBadgeColors(vCfg.color, theme) : null;
+
+  const badgeStyle = (badge) =>
+    `font-size: 10px; font-weight: 700; color: ${badge.color}; background: ${badge.background}; ${badge.border ? `border: ${badge.border};` : ''} padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;`;
+
   return `
     <div style="padding: 12px;">
       <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;">
-        <span style="font-size: 10px; font-weight: 700; color: ${incident.domain_color || '#6b7280'}; background: ${(incident.domain_color || '#6b7280') + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+        <span style="${badgeStyle(domainBadge)}">
           ${incident.domain_name || 'Unknown'}
         </span>
-        <span style="font-size: 10px; font-weight: 700; color: ${sevCfg.color}; background: ${sevCfg.color + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+        <span style="${badgeStyle(sevBadge)}">
           ${sevCfg.label}
         </span>
-        ${vCfg ? `<span style="font-size: 10px; font-weight: 700; color: ${vCfg.color}; background: ${vCfg.color + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">${vCfg.icon} ${vCfg.label}</span>` : ''}
+        ${verBadge ? `<span style="${badgeStyle(verBadge)}">${vCfg.icon} ${vCfg.label}</span>` : ''}
       </div>
       <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">
         ${escapeHtml(incident.title)}

@@ -9,6 +9,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
     name: '',
     description: '',
     color: '#3b82f6',
+    lightColor: '#6b7280',
     icon: '',
     sortOrder: 0,
   });
@@ -22,6 +23,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
         name: domain.name || '',
         description: domain.description || '',
         color: domain.color || '#3b82f6',
+        lightColor: domain.light_color || '#6b7280',
         icon: domain.icon || '',
         sortOrder: domain.sort_order ?? 0,
       });
@@ -128,7 +130,7 @@ export default function DomainModal({ domain, onClose, onSaved }) {
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
-                Color
+                Dark Mode Color
               </label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input
@@ -165,6 +167,48 @@ export default function DomainModal({ domain, onClose, onSaved }) {
                 />
               </div>
             </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
+                Light Mode Color
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={form.lightColor}
+                  onChange={(e) => setForm({ ...form, lightColor: e.target.value })}
+                  style={{
+                    width: 44,
+                    height: 40,
+                    padding: 2,
+                    background: 'var(--bg-base)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                  }}
+                />
+                <input
+                  type="text"
+                  value={form.lightColor}
+                  onChange={(e) => setForm({ ...form, lightColor: e.target.value })}
+                  pattern="^#[0-9A-Fa-f]{6}$"
+                  placeholder="#6b7280"
+                  style={{
+                    flex: 1,
+                    background: 'var(--bg-base)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '11px 14px',
+                    color: 'var(--text-primary)',
+                    fontSize: 14,
+                    fontFamily: 'var(--font-mono)',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
                 Sort Order

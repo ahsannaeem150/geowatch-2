@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { api } from '../../services/api.js';
+import { useTheme } from '@shared/useTheme.js';
+import { getIncidentDomainColor } from '@shared/utils/themeColors.js';
 
 function getMapStyleUrl() {
   return document.documentElement.getAttribute('data-theme') === 'light'
@@ -10,11 +12,13 @@ function getMapStyleUrl() {
 }
 
 export default function HeroMap() {
+  const { theme } = useTheme();
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markersRef = useRef([]);
+  const driftFrameRef = useRef(null);
   const [incidents, setIncidents] = useState([]);
-  const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'dark');
+  const [mapTheme, setMapTheme] = useState(document.documentElement.getAttribute('data-theme') || 'dark');
 
   // Fetch active incidents
   useEffect(() => {
@@ -57,14 +61,19 @@ export default function HeroMap() {
 
         const el = document.createElement('div');
         const size = 6 + incident.severity * 2;
-        const color = incident.domain_color || '#ef4444';
+        const color = getIncidentDomainColor(incident, theme) || '#ef4444';
+        const glowOpacity = theme === 'light' ? '45' : '80';
+        const glowCoreOpacity = theme === 'light' ? '25' : '40';
+        const ringOpacity = theme === 'light' ? '40' : '60';
+        const border = theme === 'light' ? '1px solid rgba(255,255,255,0.6)' : 'none';
 
         el.style.cssText = `
           width: ${size}px;
           height: ${size}px;
           border-radius: 50%;
           background: ${color};
-          box-shadow: 0 0 ${size * 2}px ${color}80, 0 0 ${size}px ${color}40;
+          border: ${border};
+          box-shadow: 0 0 ${size * 2}px ${color}${glowOpacity}, 0 0 ${size}px ${color}${glowCoreOpacity};
           cursor: pointer;
           transition: transform 0.3s ease;
         `;
@@ -75,7 +84,7 @@ export default function HeroMap() {
           position: absolute;
           inset: -4px;
           border-radius: 50%;
-          border: 1px solid ${color}60;
+          border: 1px solid ${color}${ringOpacity};
           animation: pulse-ring 2.5s ease-out infinite;
           pointer-events: none;
         `;
@@ -104,34 +113,50 @@ export default function HeroMap() {
         });
       });
 
-      // Very slow auto-drift
-      let angle = 0;
+      // Slow auto-drift within a tight bounds box so it bounces instead of stopping at edges
+      const BOUNDS = { lngMin: 30, lngMax: 80, latMin: 12, latMax: 42 };
+      let vx = 0.004;
+      let vy = 0.002;
+
       const drift = () => {
         if (!map.current) return;
-        angle += 0.0003;
         const center = map.current.getCenter();
-        const lng = center.lng + Math.sin(angle) * 0.008;
-        const lat = center.lat + Math.cos(angle * 0.7) * 0.004;
+        let lng = center.lng + vx;
+        let lat = center.lat + vy;
+
+        if (lng <= BOUNDS.lngMin || lng >= BOUNDS.lngMax) {
+          vx = -vx;
+          lng = Math.max(BOUNDS.lngMin, Math.min(BOUNDS.lngMax, lng));
+        }
+        if (lat <= BOUNDS.latMin || lat >= BOUNDS.latMax) {
+          vy = -vy;
+          lat = Math.max(BOUNDS.latMin, Math.min(BOUNDS.latMax, lat));
+        }
+
         map.current.setCenter([lng, lat]);
-        requestAnimationFrame(drift);
+        driftFrameRef.current = requestAnimationFrame(drift);
       };
-      requestAnimationFrame(drift);
+      driftFrameRef.current = requestAnimationFrame(drift);
     });
 
     return () => {
+      if (driftFrameRef.current) {
+        cancelAnimationFrame(driftFrameRef.current);
+        driftFrameRef.current = null;
+      }
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
       map.current?.remove();
       map.current = null;
     };
-  }, [incidents]);
+  }, [incidents, theme]);
 
   // Watch for theme changes and update map style
   useEffect(() => {
     const observer = new MutationObserver(() => {
       const newTheme = document.documentElement.getAttribute('data-theme');
-      if (newTheme !== theme) {
-        setTheme(newTheme);
+      if (newTheme !== mapTheme) {
+        setMapTheme(newTheme);
         if (map.current) {
           map.current.setStyle(getMapStyleUrl());
         }
@@ -139,7 +164,7 @@ export default function HeroMap() {
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
-  }, [theme]);
+  }, [mapTheme]);
 
   return (
     <div

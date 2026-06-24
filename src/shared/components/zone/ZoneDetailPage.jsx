@@ -114,11 +114,12 @@ function ZoneTrialHero({ zone, saved, onSave, onCopyLink }) {
           color={zone.zoneCategoryColor || '#6366f1'}
           width={1400}
           height={800}
-          padding={200}
+          padding={48}
           gridSize={48}
           glowStd={6}
           strokeWidth={1.5}
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="xMidYMid meet"
+          fitMode="polygon-aspect"
         />
       </div>
       <div className="zh-hero__overlay zh-hero__overlay--grid" />

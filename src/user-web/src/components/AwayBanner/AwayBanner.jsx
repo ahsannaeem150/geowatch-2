@@ -56,7 +56,7 @@ export default function AwayBanner({ newEventsCount, updatedEventsCount, onJumpT
             fontSize: '12px',
             fontWeight: 700,
             background: 'var(--accent)',
-            color: '#f2f2f2',
+            color: 'var(--text-on-accent)',
             border: 'none',
             borderRadius: 'var(--radius-sm)',
             cursor: 'pointer',

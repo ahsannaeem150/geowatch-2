@@ -89,7 +89,7 @@ export default function Header() {
             justifyContent: 'center',
             fontSize: '13px',
             fontWeight: 700,
-            color: '#f2f2f2',
+            color: 'var(--text-on-accent)',
             fontFamily: 'var(--font-mono)',
           }}
         >
@@ -219,7 +219,7 @@ export default function Header() {
                       fontSize: 10,
                       fontWeight: 700,
                       background: style === s.key ? 'var(--accent)' : 'var(--bg-hover)',
-                      color: style === s.key ? '#fff' : 'var(--text-muted)',
+                      color: style === s.key ? 'var(--text-on-accent)' : 'var(--text-muted)',
                     }}
                   >
                     {s.short}
@@ -271,7 +271,7 @@ export default function Header() {
                     justifyContent: 'center',
                     fontSize: '12px',
                     fontWeight: 600,
-                    color: '#f2f2f2',
+                    color: 'var(--text-on-accent)',
                   }}
                 >
                   {(user.full_name || user.email).charAt(0).toUpperCase()}

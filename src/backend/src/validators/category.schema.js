@@ -14,6 +14,7 @@ export const createDomainSchema = z.object({
   slug: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/).optional(),
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex code').optional().default('#6b7280'),
+  lightColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Light mode color must be a valid hex code').optional().default('#6b7280'),
   icon: z.string().max(40).optional(),
   sortOrder: z.number().int().min(0).optional().default(0),
 }).transform((data) => ({
@@ -26,6 +27,7 @@ export const updateDomainSchema = z.object({
   slug: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/).optional(),
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  lightColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   icon: z.string().max(40).optional(),
   sortOrder: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),

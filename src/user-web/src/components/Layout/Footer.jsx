@@ -49,7 +49,7 @@ export default function Footer() {
               justifyContent: 'center',
               fontSize: '11px',
               fontWeight: 700,
-              color: '#f2f2f2',
+              color: 'var(--text-on-accent)',
               fontFamily: 'var(--font-mono)',
             }}
           >
@@ -67,7 +67,7 @@ export default function Footer() {
           <Link to="/about" style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
             About
           </Link>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             API Docs
           </span>
         </div>
@@ -108,10 +108,10 @@ export default function Footer() {
           zIndex: 1,
         }}
       >
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
           Real-time conflict intelligence. Data sourced from open channels and verified reports.
         </p>
-        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '8px 0 0', fontFamily: 'var(--font-mono)' }}>
+        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '8px 0 0', fontFamily: 'var(--font-mono)' }}>
           © 2026 GeoWatch
         </p>
       </div>

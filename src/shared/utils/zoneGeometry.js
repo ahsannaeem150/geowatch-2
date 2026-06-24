@@ -42,7 +42,13 @@ export function getPolygonCentroid(ring) {
  * Build an SVG path and viewBox for a polygon ring.
  * Returns { path, viewBox, width, height, centroid }.
  */
-export function buildPolygonSvgProjection(ring, width = 320, height = 180, padding = 16) {
+export function buildPolygonSvgProjection(
+  ring,
+  width = 320,
+  height = 180,
+  padding = 16,
+  fitMode = 'fixed'
+) {
   const bounds = getPolygonBounds(ring);
   if (!bounds) return null;
 
@@ -50,16 +56,37 @@ export function buildPolygonSvgProjection(ring, width = 320, height = 180, paddi
   const boundsWidth = Math.max(maxLng - minLng, 0.0001);
   const boundsHeight = Math.max(maxLat - minLat, 0.0001);
 
-  const availableWidth = width - padding * 2;
-  const availableHeight = height - padding * 2;
-  const scaleX = availableWidth / boundsWidth;
-  const scaleY = availableHeight / boundsHeight;
-  const scale = Math.min(scaleX, scaleY);
+  let scale;
+  let offsetX;
+  let offsetY;
+  let viewBoxWidth;
+  let viewBoxHeight;
 
-  const drawWidth = boundsWidth * scale;
-  const drawHeight = boundsHeight * scale;
-  const offsetX = (width - drawWidth) / 2;
-  const offsetY = (height - drawHeight) / 2;
+  if (fitMode === 'polygon-aspect') {
+    // Fit the viewBox tightly around the polygon while preserving its aspect
+    // ratio. This prevents clipping when the SVG is scaled with
+    // preserveAspectRatio="slice" inside a container with a different aspect
+    // ratio (e.g. the wide zone hero banner).
+    const baseDimension = 1000;
+    scale = baseDimension / Math.max(boundsWidth, boundsHeight);
+    viewBoxWidth = boundsWidth * scale + padding * 2;
+    viewBoxHeight = boundsHeight * scale + padding * 2;
+    offsetX = padding;
+    offsetY = padding;
+  } else {
+    const availableWidth = width - padding * 2;
+    const availableHeight = height - padding * 2;
+    const scaleX = availableWidth / boundsWidth;
+    const scaleY = availableHeight / boundsHeight;
+    scale = Math.min(scaleX, scaleY);
+
+    const drawWidth = boundsWidth * scale;
+    const drawHeight = boundsHeight * scale;
+    offsetX = (width - drawWidth) / 2;
+    offsetY = (height - drawHeight) / 2;
+    viewBoxWidth = width;
+    viewBoxHeight = height;
+  }
 
   const project = ([lng, lat]) => {
     const x = offsetX + (lng - minLng) * scale;
@@ -79,9 +106,9 @@ export function buildPolygonSvgProjection(ring, width = 320, height = 180, paddi
 
   return {
     path,
-    viewBox: `0 0 ${width} ${height}`,
-    width,
-    height,
+    viewBox: `0 0 ${viewBoxWidth} ${viewBoxHeight}`,
+    width: viewBoxWidth,
+    height: viewBoxHeight,
     centroid: project([bounds.centerLng, bounds.centerLat]),
   };
 }

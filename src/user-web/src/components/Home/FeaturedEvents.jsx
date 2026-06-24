@@ -6,6 +6,8 @@ import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { Skeleton } from '@shared/components/Skeleton.jsx';
 import FadeIn from './FadeIn.jsx';
+import { useTheme } from '@shared/useTheme.js';
+import { getIncidentDomainColor } from '@shared/utils/themeColors.js';
 import { format } from 'date-fns';
 
 function EventSkeleton() {
@@ -58,6 +60,7 @@ const SEVERITY_COLORS = {
 };
 
 export default function FeaturedEvents() {
+  const { theme } = useTheme();
   const [incidents, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -134,7 +137,7 @@ export default function FeaturedEvents() {
                 borderRadius: 'var(--radius-lg)',
                 padding: '40px 24px',
                 textAlign: 'center',
-                color: 'var(--text-muted)',
+                color: 'var(--text-secondary)',
               }}
             >
               <AlertCircle size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
@@ -152,7 +155,7 @@ export default function FeaturedEvents() {
                 borderRadius: 'var(--radius-lg)',
                 padding: '40px 24px',
                 textAlign: 'center',
-                color: 'var(--text-muted)',
+                color: 'var(--text-secondary)',
               }}
             >
               <AlertCircle size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
@@ -164,7 +167,7 @@ export default function FeaturedEvents() {
         {!error && incidents.length > 0 && (
           <div className="home-events__grid">
             {incidents.map((incident, index) => {
-              const domainColor = incident.domain_color || '#6b7280';
+              const domainColor = getIncidentDomainColor(incident, theme);
               const severityColor = SEVERITY_COLORS[incident.severity] || 'var(--text-muted)';
 
               return (

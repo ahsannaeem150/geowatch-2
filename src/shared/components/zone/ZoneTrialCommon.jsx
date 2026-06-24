@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Plane,
   Hexagon,
@@ -292,12 +292,13 @@ export function ZoneNeonMap({
   animated = false,
   ringCount = 3,
   pulseDuration = 6,
+  fitMode = 'fixed',
 }) {
   const uid = useId().replace(/:/g, '');
   const ring = Array.isArray(geometry?.coordinates?.[0]) ? geometry.coordinates[0] : null;
   const projection = useMemo(
-    () => (ring ? buildPolygonSvgProjection(ring, width, height, padding) : null),
-    [ring, width, height, padding]
+    () => (ring ? buildPolygonSvgProjection(ring, width, height, padding, fitMode) : null),
+    [ring, width, height, padding, fitMode]
   );
 
   if (!projection) return null;
@@ -358,6 +359,7 @@ export function ZoneNeonMap({
               fill="none"
               stroke="rgba(255,255,255,0.04)"
               strokeWidth={1}
+              className="zone-neon-grid__path"
             />
           </pattern>
         )}
@@ -415,7 +417,7 @@ export function ZoneNeonMap({
           fill={color}
           stroke="#fff"
           strokeWidth={1.5}
-          className="zone-mini-map__centroid"
+          className="zone-mini-map__centroid zone-neon-map__centroid"
         />
       )}
     </svg>

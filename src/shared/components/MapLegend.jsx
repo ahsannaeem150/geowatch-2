@@ -246,7 +246,7 @@ export default function MapLegend({
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    boxShadow: isActive ? `0 0 6px ${domain.color}80` : 'none',
+                    boxShadow: isActive ? `0 0 6px ${(domain.color || '#6b7280') + '80'}` : 'none',
                   }}
                 >
                   <svg

@@ -30,7 +30,7 @@ export default function NewsTicker({ incidents = [] }) {
             <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
               {incident.title}
             </span>
-            <span style={{ color: 'var(--text-muted)' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>
               {incident.location_context || `${parseFloat(incident.latitude).toFixed(2)}, ${parseFloat(incident.longitude).toFixed(2)}`}
             </span>
           </span>

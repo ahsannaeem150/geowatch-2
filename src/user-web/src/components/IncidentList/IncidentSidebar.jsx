@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { useCategories } from '@shared/hooks/useCategories.js';
+import { useTheme } from '@shared/useTheme.js';
+import { getBadgeColors, getSeverityBadgeColors } from '@shared/utils/themeColors.js';
 import IncidentListItem from './IncidentListItem.jsx';
 import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
 import { api, mapIncidentForShared } from '../../services/api.js';
@@ -32,6 +34,11 @@ export default function IncidentSidebar({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
   const { domains, getCategoriesByDomain } = useCategories();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const surfaceBorder = isLight ? 'var(--border-default)' : 'var(--border-subtle)';
+  const cardBg = isLight ? 'var(--bg-primary)' : 'transparent';
+  const inputBg = isLight ? 'var(--bg-primary)' : 'var(--bg-input)';
 
   const fetchDetail = async (incidentId, opts = {}) => {
     if (!incidentId) return;
@@ -118,8 +125,8 @@ export default function IncidentSidebar({
       style={{
         width: '100%',
         height: '100%',
-        background: 'var(--bg-surface)',
-        borderLeft: '1px solid var(--border-subtle)',
+        background: isLight ? 'var(--bg-elevated)' : 'var(--bg-surface)',
+        borderLeft: `1px solid ${surfaceBorder}`,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -131,11 +138,11 @@ export default function IncidentSidebar({
             <div
               style={{
                 padding: '12px 16px',
-                borderBottom: '1px solid var(--border-subtle)',
+                borderBottom: `1px solid ${surfaceBorder}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
-                background: 'var(--bg-elevated)',
+                background: isLight ? 'var(--bg-primary)' : 'var(--bg-elevated)',
                 flexShrink: 0,
               }}
             >
@@ -149,8 +156,8 @@ export default function IncidentSidebar({
                   fontSize: 12,
                   fontWeight: 700,
                   color: 'var(--text-secondary)',
-                  background: 'transparent',
-                  border: '1px solid var(--border-subtle)',
+                  background: cardBg,
+                  border: `1px solid ${surfaceBorder}`,
                   borderRadius: 'var(--radius-sm)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -161,7 +168,7 @@ export default function IncidentSidebar({
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = 'var(--text-secondary)';
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.borderColor = surfaceBorder;
                 }}
               >
                 ← Back to results
@@ -206,7 +213,7 @@ export default function IncidentSidebar({
           <div
             style={{
               padding: '16px',
-              borderBottom: '1px solid var(--border-subtle)',
+              borderBottom: `1px solid ${surfaceBorder}`,
               display: 'flex',
               flexDirection: 'column',
               gap: '10px',
@@ -218,7 +225,7 @@ export default function IncidentSidebar({
                 style={{
                   display: 'flex',
                   gap: '4px',
-                  background: 'var(--bg-elevated)',
+                  background: isLight ? 'var(--border-subtle)' : 'var(--bg-elevated)',
                   borderRadius: 'var(--radius-sm)',
                   padding: '3px',
                 }}
@@ -234,11 +241,11 @@ export default function IncidentSidebar({
                     letterSpacing: '0.5px',
                     borderRadius: '4px',
                     border: 'none',
-                    background: tab === 'events' ? 'var(--bg-surface)' : 'transparent',
+                    background: tab === 'events' ? (isLight ? 'var(--bg-primary)' : 'var(--bg-surface)') : 'transparent',
                     color: tab === 'events' ? 'var(--text-primary)' : 'var(--text-muted)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    boxShadow: tab === 'events' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    boxShadow: tab === 'events' ? 'var(--shadow-sm)' : 'none',
                   }}
                 >
                   Events
@@ -254,11 +261,11 @@ export default function IncidentSidebar({
                     letterSpacing: '0.5px',
                     borderRadius: '4px',
                     border: 'none',
-                    background: tab === 'saved' ? 'var(--bg-surface)' : 'transparent',
+                    background: tab === 'saved' ? (isLight ? 'var(--bg-primary)' : 'var(--bg-surface)') : 'transparent',
                     color: tab === 'saved' ? 'var(--text-primary)' : 'var(--text-muted)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    boxShadow: tab === 'saved' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    boxShadow: tab === 'saved' ? 'var(--shadow-sm)' : 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -319,8 +326,8 @@ export default function IncidentSidebar({
               style={{
                 width: '100%',
                 padding: '8px 12px',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border-subtle)',
+                background: inputBg,
+                border: `1px solid ${surfaceBorder}`,
                 borderRadius: 'var(--radius-sm)',
                 color: 'var(--text-primary)',
                 fontSize: '13px',
@@ -328,7 +335,7 @@ export default function IncidentSidebar({
                 outline: 'none',
               }}
               onFocus={(e) => (e.target.style.borderColor = 'var(--accent-light)')}
-              onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
+              onBlur={(e) => (e.target.style.borderColor = surfaceBorder)}
             />
 
             {/* Domain filter chips */}
@@ -343,8 +350,8 @@ export default function IncidentSidebar({
                   letterSpacing: '0.6px',
                   borderRadius: 'var(--radius-pill)',
                   border: '1px solid',
-                  borderColor: !filters?.categoryId ? 'var(--accent-light)' : 'var(--border-subtle)',
-                  background: !filters?.categoryId ? 'var(--accent-subtle-bg)' : 'transparent',
+                  borderColor: !filters?.categoryId ? 'var(--accent-light)' : surfaceBorder,
+                  background: !filters?.categoryId ? 'var(--accent-subtle-bg)' : cardBg,
                   color: !filters?.categoryId ? 'var(--accent-light)' : 'var(--text-muted)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -357,7 +364,7 @@ export default function IncidentSidebar({
                 const firstCategoryId = domainCategories[0]?.id;
                 if (!firstCategoryId) return null;
                 const isActive = String(filters?.categoryId) === String(firstCategoryId);
-                const color = domain.color || 'var(--accent-light)';
+                const badge = getBadgeColors(domain.light_color || domain.color, theme);
                 return (
                   <button
                     key={domain.slug}
@@ -374,10 +381,9 @@ export default function IncidentSidebar({
                       textTransform: 'uppercase',
                       letterSpacing: '0.6px',
                       borderRadius: 'var(--radius-pill)',
-                      border: '1px solid',
-                      borderColor: isActive ? color : 'var(--border-subtle)',
-                      background: isActive ? `${color}15` : 'transparent',
-                      color: isActive ? color : 'var(--text-muted)',
+                      border: isActive ? badge.border : `1px solid ${surfaceBorder}`,
+                      background: isActive ? badge.background : cardBg,
+                      color: isActive ? badge.color : 'var(--text-muted)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
@@ -400,8 +406,8 @@ export default function IncidentSidebar({
                   letterSpacing: '0.6px',
                   borderRadius: 'var(--radius-pill)',
                   border: '1px solid',
-                  borderColor: !filters?.severity ? 'var(--accent-light)' : 'var(--border-subtle)',
-                  background: !filters?.severity ? 'var(--accent-subtle-bg)' : 'transparent',
+                  borderColor: !filters?.severity ? 'var(--accent-light)' : surfaceBorder,
+                  background: !filters?.severity ? 'var(--accent-subtle-bg)' : cardBg,
                   color: !filters?.severity ? 'var(--accent-light)' : 'var(--text-muted)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -409,31 +415,31 @@ export default function IncidentSidebar({
               >
                 Any Severity
               </button>
-              {SEVERITY_SCALE.map((s) => (
-                <button
-                  key={s.value}
-                  onClick={() => onFilterChange?.({ ...filters, severity: String(s.value) })}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.6px',
-                    borderRadius: 'var(--radius-pill)',
-                    border: '1px solid',
-                    borderColor:
-                      filters?.severity === String(s.value) ? s.color : 'var(--border-subtle)',
-                    background:
-                      filters?.severity === String(s.value) ? `${s.color}15` : 'transparent',
-                    color:
-                      filters?.severity === String(s.value) ? s.color : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {s.value} {s.label}
-                </button>
-              ))}
+              {SEVERITY_SCALE.map((s) => {
+                const sevBadge = getSeverityBadgeColors(s.color, theme);
+                const isActive = filters?.severity === String(s.value);
+                return (
+                  <button
+                    key={s.value}
+                    onClick={() => onFilterChange?.({ ...filters, severity: String(s.value) })}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.6px',
+                      borderRadius: 'var(--radius-pill)',
+                      border: isActive ? sevBadge.border : `1px solid ${surfaceBorder}`,
+                      background: isActive ? sevBadge.background : cardBg,
+                      color: isActive ? sevBadge.color : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {s.value} {s.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

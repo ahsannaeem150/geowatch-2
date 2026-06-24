@@ -30,6 +30,8 @@ import {
 import { api } from '../../services/api.js';
 import FadeIn from './FadeIn.jsx';
 import { Skeleton } from '@shared/components/Skeleton.jsx';
+import { useTheme } from '@shared/useTheme.js';
+import { getDomainColor, getDomainCardColors } from '@shared/utils/themeColors.js';
 
 const ICON_MAP = {
   shield: Shield,
@@ -104,6 +106,7 @@ function CategorySkeleton() {
 }
 
 export default function CategoryGrid() {
+  const { theme } = useTheme();
   const [domains, setDomains] = useState([]);
   const [categories, setCategories] = useState([]);
   const [incidentCounts, setIncidentCounts] = useState({});
@@ -181,7 +184,8 @@ export default function CategoryGrid() {
 
         <div className="home-categories__grid">
           {domains.map((domain, index) => {
-            const color = domain.color || '#6b7280';
+            const color = getDomainColor(domain, theme);
+            const cardColors = getDomainCardColors(color, theme);
             const firstCategory = categories.find((c) => c.domain_id === domain.id);
             const categoryId = firstCategory?.id;
             const count = incidentCounts[domain.id] || 0;
@@ -192,22 +196,29 @@ export default function CategoryGrid() {
                   to={categoryId ? `/map?categoryId=${categoryId}` : '/map'}
                   className="home-category-card"
                   style={{
-                    color,
-                    borderColor: `${color}20`,
+                    color: cardColors.color,
+                    borderColor: theme === 'light' ? undefined : cardColors.border,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = `${color}50`;
-                    e.currentTarget.style.boxShadow = `0 8px 32px ${color}10`;
+                    if (theme !== 'light') {
+                      e.currentTarget.style.borderColor = cardColors.hoverBorder;
+                    }
+                    e.currentTarget.style.boxShadow = theme === 'light'
+                      ? `0 8px 24px ${cardColors.color}20`
+                      : `0 8px 32px ${cardColors.color}10`;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = `${color}20`;
+                    if (theme !== 'light') {
+                      e.currentTarget.style.borderColor = cardColors.border;
+                    }
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
+                  <div className="home-category-card__top-accent" />
                   <div className="home-category-card__icon">
-                    <CategoryIcon name={domain.icon} size={32} color={color} />
+                    <CategoryIcon name={domain.icon} size={32} color={cardColors.color} />
                   </div>
-                  <span className="home-category-card__name" style={{ color }}>
+                  <span className="home-category-card__name" style={{ color: cardColors.color }}>
                     {domain.name}
                   </span>
                   <span className="home-category-card__meta">

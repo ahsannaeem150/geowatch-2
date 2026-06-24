@@ -7,6 +7,7 @@
   /* ─── Backgrounds ─── */
   --bg-deep: #050505;
   --bg-surface: #0a0a0c;
+  --bg-primary: var(--bg-surface);
   --bg-elevated: #121215;
   --bg-hover: #1a1a1e;
   --bg-input: #0f0f11;
@@ -14,6 +15,7 @@
 
   /* ─── Borders ─── */
   --border-subtle: #242429;
+  --border-default: rgba(148, 163, 184, 0.12);
   --border-hover: #34343a;
   --border-focus: #9f1239;
 
@@ -21,6 +23,7 @@
   --text-primary: #f2f2f2;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
+  --text-on-accent: #ffffff;
 
   /* ─── Accent — Deep Maroon ─── */
   --accent: #5a011c;
@@ -138,23 +141,25 @@
 
 /* ─── Light Theme Overrides ─── */
 [data-theme="light"] {
-  /* Backgrounds — off-white layers for clear hierarchy */
-  --bg-deep: #f8f9fa;
-  --bg-surface: #ffffff;
-  --bg-elevated: #f1f3f5;
-  --bg-hover: #e9ecef;
-  --bg-input: #f8f9fa;
+  /* Backgrounds — clean SaaS light palette */
+  --bg-deep: #ffffff;
+  --bg-surface: #f9fafb;
+  --bg-primary: #ffffff;
+  --bg-elevated: #f3f4f6;
+  --bg-hover: #f3f4f6;
+  --bg-input: #ffffff;
   --bg-glass: rgba(255, 255, 255, 0.92);
 
-  /* Borders — much stronger for visibility on white */
-  --border-subtle: #dee2e6;
-  --border-hover: #ced4da;
+  /* Borders — visible but refined on white */
+  --border-subtle: #e5e7eb;
+  --border-default: #d1d5db;
+  --border-hover: #d1d5db;
   --border-focus: #9f1239;
 
-  /* Text — high contrast dark grays, never pure black */
-  --text-primary: #1a1d23;
-  --text-secondary: #495057;
-  --text-muted: #868e96;
+  /* Text — high contrast, readable gray scale */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
 
   /* Accent — same colors, softer glows on light backgrounds */
   --accent: #5a011c;
@@ -211,6 +216,13 @@
 
   /* ─── Backdrop ─── */
   --backdrop: rgba(0, 0, 0, 0.45);
+
+  /* ─── Severity Colors (Light Mode) — darker for contrast on white */
+  --sev-1: #15803d;
+  --sev-2: #b45309;
+  --sev-3: #c2410c;
+  --sev-4: #b91c1c;
+  --sev-5: #991b1b;
 
   /* ─── Background Gradient — subtle warm tint on light */
   --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, #f0e8ea 0%, var(--bg-deep) 55%);

@@ -333,7 +333,7 @@ function DaysView({
                   ? 'var(--accent-light)'
                   : 'transparent',
                 color: selected
-                  ? 'var(--bg-deep)'
+                  ? 'var(--text-on-accent)'
                   : d.isCurrentMonth
                   ? 'var(--text-primary)'
                   : 'var(--text-muted)',

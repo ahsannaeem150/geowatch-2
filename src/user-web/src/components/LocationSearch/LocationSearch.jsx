@@ -284,7 +284,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-sm)',
             zIndex: 20,
-            boxShadow: '0 8px 32px var(--backdrop)',
+            boxShadow: 'var(--shadow-lg)',
           }}
         >
           {/* Header with result count */}

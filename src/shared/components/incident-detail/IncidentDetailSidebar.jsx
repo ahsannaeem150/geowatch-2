@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useTheme } from '@shared/useTheme.js';
 import { Icons } from './IncidentIcons.jsx';
 import { SEVERITY_LABELS, VERIFICATION, SOURCE_TYPE_LABELS, formatDate, formatTime, relativeTime, countSources, parseCoordinates } from './IncidentUtils.js';
 import SummaryCard from './SummaryCard.jsx';
@@ -50,6 +51,7 @@ function Field({ label, children }) {
 }
 
 function Input(props) {
+  const { theme } = useTheme();
   return (
     <input
       {...props}
@@ -57,7 +59,7 @@ function Input(props) {
         width: '100%',
         padding: '9px 11px',
         borderRadius: 10,
-        border: '1px solid var(--border-subtle)',
+        border: `1px solid ${theme === 'light' ? 'var(--border-default)' : 'var(--border-subtle)'}`,
         background: 'var(--bg-primary)',
         color: 'var(--text-primary)',
         fontSize: 14,
@@ -69,6 +71,7 @@ function Input(props) {
 }
 
 function TextArea(props) {
+  const { theme } = useTheme();
   return (
     <textarea
       {...props}
@@ -76,7 +79,7 @@ function TextArea(props) {
         width: '100%',
         padding: '9px 11px',
         borderRadius: 10,
-        border: '1px solid var(--border-subtle)',
+        border: `1px solid ${theme === 'light' ? 'var(--border-default)' : 'var(--border-subtle)'}`,
         background: 'var(--bg-primary)',
         color: 'var(--text-primary)',
         fontSize: 14,
@@ -90,6 +93,7 @@ function TextArea(props) {
 }
 
 function Select(props) {
+  const { theme } = useTheme();
   return (
     <select
       {...props}
@@ -97,7 +101,7 @@ function Select(props) {
         width: '100%',
         padding: '9px 11px',
         borderRadius: 10,
-        border: '1px solid var(--border-subtle)',
+        border: `1px solid ${theme === 'light' ? 'var(--border-default)' : 'var(--border-subtle)'}`,
         background: 'var(--bg-primary)',
         color: 'var(--text-primary)',
         fontSize: 14,
@@ -123,7 +127,7 @@ function Modal({ title, children, onClose, onSubmit, submitLabel = 'Save', submi
         position: 'fixed',
         inset: 0,
         zIndex: 11000,
-        background: 'rgba(0,0,0,0.7)',
+        background: 'var(--backdrop)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -144,7 +148,7 @@ function Modal({ title, children, onClose, onSubmit, submitLabel = 'Save', submi
           padding: 22,
           maxHeight: '85vh',
           overflow: 'auto',
-          boxShadow: '0 24px 70px rgba(0,0,0,0.45)',
+          boxShadow: 'var(--shadow-lg)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
@@ -190,7 +194,7 @@ function Toast({ message, onClose }) {
         color: 'var(--text-primary)',
         fontSize: 13,
         fontWeight: 700,
-        boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+        boxShadow: 'var(--shadow-lg)',
       }}
     >
       {message}
@@ -375,7 +379,7 @@ function EvidenceModal({ type, item, onClose, onSave }) {
         border: '1px solid',
         borderColor: mediaMode === key ? 'var(--accent)' : 'var(--border-subtle)',
         background: mediaMode === key ? 'var(--accent)' : 'transparent',
-        color: mediaMode === key ? '#fff' : 'var(--text-secondary)',
+        color: mediaMode === key ? 'var(--text-on-accent)' : 'var(--text-secondary)',
         fontSize: 12,
         fontWeight: 700,
         cursor: 'pointer',
@@ -459,7 +463,7 @@ function EvidenceModal({ type, item, onClose, onSave }) {
                       height: 20,
                       borderRadius: '50%',
                       background: 'var(--accent)',
-                      color: '#fff',
+                      color: 'var(--text-on-accent)',
                       fontSize: 10,
                       fontWeight: 800,
                     }}

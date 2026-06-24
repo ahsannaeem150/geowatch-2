@@ -134,9 +134,9 @@ export default function MapControls({ dateRange, onDateRangeChange, onResetToTod
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
           borderRadius: 'var(--radius-sm)',
-          border: `1px solid ${verifiedOnly ? '#22c55e' : 'var(--border-subtle)'}`,
+          border: `1px solid ${verifiedOnly ? 'var(--success)' : 'var(--border-subtle)'}`,
           background: verifiedOnly ? 'var(--alert-success-bg)' : 'var(--bg-input)',
-          color: verifiedOnly ? '#22c55e' : 'var(--text-muted)',
+          color: verifiedOnly ? 'var(--success)' : 'var(--text-muted)',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
         }}
@@ -146,7 +146,7 @@ export default function MapControls({ dateRange, onDateRangeChange, onResetToTod
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: verifiedOnly ? '#22c55e' : 'var(--text-muted)',
+            background: verifiedOnly ? 'var(--success)' : 'var(--text-muted)',
             opacity: verifiedOnly ? 1 : 0.4,
           }}
         />

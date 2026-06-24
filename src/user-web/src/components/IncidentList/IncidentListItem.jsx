@@ -2,6 +2,8 @@ import React from 'react';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { VERIFICATION_CONFIG } from '@shared/constants.js';
+import { useTheme } from '@shared/useTheme.js';
+import { getBadgeColors } from '@shared/utils/themeColors.js';
 import SaveButton from '../SaveButton/SaveButton.jsx';
 import { Hexagon } from 'lucide-react';
 
@@ -25,6 +27,8 @@ function formatArea(km2) {
 }
 
 export default function IncidentListItem({ incident, isSelected, onClick, isSaved, onSaveChange }) {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const dateStr = incident.start_date
     ? format(new Date(incident.start_date), 'MMM d, yyyy')
     : 'Unknown date';
@@ -39,14 +43,16 @@ export default function IncidentListItem({ incident, isSelected, onClick, isSave
       onClick={onClick}
       style={{
         padding: '14px 16px',
-        background: isSelected ? 'var(--bg-elevated)' : 'transparent',
+        background: isSelected
+          ? (isLight ? '#e5e7eb' : 'var(--bg-elevated)')
+          : 'transparent',
         borderLeft: isSelected ? '3px solid var(--accent-light)' : '3px solid transparent',
-        borderBottom: '1px solid var(--border-subtle)',
+        borderBottom: `1px solid ${isLight ? 'var(--border-default)' : 'var(--border-subtle)'}`,
         cursor: 'pointer',
         transition: 'all 0.15s ease',
       }}
       onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.background = 'var(--bg-hover)';
+        if (!isSelected) e.currentTarget.style.background = isLight ? '#e5e7eb' : 'var(--bg-hover)';
       }}
       onMouseLeave={(e) => {
         if (!isSelected) e.currentTarget.style.background = 'transparent';
@@ -119,14 +125,15 @@ export default function IncidentListItem({ incident, isSelected, onClick, isSave
 }
 
 function VerificationBadge({ status }) {
+  const { theme } = useTheme();
   const cfg = VERIFICATION_CONFIG[status] || VERIFICATION_CONFIG.unverified;
+  const badge = getBadgeColors(cfg.color, theme);
   return (
     <span
       style={{
         fontSize: '10px',
         fontWeight: 700,
-        color: cfg.color,
-        background: `${cfg.color}15`,
+        ...badge,
         padding: '2px 8px',
         borderRadius: 'var(--radius-pill)',
         textTransform: 'uppercase',

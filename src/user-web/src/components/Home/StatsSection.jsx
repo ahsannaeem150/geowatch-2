@@ -16,7 +16,7 @@ function StatCard({ value, label, color, delay }) {
         style={{ color }}
       >
         <div className="home-stat-card__value">{count.toLocaleString()}</div>
-        <div className="home-stat-card__label" style={{ color: 'var(--text-muted)' }}>
+        <div className="home-stat-card__label" style={{ color: 'var(--text-secondary)' }}>
           {label}
         </div>
       </div>
@@ -99,7 +99,7 @@ export default function StatsSection() {
   }
 
   const items = [
-    { label: 'Active Events', value: stats.active, color: 'var(--danger-light)', delay: 0 },
+    { label: 'Active Events', value: stats.active, color: 'var(--danger)', delay: 0 },
     { label: 'Events Today', value: stats.today, color: 'var(--success)', delay: 100 },
     { label: 'Countries Monitored', value: stats.countries, color: 'var(--info)', delay: 200 },
     { label: 'Data Sources', value: stats.sources, color: 'var(--warning)', delay: 300 },

@@ -4,7 +4,7 @@ import { query } from '../config/database.js';
 
 export async function getDomains() {
   const sql = `
-    SELECT d.id, d.name, d.slug, d.description, d.color, d.icon, d.sort_order, d.is_active
+    SELECT d.id, d.name, d.slug, d.description, d.color, d.light_color, d.icon, d.sort_order, d.is_active
     FROM domains d
     ORDER BY d.sort_order, d.name
   `;
@@ -14,7 +14,7 @@ export async function getDomains() {
 
 export async function getDomainWithCategories(slug) {
   const domainSql = `
-    SELECT id, name, slug, description, color, icon, sort_order, is_active
+    SELECT id, name, slug, description, color, light_color, icon, sort_order, is_active
     FROM domains
     WHERE slug = $1
   `;
@@ -45,7 +45,7 @@ export async function getAllCategories() {
            c.requires_property_damage AS requires_video,
            c.sort_order, c.is_active,
            d.id AS domain_id, d.name AS domain_name, d.slug AS domain_slug,
-           d.color AS domain_color, d.icon AS domain_icon
+           d.color AS domain_color, d.light_color AS domain_light_color, d.icon AS domain_icon
     FROM categories c
     JOIN domains d ON c.domain_id = d.id
     ORDER BY d.sort_order, c.sort_order, c.name
@@ -56,18 +56,18 @@ export async function getAllCategories() {
 
 // ─── Domain CRUD ───
 
-export async function createDomain({ name, slug, description, color, icon, sortOrder }) {
+export async function createDomain({ name, slug, description, color, lightColor, icon, sortOrder }) {
   const result = await query(
-    `INSERT INTO domains (name, slug, description, color, icon, sort_order)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO domains (name, slug, description, color, light_color, icon, sort_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [name, slug, description || null, color, icon || null, sortOrder]
+    [name, slug, description || null, color, lightColor, icon || null, sortOrder]
   );
   return result.rows[0];
 }
 
 export async function updateDomain(id, fields) {
-  const allowed = ['name', 'slug', 'description', 'color', 'icon', 'sort_order', 'is_active'];
+  const allowed = ['name', 'slug', 'description', 'color', 'light_color', 'icon', 'sort_order', 'is_active'];
   const dbFields = [];
   const values = [];
   let idx = 1;

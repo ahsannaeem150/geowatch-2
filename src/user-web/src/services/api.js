@@ -187,6 +187,7 @@ export function mapIncidentForShared(data) {
       categoryColor: incident.category_color || incident.domain_color || '#6b7280',
       domainName: incident.domain_name || '',
       domainColor: incident.domain_color || '#6b7280',
+      domainLightColor: incident.domain_light_color || incident.domain_color || '#6b7280',
       createdBy: incident.created_by,
       createdByName: incident.created_by_name || '',
       createdByEmail: incident.created_by_email || '',
@@ -266,6 +267,7 @@ export const api = {
       if (res.data?.incidents) {
         res.data.incidents = res.data.incidents.map((incident) => ({
           ...incident,
+          domainLightColor: incident.domain_light_color || incident.domain_color || '#6b7280',
           geometry: parseGeometry(incident.geometry),
         }));
       }

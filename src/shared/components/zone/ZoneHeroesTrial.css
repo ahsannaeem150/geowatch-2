@@ -106,6 +106,15 @@
   width: 100%;
   height: 100%;
   display: block;
+  overflow: visible;
+}
+
+.zh-hero__map .zone-mini-map__path {
+  fill-opacity: 0.35;
+}
+
+[data-theme="light"] .zh-hero__map .zone-mini-map__path {
+  fill-opacity: 0.22;
 }
 
 .zh-hero__overlay {
@@ -1269,4 +1278,84 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ───────────────── Light theme — zone hero / HUD readability ───────────────── */
+[data-theme="light"] .zh-hero {
+  background: var(--bg-elevated);
+  border-color: var(--border-default);
+}
+
+[data-theme="light"] .zh-hero__overlay--grid {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.04) 0%, transparent 60%);
+  background-size: 48px 48px, 48px 48px, 100% 100%;
+}
+
+[data-theme="light"] .zh-hud-grid {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+[data-theme="light"] .zh-radar-sweep::after {
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(34, 197, 94, 0.06) 45deg, transparent 90deg);
+}
+
+[data-theme="light"] .zh-hud-pill,
+[data-theme="light"] .zh-hud-module,
+[data-theme="light"] .zh-countdown__block,
+[data-theme="light"] .zh-hud-action {
+  background: var(--bg-primary);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .zh-hud-module:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+[data-theme="light"] .zh-hud-module__label,
+[data-theme="light"] .zh-countdown__label {
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .zh-countdown__value {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .zh-hud-action:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .zh-hud-action.saved {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+[data-theme="light"] .zh-hud-action.saved:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+[data-theme="light"] .zh-hero__scanline {
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.02) 51%, transparent 52%);
+}
+
+[data-theme="light"] .zh-hero__overlay--vignette {
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.08) 100%),
+    linear-gradient(to top, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.04) 50%, rgba(0, 0, 0, 0.08) 100%);
+}
+
+[data-theme="light"] .zh-hero__overlay--fade {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.7) 50%, rgba(255, 255, 255, 0.85) 100%);
 }

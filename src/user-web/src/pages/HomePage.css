@@ -137,10 +137,37 @@
 }
 
 [data-theme="light"] .home-headline__accent {
-  background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 50%, #ef4444 100%);
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 50%, #ef4444 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  filter: drop-shadow(0 0 30px rgba(220, 38, 38, 0.18));
+}
+
+[data-theme="light"][data-style="saas"] .home-subheadline,
+[data-theme="light"][data-style="tactical"] .home-subheadline {
+  color: #000000;
+}
+
+[data-theme="light"][data-style="saas"] .home-cta--secondary,
+[data-theme="light"][data-style="tactical"] .home-cta--secondary {
+  color: #000000;
+  border-color: #e5e7eb;
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+[data-theme="light"][data-style="saas"] .home-cta--secondary::before,
+[data-theme="light"][data-style="tactical"] .home-cta--secondary::before {
+  display: none;
+}
+
+[data-theme="light"][data-style="saas"] .home-cta--secondary:hover,
+[data-theme="light"][data-style="tactical"] .home-cta--secondary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .home-subheadline {
@@ -264,16 +291,20 @@
   color: var(--text-muted);
 }
 
-/* Light theme hero overrides */
-[data-theme="light"] .home-hero__overlay {
+/* Light theme hero overrides (saas & tactical only — keep map visible) */
+[data-theme="light"][data-style="saas"] .home-hero__overlay,
+[data-theme="light"][data-style="tactical"] .home-hero__overlay {
   background:
-    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(248,249,250,0.3) 0%, rgba(248,249,250,0.7) 70%, rgba(248,249,250,0.95) 100%),
-    linear-gradient(to bottom, rgba(248,249,250,0.8) 0%, rgba(248,249,250,0.2) 30%, rgba(248,249,250,0.2) 70%, rgba(248,249,250,0.9) 100%),
-    linear-gradient(to right, rgba(248,249,250,0.6) 0%, rgba(248,249,250,0) 30%, rgba(248,249,250,0) 70%, rgba(248,249,250,0.6) 100%);
+    radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255,255,255,0) 0%, rgba(255,255,255,0.06) 60%, rgba(255,255,255,0.14) 100%);
 }
 
 [data-theme="light"] .home-hero__scanline {
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
+}
+
+[data-theme="light"][data-style="saas"] .home-scroll-indicator__text,
+[data-theme="light"][data-style="tactical"] .home-scroll-indicator__text {
+  color: #000000;
 }
 
 /* ─── Stats ─── */
@@ -281,6 +312,12 @@
   padding: 80px 24px;
   background: var(--bg-deep);
   position: relative;
+}
+
+[data-theme="light"] .home-stats,
+[data-theme="light"] .home-categories,
+[data-theme="light"] .home-events {
+  background: #f3f4f6;
 }
 
 .home-stats__grid {
@@ -300,6 +337,21 @@
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+}
+
+[data-theme="light"] .home-stat-card,
+[data-theme="light"] .home-category-card,
+[data-theme="light"] .home-event-card {
+  background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .home-stat-card:hover,
+[data-theme="light"] .home-category-card:hover,
+[data-theme="light"] .home-event-card:hover {
+  border-color: #9ca3af;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
 .home-stat-card::before {
@@ -337,7 +389,16 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .home-section-label {
+  color: #6b7280;
+}
+
+[data-theme="light"] .home-section-subtitle,
+[data-theme="light"] .home-stat-card__label {
+  color: #374151;
 }
 
 /* ─── Category Grid ─── */
@@ -351,8 +412,8 @@
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 4px;
-  color: var(--text-muted);
+  letter-spacing: 3px;
+  color: var(--text-secondary);
   text-align: center;
   margin-bottom: 12px;
 }
@@ -375,6 +436,10 @@
   margin-right: auto;
 }
 
+[data-theme="light"] .home-section-title {
+  color: #111827;
+}
+
 .home-categories__grid {
   max-width: 1000px;
   margin: 0 auto;
@@ -384,7 +449,7 @@
 }
 
 .home-category-card {
-  background: var(--bg-deep);
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 28px 20px;
@@ -400,6 +465,16 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
+}
+
+.home-category-card__top-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.85;
 }
 
 .home-category-card::before {
@@ -441,7 +516,7 @@
 .home-category-card__meta {
   font-size: 11px;
   font-family: var(--font-mono);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   opacity: 0;
   transform: translateY(8px);
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -459,6 +534,14 @@
   padding: 80px 24px;
   background: var(--bg-deep);
   position: relative;
+}
+
+[data-theme="light"] .home-events__header p {
+  color: #374151;
+}
+
+[data-theme="light"] .home-event-card__meta {
+  color: #4b5563;
 }
 
 .home-events__header {
@@ -529,6 +612,8 @@
   box-shadow: var(--shadow-lg);
 }
 
+
+
 .home-event-card__badges {
   display: flex;
   align-items: center;
@@ -561,7 +646,7 @@
   padding-top: 12px;
   border-top: 1px solid var(--border-subtle);
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-family: var(--font-mono);
   display: flex;
   align-items: center;
@@ -609,17 +694,27 @@
 
 /* ─── Section Divider ─── */
 .home-divider {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 0 24px;
+  width: 100%;
+  padding: 24px;
+  background: var(--bg-deep);
   position: relative;
 }
 
+[data-theme="light"] .home-divider {
+  background: #f3f4f6;
+}
+
 .home-divider__line {
+  max-width: 1000px;
+  margin: 0 auto;
   height: 1px;
   background: var(--border-subtle);
   position: relative;
   overflow: hidden;
+}
+
+[data-theme="light"] .home-divider__line {
+  background: #d1d5db;
 }
 
 .home-divider__line::after {
@@ -627,10 +722,10 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 80px;
+  width: 180px;
   height: 100%;
-  background: linear-gradient(90deg, transparent, var(--accent-light), transparent);
-  animation: scan-line 4s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(159, 18, 57, 0.55), rgba(159, 18, 57, 0.85), rgba(159, 18, 57, 0.55), transparent);
+  animation: scan-line 5s ease-in-out infinite;
 }
 
 /* ─── Boot Sequence ─── */

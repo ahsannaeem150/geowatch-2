@@ -1,8 +1,11 @@
 import { SEVERITY_LABELS, VERIFICATION } from './IncidentUtils.js';
+import { useTheme } from '@shared/useTheme.js';
+import { getBadgeColors, getSeverityBadgeColors } from '@shared/utils/themeColors.js';
 
 export function Badge({ children, color, className = 'id-badge' }) {
+  const { theme } = useTheme();
   const preset = color
-    ? { background: `${color}18`, color, border: `1px solid ${color}40` }
+    ? getBadgeColors(color, theme)
     : { background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' };
   return (
     <span
@@ -19,14 +22,16 @@ export function Badge({ children, color, className = 'id-badge' }) {
 }
 
 export function SeverityBadge({ level }) {
+  const { theme } = useTheme();
   const cfg = SEVERITY_LABELS[level] || SEVERITY_LABELS[3];
+  const sev = getSeverityBadgeColors(cfg.color, theme);
   return (
     <span
       className="id-badge--severity"
-      style={{ background: `${cfg.color}10`, border: `1px solid ${cfg.color}30`, color: cfg.color }}
+      style={{ background: sev.background, border: sev.border, color: sev.color }}
     >
       <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.5px' }}>{level}</span>
-      <span style={{ width: 1, height: 12, background: `${cfg.color}40`, borderRadius: 1 }} />
+      <span style={{ width: 1, height: 12, background: sev.divider, borderRadius: 1 }} />
       <span>{cfg.label}</span>
     </span>
   );

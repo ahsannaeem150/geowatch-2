@@ -8,7 +8,7 @@ const INCIDENT_COLUMNS = `
   i.category_id,
   i.verification_status,
   c.name AS category_name, c.slug AS category_slug,
-  d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color
+  d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color, d.light_color AS domain_light_color
 `;
 
 const INCIDENT_FROM = `

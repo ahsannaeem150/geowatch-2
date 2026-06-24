@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTheme } from '../useTheme.js';
+import { getBadgeColors } from '../utils/themeColors.js';
 
 const STATUS_BADGE_STYLES = {
   active:   { background: 'rgba(34, 197, 94, 0.10)',  color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.30)' },
@@ -7,11 +9,16 @@ const STATUS_BADGE_STYLES = {
 };
 
 export function Badge({ children, color, status, style = {} }) {
-  const preset = color
-    ? { background: `${color}18`, color, border: `1px solid ${color}40` }
-    : status
-    ? STATUS_BADGE_STYLES[status]
-    : { background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' };
+  const { theme } = useTheme();
+
+  let preset;
+  if (color) {
+    preset = getBadgeColors(color, theme);
+  } else if (status) {
+    preset = STATUS_BADGE_STYLES[status];
+  } else {
+    preset = { background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' };
+  }
 
   return (
     <span

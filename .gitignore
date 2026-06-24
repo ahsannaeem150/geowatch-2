@@ -44,6 +44,7 @@ uploads/
 
 # Third-party tools (downloadable)
 tools/martin
+tools/ffmpeg
 
 # Coverage
 coverage/

@@ -32,7 +32,7 @@ export default function SignInModal({ onClose }) {
         position: 'fixed',
         inset: 0,
         zIndex: 11000,
-        background: 'rgba(0,0,0,0.7)',
+        background: 'var(--backdrop)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -47,7 +47,7 @@ export default function SignInModal({ onClose }) {
         style={{
           width: '100%',
           maxWidth: 380,
-          background: 'var(--bg-elevated)',
+          background: 'var(--bg-primary)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 18,
           padding: '28px 24px',

@@ -43,6 +43,7 @@ CREATE TABLE domains (
     slug VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
     color VARCHAR(7) NOT NULL DEFAULT '#9f1239',
+    light_color VARCHAR(7) NOT NULL DEFAULT '#6b7280',
     icon VARCHAR(50) DEFAULT 'shield',
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT true,
