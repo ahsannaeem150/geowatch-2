@@ -25,6 +25,8 @@ export default function IncidentSidebar({
   savedIds,
   onSaveChange,
   savedCount = 0,
+  isCollapsed = false,
+  onToggleCollapse,
 }) {
   const navigate = useNavigate();
   const { isAuthenticated } = usePublicAuth();
@@ -119,6 +121,44 @@ export default function IncidentSidebar({
         (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : incidents;
+
+  if (isCollapsed) {
+    return (
+      <div
+        onClick={onToggleCollapse}
+        title="Expand events sidebar"
+        style={{
+          width: '100%',
+          height: '100%',
+          background: isLight ? 'var(--bg-elevated)' : 'var(--bg-surface)',
+          borderLeft: `1px solid ${surfaceBorder}`,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '12px 0',
+          gap: '12px',
+          cursor: 'pointer',
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: '18px', lineHeight: 1, color: 'var(--text-muted)' }}>←</span>
+        <span
+          style={{
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            fontSize: '11px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            color: 'var(--text-muted)',
+            transform: 'rotate(180deg)',
+          }}
+        >
+          Events
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -304,18 +344,49 @@ export default function IncidentSidebar({
               >
                 {tab === 'saved' ? 'Saved' : 'Events'}
               </h3>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  color: 'var(--accent-light)',
-                  background: 'var(--accent-subtle-bg)',
-                  padding: '2px 8px',
-                  borderRadius: 'var(--radius-md)',
-                }}
-              >
-                {incidents.length}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--accent-light)',
+                    background: 'var(--accent-subtle-bg)',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  {incidents.length}
+                </span>
+                <button
+                  onClick={onToggleCollapse}
+                  title="Collapse events sidebar"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '26px',
+                    height: '26px',
+                    fontSize: '14px',
+                    lineHeight: 1,
+                    color: 'var(--text-secondary)',
+                    background: cardBg,
+                    border: `1px solid ${surfaceBorder}`,
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                    e.currentTarget.style.borderColor = 'var(--accent-light)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = surfaceBorder;
+                  }}
+                >
+                  →
+                </button>
+              </div>
             </div>
 
             <input

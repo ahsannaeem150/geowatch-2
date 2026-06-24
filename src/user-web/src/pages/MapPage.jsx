@@ -108,6 +108,7 @@ export default function MapPage() {
   } = useMapContextMenu();
 
   const [sidebarTab, setSidebarTab] = useState('events'); // 'events' | 'saved'
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // ─── Live Activity ───
   const [activities, setActivities] = useState([]);
@@ -875,6 +876,17 @@ export default function MapPage() {
     setFeedCollapsed((prev) => !prev);
   }, []);
 
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      // Resize map once the sidebar width has changed
+      requestAnimationFrame(() => {
+        mapRef.current?.getMap()?.resize();
+      });
+      return next;
+    });
+  }, []);
+
   const handleSwitchToIncidentDate = (incident) => {
     const incidentDate = incident.start_date
       ? (() => {
@@ -1142,7 +1154,15 @@ export default function MapPage() {
         </div>
 
         {/* Right — Incident sidebar */}
-        <div style={{ width: '630px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+        <div
+          style={{
+            width: sidebarCollapsed ? '44px' : '630px',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'width 0.2s ease',
+          }}
+        >
           <IncidentSidebar
             incidents={
               isAuthenticated && sidebarTab === 'saved'
@@ -1162,6 +1182,8 @@ export default function MapPage() {
             savedIds={savedIds}
             onSaveChange={handleSaveChange}
             savedCount={savedIncidents.length}
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
           />
         </div>
       </div>
