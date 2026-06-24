@@ -8,11 +8,9 @@ import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
 import { smallestZoneFeature } from '@shared/utils/zoneGeometry.js';
 import { format } from 'date-fns';
 
-// Hard boundary for z14 tile coverage.
-// Inset by 1° from the actual tile boundary so that even at z14 the entire
-// viewport stays inside the region where tiles exist. No smooth transition:
-// tiles are either present (z0-14) or not (z0-10 only), so the allowed zoom
-// must switch cleanly between 14 and 10.
+// Tile coverage: z0-14 tiles exist inside HOT_BBOX, only z0-10 outside it.
+// We allow unrestricted zoom (up to MapLibre's default) inside the hot zone
+// and keep the outside world capped at z10.
 const TILE_BBOX = [25.3125, 4.7626, 105.1831, 42.5531];
 const HOT_BBOX = [26.3125, 5.7626, 104.1831, 41.5531]; // 1° inset
 
@@ -62,7 +60,7 @@ function findNearestEditEdge(point, vertices, mapInstance, tolerance = 10) {
 function getMaxZoomForCenter(lng, lat) {
   const [minLng, minLat, maxLng, maxLat] = HOT_BBOX;
   const inside = lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
-  return inside ? 14 : 10;
+  return inside ? 22 : 10;
 }
 
 const SuperadminMap = forwardRef(function SuperadminMap({
