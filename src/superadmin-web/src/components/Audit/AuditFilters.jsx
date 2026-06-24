@@ -175,7 +175,6 @@ export default function AuditFilters({
             fontSize: 13,
             fontFamily: 'var(--font-sans)',
             outline: 'none',
-            colorScheme: 'dark',
           }}
         />
         <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>→</span>
@@ -193,7 +192,6 @@ export default function AuditFilters({
             fontSize: 13,
             fontFamily: 'var(--font-sans)',
             outline: 'none',
-            colorScheme: 'dark',
           }}
         />
 

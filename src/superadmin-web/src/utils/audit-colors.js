@@ -81,8 +81,51 @@ export const AUDIT_ACTION_LABELS = {
   setting_updated: 'Updated',
 };
 
+const AUDIT_ACTION_BADGE_VARS = {
+  user_login: 'purple',
+  user_created: 'green',
+  user_updated: 'amber',
+  user_deactivated: 'red',
+  user_deleted: 'red',
+  user_activated: 'green',
+  user_password_reset: 'amber',
+
+  public_user_login: 'purple',
+  public_user_banned: 'red',
+  public_user_unbanned: 'green',
+  public_user_incident_saved: 'green',
+  public_user_incident_unsaved: 'amber',
+  public_user_incident_viewed: 'purple',
+
+  incident_created: 'green',
+  incident_updated: 'amber',
+  incident_resolved: 'blue',
+  incident_deleted: 'red',
+  incident_restored: 'green',
+  incident_purged: 'red',
+
+  source_added: 'green',
+  source_updated: 'amber',
+  source_deleted: 'red',
+
+  timeline_added: 'green',
+  timeline_updated: 'amber',
+  timeline_deleted: 'red',
+
+  export_incidents: 'blue',
+  export_sources: 'blue',
+  export_users: 'blue',
+  export_audit: 'blue',
+
+  setting_updated: 'amber',
+};
+
 export function getAuditActionColor(action) {
   return AUDIT_ACTION_COLORS[action] || 'var(--text-muted)';
+}
+
+export function getAuditActionBadgeVars(action) {
+  return AUDIT_ACTION_BADGE_VARS[action] || 'gray';
 }
 
 export function getAuditActionShortLabel(action) {

@@ -249,7 +249,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
                       border: 'none',
                       background: 'transparent',
                       color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
-                      borderBottom: activeTab === tab.key ? '2px solid var(--navy-400)' : '2px solid transparent',
+                      borderBottom: activeTab === tab.key ? '2px solid var(--navy-600)' : '2px solid transparent',
                       cursor: 'pointer',
                       fontFamily: 'var(--font-sans)',
                       transition: 'color var(--transition-fast)',
@@ -571,7 +571,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
                                   width: 6,
                                   height: 6,
                                   borderRadius: '50%',
-                                  background: incident.severity >= 4 ? '#ef4444' : incident.severity >= 3 ? '#f97316' : '#22c55e',
+                                  background: incident.severity >= 4 ? 'var(--danger)' : incident.severity >= 3 ? 'var(--warning)' : 'var(--success)',
                                 }}
                               />
                               Severity {incident.severity}
@@ -608,7 +608,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
 function StatBox({ label, value, icon: Icon }) {
   return (
     <div style={{ padding: '14px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-      {Icon && <Icon size={16} style={{ color: 'var(--navy-400)', marginBottom: 6 }} />}
+      {Icon && <Icon size={16} style={{ color: 'var(--navy-600)', marginBottom: 6 }} />}
       <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{value}</div>
       <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{label}</div>
     </div>

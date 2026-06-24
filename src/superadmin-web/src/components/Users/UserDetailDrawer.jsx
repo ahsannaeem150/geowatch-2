@@ -353,7 +353,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
                       border: 'none',
                       background: 'transparent',
                       color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
-                      borderBottom: activeTab === tab.key ? '2px solid var(--navy-400)' : '2px solid transparent',
+                      borderBottom: activeTab === tab.key ? '2px solid var(--navy-600)' : '2px solid transparent',
                       cursor: 'pointer',
                       fontFamily: 'var(--font-sans)',
                       transition: 'color var(--transition-fast)',
@@ -375,8 +375,8 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
 
                   {/* Temp password */}
                   {tempPassword && (
-                    <div style={{ padding: '12px 14px', background: 'rgba(37, 99, 235, 0.08)', border: '1px solid var(--alert-info-border)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
-                      <div style={{ fontSize: 12, color: 'var(--navy-400)', fontWeight: 600, marginBottom: 4 }}>Temporary Password Generated</div>
+                    <div style={{ padding: '12px 14px', background: 'var(--alert-info-bg)', border: '1px solid var(--alert-info-border)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: 'var(--info)', fontWeight: 600, marginBottom: 4 }}>Temporary Password Generated</div>
                       <div style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{tempPassword}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Share this securely with the user. It will not be shown again.</div>
                     </div>

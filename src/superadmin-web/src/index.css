@@ -113,13 +113,13 @@
 
 /* ─── Light Theme Overrides for Superadmin ─── */
 [data-theme="light"] {
-  /* Backgrounds — off-white with clear layering */
-  --bg-deep: #f8f9fa;
+  /* Backgrounds — gray page, white cards */
+  --bg-deep: #f3f4f6;
   --bg-base: #ffffff;
   --bg-surface: #ffffff;
-  --bg-elevated: #f1f5f9;
-  --bg-hover: #e2e8f0;
-  --bg-active: #f0f4f8;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f3f4f6;
+  --bg-active: #e5e7eb;
   --bg-glass: rgba(255, 255, 255, 0.92);
 
   /* Text — dark slate for comfortable reading */
@@ -128,10 +128,10 @@
   --text-muted: #64748b;
   --text-disabled: #94a3b8;
 
-  /* Borders — visible on white, following GitHub Primer / Vercel Geist */
-  --border-subtle: #e2e8f0;
-  --border-default: #cbd5e1;
-  --border-strong: #94a3b8;
+  /* Borders — visible on white */
+  --border-subtle: #e5e7eb;
+  --border-default: #d1d5db;
+  --border-strong: #9ca3af;
 
   /* Shadows — lighter but perceptible on white */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -346,6 +346,44 @@ body {
 .console-card:hover {
   border-color: var(--border-default);
   box-shadow: var(--shadow-md);
+}
+
+[data-theme="light"] .console-card {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .console-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Light mode — tables, badges, shared components ─── */
+[data-theme="light"] .sa-table-wrap {
+  border-color: var(--border-default) !important;
+}
+
+[data-theme="light"] .sa-table-head > tr {
+  background: var(--bg-hover) !important;
+  border-bottom-color: var(--border-default) !important;
+}
+
+[data-theme="light"] .sa-table tbody tr {
+  border-bottom-color: var(--border-subtle) !important;
+}
+
+[data-theme="light"] .sa-table tbody tr:hover {
+  background: var(--bg-hover) !important;
+}
+
+[data-theme="light"] .sa-table tbody tr[style*="hover-subtle"],
+[data-theme="light"] .sa-table tbody tr[style*="--hover-subtle"] {
+  background: rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .sa-badge {
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 /* Glass style: sidebar gets backdrop blur */

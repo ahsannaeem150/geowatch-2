@@ -97,7 +97,7 @@ export default function ZoneCategoriesPage() {
               padding: '10px 18px',
               borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-default)',
-              background: 'var(--bg-base)',
+              background: 'var(--bg-hover)',
               color: 'var(--text-primary)',
               fontSize: 14,
               fontWeight: 600,
@@ -181,7 +181,7 @@ function CategoryCard({ category, onEdit, onDelete }) {
               style={{
                 fontSize: 11,
                 color: 'var(--text-muted)',
-                background: 'var(--bg-base)',
+                background: 'var(--bg-hover)',
                 padding: '2px 8px',
                 borderRadius: 4,
                 fontFamily: 'var(--font-mono)',
@@ -195,7 +195,7 @@ function CategoryCard({ category, onEdit, onDelete }) {
                 style={{
                   fontSize: 11,
                   color: 'var(--text-muted)',
-                  background: 'var(--bg-base)',
+                  background: 'var(--bg-hover)',
                   padding: '2px 8px',
                   borderRadius: 4,
                   fontWeight: 600,

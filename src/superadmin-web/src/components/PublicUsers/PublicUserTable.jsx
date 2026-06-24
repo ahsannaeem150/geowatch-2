@@ -29,10 +29,10 @@ export default function PublicUserTable({
 }) {
   return (
     <div>
-      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="sa-table-wrap" style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
+        <table className="sa-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead className="sa-table-head">
+            <tr style={{ background: 'var(--bg-hover)', borderBottom: '1px solid var(--border-subtle)' }}>
               {[
                 { label: 'Name', width: 'auto' },
                 { label: 'Email', width: 'auto' },
@@ -124,7 +124,7 @@ export default function PublicUserTable({
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.textDecoration = 'underline';
-                          e.currentTarget.style.color = 'var(--navy-400)';
+                          e.currentTarget.style.color = 'var(--navy-600)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.textDecoration = 'none';

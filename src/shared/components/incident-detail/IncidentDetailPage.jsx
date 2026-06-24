@@ -11,7 +11,7 @@ const DEFAULT_HERO_IMAGE =
   'https://images.unsplash.com/photo-1562742382-d2a5c01dff21?auto=format&fit=crop&w=1600&q=80';
 
 const ROLE_META = {
-  user: { label: 'Public view', color: '#38bdf8', accent: '#0ea5e9', accentLight: '#38bdf8' },
+  user: { label: 'Public view', color: 'var(--accent-light)', accent: 'var(--accent)', accentLight: 'var(--accent-light)' },
   admin: { label: 'Admin', color: '#9f1239', accent: '#5a011c', accentLight: '#9f1239' },
   superadmin: { label: 'Superadmin', color: '#9f1239', accent: '#5a011c', accentLight: '#9f1239' },
 };
@@ -248,7 +248,7 @@ function Hero({ incident, heroImage, mode }) {
       <div className="opt1-hero-content">
         <div className="opt1-hero-meta">
           <span className="opt1-hero-meta-item">
-            <span className="opt1-live-dot" style={{ background: role.color, boxShadow: `0 0 0 0 ${role.color}` }} />{' '}
+            <span className="opt1-live-dot" style={{ background: 'var(--accent-light)', boxShadow: '0 0 0 0 var(--accent-light)' }} />{' '}
             {incident.status}
           </span>
           <span className="opt1-hero-meta-item">{sev.label}</span>
@@ -440,7 +440,7 @@ function Option1TopBar({ mode, onBack, onEditIncident, onAddEvent, extraActions 
           <div className="opt1-topbar-title">Incident details</div>
           <span
             className="opt1-role-badge"
-            style={{ background: `${role.color}1f`, color: role.color, borderColor: `${role.color}33` }}
+            style={{ background: 'var(--accent-subtle-bg)', color: 'var(--accent-light)', borderColor: 'var(--accent-subtle-border)' }}
           >
             {role.label}
           </span>
@@ -630,8 +630,6 @@ export default function IncidentDetailPage({
         background: 'var(--bg-primary)',
         color: 'var(--text-primary)',
         fontFamily: 'var(--font-sans)',
-        '--accent': role.accent,
-        '--accent-light': role.accentLight,
       }}
     >
       <Option1TopBar
@@ -667,7 +665,7 @@ export default function IncidentDetailPage({
               {sorted.map((event, idx) => {
                 const ver = VERIFICATION[event.verification || event.verificationStatus] || VERIFICATION.unverified;
                 const isActive = activeId === event.id;
-                const typeColor = event.type === 'report' ? '#818cf8' : '#38bdf8';
+                const typeColor = 'var(--accent-light)';
                 return (
                   <div
                     key={event.id}

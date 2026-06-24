@@ -16,7 +16,7 @@ import {
 import { listUsers, getIncidents, getAuditSummary, getSystemHealth, listAuditLogs } from '../services/api.js';
 import { useEventSource } from '../hooks/useEventSource.js';
 import { formatDistanceToNow } from 'date-fns';
-import { getAuditActionColor } from '../utils/audit-colors.js';
+import { getAuditActionBadgeVars } from '../utils/audit-colors.js';
 
 function KPICard({ label, value, subtext, icon: Icon, color, loading, onClick }) {
   return (
@@ -75,9 +75,10 @@ function StatusDot({ status }) {
 }
 
 function AuditBadge({ action }) {
-  const color = getAuditActionColor(action);
+  const badgeVar = getAuditActionBadgeVars(action);
   return (
     <span
+      className="sa-badge"
       style={{
         display: 'inline-block',
         fontSize: 11,
@@ -86,8 +87,8 @@ function AuditBadge({ action }) {
         letterSpacing: '0.04em',
         padding: '3px 8px',
         borderRadius: 4,
-        background: `${color}18`,
-        color,
+        background: `var(--badge-${badgeVar}-bg)`,
+        color: `var(--badge-${badgeVar}-text)`,
         fontFamily: 'var(--font-mono)',
       }}
     >
@@ -328,7 +329,7 @@ export default function DashboardPage() {
               gap: 4,
               background: 'transparent',
               border: 'none',
-              color: 'var(--navy-400)',
+              color: 'var(--navy-600)',
               fontSize: 12,
               fontWeight: 500,
               cursor: 'pointer',

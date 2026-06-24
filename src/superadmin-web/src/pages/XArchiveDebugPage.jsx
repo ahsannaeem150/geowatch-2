@@ -20,7 +20,7 @@ import {
 
 
 
-function Badge({ children, color = 'var(--text-muted)', bg = 'rgba(255,255,255,0.08)' }) {
+function Badge({ children, color = 'var(--badge-gray-text)', bg = 'var(--badge-gray-bg)' }) {
   return (
     <span
       style={{
@@ -51,6 +51,7 @@ function Section({ title, children }) {
         borderRadius: 'var(--radius-md)',
         overflow: 'hidden',
         marginBottom: 24,
+        background: 'var(--bg-surface)',
       }}
     >
       <div
@@ -189,8 +190,8 @@ export default function XArchiveDebugPage() {
             gap: 8,
             padding: '12px 16px',
             borderRadius: 'var(--radius-md)',
-            background: 'rgba(239,68,68,0.12)',
-            color: '#ef4444',
+            background: 'var(--alert-error-bg)',
+            color: 'var(--danger)',
             marginBottom: 24,
             fontSize: 13,
           }}
@@ -230,7 +231,7 @@ export default function XArchiveDebugPage() {
                           style={{
                             background: 'transparent',
                             border: 'none',
-                            color: 'var(--navy-400)',
+                            color: 'var(--navy-600)',
                             cursor: 'pointer',
                             padding: 0,
                             fontSize: 12,
@@ -262,7 +263,7 @@ export default function XArchiveDebugPage() {
                           href={account.profile_url}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ color: 'var(--navy-400)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          style={{ color: 'var(--navy-600)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                         >
                           <ExternalLink size={12} />
                           Open
@@ -358,18 +359,18 @@ export default function XArchiveDebugPage() {
                           href={source.source_url}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ color: 'var(--navy-400)', wordBreak: 'break-all' }}
+                          style={{ color: 'var(--navy-600)', wordBreak: 'break-all' }}
                         >
                           {source.source_url}
                         </a>
                       </td>
                       <td style={tdStyle}>
                         {source.archived ? (
-                          <Badge color="#ef4444" bg="rgba(239,68,68,0.12)">
+                          <Badge color="var(--badge-red-text)" bg="var(--badge-red-bg)">
                             <Archive size={10} /> Archived
                           </Badge>
                         ) : (
-                          <Badge color="#22c55e" bg="rgba(34,197,94,0.12)">
+                          <Badge color="var(--badge-green-text)" bg="var(--badge-green-bg)">
                             <CheckCircle size={10} /> Live
                           </Badge>
                         )}

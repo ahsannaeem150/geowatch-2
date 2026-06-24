@@ -156,7 +156,7 @@ export default function RecycleBinPage() {
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#22c55e',
+                    background: 'var(--success)',
                     animation: 'pulse 2s infinite',
                   }}
                 />
@@ -334,7 +334,7 @@ export default function RecycleBinPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: 'var(--bg-elevated)' }}>
+                <tr style={{ background: 'var(--bg-hover)' }}>
                   <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--border-subtle)' }}>Incident</th>
                   <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--border-subtle)' }}>Category</th>
                   <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--border-subtle)' }}>Severity</th>
@@ -356,7 +356,7 @@ export default function RecycleBinPage() {
                       style={{
                         borderBottom: '1px solid var(--border-subtle)',
                         transition: 'background var(--transition-fast), box-shadow var(--transition-fast)',
-                        background: isHighlighted ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                        background: isHighlighted ? 'var(--badge-amber-bg)' : 'transparent',
                         boxShadow: isHighlighted ? 'inset 3px 0 0 0 var(--warning)' : 'none',
                         cursor: 'pointer',
                       }}
@@ -365,7 +365,7 @@ export default function RecycleBinPage() {
                         if (!isHighlighted) e.currentTarget.style.background = 'var(--bg-hover)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = isHighlighted ? 'rgba(245, 158, 11, 0.12)' : 'transparent';
+                        e.currentTarget.style.background = isHighlighted ? 'var(--badge-amber-bg)' : 'transparent';
                       }}
                     >
                       <td style={{ padding: '14px 16px' }}>
@@ -402,20 +402,20 @@ export default function RecycleBinPage() {
                             textTransform: 'uppercase',
                             background:
                               incident.severity === 'critical'
-                                ? 'var(--alert-error-bg)'
+                                ? 'var(--badge-red-bg)'
                                 : incident.severity === 'high'
-                                ? 'var(--alert-warning-bg)'
+                                ? 'var(--badge-amber-bg)'
                                 : incident.severity === 'medium'
-                                ? 'var(--alert-warning-bg)'
-                                : 'var(--alert-success-bg)',
+                                ? 'var(--badge-amber-bg)'
+                                : 'var(--badge-green-bg)',
                             color:
                               incident.severity === 'critical'
-                                ? '#f43f5e'
+                                ? 'var(--badge-red-text)'
                                 : incident.severity === 'high'
-                                ? '#f97316'
+                                ? 'var(--badge-amber-text)'
                                 : incident.severity === 'medium'
-                                ? '#eab308'
-                                : '#22c55e',
+                                ? 'var(--badge-amber-text)'
+                                : 'var(--badge-green-text)',
                           }}
                         >
                           {incident.severity}
@@ -437,8 +437,8 @@ export default function RecycleBinPage() {
                             borderRadius: 'var(--radius-md)',
                             fontSize: 12,
                             fontWeight: 600,
-                            background: daysLeft <= 3 ? 'var(--alert-error-bg)' : 'rgba(99, 102, 241, 0.12)',
-                            color: daysLeft <= 3 ? '#f43f5e' : '#818cf8',
+                            background: daysLeft <= 3 ? 'var(--badge-red-bg)' : 'var(--badge-blue-bg)',
+                            color: daysLeft <= 3 ? 'var(--badge-red-text)' : 'var(--badge-blue-text)',
                           }}
                         >
                           <Clock size={11} />
@@ -487,7 +487,7 @@ export default function RecycleBinPage() {
                               borderRadius: 6,
                               border: '1px solid var(--alert-error-border)',
                               background: 'var(--alert-error-bg)',
-                              color: '#f43f5e',
+                              color: 'var(--danger)',
                               fontSize: 12,
                               fontWeight: 600,
                               cursor: isActionLoading ? 'not-allowed' : 'pointer',

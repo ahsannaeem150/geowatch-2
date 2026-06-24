@@ -71,12 +71,12 @@ function getIncidentLocationBadge(log) {
   if (log.target_type !== 'incident') return null;
   const status = log.incident_status;
   if (status === 'active' || status === 'resolved') {
-    return { label: 'Map', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)' };
+    return { label: 'Map', color: 'var(--badge-green-text)', bg: 'var(--badge-green-bg)' };
   }
   if (status === 'hidden') {
-    return { label: 'Recycle Bin', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' };
+    return { label: 'Recycle Bin', color: 'var(--badge-amber-text)', bg: 'var(--badge-amber-bg)' };
   }
-  return { label: 'Deleted', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)' };
+  return { label: 'Deleted', color: 'var(--badge-red-text)', bg: 'var(--badge-red-bg)' };
 }
 
 function getActivityDescription(log) {

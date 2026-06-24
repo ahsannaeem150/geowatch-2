@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Loader2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
-import { getAuditActionColor, getAuditActionShortLabel } from '../../utils/audit-colors.js';
+import { getAuditActionBadgeVars, getAuditActionShortLabel } from '../../utils/audit-colors.js';
 
 function ActionBadge({ action }) {
-  const color = getAuditActionColor(action);
+  const badgeVar = getAuditActionBadgeVars(action);
   const prefix = action.split('_')[0];
   const shortLabel = getAuditActionShortLabel(action);
 
   return (
     <span
+      className="sa-badge"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -20,8 +21,8 @@ function ActionBadge({ action }) {
         letterSpacing: '0.03em',
         padding: '3px 8px',
         borderRadius: 4,
-        background: `${color}18`,
-        color,
+        background: `var(--badge-${badgeVar}-bg)`,
+        color: `var(--badge-${badgeVar}-text)`,
         fontFamily: 'var(--font-mono)',
         whiteSpace: 'nowrap',
       }}
@@ -31,7 +32,7 @@ function ActionBadge({ action }) {
           width: 6,
           height: 6,
           borderRadius: '50%',
-          background: color,
+          background: `var(--badge-${badgeVar}-text)`,
           flexShrink: 0,
         }}
       />
@@ -61,7 +62,7 @@ function DetailsCell({ details }) {
           style={{
             background: 'transparent',
             border: 'none',
-            color: 'var(--navy-400)',
+            color: 'var(--navy-600)',
             fontSize: 10,
             cursor: 'pointer',
             padding: '2px 0',
@@ -87,10 +88,10 @@ export default function AuditTable({
   return (
     <div>
       {/* Table */}
-      <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="sa-table-wrap" style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+        <table className="sa-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead className="sa-table-head">
+            <tr style={{ background: 'var(--bg-hover)', borderBottom: '1px solid var(--border-subtle)' }}>
               {['Time', 'User', 'Action', 'Target', 'Details', 'IP'].map((h) => (
                 <th
                   key={h}
@@ -177,7 +178,7 @@ export default function AuditTable({
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--navy-400)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <div style={{ fontSize: 11, color: 'var(--navy-600)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
                           <span style={{ fontFamily: 'var(--font-mono)' }}>{log.user_email}</span>
                           <ExternalLink size={10} />
                         </div>
@@ -210,7 +211,7 @@ export default function AuditTable({
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                           {log.target_type}
                         </div>
-                        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--navy-400)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--navy-600)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
                           <span>{log.target_id?.slice(0, 12)}...</span>
                           <ExternalLink size={10} />
                         </div>
