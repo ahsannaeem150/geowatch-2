@@ -17,6 +17,7 @@ import SidebarTrial2SuperAdmin from './components/DesignTrial/SidebarTrial2Super
 import ZonesPage from './pages/ZonesPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
+import MapWorkspaceTrialA from './pages/trial/MapWorkspaceTrialA.jsx';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -60,6 +61,8 @@ const zonesRoute = (
 const zoneRoute = (
   <Route path="/zone/:id" element={<ProtectedRoute><ZoneDetailPage /></ProtectedRoute>} />
 );
+const mapWorkspaceTrialARoute = <Route path="/trial/map-workspace-a" element={<MapWorkspaceTrialA />} />;
+
 const dashboardRoute = (
   <Route path="/*" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />
 );
@@ -79,6 +82,7 @@ const AppRoutes = React.memo(function AppRoutes() {
       {incidentTrialUserRoute}
       {incidentTrialAdminRoute}
       {incidentTrialSuperadminRoute}
+      {mapWorkspaceTrialARoute}
       {incidentRoute}
       {zonesRoute}
       {zoneRoute}

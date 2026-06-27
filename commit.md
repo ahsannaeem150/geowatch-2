@@ -9246,3 +9246,122 @@ fix(user-web): make neon-fade-shadow inner shadow clearly visible
 ```
 
 *End of fix*
+
+
+---
+
+## 📅 2026-06-27 — Docs: Regenerate AGENTS.md from Actual Codebase
+
+### Summary
+Audited the current project structure, package versions, backend routes, shared components, and database schema, then regenerated `AGENTS.md` to accurately reflect the codebase state. Corrected outdated claims: no separate `zones` table (polygons live in `incidents` with `geometry_type='polygon'`), precise dependency versions (Multer ^2.1.1, Sharp ^0.34.5, etc.), additional backend services/utilities (X archive, source ingestion, source account, zone categories), expanded shared component list, and current trial route inventory.
+
+### Changes
+
+| File | Change |
+|:--|:--|
+| `AGENTS.md` | Rewrote from scratch based on actual `package.json`, `server.js`, `src/backend/src/`, `src/shared/`, `docs/database-schema.sql`, `handoff.md`, and `trialRoutes.md`. Added accurate dependency versions, backend route mount order, geometry note, expanded shared files, current trial routes, and corrected rate-limiting env vars. |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `AGENTS.md` | Markdown file only; no build impact |
+
+### Git Commit Suggestion
+
+```
+docs: regenerate AGENTS.md from actual codebase state
+```
+
+*End of docs update*
+
+
+---
+
+## 📅 2026-06-27 — Admin Map Workspace Layout Trials
+
+### Summary
+Created four isolated trial routes in `admin-web` to compare map workspace container layouts before committing to one for all three frontends. Each route shares a new top HUD bar (`MapHudBar`), visible omnibox search, empty map canvas placeholder, and bottom ambient activity bar. Layout A is fully built with interactive rail drawers, dummy incident list, layer toggles, and collapsible 630px right panel. Layouts B, C, and D are interactive shells demonstrating floating HUD panels, resizable docked panels, and split-screen master-detail respectively.
+
+### Created Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx` | Visible search input with `Cmd/Ctrl+K` command-palette-style overlay |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | New top HUD bar replacing the old admin `TopBar` for trials |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapCanvas.jsx` | Empty map background with grid and placeholder label |
+| `src/admin-web/src/components/MapWorkspaceTrial/BottomAmbientBar.jsx` | Collapsible bottom live activity ticker |
+| `src/admin-web/src/components/MapWorkspaceTrial/TrialNav.jsx` | Floating pill to switch between the four trial routes |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Layout A: rail + drawer (fully built, main candidate) |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialB.jsx` | Layout B: floating HUD panels shell |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialC.jsx` | Layout C: resizable docked panels shell |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialD.jsx` | Layout D: split-screen master-detail shell |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/App.jsx` | Added `/trial/map-workspace-a`, `/trial/map-workspace-b`, `/trial/map-workspace-c`, `/trial/map-workspace-d` routes |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Trial Routes
+
+- http://localhost:5174/trial/map-workspace-a
+- http://localhost:5174/trial/map-workspace-b
+- http://localhost:5174/trial/map-workspace-c
+- http://localhost:5174/trial/map-workspace-d
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): add four map workspace layout trial routes
+```
+
+*End of layout trials*
+
+
+---
+
+## 📅 2026-06-27 — Select Layout A and Remove Other Trial Shells
+
+### Summary
+After reviewing the four map workspace trial routes, Layout A (rail + drawer) was selected as the winning container pattern. Removed the other three trial shells (B, C, D) and the floating trial navigation pill. Only `/trial/map-workspace-a` remains as the foundation for the unified map layout across all three frontends.
+
+### Removed Files
+
+| File | Reason |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialB.jsx` | Floating HUD panels runner-up |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialC.jsx` | Resizable docked panels runner-up |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialD.jsx` | Split-screen runner-up |
+| `src/admin-web/src/components/MapWorkspaceTrial/TrialNav.jsx` | No longer needed with a single trial route |
+
+### Modified Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/App.jsx` | Removed imports and routes for B, C, D |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Removed `TrialNav` import and usage |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Remaining Trial Route
+
+- http://localhost:5174/trial/map-workspace-a
+
+### Git Commit Suggestion
+
+```
+refactor(admin-web): select layout A and remove other map workspace trial shells
+```
+
+*End of layout selection*
