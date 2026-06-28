@@ -131,7 +131,14 @@ const styles = {
   },
 };
 
-export default function MapHudBar({ layoutLabel = 'Layout A', onToggleFocusMode, isFocusMode }) {
+export default function MapHudBar({
+  layoutLabel = 'Layout A',
+  onToggleFocusMode,
+  isFocusMode,
+  onAddIncident,
+  onAddZone,
+  onOpenZones,
+}) {
   const navigate = useNavigate();
   const [isLive] = useState(true);
   const [dateRange, setDateRange] = useState({ from: '2026-06-27', to: '2026-06-27' });
@@ -219,15 +226,15 @@ export default function MapHudBar({ layoutLabel = 'Layout A', onToggleFocusMode,
           {isFocusMode ? 'Exit Focus' : 'Focus'}
         </button>
 
-        <button style={styles.actionBtn}>
+        <button style={styles.actionBtn} onClick={onOpenZones}>
           <MapIcon size={14} />
           Zones
         </button>
-        <button style={styles.actionBtn}>
+        <button style={styles.actionBtn} onClick={onAddZone}>
           <Hexagon size={14} />
           Add Zone
         </button>
-        <button style={styles.primaryBtn}>
+        <button style={styles.primaryBtn} onClick={onAddIncident}>
           <Plus size={14} />
           Add Incident
         </button>

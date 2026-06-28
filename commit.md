@@ -9365,3 +9365,244 @@ refactor(admin-web): select layout A and remove other map workspace trial shells
 ```
 
 *End of layout selection*
+
+
+---
+
+## 📅 2026-06-27 — Module: Finalize Layout A Trial (`/trial/map-workspace-a`)
+
+### Summary
+Implemented the finalized Layout A trial route with a 340px tabbed left drawer, polished Layers drawer, right-panel detail/form placeholders, simulated viewport filtering, live activity feed, Notifications tab, and per-user animation state simulation. Added a design-note document so the activity/notification/animation model survives context compaction and can be reused when integrating the layout into the real apps.
+
+### Created Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `docs/trial-activity-notifications-design.md` | Design reference for activity vs notifications, animation rules, future backend fields, and integration checklist |
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Full Layout A trial page: rail icons, tabbed drawer, Viewport/Recent sub-tabs, Layers UI, Notifications/Saved/Settings tabs, right panel detail/form, viewport simulation, live activity, toasts, pulse/ring animations |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | Added `onAddIncident`, `onAddZone`, and `onOpenZones` callbacks for HUD buttons |
+| `src/admin-web/src/components/MapWorkspaceTrial/BottomAmbientBar.jsx` | Added optional `feed` prop so the bottom ticker consumes the same live activity stream as the drawer |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Remaining Trial Route
+
+- http://localhost:5174/trial/map-workspace-a
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): finalize Layout A trial with tabs, notifications, layers, and live activity simulation
+```
+
+*End of Layout A trial finalization*
+
+
+---
+
+## 📅 2026-06-27 — Module: Layout A Trial UI Polish
+
+### Summary
+Polished the Layout A trial based on screenshots: redesigned the bottom ambient bar so it looks clickable and uses vertical space efficiently when expanded, removed the redundant top drawer tab bar, improved incident cards with location/severity/category/time layout, upgraded live activity rows with type icons, and tightened list spacing so long incident lists no longer look crammed.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/BottomAmbientBar.jsx` | Collapsed row is now fully clickable with a prominent expand button; expanded feed is a full-height scrollable list with polished icon rows |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Removed top tab bar; added incident locations; redesigned incident and activity cards; reduced list gaps and improved scrolling |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(admin-web): polish Layout A trial cards, activity bar, and drawer spacing
+```
+
+*End of Layout A trial UI polish*
+
+
+---
+
+## 📅 2026-06-27 — Module: Layout A Trial Activity & Card Polish
+
+### Summary
+Fixed the expanded bottom activity bar layout so rows are compact and no longer show empty vertical space. Replaced the custom severity badge with the shared `SeverityBadge` component on incident cards. Improved the Activity tab so unseen events are clearly highlighted with a left accent border, pulsing dot, "New" chip, and a subtle background pulse; new activity is now marked seen only after a short delay, so users can visually catch up when switching back to the tab.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/BottomAmbientBar.jsx` | Compact horizontal expanded rows; uses `createdAt` fallback for relative timestamps |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Shared `SeverityBadge`; Activity tab delayed mark-seen + unseen pulse/dot/border styling |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(admin-web): compact activity bar, shared severity badge, activity-tab unseen states
+```
+
+*End of activity and card polish*
+
+
+---
+
+## 📅 2026-06-27 — Module: Layout A Card & Activity Bar Overhaul
+
+### Summary
+Overhauled incident cards: removed the severity tag, gave them a cleaner title/location/category/time layout, and ensured the Viewport/Recent list no longer cramps or shrinks cards when it gets full. Switched the incident/saved lists to block layout with fixed card widths and `flex-shrink: 0`. Restored the expanded bottom activity bar to a horizontal auto-fill grid (like the initial iteration) with full message text visible and proper relative timestamps.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Cleaner incident cards without severity badge; block-based scrollable lists to prevent cramming |
+| `src/admin-web/src/components/MapWorkspaceTrial/BottomAmbientBar.jsx` | Expanded feed restored as a responsive horizontal grid; messages render from `text` or `message`; timestamps fallback to `createdAt` |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(admin-web): overhaul incident cards and restore horizontal activity grid
+```
+
+*End of card and activity bar overhaul*
+
+
+---
+
+## 📅 2026-06-27 — Module: Replace Recent Tab with Recents Drawer
+
+### Summary
+Removed the confusing "Recent" sub-tab from the Incidents drawer; the Incidents drawer now only shows the Viewport list. Added a new "Recents" rail icon/drawer between Saved and Settings that tracks incidents the user has opened in the current session, sorted by last viewed time, with a Clear button. Updated the design document to describe the Recents behavior for the real app (persisted per-user, clearable, capped).
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Removed Recent sub-tab; added Recents drawer, `recentlyOpened` state, and Clear action |
+| `docs/trial-activity-notifications-design.md` | Added Recents Drawer section with trial vs real-app behavior |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): replace Recent tab with Recents drawer and update design notes
+```
+
+*End of Recents drawer implementation*
+
+
+---
+
+## 📅 2026-06-27 — Module: UI Polish — Cards, Activity Bar, Recents Empty State
+
+### Summary
+Addressed four UI issues: centered the Recents empty-state icon and text, redesigned the expanded bottom activity bar as a compact vertical list with visible messages, made Activity drawer rows clickable so new/update events open the incident detail panel, and overhauled the incident card with a left category accent bar, status indicator, and cleaner typography while removing the severity tag.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Recents empty-state alignment; clickable Activity rows; redesigned IncidentCard with category accent bar and status |
+| `src/admin-web/src/components/MapWorkspaceTrial/BottomAmbientBar.jsx` | Expanded feed switched to a compact vertical list with full message text and timestamps |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(admin-web): polish incident cards, activity bar, and recents empty state
+```
+
+*End of UI polish pass*
+
+
+---
+
+## 📅 2026-06-27 — Module: Incident Card & Activity Acknowledgement Fixes
+
+### Summary
+Thinned the incident card’s left accent bar to 2px and attached it flush to the left edge; removed the status tags. Renamed the Incidents drawer title to "Incidents in Viewport" to make its purpose obvious. Overhauled Live Activity mark-as-seen behavior: removed the automatic 3-second timer that caused highlights to vanish while scrolling; added per-event acknowledgement on click and a "Mark all seen" button, so users keep control over what is considered seen.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Thinner attached accent bar; no status tags; Viewport title; manual activity acknowledgement state and UI |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+style(admin-web): thin attached accent bar, viewport title, manual activity acknowledgement
+```
+
+*End of card and activity acknowledgement fixes*
+
+
+---
+
+## 📅 2026-06-27 — Module: Activity Row Edge, Hover, and Acknowledgement Fixes
+
+### Summary
+Fixed Activity drawer rows so every row shows a colored left edge, not only unseen ones. Hovering now preserves the left edge color while highlighting the other borders. Clicking a row immediately stops its pulse animation and removes the unseen highlight/state. Build verified.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | ActivityRow now uses per-side border colors so the left edge persists on hover; added an effect to stop animation on acknowledgement |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(admin-web): activity row left edge on hover and immediate ack
+```
+
+*End of activity row fixes*
