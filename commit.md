@@ -9606,3 +9606,1085 @@ fix(admin-web): activity row left edge on hover and immediate ack
 ```
 
 *End of activity row fixes*
+
+
+---
+
+## 📅 2026-06-27 — Module: Activity Row Edge Fix + Bottom-Bar Options Trial Page
+
+### Summary
+- **Activity row fix**: seen rows in the Activity drawer now use a neutral left border; only unseen rows keep the colored left edge.
+- **New trial page**: created `/trial/bottom-bar-options` (`BottomBarOptionsTrial.jsx`) showcasing four fully interactive bottom-activity-bar concepts, each occupying a full viewport with live dummy data:
+  1. **Breaking News ticker** — scrolling marquee collapsed, time-grouped list expanded.
+  2. **Floating toast stream** — no permanent bar; toasts slide up and a bottom-right pill opens history.
+  3. **Glass bottom-sheet timeline** — thin glass strip that expands into a vertical timeline.
+  4. **Cinematic filmstrip** — horizontal card strip that expands into a scrollable ribbon.
+- Extracted shared trial dummy-data helpers into `src/admin-web/src/pages/trial/dummyData.js` so both trial pages reuse the same generator.
+
+### Modified / New Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | ActivityRow left edge now conditional on `isUnseen`; imports shared dummy-data helpers |
+| `src/admin-web/src/pages/trial/dummyData.js` | New shared helper: `generateInitialData`, `timeAgo`, `makeId`, `EVENT_META`, domain/severity constants |
+| `src/admin-web/src/pages/trial/BottomBarOptionsTrial.jsx` | New four-option interactive gallery page |
+| `src/admin-web/src/App.jsx` | Added route `/trial/bottom-bar-options` |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): add bottom-bar options trial gallery and activity row edge fix
+```
+
+*End of bottom-bar options trial*
+
+
+---
+
+## 📅 2026-06-27 — Module: Bottom-Bar Options Trial Narrowed to Two Directions
+
+### Summary
+Replaced the four-option `/trial/bottom-bar-options` gallery with the two directions the user liked:
+1. **No bottom bar** — map extends to the bottom; Activity is reached through the left-rail drawer.
+2. **Command toolbar** — bottom strip holds quick actions (Add Incident, Add Zone, Focus, Layers, Recents) instead of a feed.
+
+Both options now include a left rail so the user can see how Activity/Notifications/Layers/Recents are accessed without a bottom ambient bar.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/BottomBarOptionsTrial.jsx` | Replaced A/B/C/D concepts with two full-viewport options: no-bar + command toolbar |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): narrow bottom-bar trial to no-bar and command-toolbar options
+```
+
+*End of bottom-bar iteration*
+
+
+---
+
+## 📅 2026-06-27 — Module: Added Filtered Breaking-Alerts Option to Bottom-Bar Trial
+
+### Summary
+Added **Option 2 — Filtered Breaking Alerts** to `/trial/bottom-bar-options`, alongside Option 1 (no bar) and Option 4 (command toolbar).
+
+- The bottom bar shows only high-severity actionable alerts (SEV 4–5).
+- Each alert can be acknowledged and removed.
+- When all alerts are acknowledged, the bar collapses to a subtle "all clear" state and then regenerates one demo alert after a few seconds so the preview stays useful.
+- Expanded view lists breaking alerts with severity badges and Ack buttons.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/BottomBarOptionsTrial.jsx` | Added Option 2 breaking-alerts workspace + toolbar |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): add filtered breaking-alerts option to bottom-bar trial
+```
+
+*End of breaking-alerts addition*
+
+
+---
+
+## 📅 2026-06-27 — Module: Removed Bottom-Bar Options Trial Route
+
+### Summary
+Removed the `/trial/bottom-bar-options` route and its page. After exploring no-bar, breaking-alerts, and command-toolbar concepts, the decision is to keep the main trial page (`/trial/map-workspace-a`) without a dedicated bottom-bar options gallery for now. A bottom bar can be revisited when a specific feature needs it.
+
+### Modified / Removed Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/BottomBarOptionsTrial.jsx` | Deleted |
+| `src/admin-web/src/App.jsx` | Removed import and route for `/trial/bottom-bar-options` |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+chore(admin-web): remove bottom-bar-options trial route
+```
+
+*End of bottom-bar cleanup*
+
+
+---
+
+## 📅 2026-06-27 — Module: Settings Appearance + Improved Profile Dropdown in Trial Page
+
+### Summary
+- **Settings drawer** now includes an **Appearance** section:
+  - Theme toggle (light/dark) using the shared `ThemeToggle`.
+  - Interface style selector (Tactical · SaaS · Glass) using the shared `useStyle` hook.
+- **Profile dropdown** in `MapHudBar` redesigned:
+  - Avatar with admin initials.
+  - Admin name and email.
+  - Online status indicator.
+  - Role badges (Admin, Staff).
+  - Prominent **Log out** button.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Added ThemeToggle + style selector to Settings drawer |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | Redesigned user profile dropdown |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): add appearance settings and improved profile dropdown to trial page
+```
+
+*End of settings + profile polish*
+
+
+---
+
+## 📅 2026-06-27 — Module: Advanced Omnibox + Map Geocoder in Trial Page
+
+### Summary
+Built a premium command-palette style omnibox and a separate map geocoder pill for the `/trial/map-workspace-a` page.
+
+**Omnibox upgrades (`src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx`):**
+- Centered glass modal triggered by `⌘K` / `Ctrl+K`.
+- Scope tabs: **All · Incidents · Locations · Actions** with live result counts.
+- Inline filter chips for incidents: severity, category, saved-only, last-24h.
+- **Advanced filters** slide-out panel with category grid, severity range, status, date range, and toggles.
+- Keyboard navigation (↑/↓, Enter, Esc) and animated result items.
+- Selecting an incident opens the right detail panel via `onSelectIncident`.
+- Quick actions trigger existing trial handlers (add incident/zone, open layers, toggle focus).
+
+**Map geocoder (`src/admin-web/src/components/MapWorkspaceTrial/MapGeocoder.jsx`):**
+- Small floating pill on the map canvas for quick location lookup.
+- Expands into a glass suggestion list.
+- Selecting a location shows a temporary "Centered on …" confirmation.
+
+**Wiring:**
+- `MapHudBar` now accepts `incidents`, `savedIds`, and `onSelectIncident` and passes them to `Omnibox`.
+- `MapWorkspaceTrialA` passes its live incident list and `openDetail` callback to the HUD bar and renders `MapGeocoder` over the map canvas.
+
+### Modified / New Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx` | Rewritten as command-palette search with scopes, chips, and advanced filters |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapGeocoder.jsx` | New floating map geocoder pill |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | Passes incident data and callbacks to Omnibox |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Wires Omnibox + MapGeocoder into the trial workspace |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): add advanced command-palette omnibox and map geocoder to trial page
+```
+
+*End of omnibox build*
+
+
+---
+
+## 📅 2026-06-27 — Module: Omnibox UI Overhaul — Cleaner, More Minimalist Layout
+
+### Summary
+Overhauled the trial-page omnibox based on feedback:
+
+- **All tab** now shows only **Incidents** and **Locations** — actions moved exclusively to the **Actions** tab.
+- **Advanced filters** replaced the cramped sidebar with a **full-width expanding panel** below the tabs, giving results more room.
+- **Modal widened** to `960px` and padding increased throughout for a more open, minimalist feel.
+- **Cleaner result items**: removed heavy left borders, replaced with a small category dot, larger padding, softer hover/active states.
+- **Simpler scope tabs**: underline active state, muted inactive state.
+- **Quick filter chips** now appear only on the **Incidents** tab to reduce noise on other scopes.
+- Footer hints restyled as small keyboard badges.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx` | Complete UI/layout refactor of the search modal |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+refactor(admin-web): overhaul omnibox layout for cleaner, minimalist UI
+```
+
+*End of omnibox overhaul*
+
+
+---
+
+## 📅 2026-06-27 — Module: Dual Search System — Admin-web Trial
+
+### Summary
+Implemented the complete dual-search UI for the admin-web trial workspace.
+
+**Quick search (`⌘K`) on `/trial/map-workspace-a`:**
+- Stripped the omnibox down to a minimal, centered command palette.
+- Removed the advanced filter panel and per-tab quick chips.
+- Scopes: All, Incidents, Locations, Actions.
+- Added recent-incident suggestions (persisted to `localStorage`).
+- Result rows now use the shared `SeverityBadge` and `Badge` components in a compact size.
+- Footer includes keyboard hints and an "Open advanced search" link.
+
+**Power search on `/trial/power-search`:**
+- Dedicated full-page advanced search/explorer.
+- Collapsible left filter sidebar (categories, severity range, status, date range, saved/viewport options).
+- Active filter chips in the header with one-click removal.
+- Map + list split view with a view-mode toggle (Split / List only).
+- Sorting: Relevance, Newest, Oldest, Severity high/low, Name A–Z.
+- Saved searches with localStorage persistence, apply, and delete.
+- CSV export of filtered results.
+- Detail preview panel that slides in from the right when a result is selected.
+- Uses `MapCanvas` placeholder map and shared `SeverityBadge` / `Badge` components.
+
+**Integration:**
+- Added `/trial/power-search` route in `src/admin-web/src/App.jsx`.
+- Added an "Advanced" search button next to the omnibox in `MapHudBar.jsx`.
+- `Omnibox` accepts an `onOpenAdvancedSearch` prop; falls back to `useNavigate` if not provided.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx` | Rewritten as minimal quick-search command palette |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | Added advanced-search entry button; passed advanced-search callback to Omnibox |
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | New full-page advanced search/explorer |
+| `src/admin-web/src/App.jsx` | Added `/trial/power-search` route |
+| `handoff.md` | Updated current focus and recent decisions |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): implement dual quick-search + power-search trial UI
+```
+
+*End of dual search build*
+
+
+---
+
+## 📅 2026-06-27 — Module: Dual Search System — Scale & Tag Cleanup
+
+### Summary
+Addressed feedback that the search UI felt too large at 100% browser zoom and that quick-search result rows were too busy.
+
+**Quick search (`Omnibox.jsx`):**
+- Removed status badges (Verified / Investigating / Reported / Resolved) from incident result rows.
+- Scaled the whole modal down: narrower width, smaller header input, smaller result rows, smaller footer hints, smaller icons.
+- Reduced font sizes and paddings throughout so the modal reads as native at 100% zoom.
+
+**Top bar (`MapHudBar.jsx`):**
+- Reduced header height from 60px to 54px.
+- Shrunk logo, brand text, role pill, mode pill, date inputs, action buttons, user pill, and dropdown menu.
+- Reduced icon sizes and gaps so the HUD no longer feels cramped at 100% zoom.
+
+**Power search (`PowerSearchTrial.jsx`):**
+- Reduced header height, search input, active-filter chip bar, and sidebar width.
+- Shrunk result cards, badges, star button, and detail panel.
+- Reduced map overlay, empty state, filter sections, and sort/view controls.
+- Overall ~10–15% size reduction to match the density of the 90% zoom look.
+
+### Why this fixes the zoom issue
+The original component px values were sized about 10% too large for the target density. Rather than using a non-standard `zoom` CSS property, the components were directly tuned down so they render natively at 100% browser zoom.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx` | Removed status tags, scaled down the whole modal |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | Scaled down HUD elements |
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Scaled down the full-page search UI |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+fix(admin-web): scale down search UI and remove quick-search status tags
+```
+
+*End of search scale cleanup*
+
+
+---
+
+## 📅 2026-06-27 — Module: Power Search UI Redesign — Three-Pane Explorer
+
+### Summary
+Completely redesigned the `/trial/power-search` page based on layout feedback.
+
+**New layout:**
+- **Left filter rail** — clean, collapsible sidebar with aligned, minimal filter sections (Categories, Severity, Status, Date range, Options).
+- **Center results rail** — vertical list of incident or location cards, never overlapped by detail panels.
+- **Right map stage** — large map canvas where selected results are highlighted.
+- **Incident detail panel** slides in from the right over the map only, leaving the results rail fully visible.
+- **Location detail card** appears as a compact floating card on the map.
+
+**Location search mode:**
+- New scope toggle in the top bar: **Incidents / Locations**.
+- Locations get their own result cards, map marker, and detail card.
+- Filter rail switches to a location-search helper when in Locations mode.
+
+**Polish:**
+- Custom checkbox and toggle switch components for the filters.
+- Active filter chips remain in the top bar with one-click removal.
+- Result cards have a subtle left accent line, hover state, and active state.
+- Saved searches, CSV export, and sorting preserved.
+
+### Modified Files
+
+| File / Folder | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Full redesign of the power-search page |
+| `handoff.md` | Updated recent decisions with the new layout |
+
+### Verified
+
+| App | Build Result |
+|:--|:--|
+| `npm run build:admin-web` | ✅ |
+
+### Git Commit Suggestion
+
+```
+feat(admin-web): redesign power-search as a three-pane explorer with location search
+```
+
+*End of power search redesign*
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search full redesign
+
+### Summary
+Rewrote `/trial/power-search` as a minimalist three-pane explorer with production-grade filters and a 630 px detail panel. Aligned trial dummy data with the real GeoWatch taxonomy and status values.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Full redesign: top date bar, scope toggle, 17-domain filters, categories, severity/status/verification/source/geometry filters, result pagination (25-item pages), 630 px slide-over detail panel, saved searches, CSV export. |
+| `src/admin-web/src/pages/trial/dummyData.js` | Mapped sample incidents to real taxonomy categories; added 80 generated incidents for large-list testing; `enrichIncident` now resolves domain from category name. |
+| `src/admin-web/src/pages/trial/taxonomyData.js` | Added `DOMAIN_BY_CATEGORY_NAME` lookup map. |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | New incidents now use `active` status and call `enrichIncident`. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright smoke-test of `/trial/power-search` shows no console errors and renders 86 incidents with correct taxonomy badges.
+
+### Git Commit
+
+```
+feat(trial): redesign power search with real taxonomy, filters, and 630px detail panel
+```
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search runtime fix
+
+### Summary
+Fixed a runtime `ReferenceError: incident is not defined` in the map marker rendering when an incident or location was selected.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Corrected `incident.domainColor` to `selectedIncident.domainColor` in the `MapStage` marker IIFE. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright now clicks an incident card and opens the 630 px detail panel without console errors.
+
+### Git Commit
+
+```
+fix(trial): resolve selected-incident marker reference error in power search
+```
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search filter sidebar redesign
+
+### Summary
+Redesigned the filter sidebar so it scrolls independently, widened it to 260 px, and merged Domains and Categories into a single connected "Domains & Categories" accordion. Selecting a domain now selects all of its categories; users can expand a domain and unselect individual categories, leaving the domain in an indeterminate state. Active filter chips group partially-selected categories per domain (e.g., "Conflict · 11 categories"). Long category lists are contained with their own scrollbar.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Rewrote `FilterRail` with independent scroll, combined domain/category accordion, indeterminate checkboxes, max-height category lists, grouped active chips. Updated domain/category filter logic to OR across full domains and partial categories. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright verifies: selecting a domain checks all categories; unchecking one category shows indeterminate state and grouped chip.
+
+### Git Commit
+
+```
+feat(trial): redesign filter sidebar with connected domains/categories and independent scroll
+```
+
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search filter sidebar clipping fix
+
+### Summary
+Fixed the Power Search filter sidebar vertical clipping on `/trial/power-search`. The filter rail now scrolls independently, and the long Domains & Categories section is self-contained with its own `max-height` + `overflow-y: auto`. Date inputs were set to `width: 100%` with `box-sizing: border-box` so they never overflow the narrow rail. Category lists inside expanded domains keep their own capped scroll. Verification screenshots captured at 1440×900 and 1280×500 confirm every filter section remains reachable with no clipping.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Added `scrollable` prop to `FilterSection`; applied it to Domains & Categories with `maxHeight: 260px` and `overflowY: auto`. Added `boxSizing: 'border-box'` and `width: '100%'` to `smallInputStyle`; added `boxSizing: 'border-box'` and `minWidth: 0` to `smallSelectStyle`. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright screenshots at 1440×900 and 1280×500 show the date range, all domains, severity/status/verification/source/geometry/options sections, and reset button are all reachable.
+- Expanded domain categories render inside a capped, independently scrolling list without pushing later sections off-screen.
+
+### Git Commit
+
+```
+fix(trial): power-search filter sidebar clipping and self-contained sections
+```
+
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search severity filter as multi-select checkboxes
+
+### Summary
+Replaced the Severity min/max dropdowns in `/trial/power-search` with a clean multi-select checkbox list. Users can now toggle any combination of severity levels. Selected rows use the shared severity badge colors at low opacity with a color-matched border and checkmark. Filtering, active chips, and reset were updated to work with the new `filters.severities` array.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Replaced `severityMin`/`severityMax` with `severities: []`. Updated filtering, active chip count, active chips, and `FilterRail` props. Replaced severity `<select>` UI with a checkbox list using `SEVERITY_SCALE`, `useTheme`, and `getSeverityBadgeColors`. Removed unused `SEVERITY_LABEL` import. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms selecting `Critical` + `Low` updates the active chip to "Severity: Critical, Low" and filters results to 35 incidents.
+- Screenshots captured at 1440×900 and 1280×500 show the new severity checkbox list.
+
+### Git Commit
+
+```
+feat(trial): severity filter as multi-select checkbox list in power search
+```
+
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search result card visual cleanup
+
+### Summary
+Redesigned the `/trial/power-search` incident result cards for a cleaner, more minimalist look. Each card now uses only the left domain-color stripe for identity; the domain label is rendered as muted uppercase text, severity remains as a small color-coded pill, and status/verification are shown as simple dot + text pairs. The star save action is kept but rendered as a subtle icon button. Title and metadata typography were tightened and spacing was reduced so the list feels lighter.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Rewrote `IncidentCard` with a single left accent stripe, muted domain/status/verification row, compact severity pill, subtle star button, and tighter typography/spacing. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright screenshots at 1440×900 and 1280×500 show the new cleaner card layout and selected state.
+
+### Git Commit
+
+```
+style(trial): cleaner minimalist result cards in power search
+```
+
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search result card consistent two-line metadata
+
+### Summary
+Normalized the `/trial/power-search` incident result cards so the domain label always occupies its own full-width line, and the severity/status/verification row always starts on a new line. This prevents shorter domain names from pulling the severity badge onto the same line and keeps every card visually aligned.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Restructured `IncidentCard` metadata block into a two-line layout: domain label on line 1, severity/status/verification flex row on line 2. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright screenshots at 1440×900 and 1280×500 confirm every card shows domain on its own line and severity/status/verification on the next line.
+
+### Git Commit
+
+```
+style(trial): consistent two-line metadata layout for power-search cards
+```
+
+
+---
+
+## 📅 2026-06-27 — Trial: Power Search active incidents drawer with resolve flow
+
+### Summary
+Added an Active Incidents workflow to the `/trial/power-search` trial page so admins can no longer miss unresolved incidents. A top-bar “Active” pill shows the count and a red dot when any incident is overdue (>24h). Clicking it opens a left-side drawer that lists every active incident, sorted oldest first, with an “Overdue” warning for stale items. Each item can be resolved with a confirmation modal, and a 5-second undo toast lets admins revert a mistaken resolve. Resolving updates the incident status locally and immediately removes it from the active list and drawer count.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Made `incidents` mutable; added active/overdue count derivations; added top-bar active badge; added `ActiveIncidentsDrawer`, `ResolveConfirmModal`, and `ResolveToast` components; wired resolve/undo state and 5-second auto-dismiss toast. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms: active count badge shows the total; drawer lists active incidents with overdue labels; clicking Resolve opens confirmation; confirming reduces the count by one and shows the undo toast; clicking Undo restores the original count.
+- Screenshots captured at 1440×900 and 1280×500 for initial, drawer-open, confirmation modal, toast, undo, and short viewport states.
+
+### Git Commit
+
+```
+feat(trial): active incidents drawer with resolve confirmation and undo
+```
+
+---
+
+## MapWorkspaceTrialA Active-Incidents Resolve Workflow
+
+### Summary
+Moved the active-incidents resolve workflow from `/trial/power-search` to the correct target route `/trial/map-workspace-a`. Added an “Active” rail item to the existing left icon rail that opens a dedicated drawer. The top HUD bar now shows an “Active” pill with the active count (capped at 9+) and a red overdue dot when any active incident is older than 24 hours. Admins can resolve incidents from the drawer via a confirmation modal; resolving shows a 5-second undo toast with a progress bar. Overdue incidents are flagged both in the drawer header and per row.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Added `activeIncidentCount`/`overdueIncidentCount` derivations; added `active` rail item; implemented `active` drawer with per-row overdue badges and Resolve buttons; added `ResolveConfirmModal` and `ResolveToast` components with 5-second auto-dismiss and undo logic; fixed missing `CheckCircle2` import that caused a runtime crash after resolving. |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | Added `activeCount`, `overdueCount`, and `onOpenActiveDrawer` props; added top-bar “Active” pill showing capped count and overdue dot. |
+| `src/admin-web/src/pages/trial/PowerSearchTrial.jsx` | Removed the active-incidents resolve workflow and related components that were accidentally added to this file. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms: top-bar “Active” pill shows the count and overdue dot; rail “Active” button opens the drawer; drawer lists active incidents sorted oldest-first with overdue labels; clicking Resolve opens a confirmation modal; confirming removes the incident and displays an undo toast; clicking Undo restores the incident.
+- Screenshots captured at 1440×900 for initial state, drawer open, confirmation modal, undo toast, and top-bar pill opening the drawer.
+
+### Git Commit
+
+```
+feat(trial): move active-incidents resolve workflow to MapWorkspaceTrialA
+```
+
+---
+
+## Top-Bar Spacing and Active Drawer Card Fixes
+
+### Summary
+Removed the trial-only `Layout A · Rail + Drawer` label from the top HUD bar to free horizontal space. Tightened header padding and group gaps, widened the date inputs so the full year is visible, and truncated the Omnibox placeholder. The active-incidents drawer cards were collapsing to a single line because the card wrapper had `overflow: 'hidden'` inside a scrolling column flex container, which forced `min-height: 0` and clipped the metadata/Resolve content. Replaced `overflow: 'hidden'` with `flexShrink: 0` and added `alignItems: 'flex-start'` so cards expand to their natural height. Increased the drawer width from 340px to 360px for better readability.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | Removed `layoutLabel` prop and label; reduced header/group/button padding and gaps; widened date inputs to `124px`; truncated long user name. |
+| `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx` | Reduced trigger `minWidth` to `240px` and added ellipsis truncation to the placeholder text. |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Removed `layoutLabel` prop from `MapHudBar`; fixed active drawer card layout (`alignItems: 'flex-start'`, `flexShrink: 0`, removed `overflow: 'hidden'`); increased `DRAWER_WIDTH` to `360`. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms resolve/confirmation/undo flow still works.
+- Screenshots at 1440×900 show the full top bar fitting without clipping, full year visible in date inputs, and active drawer cards displaying title, location/time, category, severity, overdue badge, and Resolve button.
+
+### Git Commit
+
+```
+fix(trial): top-bar spacing and active drawer card layout
+```
+
+---
+
+## Improved Active-Incident Card Styling
+
+### Summary
+Updated the active-incidents drawer cards to use the shared design system. Replaced the custom `SEV` label with the existing `SeverityBadge` component and replaced the custom category label with the shared `Badge` component. The left border now uses the incident’s category color as a solid 3px border instead of a low-opacity accent bar, making category identity clear at a glance.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Imported `Badge` and `SeverityBadge` from `@shared`; replaced custom category/severity labels; removed the absolute left accent bar and set `borderLeft` to `categoryColor` on each card. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms the resolve/confirmation/undo flow still works.
+- Screenshot at 1440×900 shows cards with shared `Badge` + `SeverityBadge`, colored left border, overdue label, and Resolve button.
+
+### Git Commit
+
+```
+style(trial): use shared Badge/SeverityBadge and category-colored left border for active cards
+```
+
+---
+
+## Active-Incident Card Consistency and Domain Colors
+
+### Summary
+Improved the active-incidents drawer cards for visual consistency. Each card now maps its specific category to the real domain via `DOMAIN_BY_CATEGORY_NAME` and uses the domain's color for the left border and category badge. The overdue badge moved to the top-right of the card so it no longer wraps when the category name is long. The shared `SeverityBadge` is scaled down and always stays on the same row as the category badge, which truncates with ellipsis when needed. This keeps every card the same structural height and alignment regardless of category length.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Imported `DOMAIN_BY_CATEGORY_NAME`; compute domain/color from category; moved overdue badge to the title row; scaled `SeverityBadge`; set category badge `maxWidth` and `nowrap` so tags stay on one line; left border now uses the mapped domain color. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms resolve/confirmation/undo flow still works.
+- Screenshot at 1440×900 shows consistent card heights, domain-colored left borders, and the overdue badge fixed at the top-right.
+
+### Git Commit
+
+```
+style(trial): consistent active-incident cards with real domain colors
+```
+
+---
+
+## Minimalist Active-Incident Cards
+
+### Summary
+Redesigned the active-incidents drawer cards to be smaller, cleaner, and less colorful. Removed the domain/category badge and restored simple muted text with a tiny colored dot. Thinned the left border to 1px at very low opacity so it is barely visible. The overdue indicator is now a subtle red timestamp (`6d ago`) with a small `AlertCircle` icon instead of a prominent badge. The shared `SeverityBadge` is scaled down and placed on the right side of the card to stay out of the way.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Removed `Badge` import; simplified active drawer card layout: 1px left border, category as text with dot, red timestamp for overdue, smaller right-aligned severity badge, smaller Resolve button. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms resolve/confirmation/undo flow still works.
+- Screenshot at 1440×900 shows compact, consistent cards with subtle overdue indicators.
+
+### Git Commit
+
+```
+style(trial): minimalist active-incident cards with subtle overdue indicator
+```
+
+---
+
+## Unified Colored Left Borders and Subtle Overdue Label
+
+### Summary
+Matched the active-incident card’s left border to the same thin 2px accent bar used in the Recents/Saved/Incidents drawers, and mapped all drawer cards to the real domain color via `DOMAIN_BY_CATEGORY_NAME`. The previously colorless Recents/Saved cards now show the correct domain color on the left accent bar and category dot. Added a tiny blended “Overdue” label in the metadata row of active cards so the timestamp stays readable while still flagging stale incidents.
+
+### Changed Files
+
+| File | Purpose |
+|:--|:--|
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Updated `IncidentCard` to compute domain color from `DOMAIN_BY_CATEGORY_NAME`; redesigned active drawer card with a thin 2px left accent bar, domain-colored category dot, and small inline `Overdue` label after the timestamp. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Headless Playwright confirms resolve/confirmation/undo flow still works.
+- Screenshots show active, saved, and recents cards with consistent thin colored left borders and the subtle overdue label in active cards.
+
+### Git Commit
+
+```
+style(trial): thin domain-colored left borders and subtle overdue label
+```
+
+---
+
+## 📅 2026-06-27 — Trial pages light-mode color pass
+
+### Summary
+Replaced raw/dark-only colors on the two admin trial pages (`/trial/map-workspace-a`, `/trial/power-search`) and their supporting components with theme-aware tokens and helpers. Updated shared `Badge`/`Button` components so status badges and variants render readable surfaces in light mode.
+
+### Changed
+
+- `src/admin-web/src/pages/trial/PowerSearchTrial.jsx`
+  - Imported `getDomainColor`, `getIncidentDomainColor`, `getBadgeColors`.
+  - Wired `theme` into the main component and `ActiveChipsBar`.
+  - Replaced domain/verification chip hex+alpha overlays with `getBadgeColors`.
+  - Replaced hard-coded `#fff`/`#f2f2f2` text on colored surfaces with `var(--text-on-accent)`.
+  - Replaced status dot raw hex with `var(--success)` / `var(--text-muted)`.
+  - Updated `IncidentCard` domain color and severity dot to use theme-aware helpers.
+  - Swapped detail panel shadow for `var(--shadow-lg)`.
+
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Imported `DOMAIN_BY_NAME` and added `getLayerColor` helper.
+  - `IncidentCard` now uses `getDomainColor` for category accents.
+  - Activity unseen badge/dot now use `var(--alert-error-bg)` / `var(--danger-glow)` instead of raw red RGBA.
+  - Layer toggles use `getLayerColor` for theme-aware domain dots.
+  - Replaced remaining hard-coded `#fff` on switches, style option chips, and buttons with `var(--text-on-accent)`.
+  - Modal backdrop now uses `var(--backdrop)`.
+
+- `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx`
+  - Replaced `DOMAIN_COLORS[incident.category]` with `getIncidentDomainColor(incident, theme)`.
+
+- `src/admin-web/src/components/MapWorkspaceTrial/MapGeocoder.jsx`
+  - Replaced broken `rgba(var(--bg-surface-rgb), …)` fallback with `color-mix(in srgb, var(--bg-surface) …, transparent)`.
+
+- `src/shared/components/Badge.jsx`
+  - Replaced hard-coded `STATUS_BADGE_STYLES` RGBA with `getBadgeColors` on semantic status colors.
+
+- `src/shared/components/Button.jsx`
+  - Replaced `#f2f2f2`/`#fff` text with `var(--text-on-accent)`.
+  - Replaced dark-only secondary border/hover RGBA with `color-mix` over theme tokens.
+
+### Verification
+- `npm run build:admin-web` passes.
+- `npm run build:user-web` passes.
+- `npm run build:superadmin-web` passes.
+- Playwright screenshots captured for both trial pages in light and dark modes under `temp_screenshots/trial-light-verify/`.
+
+---
+
+## 📅 2026-06-27 — Settings drawer light-mode depth pass
+
+### Summary
+Improved boundary/depth perception of the Map Workspace trial settings drawer in light mode by switching cards from `bg-input`/`border-subtle` to `bg-elevated`/`border-default` and adding `shadow-sm`.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Settings toggle rows, Theme row, Interface style container, and info note now use `var(--bg-elevated)`, `var(--border-default)`, and `var(--shadow-sm)`.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Playwright screenshots captured for light and dark settings drawer under `temp_screenshots/trial-light-verify/`.
+
+---
+
+## 📅 2026-06-27 — Settings drawer text darkness pass
+
+### Summary
+Darkened text in the Map Workspace trial settings drawer so labels and section headers are no longer grayish in light mode.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Settings toggle labels, Theme/Interface-style titles, inactive style-option labels, and info note text bumped from `text-secondary`/`text-muted` to `text-primary`/`text-secondary`.
+  - Section headers bumped from `text-muted` to `text-secondary`.
+  - Monitor/Palette icons and style-option short letters promoted one shade darker.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Playwright screenshots captured for light and dark settings drawer under `temp_screenshots/trial-light-verify/`.
+
+---
+
+## 📅 2026-06-27 — Settings drawer background/card inversion
+
+### Summary
+Aligned the Map Workspace trial settings drawer with the real pages: grayish drawer background with pure-white cards. Inactive style-option buttons and short-letter chips adjusted so they remain visible on white cards.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Settings cards (toggle rows, Theme, Interface style, info note) now use `var(--bg-input)` (white) with `var(--border-default)` and `var(--shadow-sm)`.
+  - Inactive style-option buttons use `var(--bg-input)`; their short-letter chips use `var(--bg-elevated)`.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Playwright screenshots captured for light and dark settings drawer under `temp_screenshots/trial-light-verify/`.
+
+---
+
+## 📅 2026-06-27 — Full trial-page light-mode treatment
+
+### Summary
+Rolled out the approved gray-background / white-card visual treatment across both admin-web trial pages (`/trial/map-workspace-a` and `/trial/power-search`). Surfaces now use `var(--bg-surface)` for page/drawer backgrounds and `var(--bg-input)` for cards, with stronger `var(--border-default)` borders and subtle `var(--shadow-sm)` shadows, matching the production pages.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Page wrapper, left rail, drawer overlay, viewport controls, floating panel toggle, and right panel now sit on `var(--bg-surface)` with `var(--border-default)` separators.
+  - `IncidentCard`, `ActivityRow`, `NotificationRow`, and active-incident cards already used white-card styling; borders were promoted from `border-subtle` to `border-default`.
+  - Resolve modal and resolve toast converted from `bg-elevated` to `bg-input` white cards.
+  - Floating toasts converted to `bg-input` white cards.
+  - Rail icon and right-panel close button colors promoted from `text-muted` to `text-secondary`.
+- `src/admin-web/src/pages/trial/PowerSearchTrial.jsx`
+  - Root page background changed from `bg-deep` to `bg-surface`.
+  - Top bar, active chips bar, filter rail, and results rail backgrounds set to `bg-surface` with `border-default` separators.
+  - `FilterSection` cards, result `IncidentCard`/`LocationCard`, load-more button, map overlay pills, and floating menus converted to `bg-input` with `border-default` and `shadow-sm`.
+  - Detail panel inner cards (location, description, sources, media, timeline) and the location detail popup use `bg-input` / `border-default`.
+  - Inputs/selects inside filter sections use `bg-input` / `border-default`.
+- `scripts/screenshot-trial-light-dark.mjs`
+  - Added reusable Playwright script that captures default, settings-drawer, right-panel, and detail states in both light and dark modes.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Playwright screenshots captured under `temp_screenshots/verify-theme/`:
+  - `trial-map-workspace-a-{default,settings,panel}-{light,dark}.png`
+  - `trial-power-search-{default,detail}-{light,dark}.png`
+
+
+---
+
+## 📅 2026-06-27 — Modern layer drawer with real domains & zone categories
+
+### Summary
+Redesigned the Map Workspace trial layer drawer into a modern card list. It now uses the real 17 incident domains and the 8 real zone categories from the production data model, each with a colored icon badge, slug, description, and a compact visibility toggle.
+
+### Changed
+- `src/admin-web/src/pages/trial/taxonomyData.js`
+  - Added a concise `description` field to every domain in `DOMAINS`.
+  - Added new `ZONE_CATEGORIES` export with the production zone category names, slugs, colors, light colors, icons, and descriptions.
+- `src/admin-web/src/pages/trial/layerIcons.js` (new)
+  - Central Lucide icon mapping for domain and zone category icon names used by the drawer.
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - `layers` state now derives from `DOMAINS` and `ZONE_CATEGORIES` instead of a hard-coded list.
+  - Replaced the old layer drawer UI with two sections (`Incident Domains`, `Zone Overlays`) of compact, modern cards.
+  - Each card shows a rounded colored icon badge, name, slug, description, category-count pill (domains), and an Eye/EyeOff toggle.
+  - Added per-section "Show all" / "Hide all" controls and an active/total counter.
+  - Added reusable `LayerSection` and `LayerCard` components inside the trial page.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Playwright screenshots updated under `temp_screenshots/verify-theme/`:
+  - `trial-map-workspace-a-layers-{light,dark}.png`
+  - Additional scrolled light screenshot shows the full Zone Overlays list.
+
+
+---
+
+## 📅 2026-06-27 — Layer drawer layout comparison page
+
+### Summary
+Created a new trial route that renders all five proposed layer-drawer layouts side-by-side so the team can compare them. Each mock drawer contains the full set of 17 incident domains + 8 zone categories and is fixed at 520px tall to make scroll behavior visible.
+
+### Changed
+- `src/admin-web/src/pages/trial/LayerDrawerOptionsTrial.jsx` (new)
+  - Builds a combined list of `DOMAINS` + `ZONE_CATEGORIES`.
+  - Implements five options:
+    1. Icon-only tile grid with active checkmarks and tooltips.
+    2. Compact labeled chips grid.
+    3. Compact horizontal rows with icon + name + eye toggle.
+    4. Wider 3-column compact grid (480px drawer).
+    5. Active bar + expandable icon picker.
+  - Each option has its own independent toggle state.
+- `src/admin-web/src/App.jsx`
+  - Added `/trial/layer-drawer-options` route.
+- `scripts/screenshot-trial-light-dark.mjs`
+  - Added capture for the new comparison page.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Screenshots captured:
+  - `temp_screenshots/verify-theme/trial-layer-drawer-options-light.png`
+  - `temp_screenshots/verify-theme/trial-layer-drawer-options-dark.png`
+
+
+---
+
+## 📅 2026-06-27 — Minimalist compact row layer drawer
+
+### Summary
+Replaced the layer drawer cards with the chosen compact-horizontal-row layout. Each row is a small, scannable toggle with a colored icon badge, the layer name, and an Eye/EyeOff indicator. The drawer is split into two sections — Incident Domains and Zone Overlays — with a visible divider, independent Show all / Hide all controls, and an active/total counter for each.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Replaced the previous card-based `LayerCard` with a new `LayerRow` component.
+  - `LayerRow` uses `var(--bg-input)` background, `var(--border-default)` border, `var(--shadow-sm)`, a 20×20 colored icon badge, and an Eye/EyeOff toggle.
+  - Active rows get `var(--accent-light)` border and eye color; inactive rows stay subtle but readable in both themes.
+  - Drawer now renders two `LayerSection` blocks separated by a 1px `var(--border-default)` divider line.
+  - Each section header shows the title, active/total count, and `Show all` / `Hide all` buttons scoped to that section.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Screenshots captured:
+  - `temp_screenshots/verify-theme/trial-map-workspace-a-layers-light.png`
+  - `temp_screenshots/verify-theme/trial-map-workspace-a-layers-dark.png`
+
+
+---
+
+## 📅 2026-06-27 — Unify rail badge color
+
+### Summary
+Changed the left-rail notification/overdue badges from pure `var(--danger)` red to `var(--accent-light)` so all badges share the same accent color.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Rail item badge background now always uses `var(--accent-light)` instead of switching to red for overdue.
+  - Rail overdue indicator dot now uses `var(--accent-light)` instead of `var(--danger)`.
+
+
+---
+
+## 📅 2026-06-27 — Remove bottom feed and soften layer drawer active state
+
+### Summary
+Removed the bottom ambient feed bar from `MapWorkspaceTrialA` and made active layer rows less visually aggressive.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Removed `BottomAmbientBar` import and its render call.
+  - Active layer rows no longer use a full `var(--accent-light)` outline.
+  - Active state is now a subtle 3px tinted inset bar on the left (`box-shadow: inset 3px 0 0 0 ${tint}`) while the border stays `var(--border-default)`.
+  - Hover still highlights the border with `var(--accent-light)`, and mouse-leave returns to the default border.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+
+---
+
+## 📅 2026-06-27 — Softer full outline for active layer rows
+
+### Summary
+Reverted active layer rows back to a full outline, but softened the color so it no longer looks too strong.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Active layer rows now use a full 1px border again.
+  - Active border color is the layer tint at ~20% opacity (`${tint}33`) instead of solid `var(--accent-light)`.
+  - Hover still uses `var(--accent-light)` and mouse-leave returns to the soft active tint.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+
+---
+
+## 📅 2026-06-27 — Increase active layer row outline opacity
+
+### Summary
+Made the active layer row outline more visible in light mode by increasing the tint opacity from ~20% to ~40%.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Active layer row border tint changed from `${tint}33` to `${tint}66`.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+
+---
+
+## 📅 2026-06-27 — Modernize Active incidents button in top bar
+
+### Summary
+Redesigned the top-bar "Active" button to look more modern and avoid the cramped circular "9+" badge.
+
+### Changed
+- `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx`
+  - Active button is now a segmented pill: label + icon on the left, count lozenge on the right.
+  - Count is shown as an accent-filled pill with the real number up to `99+` instead of a small circle capped at `9+`.
+  - Overdue indicator is now a small dot inside the count pill rather than a separate glowing dot.
+  - Hover behavior preserved.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+
+---
+
+## 📅 2026-06-27 — Refine Active button badge style
+
+### Summary
+Simplified the top-bar "Active" button further: removed the segmented look and the overdue dot, using a single subtle count badge instead.
+
+### Changed
+- `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx`
+  - Reverted the split-pill design to a normal pill button.
+  - Count is now in a soft, tinted badge (`accent-subtle-bg` / `accent-subtle-border` / `accent-light` text).
+  - Removed the overdue dot from the button; overdue info is now only in the tooltip title.
+  - Count cap remains `99+`.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+
+---
+
+## 📅 2026-06-27 — Rectangular top-bar buttons and wider user profile
+
+### Summary
+Matched the Active button and user profile pill to the rectangular style of the other top-bar components, and gave the user name more room so it no longer clips.
+
+### Changed
+- `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx`
+  - Active button border-radius changed from `var(--radius-pill)` to `var(--radius-md)`.
+  - User profile button border-radius changed from `var(--radius-pill)` to `var(--radius-md)`.
+  - Increased user name `maxWidth` from `80px` to `160px`.
+  - Added a bit more left padding inside the user profile button.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+
+---
+
+## 📅 2026-06-27 — Remove placeholder toggles from settings drawer
+
+### Summary
+Removed the non-functional "Map Workspace Settings" toggles from the trial settings drawer.
+
+### Changed
+- `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx`
+  - Removed the `Compact density`, `Auto-hide rail in focus mode`, and `Sound on high-severity alerts` toggle rows.
+  - Removed the "Map Workspace Settings" section heading so the drawer now opens directly to the Appearance section.
+
+### Verification
+- `npm run build:admin-web` passes.
+

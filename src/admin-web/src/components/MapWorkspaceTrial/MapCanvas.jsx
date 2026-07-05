@@ -9,8 +9,8 @@ export default function MapCanvas({ label = 'Map Canvas', hint = 'Empty backgrou
         width: '100%',
         height: '100%',
         background: `
-          radial-gradient(ellipse 80% 60% at 50% 10%, rgba(90,1,28,0.15) 0%, transparent 55%),
-          radial-gradient(ellipse 60% 40% at 80% 80%, rgba(37,99,235,0.06) 0%, transparent 50%),
+          radial-gradient(ellipse 80% 60% at 50% 10%, var(--accent-glow) 0%, transparent 55%),
+          radial-gradient(ellipse 60% 40% at 80% 80%, var(--info-glow) 0%, transparent 50%),
           var(--bg-deep)
         `,
         overflow: 'hidden',
@@ -22,8 +22,8 @@ export default function MapCanvas({ label = 'Map Canvas', hint = 'Empty backgrou
           position: 'absolute',
           inset: 0,
           backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
+            linear-gradient(var(--border-subtle) 1px, transparent 1px),
+            linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px)
           `,
           backgroundSize: '60px 60px',
           pointerEvents: 'none',
@@ -39,7 +39,7 @@ export default function MapCanvas({ label = 'Map Canvas', hint = 'Empty backgrou
           transform: 'translate(-50%, -50%)',
           width: '120px',
           height: '120px',
-          border: '1px dashed rgba(255,255,255,0.08)',
+          border: '1px dashed var(--border-default)',
           borderRadius: '50%',
           pointerEvents: 'none',
         }}

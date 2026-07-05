@@ -1,30 +1,275 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, Command, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Search,
+  Command,
+  X,
+  Clock,
+  Star,
+  MapPin,
+  Navigation,
+  Plus,
+  Hexagon,
+  Layers,
+  Zap,
+  AlertCircle,
+  ChevronRight,
+  ArrowRight,
+} from 'lucide-react';
+import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
+import { Badge } from '@shared/components/Badge.jsx';
+import { timeAgo } from '../../pages/trial/dummyData.js';
+import { useTheme } from '@shared/useTheme.js';
+import { getIncidentDomainColor } from '@shared/utils/themeColors.js';
 
-export default function Omnibox({ placeholder = 'Search incidents, locations, actions...' }) {
+const SCOPES = [
+  { key: 'all', label: 'All', icon: Search },
+  { key: 'incidents', label: 'Incidents', icon: AlertCircle },
+  { key: 'locations', label: 'Locations', icon: MapPin },
+  { key: 'actions', label: 'Actions', icon: Zap },
+];
+
+const QUICK_ACTIONS = [
+  { id: 'add-incident', label: 'Add new incident', icon: Plus, shortcut: 'A', action: 'add-incident' },
+  { id: 'add-zone', label: 'Add new zone', icon: Hexagon, shortcut: 'Z', action: 'add-zone' },
+  { id: 'open-layers', label: 'Open layers panel', icon: Layers, shortcut: 'L', action: 'open-layers' },
+  { id: 'toggle-focus', label: 'Toggle focus mode', icon: Zap, shortcut: 'F', action: 'toggle-focus' },
+];
+
+const LOCATIONS = [
+  { id: 'loc1', name: 'Kabul, Afghanistan', detail: 'Capital city', lat: 34.52, lng: 69.18 },
+  { id: 'loc2', name: 'Eastern Province, Iraq', detail: 'Province', lat: 30.05, lng: 47.95 },
+  { id: 'loc3', name: 'Damascus, Syria', detail: 'Capital city', lat: 33.51, lng: 36.28 },
+  { id: 'loc4', name: 'Red Sea corridor', detail: 'Maritime route', lat: 20.35, lng: 38.5 },
+  { id: 'loc5', name: 'Tehran, Iran', detail: 'Capital city', lat: 35.7, lng: 51.4 },
+  { id: 'loc6', name: 'Najaf, Iraq', detail: 'City', lat: 31.95, lng: 44.35 },
+];
+
+const RECENT_KEY = 'gw-trial-omnibox-recent';
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlight(text, query) {
+  if (!query.trim()) return <span>{text}</span>;
+  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark
+            key={i}
+            style={{
+              background: 'var(--accent)',
+              color: 'var(--text-on-accent)',
+              borderRadius: '2px',
+              padding: '0 2px',
+              fontWeight: 700,
+            }}
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+}
+
+export default function Omnibox({
+  incidents = [],
+  savedIds = new Set(),
+  onSelectIncident,
+  onAddIncident,
+  onAddZone,
+  onOpenLayers,
+  onToggleFocusMode,
+  onOpenAdvancedSearch,
+}) {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [scope, setScope] = useState('all');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [recents, setRecents] = useState({ searches: [], incidentIds: [] });
   const inputRef = useRef(null);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      if (raw) setRecents(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsOpen((prev) => !prev);
       }
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
       }
-    };
+    }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [query, scope]);
+
+  function saveRecents(next) {
+    setRecents(next);
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }
+
+  function pushRecentIncident(id) {
+    saveRecents({
+      ...recents,
+      incidentIds: [id, ...recents.incidentIds.filter((x) => x !== id)].slice(0, 6),
+    });
+  }
+
+  function pushRecentSearch(term) {
+    if (!term.trim()) return;
+    saveRecents({
+      ...recents,
+      searches: [term, ...recents.searches.filter((x) => x !== term)].slice(0, 5),
+    });
+  }
+
+  const q = query.trim().toLowerCase();
+
+  const filteredActions = useMemo(
+    () => QUICK_ACTIONS.filter((a) => a.label.toLowerCase().includes(q)),
+    [q]
+  );
+
+  const filteredLocations = useMemo(
+    () =>
+      LOCATIONS.filter(
+        (l) => l.name.toLowerCase().includes(q) || l.detail.toLowerCase().includes(q)
+      ),
+    [q]
+  );
+
+  const recentIncidents = useMemo(() => {
+    const byId = new Map(incidents.map((i) => [i.id, i]));
+    return recents.incidentIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .slice(0, 4);
+  }, [incidents, recents.incidentIds]);
+
+  const filteredIncidents = useMemo(() => {
+    if (!q) return incidents.slice().sort((a, b) => b.createdAt - a.createdAt);
+    return incidents
+      .filter((inc) => {
+        const hay = `${inc.title} ${inc.location} ${inc.category}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }, [incidents, q]);
+
+  const incidentResults = useMemo(() => {
+    if (q) return filteredIncidents.slice(0, 8);
+    const seen = new Set(recentIncidents.map((i) => i.id));
+    const extra = filteredIncidents.filter((i) => !seen.has(i.id)).slice(0, 6 - recentIncidents.length);
+    return [...recentIncidents, ...extra].slice(0, 6);
+  }, [q, filteredIncidents, recentIncidents]);
+
+  const resultCounts = {
+    all: incidentResults.length + filteredLocations.length,
+    incidents: incidentResults.length,
+    locations: filteredLocations.length,
+    actions: filteredActions.length,
+  };
+
+  const flatResults = useMemo(() => {
+    const list = [];
+    if (scope === 'actions') {
+      filteredActions.forEach((a) => list.push({ type: 'action', data: a }));
+    } else if (scope === 'incidents') {
+      incidentResults.forEach((i) => list.push({ type: 'incident', data: i }));
+    } else if (scope === 'locations') {
+      filteredLocations.forEach((l) => list.push({ type: 'location', data: l }));
+    } else {
+      incidentResults.forEach((i) => list.push({ type: 'incident', data: i }));
+      filteredLocations.slice(0, 4).forEach((l) => list.push({ type: 'location', data: l }));
+    }
+    return list;
+  }, [scope, filteredActions, incidentResults, filteredLocations]);
+
+  function close() {
+    setIsOpen(false);
+    setQuery('');
+    setScope('all');
+  }
+
+  function handleSelect(item) {
+    if (item.type === 'incident') {
+      pushRecentIncident(item.data.id);
+      if (q) pushRecentSearch(query);
+      onSelectIncident?.(item.data);
+      close();
+    } else if (item.type === 'action') {
+      if (q) pushRecentSearch(query);
+      const a = item.data;
+      if (a.action === 'add-incident') onAddIncident?.();
+      if (a.action === 'add-zone') onAddZone?.();
+      if (a.action === 'open-layers') onOpenLayers?.();
+      if (a.action === 'toggle-focus') onToggleFocusMode?.();
+      close();
+    } else if (item.type === 'location') {
+      pushRecentSearch(item.data.name);
+      close();
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (!isOpen) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % flatResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev - 1 + flatResults.length) % flatResults.length);
+    } else if (e.key === 'Enter' && flatResults.length > 0) {
+      e.preventDefault();
+      handleSelect(flatResults[highlightedIndex]);
+    }
+  }
+
+  function openAdvanced() {
+    close();
+    if (onOpenAdvancedSearch) {
+      onOpenAdvancedSearch();
+    } else {
+      navigate('/trial/power-search');
+    }
+  }
+
+  const placeholderByScope = {
+    all: 'Search incidents and locations…',
+    incidents: 'Search incidents…',
+    locations: 'Search locations…',
+    actions: 'Search commands…',
+  };
 
   return (
     <>
@@ -33,15 +278,15 @@ export default function Omnibox({ placeholder = 'Search incidents, locations, ac
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
-          padding: '8px 14px',
+          gap: '8px',
+          padding: '8px 12px',
           background: 'var(--bg-input)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
           color: 'var(--text-muted)',
           fontSize: '13px',
           cursor: 'pointer',
-          minWidth: '320px',
+          minWidth: '240px',
           transition: 'all 0.15s ease',
         }}
         onMouseEnter={(e) => {
@@ -54,7 +299,7 @@ export default function Omnibox({ placeholder = 'Search incidents, locations, ac
         }}
       >
         <Search size={16} />
-        <span style={{ flex: 1, textAlign: 'left' }}>{placeholder}</span>
+        <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{placeholderByScope.all}</span>
         <span
           style={{
             display: 'flex',
@@ -79,43 +324,51 @@ export default function Omnibox({ placeholder = 'Search incidents, locations, ac
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(4px)',
+            background: 'var(--backdrop)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
             zIndex: 1000,
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'center',
-            paddingTop: '120px',
+            paddingTop: '8vh',
+            animation: 'omnibox-fade-in 0.2s ease-out',
           }}
-          onClick={() => setIsOpen(false)}
+          onClick={close}
         >
           <div
             style={{
-              width: 'min(640px, 90vw)',
+              width: 'min(640px, 92vw)',
+              maxHeight: 'min(720px, calc(88vh - 40px))',
               background: 'var(--bg-elevated)',
               border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
-              boxShadow: 'var(--shadow-lg)',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: 'var(--shadow-lg), 0 0 0 1px var(--border-subtle)',
               overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'omnibox-scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleKeyDown}
           >
+            {/* Header */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
-                padding: '16px 20px',
+                gap: '16px',
+                padding: '18px 22px',
                 borderBottom: '1px solid var(--border-subtle)',
               }}
             >
-              <Search size={20} color="var(--text-muted)" />
+              <Search size={22} color="var(--text-muted)" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={placeholder}
+                placeholder={placeholderByScope[scope]}
                 style={{
                   flex: 1,
                   background: 'transparent',
@@ -123,42 +376,533 @@ export default function Omnibox({ placeholder = 'Search incidents, locations, ac
                   outline: 'none',
                   color: 'var(--text-primary)',
                   fontSize: '16px',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: '-0.3px',
                 }}
               />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--bg-hover)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={close}
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
                   color: 'var(--text-muted)',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '6px 10px',
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  fontFamily: 'var(--font-mono)',
                 }}
               >
-                <X size={18} />
+                ESC
               </button>
             </div>
-            <div style={{ padding: '20px' }}>
-              <div
-                style={{
-                  color: 'var(--text-muted)',
-                  fontSize: '13px',
-                  textAlign: 'center',
-                  padding: '24px 0',
-                }}
-              >
-                Start typing to search incidents, locations, or actions.
-                <br />
-                <span style={{ fontSize: '12px', opacity: 0.7 }}>
-                  Trial mode — no backend connected.
+
+            {/* Scope tabs */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 22px 0',
+                borderBottom: '1px solid var(--border-subtle)',
+              }}
+            >
+              {SCOPES.map((s) => {
+                const Icon = s.icon;
+                const active = scope === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setScope(s.key)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: `2px solid ${active ? 'var(--accent-light)' : 'transparent'}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      marginBottom: '-1px',
+                    }}
+                  >
+                    <Icon size={15} />
+                    {s.label}
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: active ? 'var(--accent-light)' : 'var(--text-muted)',
+                        opacity: 0.7,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {resultCounts[s.key]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Results */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '6px 12px 14px',
+              }}
+            >
+              {flatResults.length === 0 ? (
+                <EmptyState query={query} onAdvanced={openAdvanced} />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {scope === 'actions' &&
+                    filteredActions.map((action, idx) => (
+                      <ActionItem
+                        key={action.id}
+                        action={action}
+                        active={highlightedIndex === idx}
+                        onClick={() => handleSelect({ type: 'action', data: action })}
+                        query={query}
+                      />
+                    ))}
+
+                  {scope === 'incidents' &&
+                    incidentResults.map((inc, idx) => (
+                      <IncidentItem
+                        key={inc.id}
+                        incident={inc}
+                        active={highlightedIndex === idx}
+                        saved={savedIds.has(inc.id)}
+                        onClick={() => handleSelect({ type: 'incident', data: inc })}
+                        query={query}
+                        showRecentLabel={!q && idx < recentIncidents.length}
+                      />
+                    ))}
+
+                  {scope === 'locations' &&
+                    filteredLocations.map((loc, idx) => (
+                      <LocationItem
+                        key={loc.id}
+                        location={loc}
+                        active={highlightedIndex === idx}
+                        onClick={() => handleSelect({ type: 'location', data: loc })}
+                        query={query}
+                      />
+                    ))}
+
+                  {scope === 'all' && (
+                    <>
+                      {incidentResults.length > 0 && (
+                        <ResultGroup label={q ? 'Incidents' : 'Recent incidents'} icon={AlertCircle} />
+                      )}
+                      {incidentResults.map((inc, idx) => (
+                        <IncidentItem
+                          key={inc.id}
+                          incident={inc}
+                          active={highlightedIndex === idx}
+                          saved={savedIds.has(inc.id)}
+                          onClick={() => handleSelect({ type: 'incident', data: inc })}
+                          query={query}
+                          showRecentLabel={!q && idx < recentIncidents.length}
+                        />
+                      ))}
+
+                      {filteredLocations.length > 0 && (
+                        <ResultGroup label="Locations" icon={MapPin} style={{ marginTop: '6px' }} />
+                      )}
+                      {filteredLocations.slice(0, 4).map((loc, idx) => {
+                        const offset = incidentResults.length;
+                        return (
+                          <LocationItem
+                            key={loc.id}
+                            location={loc}
+                            active={highlightedIndex === offset + idx}
+                            onClick={() => handleSelect({ type: 'location', data: loc })}
+                            query={query}
+                          />
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 22px',
+                borderTop: '1px solid var(--border-subtle)',
+                fontSize: '12px',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <kbd style={kbdStyle}>↑</kbd>
+                  <kbd style={kbdStyle}>↓</kbd>
+                  <span>Navigate</span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <kbd style={kbdStyle}>↵</kbd>
+                  <span>Select</span>
                 </span>
               </div>
+
+              <button
+                onClick={openAdvanced}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  background: 'transparent',
+                  border: '1px solid transparent',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--accent-light)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-subtle-bg)';
+                  e.currentTarget.style.borderColor = 'var(--accent-subtle-border)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = 'transparent';
+                }}
+              >
+                Open advanced search
+                <ArrowRight size={14} />
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes omnibox-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes omnibox-scale-in {
+          from { opacity: 0; transform: translateY(-16px) scale(0.97); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes omnibox-item-in {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .omnibox-result-item {
+          animation: omnibox-item-in 0.16s ease-out both;
+        }
+      `}</style>
     </>
   );
 }
+
+function EmptyState({ query, onAdvanced }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '72px 24px',
+        color: 'var(--text-muted)',
+        textAlign: 'center',
+      }}
+    >
+      <Search size={38} strokeWidth={1.2} style={{ opacity: 0.35, marginBottom: '16px' }} />
+      <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+        {query ? 'No matching results' : 'Start typing to search'}
+      </div>
+      <div style={{ fontSize: '13px', marginTop: '8px', opacity: 0.8, maxWidth: '340px', lineHeight: 1.5 }}>
+        {query
+          ? 'Try a different query, or use advanced filters for deeper searches.'
+          : 'Find incidents, locations, or commands. Press ⌘K anytime.'}
+      </div>
+      <button
+        onClick={onAdvanced}
+        style={{
+          marginTop: '18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 14px',
+          background: 'var(--accent-subtle-bg)',
+          border: '1px solid var(--accent-subtle-border)',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--accent-light)',
+          fontSize: '13px',
+          fontWeight: 700,
+          cursor: 'pointer',
+        }}
+      >
+        Open advanced search
+        <ArrowRight size={14} />
+      </button>
+    </div>
+  );
+}
+
+function ResultGroup({ label, icon: Icon, style }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '14px 10px 8px',
+        fontSize: '10px',
+        fontWeight: 800,
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+        color: 'var(--text-muted)',
+        ...style,
+      }}
+    >
+      <Icon size={12} />
+      {label}
+    </div>
+  );
+}
+
+function ActionItem({ action, active, onClick, query }) {
+  const Icon = action.icon;
+  return (
+    <button
+      onClick={onClick}
+      className="omnibox-result-item"
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '12px 14px',
+        background: active ? 'var(--accent-subtle-bg)' : 'transparent',
+        border: `1px solid ${active ? 'var(--accent-light)' : 'transparent'}`,
+        borderRadius: 'var(--radius-md)',
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'all 0.12s ease',
+        outline: 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = 'var(--bg-hover)';
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <div
+        style={{
+          width: '36px',
+          height: '36px',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-subtle)',
+          color: 'var(--text-secondary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Icon size={15} />
+      </div>
+      <div style={{ flex: 1, fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
+        {highlight(action.label, query)}
+      </div>
+      <kbd style={kbdStyle}>{action.shortcut}</kbd>
+    </button>
+  );
+}
+
+function IncidentItem({ incident, active, saved, onClick, query, showRecentLabel }) {
+  const { theme } = useTheme();
+  const categoryColor = getIncidentDomainColor(incident, theme);
+  return (
+    <button
+      onClick={onClick}
+      className="omnibox-result-item"
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '12px 14px',
+        background: active ? 'var(--accent-subtle-bg)' : 'transparent',
+        border: `1px solid ${active ? 'var(--accent-light)' : 'transparent'}`,
+        borderRadius: 'var(--radius-md)',
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'all 0.12s ease',
+        outline: 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = 'var(--bg-hover)';
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <div
+        style={{
+          width: '10px',
+          height: '10px',
+          borderRadius: '50%',
+          background: categoryColor,
+          boxShadow: `0 0 10px ${categoryColor}`,
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: '15px',
+            fontWeight: 500,
+            color: 'var(--text-primary)',
+            lineHeight: 1.35,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          {highlight(incident.title, query)}
+          {saved && <Star size={12} fill="var(--warning)" color="var(--warning)" />}
+          {showRecentLabel && (
+            <Badge style={{ padding: '1px 6px', fontSize: '9px', letterSpacing: '0.5px' }}>Recent</Badge>
+          )}
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginTop: '7px',
+            fontSize: '12px',
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <MapPin size={11} />
+            {highlight(incident.location, query)}
+          </span>
+          <Badge color={categoryColor} style={{ padding: '2px 8px', fontSize: '10px' }}>
+            {incident.category}
+          </Badge>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={11} />
+            {timeAgo(incident.createdAt, Date.now())}
+          </span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+        <span style={{ transform: 'scale(0.85)', transformOrigin: 'right center' }}>
+          <SeverityBadge level={incident.severity} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function LocationItem({ location, active, onClick, query }) {
+  return (
+    <button
+      onClick={onClick}
+      className="omnibox-result-item"
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '12px 14px',
+        background: active ? 'var(--accent-subtle-bg)' : 'transparent',
+        border: `1px solid ${active ? 'var(--accent-light)' : 'transparent'}`,
+        borderRadius: 'var(--radius-md)',
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'all 0.12s ease',
+        outline: 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = 'var(--bg-hover)';
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <div
+        style={{
+          width: '36px',
+          height: '36px',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-subtle)',
+          color: 'var(--info)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Navigation size={17} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
+          {highlight(location.name, query)}
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{location.detail}</div>
+      </div>
+      <ChevronRight size={16} color="var(--text-muted)" />
+    </button>
+  );
+}
+
+const kbdStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: '22px',
+  height: '22px',
+  padding: '0 5px',
+  background: 'var(--bg-input)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 'var(--radius-sm)',
+  fontSize: '11px',
+  fontWeight: 700,
+  color: 'var(--text-muted)',
+  fontFamily: 'var(--font-mono)',
+};

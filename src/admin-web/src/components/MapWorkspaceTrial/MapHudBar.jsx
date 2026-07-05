@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hexagon, Plus, Map as MapIcon, Shield, LogOut, ChevronDown, Zap } from 'lucide-react';
+import { Hexagon, Plus, Map as MapIcon, LogOut, ChevronDown, Zap, Search, Radio } from 'lucide-react';
 import Omnibox from './Omnibox.jsx';
 
 const styles = {
   header: {
-    height: '60px',
+    height: '54px',
     background: 'var(--bg-surface)',
     borderBottom: '1px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 20px',
+    padding: '0 12px',
     flexShrink: 0,
     zIndex: 100,
   },
@@ -21,31 +21,31 @@ const styles = {
     gap: '10px',
   },
   logo: {
-    width: '32px',
-    height: '32px',
+    width: '28px',
+    height: '28px',
     borderRadius: 'var(--radius-sm)',
     background: 'var(--accent)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: 700,
-    color: '#f2f2f2',
+    color: 'var(--text-on-accent)',
     boxShadow: '0 0 20px var(--accent-glow-strong)',
   },
   brandText: {
-    fontSize: '17px',
+    fontSize: '15px',
     fontWeight: 700,
     color: 'var(--text-primary)',
     letterSpacing: '-0.3px',
   },
   rolePill: {
-    fontSize: '10px',
+    fontSize: '9px',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '1.2px',
     color: 'var(--text-muted)',
-    padding: '3px 10px',
+    padding: '2px 8px',
     borderRadius: 'var(--radius-sm)',
     background: 'var(--bg-elevated)',
     border: '1px solid var(--border-subtle)',
@@ -54,9 +54,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    padding: '6px 16px',
+    padding: '5px 8px',
     borderRadius: 'var(--radius-sm)',
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: 700,
     letterSpacing: '1px',
   },
@@ -69,17 +69,17 @@ const styles = {
     background: 'var(--bg-input)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 'var(--radius-sm)',
-    padding: '6px 10px',
+    padding: '5px 8px',
     color: 'var(--text-primary)',
     fontFamily: 'var(--font-mono)',
-    fontSize: '12px',
+    fontSize: '11px',
     outline: 'none',
     cursor: 'pointer',
-    width: '120px',
+    width: '124px',
   },
   todayBtn: {
-    padding: '6px 12px',
-    fontSize: '11px',
+    padding: '5px 10px',
+    fontSize: '10px',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
@@ -92,9 +92,9 @@ const styles = {
   actionBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '6px 12px',
-    fontSize: '12px',
+    gap: '5px',
+    padding: '5px 8px',
+    fontSize: '11px',
     fontWeight: 700,
     borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--border-subtle)',
@@ -106,14 +106,14 @@ const styles = {
   primaryBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '6px 14px',
-    fontSize: '12px',
+    gap: '5px',
+    padding: '5px 10px',
+    fontSize: '11px',
     fontWeight: 700,
     borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--accent)',
     background: 'var(--accent)',
-    color: '#fff',
+    color: 'var(--text-on-accent)',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
   },
@@ -126,18 +126,23 @@ const styles = {
     borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--border-subtle)',
     color: 'var(--text-secondary)',
-    fontSize: '13px',
+    fontSize: '12px',
     cursor: 'pointer',
   },
 };
 
 export default function MapHudBar({
-  layoutLabel = 'Layout A',
   onToggleFocusMode,
   isFocusMode,
   onAddIncident,
   onAddZone,
   onOpenZones,
+  incidents,
+  savedIds,
+  onSelectIncident,
+  activeCount = 0,
+  overdueCount = 0,
+  onOpenActiveDrawer,
 }) {
   const navigate = useNavigate();
   const [isLive] = useState(true);
@@ -147,30 +152,119 @@ export default function MapHudBar({
   return (
     <header style={styles.header}>
       {/* Left: brand + search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={styles.brand}>
           <div style={styles.logo}>G</div>
           <span style={styles.brandText}>GeoWatch</span>
           <span style={styles.rolePill}>Admin</span>
         </div>
 
-        <Omnibox />
+        <Omnibox
+          incidents={incidents}
+          savedIds={savedIds}
+          onSelectIncident={onSelectIncident}
+          onAddIncident={onAddIncident}
+          onAddZone={onAddZone}
+          onOpenLayers={onOpenZones}
+          onToggleFocusMode={onToggleFocusMode}
+          onOpenAdvancedSearch={() => navigate('/trial/power-search')}
+        />
+
+        <button
+          onClick={() => navigate('/trial/power-search')}
+          title="Open advanced search"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 8px',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--text-secondary)',
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent-light)';
+            e.currentTarget.style.color = 'var(--text-primary)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-subtle)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
+        >
+          <Search size={13} />
+          <span>Advanced</span>
+        </button>
+
+        {onOpenActiveDrawer && (
+          <button
+            onClick={onOpenActiveDrawer}
+            title={`${activeCount} active${overdueCount > 0 ? ` · ${overdueCount} overdue` : ''}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              padding: '5px 10px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-secondary)',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent-light)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
+          >
+            <Radio size={13} />
+            <span>Active</span>
+            <span
+              style={{
+                minWidth: '20px',
+                height: '18px',
+                padding: '0 6px',
+                borderRadius: '999px',
+                background: 'var(--accent-subtle-bg)',
+                border: '1px solid var(--accent-subtle-border)',
+                color: 'var(--accent-light)',
+                fontSize: '10px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {activeCount > 99 ? '99+' : activeCount}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Center: mode + date */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div
           style={{
             ...styles.modePill,
-            background: isLive ? 'rgba(90, 1, 28, 0.2)' : 'var(--alert-warning-bg)',
-            border: `1px solid ${isLive ? 'rgba(159, 18, 57, 0.5)' : 'var(--alert-warning-border)'}`,
-            color: isLive ? 'var(--danger-light)' : 'var(--warning)',
+            background: isLive ? 'var(--alert-error-bg)' : 'var(--alert-warning-bg)',
+            border: `1px solid ${isLive ? 'var(--alert-error-border)' : 'var(--alert-warning-border)'}`,
+            color: isLive ? 'var(--badge-red-text)' : 'var(--warning)',
           }}
         >
           <span
             style={{
-              width: '8px',
-              height: '8px',
+              width: '6px',
+              height: '6px',
               borderRadius: '50%',
               background: 'currentColor',
               boxShadow: isLive ? '0 0 10px currentColor' : 'none',
@@ -187,7 +281,7 @@ export default function MapHudBar({
             onChange={(e) => setDateRange((p) => ({ ...p, from: e.target.value }))}
             style={styles.dateInput}
           />
-          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>→</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>→</span>
           <input
             type="date"
             value={dateRange.to}
@@ -199,20 +293,7 @@ export default function MapHudBar({
       </div>
 
       {/* Right: actions + user */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span
-          style={{
-            fontSize: '11px',
-            color: 'var(--text-muted)',
-            padding: '4px 10px',
-            background: 'var(--bg-elevated)',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          {layoutLabel}
-        </span>
-
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <button
           onClick={onToggleFocusMode}
           title="Toggle focus mode"
@@ -227,73 +308,195 @@ export default function MapHudBar({
         </button>
 
         <button style={styles.actionBtn} onClick={onOpenZones}>
-          <MapIcon size={14} />
+          <MapIcon size={13} />
           Zones
         </button>
         <button style={styles.actionBtn} onClick={onAddZone}>
-          <Hexagon size={14} />
+          <Hexagon size={13} />
           Add Zone
         </button>
         <button style={styles.primaryBtn} onClick={onAddIncident}>
-          <Plus size={14} />
+          <Plus size={13} />
           Add Incident
         </button>
 
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => setUserMenuOpen((p) => !p)}
-            style={styles.userPill}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '2px 2px 2px 10px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-secondary)',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-hover)';
+              e.currentTarget.style.background = 'var(--bg-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              e.currentTarget.style.background = 'var(--bg-input)';
+            }}
           >
-            <Shield size={14} />
-            <span>System Administrator</span>
-            <ChevronDown size={14} />
+            <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>System Administrator</span>
+            <ChevronDown
+              size={12}
+              style={{
+                transition: 'transform 0.15s ease',
+                transform: userMenuOpen ? 'rotate(180deg)' : 'none',
+              }}
+            />
+            <div
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                fontWeight: 700,
+                color: 'var(--text-on-accent)',
+                border: '2px solid var(--border-subtle)',
+              }}
+            >
+              SA
+            </div>
           </button>
           {userMenuOpen && (
             <div
               style={{
                 position: 'absolute',
-                top: 'calc(100% + 6px)',
+                top: 'calc(100% + 8px)',
                 right: 0,
+                width: '240px',
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border-default)',
                 borderRadius: 'var(--radius-md)',
-                padding: '6px',
-                minWidth: '160px',
+                padding: '14px',
                 boxShadow: 'var(--shadow-lg)',
                 zIndex: 200,
               }}
             >
-              <div
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  color: 'var(--text-muted)',
-                  borderBottom: '1px solid var(--border-subtle)',
-                }}
-              >
-                Signed in as admin
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                <div
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--text-on-accent)',
+                    border: '2px solid var(--border-subtle)',
+                    flexShrink: 0,
+                  }}
+                >
+                  SA
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>System Administrator</div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      marginTop: '2px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    admin@geowatch.local
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <span
+                      style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        background: 'var(--success)',
+                        boxShadow: '0 0 6px var(--success)',
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 700 }}>Online</span>
+                  </div>
+                </div>
               </div>
-              <button
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  color: 'var(--text-secondary)',
-                  background: 'transparent',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <LogOut size={14} />
-                Logout
-              </button>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--badge-amber-bg)',
+                    color: 'var(--badge-amber-text)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Admin
+                </span>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--badge-purple-bg)',
+                    color: 'var(--badge-purple-text)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Staff
+                </span>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+                <button
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-hover)';
+                    e.currentTarget.style.borderColor = 'var(--border-hover)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-input)';
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
+                >
+                  <LogOut size={14} />
+                  Log out
+                </button>
+              </div>
             </div>
           )}
         </div>

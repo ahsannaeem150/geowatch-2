@@ -2,10 +2,10 @@ import React from 'react';
 import { useTheme } from '../useTheme.js';
 import { getBadgeColors } from '../utils/themeColors.js';
 
-const STATUS_BADGE_STYLES = {
-  active:   { background: 'rgba(34, 197, 94, 0.10)',  color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.30)' },
-  resolved: { background: 'rgba(107, 114, 128, 0.10)', color: '#6b7280', border: '1px solid rgba(107, 114, 128, 0.30)' },
-  hidden:   { background: 'rgba(220, 38, 38, 0.10)',  color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.30)' },
+const STATUS_COLORS = {
+  active: '#22c55e',
+  resolved: '#6b7280',
+  hidden: '#dc2626',
 };
 
 export function Badge({ children, color, status, style = {} }) {
@@ -15,7 +15,7 @@ export function Badge({ children, color, status, style = {} }) {
   if (color) {
     preset = getBadgeColors(color, theme);
   } else if (status) {
-    preset = STATUS_BADGE_STYLES[status];
+    preset = getBadgeColors(STATUS_COLORS[status], theme);
   } else {
     preset = { background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' };
   }

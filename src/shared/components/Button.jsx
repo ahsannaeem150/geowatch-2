@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 const VARIANT_STYLES = {
   primary: {
     background: 'var(--accent)',
-    color: '#f2f2f2',
+    color: 'var(--text-on-accent)',
     border: 'none',
     hoverBg: 'var(--accent-light)',
     hoverShadow: '0 4px 24px var(--accent-glow-strong)',
@@ -11,15 +11,15 @@ const VARIANT_STYLES = {
   secondary: {
     background: 'transparent',
     color: 'var(--accent-light)',
-    border: '1px solid rgba(159, 18, 57, 0.5)',
-    hoverBg: 'rgba(90, 1, 28, 0.12)',
+    border: '1px solid color-mix(in srgb, var(--accent-light) 50%, transparent)',
+    hoverBg: 'color-mix(in srgb, var(--accent) 12%, transparent)',
     hoverShadow: 'none',
   },
   danger: {
     background: 'var(--danger)',
-    color: '#fff',
+    color: 'var(--text-on-accent)',
     border: 'none',
-    hoverBg: '#b91c1c',
+    hoverBg: 'var(--danger-light)',
     hoverShadow: '0 4px 16px var(--danger-glow)',
   },
   ghost: {

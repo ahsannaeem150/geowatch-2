@@ -64,7 +64,8 @@
 | Mobile responsiveness | Basic | Desktop-primary; mobile adaptive is post-MVP |
 | Self-hosted fonts | Using MapLibre CDN | Future enhancement |
 | Sidebar/page visual polish | In progress | Aligning implemented sidebars with trial designs; see `sidebarImplementationPlan.md` |
-| Zone / polygon detail UI | Active trial | Designing the public zone detail experience in `/trial/zone*`. See **Current Focus** section below and `trialRoutes.md` |
+| Zone / polygon detail UI | Active trial | Designing the public zone detail experience in `/trial/zone*`. See zone notes below and `trialRoutes.md` |
+| Admin search UI | Active trial | Designing a dual quick-search + power-search experience in `/trial/map-workspace-a` and `/trial/power-search` — see **Current Focus** below |
 
 ### ❌ Explicitly Deprioritized or Removed
 
@@ -448,41 +449,39 @@ chore: description
 
 ---
 
-## 10. Current Focus — Zone / Polygon Detail UI Trials
+## 10. Current Focus — Admin-web Search Trial
 
-> **What we are doing right now:** designing the public zone/polygon detail experience inside isolated `/trial/zone*` pages so we can pick a visual direction before wiring it into the real `user-web` and `admin-web` zone views.
+> **What we are doing right now:** designing the admin map-workspace search experience inside isolated `/trial/map-workspace-a` and `/trial/power-search` pages so we can pick the interaction model before wiring it into the real `admin-web` dashboard.
 
-### Chosen Visual Direction
+### Chosen Direction
 
-- **Polygon render style:** *Neon fade* — thin 1 px colored stroke, soft outer glow, radial gradient fill that is almost transparent in the center and faintly visible at the edges.
-- **Shared component:** `ZoneNeonMap` in `src/user-web/src/pages/ZoneTrialCommon.jsx` is now used by the sidebar mini-map, the full-page hero, and the hero laboratory.
-- **Meter style:** the effective-window meter container was made transparent/borderless so the bar reads as a clean time-line rather than a card.
+- **Dual-search system:**
+  - **Quick search (`⌘K`)** — a minimal centered command palette for fast recall. Scopes: All, Incidents, Locations, Actions. No advanced filters; just recent items and a link to the power search.
+  - **Power search (`/trial/power-search`)** — a dedicated full-page advanced explorer with a collapsible left filter sidebar, map + list split view, active filter chips, sorting, saved searches, CSV export, and a detail preview panel.
 
 ### Active Trial Pages
 
-All live under `src/user-web/src/pages/` and are routed from `src/user-web/src/App.jsx`:
+All live under `src/admin-web/src/` and are routed from `src/admin-web/src/App.jsx`:
 
 | Route | File | Purpose |
 |:--|:--|:--|
-| `/trial/zone-sidebar` | `ZoneTrialSidebarPage.jsx` | 630 px sidebar with polygon preview, full meter, and per-update evidence drawer |
-| `/trial/zone` | `ZoneTrialLayoutB.jsx` | Full-page zone layout trial using the chosen customized HUD hero (top pills, centered title/description, countdown, side tags, Copy link + Save actions) + timeline + rail |
-| `/trial/zone-meter` | `ZoneTrialMeterPage.jsx` | Meter component laboratory |
-| `/trial/zone-styles` | `ZoneStylesTrialPage.jsx` | Shape + treatment gallery (hexagon, circle, triangle, diamond, pentagon) |
-| `/trial/zone-heroes` | `ZoneHeroesTrialPage.jsx` | Hero header laboratory — currently limited to the original HUD command center and the customized HUD version |
-| `/trial/zone-sidebar-animations` | `ZoneSidebarAnimationTrialPage.jsx` | Sidebar mini-map animation laboratory — six treatments for the polygon preview card |
+| `/trial/map-workspace-a` | `pages/trial/MapWorkspaceTrialA.jsx` | Map workspace shell with the new quick-search omnibox |
+| `/trial/power-search` | `pages/trial/PowerSearchTrial.jsx` | Full-page advanced search with filters, map, results, and detail panel |
 
-### Shared Trial Infrastructure
+### Shared Components Used
 
 | File | Responsibility |
 |:--|:--|
-| `src/user-web/src/pages/ZoneTrialCommon.jsx` | `ZoneNeonMap`, `EffectiveWindowMeter`, `useZoneTimeState`, badges, stat grid, actions, timeline event, evidence drawer/modal helpers |
-| `src/user-web/src/pages/zoneTrialData.js` | Mock zone + timeline data (NOTAM and Curfew variants) |
-| `src/user-web/src/pages/ZoneTrial.css` | Shared trial styles |
-| `src/user-web/src/pages/ZoneStylesTrial.css` | Shape/style gallery styles |
-| `src/user-web/src/pages/ZoneHeroesTrial.css` | Hero laboratory styles |
+| `src/admin-web/src/components/MapWorkspaceTrial/Omnibox.jsx` | Minimal command-palette quick search |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapHudBar.jsx` | HUD with omnibox + advanced-search entry |
+| `src/admin-web/src/components/MapWorkspaceTrial/MapCanvas.jsx` | Placeholder map canvas used in split view |
+| `src/shared/components/SeverityBadge.jsx` | Shared severity badge (compact size in results) |
+| `src/shared/components/Badge.jsx` | Shared status / category badges |
 
 ### Recent Decisions
 
+- Redesigned the admin-web power-search page (`/trial/power-search`) as a three-pane explorer: a clean collapsible left filter rail, a dedicated results rail, and a large map stage. Incident detail now slides in from the right over the map only, so result cards are never overlapped. Added a full location-search mode with its own results and map highlighting.
+- Implemented the dual-search trial in admin-web: a minimal quick-search omnibox on `/trial/map-workspace-a` and a full-page power-search explorer on `/trial/power-search` with collapsible filters, map + list split, saved searches, and CSV export. Result rows use the shared `SeverityBadge` and `Badge` components in a compact size.
 - The four side glass module cards in the customized HUD hero were restyled as compact, minimalist tag pills that mirror the top HUD pills. They keep a colored left accent line and a subtle dark translucent background, removing the previous gradient fill, large value text, and pulsing dot.
 - The chosen customized HUD hero from `/trial/zone-heroes` was moved into `/trial/zone`, replacing the previous floating glass metadata card header. A temporary trial-only top bar now holds the NOTAM/Curfew demo toggle. The hero shows Copy link and Save actions under the countdown.
 - The hero polygon background is rendered with `padding={200}` and `preserveAspectRatio="xMidYMid slice"` so the zone fills more of the hero while staying clear of the edges.
@@ -514,10 +513,10 @@ You are continuing work on GeoWatch, a map-based global conflict and major-event
 3. Explore the codebase to understand context: backend services, shared components, and especially the user-web zone trial files under `src/user-web/src/pages/ZoneTrial*.jsx`, `zoneTrialData.js`, and `src/user-web/src/App.jsx`.
 
 **CURRENT FOCUS:**
-We are designing polygon/zone detail UI trial pages (`/trial/zone*`) so we can later integrate the chosen visual style into the real user-web and admin-web zone views. The chosen polygon style is "neon fade" (thin colored stroke + soft glow + transparent radial fill). The shared component is `ZoneNeonMap` in `src/user-web/src/pages/ZoneTrialCommon.jsx`.
+The admin-web dual-search trial is implemented, build-verified, and the filter sidebar clipping issue is resolved. The quick-search omnibox (`⌘K`) on `/trial/map-workspace-a` is polished, and `/trial/power-search` is a three-pane explorer with a 260 px independently scrollable filter rail, a connected Domains & Categories accordion (selecting a domain selects all its categories; individual categories can be unchecked; the domain list itself is capped and scrollable so it never dominates the rail), real 17-domain / 162-category taxonomy, real status values, verification/source/geometry filters, severity as a multi-select checkbox list, saved searches, CSV export, paginated result lists, cleaner result cards with a single left domain stripe, domain label on its own line, severity/status/verification on a consistent second line, a 630 px slide-over detail panel, and a new left-side Active Incidents drawer. The drawer is opened from a top-bar “Active” badge and shows all unresolved incidents with overdue warnings (>24h), one-click resolve with confirmation, and a 5-second undo toast. Next step is to decide whether to port the chosen search model into the main admin dashboard or continue refining the trial.
 
 **BEFORE MAKING CHANGES:**
-- Run `npm run build:user-web` and ensure it passes.
+- Run `npm run build:admin-web` and ensure it passes.
 - Ask the user clarifying questions if requirements are ambiguous.
 - Make minimal changes and follow the existing code style.
 - Update `handoff.md` and `trialRoutes.md` if you change project status, add routes, or make architectural decisions.
@@ -532,4 +531,4 @@ Tell me what you find and what you recommend doing next.
 
 ---
 
-*Last updated: 2026-06-16*
+*Last updated: 2026-06-27 (power-search filter sidebar clipping fixed and build-verified)*

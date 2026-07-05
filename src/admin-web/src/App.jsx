@@ -18,6 +18,8 @@ import ZonesPage from './pages/ZonesPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
 import MapWorkspaceTrialA from './pages/trial/MapWorkspaceTrialA.jsx';
+import PowerSearchTrial from './pages/trial/PowerSearchTrial.jsx';
+import LayerDrawerOptionsTrial from './pages/trial/LayerDrawerOptionsTrial.jsx';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -62,6 +64,8 @@ const zoneRoute = (
   <Route path="/zone/:id" element={<ProtectedRoute><ZoneDetailPage /></ProtectedRoute>} />
 );
 const mapWorkspaceTrialARoute = <Route path="/trial/map-workspace-a" element={<MapWorkspaceTrialA />} />;
+const powerSearchTrialRoute = <Route path="/trial/power-search" element={<PowerSearchTrial />} />;
+const layerDrawerOptionsTrialRoute = <Route path="/trial/layer-drawer-options" element={<LayerDrawerOptionsTrial />} />;
 
 const dashboardRoute = (
   <Route path="/*" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />
@@ -83,6 +87,8 @@ const AppRoutes = React.memo(function AppRoutes() {
       {incidentTrialAdminRoute}
       {incidentTrialSuperadminRoute}
       {mapWorkspaceTrialARoute}
+      {powerSearchTrialRoute}
+      {layerDrawerOptionsTrialRoute}
       {incidentRoute}
       {zonesRoute}
       {zoneRoute}
