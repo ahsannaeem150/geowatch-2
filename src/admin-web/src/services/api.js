@@ -317,6 +317,54 @@ export const api = {
     const query = qs.toString();
     return request(`/incidents/search${query ? '?' + query : ''}`);
   },
+  searchIncidentsAdvanced: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.append('q', params.q);
+    if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
+    if (params.dateTo) qs.append('dateTo', params.dateTo);
+    if (params.categoryId) qs.append('categoryId', params.categoryId);
+    if (Array.isArray(params.categorySlugs)) {
+      params.categorySlugs.forEach((s) => qs.append('categorySlugs', s));
+    }
+    if (Array.isArray(params.domainSlugs)) {
+      params.domainSlugs.forEach((s) => qs.append('domainSlugs', s));
+    }
+    if (params.zoneCategoryId) qs.append('zoneCategoryId', params.zoneCategoryId);
+    if (params.severity !== undefined) qs.append('severity', params.severity);
+    if (Array.isArray(params.severities)) {
+      params.severities.forEach((s) => qs.append('severities', s));
+    }
+    if (params.status) qs.append('status', params.status);
+    if (Array.isArray(params.statuses)) {
+      params.statuses.forEach((s) => qs.append('statuses', s));
+    }
+    if (params.geometryType) qs.append('geometryType', params.geometryType);
+    if (Array.isArray(params.geometryTypes)) {
+      params.geometryTypes.forEach((s) => qs.append('geometryTypes', s));
+    }
+    if (params.verificationStatus) qs.append('verificationStatus', params.verificationStatus);
+    if (Array.isArray(params.verificationStatuses)) {
+      params.verificationStatuses.forEach((s) => qs.append('verificationStatuses', s));
+    }
+    if (Array.isArray(params.sourceTypes)) {
+      params.sourceTypes.forEach((s) => qs.append('sourceTypes', s));
+    }
+    if (params.savedOnly) qs.append('savedOnly', 'true');
+    if (params.viewport) qs.append('viewport', params.viewport);
+    if (params.sort) qs.append('sort', params.sort);
+    if (params.limit) qs.append('limit', params.limit);
+    if (params.offset !== undefined) qs.append('offset', params.offset);
+    const query = qs.toString();
+    return request(`/incidents/search${query ? '?' + query : ''}`).then((res) => {
+      if (res.data?.incidents) {
+        res.data.incidents = res.data.incidents.map((incident) => ({
+          ...incident,
+          geometry: parseGeometry(incident.geometry),
+        }));
+      }
+      return res;
+    });
+  },
   getIncident: (id) =>
     request(`/incidents/${id}`).then((res) => {
       if (res.data?.incident) {
@@ -387,4 +435,45 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ displayOrder }),
     }),
+
+  // Notifications
+  getNotifications: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.limit) qs.append('limit', params.limit);
+    if (params.offset !== undefined) qs.append('offset', params.offset);
+    if (params.unreadOnly) qs.append('unreadOnly', 'true');
+    const query = qs.toString();
+    return request(`/notifications${query ? '?' + query : ''}`);
+  },
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllNotificationsRead: () => request('/notifications/mark-all-read', { method: 'POST' }),
+  deleteNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
+
+  // Staff saved incidents
+  getStaffSavedIncidents: () => request('/incidents/staff/saved').then((res) => {
+    if (res.data?.incidents) {
+      res.data.incidents = res.data.incidents.map((incident) => ({
+        ...incident,
+        geometry: parseGeometry(incident.geometry),
+      }));
+    }
+    return res;
+  }),
+  isIncidentSavedByStaff: (id) => request(`/incidents/staff/${id}/saved`),
+  saveIncidentForStaff: (id, notes) => request(`/incidents/staff/${id}/save`, { method: 'POST', body: JSON.stringify({ notes }) }),
+  unsaveIncidentForStaff: (id) => request(`/incidents/staff/${id}/save`, { method: 'DELETE' }),
+
+  // Staff recents
+  getStaffRecents: (type, limit) => {
+    const qs = new URLSearchParams();
+    qs.append('type', type);
+    if (limit) qs.append('limit', limit);
+    return request(`/staff/recents?${qs.toString()}`);
+  },
+  recordStaffRecent: (type, payload) => request('/staff/recents', { method: 'POST', body: JSON.stringify({ type, payload }) }),
+  clearStaffRecents: (type) => {
+    const qs = new URLSearchParams();
+    if (type) qs.append('type', type);
+    return request(`/staff/recents?${qs.toString()}`, { method: 'DELETE' });
+  },
 };

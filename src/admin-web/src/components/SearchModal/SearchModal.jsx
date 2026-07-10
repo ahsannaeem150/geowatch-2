@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SEVERITY_SCALE } from '@shared/constants.js';
@@ -6,16 +7,17 @@ import { useCategories } from '@shared/hooks/useCategories.js';
 import { format } from 'date-fns';
 
 const SORT_OPTIONS = [
-  { value: 'relevance', label: 'Relevance' },
-  { value: 'date_desc', label: 'Date: Newest first' },
-  { value: 'date_asc', label: 'Date: Oldest first' },
-  { value: 'severity_desc', label: 'Severity: High to Low' },
-  { value: 'severity_asc', label: 'Severity: Low to High' },
+  { value: 'relevance', label: 'Relevance', api: 'relevance' },
+  { value: 'date_desc', label: 'Date: Newest first', api: 'newest' },
+  { value: 'date_asc', label: 'Date: Oldest first', api: 'oldest' },
+  { value: 'severity_desc', label: 'Severity: High to Low', api: 'severity_desc' },
+  { value: 'severity_asc', label: 'Severity: Low to High', api: 'severity_asc' },
 ];
 
 const STATUSES = ['all', 'active', 'resolved'];
 
 export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEvent }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState(initialQuery || '');
   const [results, setResults] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -46,12 +48,55 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
     }
   }, [isOpen, initialQuery]);
 
+  const handleSelect = useCallback((incident) => {
+    onSelectEvent?.(incident);
+    onClose?.();
+  }, [onSelectEvent, onClose]);
+
   // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Keyboard navigation for result list
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const resultRowRefs = useRef([]);
+
+  useEffect(() => {
+    setSelectedIndex(-1);
+    resultRowRefs.current = [];
+  }, [results]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e) => {
+      if (results.length === 0) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((i) => {
+          const next = i < results.length - 1 ? i + 1 : 0;
+          resultRowRefs.current[next]?.scrollIntoView({ block: 'nearest' });
+          return next;
+        });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((i) => {
+          const next = i > 0 ? i - 1 : results.length - 1;
+          resultRowRefs.current[next]?.scrollIntoView({ block: 'nearest' });
+          return next;
+        });
+      } else if (e.key === 'Enter') {
+        if (selectedIndex >= 0 && selectedIndex < results.length) {
+          e.preventDefault();
+          handleSelect(results[selectedIndex]);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, results, selectedIndex, handleSelect]);
 
   const fetchResults = useCallback(
     async (searchQuery, currentOffset = 0) => {
@@ -63,10 +108,12 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
       setLoading(true);
       setError('');
       try {
+        const sortApi = SORT_OPTIONS.find((s) => s.value === sortBy)?.api || 'relevance';
         const params = {
           q: searchQuery.trim(),
           limit,
           offset: currentOffset,
+          sort: sortApi,
         };
         if (categoryFilter !== 'all') params.categoryId = parseInt(categoryFilter, 10);
         if (severityFilter !== 'all') params.severity = parseInt(severityFilter, 10);
@@ -74,23 +121,10 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
         if (dateFrom) params.dateFrom = dateFrom;
         if (dateTo) params.dateTo = dateTo;
 
-        const res = await api.searchIncidents(params);
+        const res = await api.searchIncidentsAdvanced(params);
 
-        // Client-side sort for options not supported by backend
-        let incidents = res.data.incidents;
-        if (sortBy === 'date_desc') {
-          incidents = incidents.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
-        } else if (sortBy === 'date_asc') {
-          incidents = incidents.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
-        } else if (sortBy === 'severity_desc') {
-          incidents = incidents.sort((a, b) => b.severity - a.severity);
-        } else if (sortBy === 'severity_asc') {
-          incidents = incidents.sort((a, b) => a.severity - b.severity);
-        }
-        // relevance is already sorted by backend
-
-        setResults(incidents);
-        setTotalCount(res.data.count);
+        setResults(res.data.incidents || []);
+        setTotalCount(res.data.count || 0);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -129,11 +163,6 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
       setOffset(newOffset);
       fetchResults(query, newOffset);
     }
-  };
-
-  const handleSelect = (incident) => {
-    onSelectEvent?.(incident);
-    onClose?.();
   };
 
   // Only sync dateTo to dateFrom when the user has finalized the 'From' selection
@@ -416,23 +445,26 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
                 </tr>
               </thead>
               <tbody>
-                {results.map((incident) => {
+                {results.map((incident, idx) => {
                   const catColor = incident.domain_color;
                   const dateStr = incident.start_date
                     ? format(new Date(incident.start_date), 'MMM dd, yyyy')
                     : '';
+                  const isSelected = idx === selectedIndex;
 
                   return (
                     <tr
                       key={incident.id}
+                      ref={(el) => (resultRowRefs.current[idx] = el)}
                       onClick={() => handleSelect(incident)}
                       style={{
                         borderBottom: '1px solid var(--border-subtle)',
                         cursor: 'pointer',
                         transition: 'background 0.12s ease',
+                        background: isSelected ? 'var(--bg-hover)' : 'transparent',
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = isSelected ? 'var(--bg-hover)' : 'transparent')}
                     >
                       <td style={tdStyle}>
                         <div
@@ -537,6 +569,22 @@ export default function SearchModal({ initialQuery, isOpen, onClose, onSelectEve
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Page {currentPage} of {totalPages}
             </span>
+            <button
+              onClick={() => {
+                onClose?.();
+                navigate('/search');
+              }}
+              style={{
+                fontSize: '12px',
+                color: 'var(--accent-light)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              Open advanced search →
+            </button>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={handlePrevPage}

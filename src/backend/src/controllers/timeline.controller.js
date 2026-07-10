@@ -8,6 +8,8 @@ import {
 import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import { notifyStaffRecentViewers } from '../services/notification.service.js';
+import { getEventById } from '../services/incident.service.js';
 
 export async function createTimelineController(req, res) {
   const { summary, details, updateDate, sourceUrl, type, verificationStatus } = req.body;
@@ -17,6 +19,16 @@ export async function createTimelineController(req, res) {
     req.user.id
   );
   broadcastEvent({ type: 'timeline_added', incidentId: req.params.id, update });
+
+  const enriched = await getEventById(req.params.id);
+  notifyStaffRecentViewers(req.params.id, {
+    type: 'timeline_added',
+    title: 'Incident timeline updated',
+    body: enriched?.incident?.title || 'An incident you viewed has a new update',
+    linkPath: `/incident/${req.params.id}`,
+    payload: { incidentId: req.params.id, updateId: update.id },
+    excludeUserId: req.user.id,
+  }).catch(() => {});
 
   await auditLog(req, AUDIT_ACTIONS.TIMELINE_ADDED, 'timeline', update.id, {
     incidentId: req.params.id,
@@ -47,6 +59,16 @@ export async function updateTimelineController(req, res) {
   }
   broadcastEvent({ type: 'timeline_updated', incidentId: req.params.id, updateId: req.params.updateId });
 
+  const incident = await getEventById(req.params.id);
+  notifyStaffRecentViewers(req.params.id, {
+    type: 'timeline_updated',
+    title: 'Incident timeline updated',
+    body: incident?.incident?.title || 'An incident you viewed was updated',
+    linkPath: `/incident/${req.params.id}`,
+    payload: { incidentId: req.params.id, updateId: req.params.updateId },
+    excludeUserId: req.user.id,
+  }).catch(() => {});
+
   await auditLog(req, AUDIT_ACTIONS.TIMELINE_UPDATED, 'timeline', req.params.updateId, {
     incidentId: req.params.id,
     changedFields: Object.keys(req.body),
@@ -61,6 +83,16 @@ export async function deleteTimelineController(req, res) {
     return res.apiError('Timeline update not found', 'NOT_FOUND', 404);
   }
   broadcastEvent({ type: 'timeline_deleted', incidentId: req.params.id, updateId: req.params.updateId });
+
+  const incident = await getEventById(req.params.id);
+  notifyStaffRecentViewers(req.params.id, {
+    type: 'timeline_deleted',
+    title: 'Incident timeline updated',
+    body: incident?.incident?.title || 'An incident you viewed was updated',
+    linkPath: `/incident/${req.params.id}`,
+    payload: { incidentId: req.params.id, updateId: req.params.updateId },
+    excludeUserId: req.user.id,
+  }).catch(() => {});
 
   await auditLog(req, AUDIT_ACTIONS.TIMELINE_DELETED, 'timeline', req.params.updateId, {
     incidentId: req.params.id,

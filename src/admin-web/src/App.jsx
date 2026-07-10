@@ -17,6 +17,7 @@ import SidebarTrial2SuperAdmin from './components/DesignTrial/SidebarTrial2Super
 import ZonesPage from './pages/ZonesPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
+
 import MapWorkspaceTrialA from './pages/trial/MapWorkspaceTrialA.jsx';
 import PowerSearchTrial from './pages/trial/PowerSearchTrial.jsx';
 import LayerDrawerOptionsTrial from './pages/trial/LayerDrawerOptionsTrial.jsx';

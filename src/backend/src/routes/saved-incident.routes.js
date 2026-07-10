@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware.js';
+import { requireRole } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import {
   saveIncidentController,
@@ -8,10 +9,24 @@ import {
   listSavedController,
   updateNotesController,
 } from '../controllers/saved-incident.controller.js';
+import {
+  listStaffSavedIncidentsController,
+  getStaffSavedIncidentController,
+  saveIncidentForStaffController,
+  unsaveIncidentForStaffController,
+} from '../controllers/staff-saved-incident.controller.js';
 
 const router = Router();
 
-// Route-level auth so non-matching paths fall through to the public incident routes
+// Staff-specific saved incidents (must come before generic /:id/save)
+const staffRoleMiddleware = requireRole(['admin', 'super_admin', 'viewer']);
+
+router.get('/staff/saved', authenticate, staffRoleMiddleware, asyncHandler(listStaffSavedIncidentsController));
+router.get('/staff/:id/saved', authenticate, staffRoleMiddleware, asyncHandler(getStaffSavedIncidentController));
+router.post('/staff/:id/save', authenticate, staffRoleMiddleware, asyncHandler(saveIncidentForStaffController));
+router.delete('/staff/:id/save', authenticate, staffRoleMiddleware, asyncHandler(unsaveIncidentForStaffController));
+
+// Public-user saved incidents (kept for backward compatibility)
 router.get('/saved', authenticate, asyncHandler(listSavedController));
 router.post('/:id/save', authenticate, asyncHandler(saveIncidentController));
 router.delete('/:id/save', authenticate, asyncHandler(unsaveIncidentController));

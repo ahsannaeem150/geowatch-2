@@ -1,24 +1,49 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import TopBar from './TopBar.jsx';
+import {
+  Layers,
+  List,
+  Activity,
+  Bell,
+  Bookmark,
+  Settings,
+  Clock,
+  Radio,
+} from 'lucide-react';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
 import CreateIncidentSidebar from '../CreateIncidentSidebar/CreateIncidentSidebar.jsx';
 import { IncidentDetailSidebar, ZoneDetailSidebar, ZoneEditorSidebar } from '@shared';
-import LocationSearch from '../LocationSearch/LocationSearch.jsx';
-import SearchModal from '../SearchModal/SearchModal.jsx';
-import AdminLiveFeed from '../LiveActivity/AdminLiveFeed.jsx';
+import CommandPalette from '../CommandPalette/CommandPalette.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
+import WorkspaceTopBar from '../MapWorkspace/WorkspaceTopBar.jsx';
+import WorkspaceRail from '../MapWorkspace/WorkspaceRail.jsx';
+import WorkspaceDrawer from '../MapWorkspace/WorkspaceDrawer.jsx';
+import { useStaffNotifications } from '../../hooks/useStaffNotifications.js';
+import { useStaffSavedIncidents } from '../../hooks/useStaffSavedIncidents.js';
+import { useSearchCategories } from '../../hooks/useSearchCategories.js';
+import { useStaffRecents } from '../../hooks/useStaffRecents.js';
+import PowerSearchPanel from '../PowerSearchPanel/PowerSearchPanel.jsx';
+import { useAuth } from '../../contexts/AuthContext.jsx';
 
 import MapContextMenu from '../Map/MapContextMenu.jsx';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
-import MapLegend from '@shared/components/MapLegend.jsx';
+
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api, mapIncidentForShared } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 
 const MAX_ACTIVITIES = 50;
+const PAGE_SIZE = 25;
+const SORT_OPTIONS_PS = [
+  { key: 'relevance', label: 'Relevance', api: 'relevance' },
+  { key: 'newest', label: 'Newest first', api: 'newest' },
+  { key: 'oldest', label: 'Oldest first', api: 'oldest' },
+  { key: 'severity-desc', label: 'Severity · High to low', api: 'severity_desc' },
+  { key: 'severity-asc', label: 'Severity · Low to high', api: 'severity_asc' },
+  { key: 'name', label: 'Name A–Z', api: 'name_asc' },
+];
 const LS_KEY = 'geowatch_admin_last_seen';
 
 function getLastSeen() {
@@ -54,32 +79,6 @@ function findNearestSegmentIndex(point, vertices) {
     }
   }
   return minIdx;
-}
-
-function getZoomForLocation(type, cls) {
-  const t = (type || '').toLowerCase();
-  const c = (cls || '').toLowerCase();
-
-  if (t === 'coordinates') return 16;
-  if (t === 'continent') return 3;
-  if (t === 'country') return 5;
-  if (['state', 'province', 'region'].includes(t)) return 7;
-  if (['county', 'district'].includes(t)) return 9;
-  if (t === 'city') return 11;
-  if (t === 'town') return 13;
-  if (t === 'village') return 14;
-  if (['suburb', 'neighbourhood', 'neighborhood', 'quarter'].includes(t)) return 15;
-  if (['street', 'road', 'square', 'farm', ' allotments'].includes(t)) return 16;
-  if (['house', 'building', 'place_of_worship', 'museum', 'hospital', 'school', 'university', 'college'].includes(t)) return 17;
-  if (['river', 'lake', 'water', 'reservoir', 'pond'].includes(t)) return 12;
-  if (['mountain', 'peak', 'volcano', 'ridge'].includes(t)) return 13;
-  if (['airport', 'station', 'bus_station', 'railway_station'].includes(t)) return 14;
-
-  if (c === 'boundary') return 9;
-  if (c === 'place') return 12;
-  if (c === 'highway') return 16;
-
-  return 11;
 }
 
 export default function DashboardLayout() {
@@ -278,7 +277,42 @@ export default function DashboardLayout() {
 
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const [searchModalQuery, setSearchModalQuery] = useState('');
+
+  // Power Search mode
+  const [powerSearchMode, setPowerSearchMode] = useState(false);
+  const [psQuery, setPsQuery] = useState('');
+  const [psFilters, setPsFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
+    domainSlugs: [],
+    categorySlugs: [],
+    severities: [],
+    statuses: [],
+    verificationStatuses: [],
+    sourceTypes: [],
+    geometryTypes: [],
+    savedOnly: false,
+  });
+  const [psSort, setPsSort] = useState('relevance');
+  const [psResults, setPsResults] = useState([]);
+  const [psTotal, setPsTotal] = useState(0);
+  const [psLoading, setPsLoading] = useState(false);
+  const [psError, setPsError] = useState(null);
+  const [psOffset, setPsOffset] = useState(0);
+  const [psVisibleCount, setPsVisibleCount] = useState(PAGE_SIZE);
+  const psTimerRef = useRef(null);
+
+  // Open command-palette search on Cmd/Ctrl+K
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // Smart viewport filtering state
   const [viewportFiltering, setViewportFiltering] = useState(null);
@@ -289,36 +323,59 @@ export default function DashboardLayout() {
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
-  const [showZones, setShowZones] = useState(true);
+  const [zoneCategories, setZoneCategories] = useState([]);
+  const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
+
+  // Zones are visible when at least one zone category is active
+  const showZones = activeZoneSlugs.size > 0;
+
+  // ─── Staff workspace data ───
+  const { user, logout } = useAuth();
+  const {
+    notifications,
+    unreadCount: notificationUnreadCount,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
+  } = useStaffNotifications();
+  const { savedIncidents, savedIds, unsaveIncident, toggleSaved } = useStaffSavedIncidents();
+  const { recents, recordRecent, clearRecents } = useStaffRecents('incident');
+  const { domains: psDomains, categories: psCategories } = useSearchCategories();
+
+  // ─── Active / overdue incidents ───
+  const nowTs = Date.now();
+  const activeIncidents = useMemo(
+    () => incidents.filter((i) => i.status === 'active'),
+    [incidents]
+  );
+  const activeIncidentCount = activeIncidents.length;
+  const overdueIncidentCount = useMemo(
+    () =>
+      activeIncidents.filter((i) => {
+        const created = new Date(i.created_at || i.createdAt).getTime();
+        return Number.isFinite(created) && nowTs - created > 24 * 60 * 60 * 1000;
+      }).length,
+    [activeIncidents, nowTs]
+  );
+
+  const visibleDomainSlugs = useMemo(
+    () => new Set(domains.map((d) => d.slug).filter((slug) => !activeDomainFilters.has(slug))),
+    [domains, activeDomainFilters]
+  );
 
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
-  const [feedCollapsed, setFeedCollapsed] = useState(false);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
+
+  // ─── Workspace rail / drawer ───
+  const [activeDrawer, setActiveDrawer] = useState(null);
+  const [focusMode, setFocusMode] = useState(false);
   const [newIncidentIds, setNewIncidentIds] = useState(new Set());
   const esRef = useRef(null);
 
   // ─── Domain Filters ───
   const [activeDomainFilter, setActiveDomainFilter] = useState(null);
 
-  // Compute domain filter badges from current incidents
-  const domainFilters = useMemo(() => {
-    const counts = new Map();
-    incidents.forEach((i) => {
-      const id = i.domain_id || i.domain_name || 'unknown';
-      const name = i.domain_name || 'Unknown';
-      const color = i.domain_color || '#6b7280';
-      const icon = i.domain_icon || '•';
-      if (!counts.has(id)) {
-        counts.set(id, { id, name, color, icon, count: 0 });
-      }
-      counts.get(id).count += 1;
-    });
-    return Array.from(counts.values()).map((df) => ({
-      ...df,
-      active: activeDomainFilter === df.id,
-    }));
-  }, [incidents, activeDomainFilter]);
+
 
   // Filtered incidents for display (domain filter applied)
   const filteredIncidents = useMemo(() => {
@@ -538,13 +595,24 @@ export default function DashboardLayout() {
     setDrawContextMenu(null);
   }, [mapMode, editingZoneId]);
 
-  // Fetch domains for legend
+  // Fetch domains and zone categories for legend / layers drawer
   useEffect(() => {
     api.getDomains()
       .then((res) => {
         setDomains(res.data.domains || []);
       })
       .catch(() => setDomains([]));
+
+    api.getZoneCategories()
+      .then((res) => {
+        const categories = res.data?.categories || res.data?.zoneCategories || [];
+        setZoneCategories(categories);
+        setActiveZoneSlugs(new Set(categories.map((z) => z.slug).filter(Boolean)));
+      })
+      .catch(() => {
+        setZoneCategories([]);
+        setActiveZoneSlugs(new Set());
+      });
   }, []);
 
   // Legend handlers
@@ -569,7 +637,27 @@ export default function DashboardLayout() {
   }, [domains]);
 
   const handleToggleZones = useCallback(() => {
-    setShowZones((prev) => !prev);
+    setActiveZoneSlugs((prev) => {
+      if (prev.size > 0) return new Set();
+      return new Set(zoneCategories.map((z) => z.slug).filter(Boolean));
+    });
+  }, [zoneCategories]);
+
+  const handleToggleZone = useCallback((slug) => {
+    setActiveZoneSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }, []);
+
+  const handleShowAllZones = useCallback(() => {
+    setActiveZoneSlugs(new Set(zoneCategories.map((z) => z.slug).filter(Boolean)));
+  }, [zoneCategories]);
+
+  const handleHideAllZones = useCallback(() => {
+    setActiveZoneSlugs(new Set());
   }, []);
 
   // Handle viewport bounds changes from the map
@@ -836,7 +924,13 @@ export default function DashboardLayout() {
       next.delete('zone');
       return next;
     });
-  }, [setSearchParams]);
+
+    try {
+      recordRecent({ incidentId: incident.id, title: incident.title });
+    } catch {
+      // ignore
+    }
+  }, [setSearchParams, recordRecent]);
 
   // ─── Handle incident ID from URL — deep-linking with ghost support ───
   useEffect(() => {
@@ -1068,7 +1162,6 @@ export default function DashboardLayout() {
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
     setSelectedZoneId(null);
-    setPanelMode('detail');
     setFitBounds(null);
     // Clear selected incident/zone from URL while preserving other params
     setSearchParams((prev) => {
@@ -1418,10 +1511,140 @@ export default function DashboardLayout() {
     });
   }, [setSearchParams]);
 
-  const handleOpenSearchModal = useCallback((query) => {
-    setSearchModalQuery(query);
-    setSearchModalOpen(true);
+  const handlePowerSearchSelect = useCallback((incident) => {
+    if (!incident) return;
+    const isPolygon = incident.geometry_type === 'polygon' || incident.geometryType === 'polygon';
+    if (isPolygon) {
+      setSelectedIncident(incident);
+      setSelectedZoneId(incident.id);
+      setIsEditing(false);
+      setPanelMode('detail');
+      setMarkerCoords(null);
+      setFlyToCoords(null);
+      if (incident.geometry?.coordinates?.[0]) {
+        const coords = incident.geometry.coordinates[0];
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        });
+        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      }
+      return;
+    }
+    handleSearchSelect(incident);
+  }, [handleSearchSelect]);
+
+  const handlePowerSearchZoneClick = useCallback((zoneId) => {
+    const zone = psResults.find((z) => z.id === zoneId);
+    if (zone) handlePowerSearchSelect(zone);
+  }, [psResults, handlePowerSearchSelect]);
+
+  const handleSelectLocation = useCallback((location) => {
+    setFlyToCoords({ lat: parseFloat(location.lat), lng: parseFloat(location.lng) });
+    setMarkerCoords(null);
   }, []);
+
+  // ─── Power Search data fetching ───
+  const fetchPowerSearchResults = useCallback(
+    async ({ replace = true, nextOffset = 0 } = {}) => {
+      setPsLoading(true);
+      setPsError(null);
+      try {
+        const sortApi = SORT_OPTIONS_PS.find((s) => s.key === psSort)?.api || 'relevance';
+        const params = {
+          q: psQuery.trim() || undefined,
+          dateFrom: psFilters.dateFrom || undefined,
+          dateTo: psFilters.dateTo || undefined,
+          domainSlugs: psFilters.domainSlugs.length ? psFilters.domainSlugs : undefined,
+          categorySlugs: psFilters.categorySlugs.length ? psFilters.categorySlugs : undefined,
+          severities: psFilters.severities.length ? psFilters.severities : undefined,
+          statuses: psFilters.statuses.length ? psFilters.statuses : undefined,
+          verificationStatuses: psFilters.verificationStatuses.length ? psFilters.verificationStatuses : undefined,
+          sourceTypes: psFilters.sourceTypes.length ? psFilters.sourceTypes : undefined,
+          geometryTypes: psFilters.geometryTypes.length ? psFilters.geometryTypes : undefined,
+          savedOnly: psFilters.savedOnly ? true : undefined,
+          sort: sortApi,
+          limit: PAGE_SIZE,
+          offset: nextOffset,
+        };
+        const res = await api.searchIncidentsAdvanced(params);
+        const incidents = res.data?.incidents || [];
+        const count = res.data?.count || 0;
+        if (replace) {
+          setPsResults(incidents);
+        } else {
+          setPsResults((prev) => {
+            const existing = new Set(prev.map((i) => i.id));
+            return [...prev, ...incidents.filter((i) => !existing.has(i.id))];
+          });
+        }
+        setPsTotal(count);
+      } catch (err) {
+        setPsError(err.message || 'Search failed');
+      } finally {
+        setPsLoading(false);
+      }
+    },
+    [psQuery, psFilters, psSort]
+  );
+
+  useEffect(() => {
+    setPsOffset(0);
+    setPsVisibleCount(PAGE_SIZE);
+  }, [psQuery, psFilters, psSort]);
+
+  useEffect(() => {
+    if (psTimerRef.current) clearTimeout(psTimerRef.current);
+    psTimerRef.current = setTimeout(() => {
+      fetchPowerSearchResults({ replace: true, nextOffset: 0 });
+    }, 300);
+    return () => {
+      if (psTimerRef.current) clearTimeout(psTimerRef.current);
+    };
+  }, [fetchPowerSearchResults]);
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === 'Escape' && powerSearchMode && !confirmDialog) {
+        setPowerSearchMode(false);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [powerSearchMode, confirmDialog]);
+
+  const handlePowerSearchLoadMore = useCallback(() => {
+    const nextOffset = psOffset + PAGE_SIZE;
+    fetchPowerSearchResults({ replace: false, nextOffset });
+    setPsOffset(nextOffset);
+    setPsVisibleCount((c) => c + PAGE_SIZE);
+  }, [psOffset, fetchPowerSearchResults]);
+
+  const handleResetPowerSearchFilters = useCallback(() => {
+    setPsFilters({
+      dateFrom: '',
+      dateTo: '',
+      domainSlugs: [],
+      categorySlugs: [],
+      severities: [],
+      statuses: [],
+      verificationStatuses: [],
+      sourceTypes: [],
+      geometryTypes: [],
+      savedOnly: false,
+    });
+  }, []);
+
+  const handleToggleSavedPowerSearch = useCallback(
+    async (e, id) => {
+      e.stopPropagation();
+      await toggleSaved(id);
+    },
+    [toggleSaved]
+  );
 
   const handleAddIncident = () => {
     setMarkerCoords(null);
@@ -1587,34 +1810,30 @@ export default function DashboardLayout() {
     [incidents]
   );
 
-  const handleEditFromActivity = useCallback(
-    (incidentId, incidentData) => {
-      const found = incidents.find((i) => i.id === incidentId) || incidentData;
-      if (found) {
-        setSelectedIncident(found);
-        setIsEditing(true);
-        setPanelMode('form');
-        setPanelMode('detail');
-        setFlyToCoords({ lat: parseFloat(found.latitude), lng: parseFloat(found.longitude) });
-        setMarkerCoords(null);
-      }
-    },
-    [incidents]
-  );
-
   const handleMarkAllRead = useCallback(() => {
     const nowTs = Date.now();
     setLastSeenTimestamp(nowTs);
     setLastSeen(nowTs);
   }, []);
 
-  const handleToggleCollapse = useCallback(() => {
-    setFeedCollapsed((prev) => !prev);
+  const handleResolveFromDrawer = useCallback(async (id) => {
+    try {
+      await api.resolveIncident(id);
+      setToast({ message: 'Incident resolved', type: 'success' });
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to resolve incident', type: 'error' });
+    }
   }, []);
 
-  const handleDomainFilterChange = useCallback((domainId) => {
-    setActiveDomainFilter((prev) => (prev === domainId ? null : domainId));
-  }, []);
+  const handleSelectRecent = useCallback(
+    (recent) => {
+      if (recent?.id) {
+        handleSelectFromActivity(recent.id);
+      }
+    },
+    [handleSelectFromActivity]
+  );
 
   // ─── Zone page navigation ───
   const handleOpenZones = useCallback(() => {
@@ -2055,24 +2274,25 @@ export default function DashboardLayout() {
 
   return (
     <div className="dashboard-layout page-enter--dashboard" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
-      <TopBar
-        onAddEvent={handleAddIncident}
-        onAddZone={handleAddZone}
-        onOpenZones={handleOpenZones}
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        onResetToToday={handleResetToToday}
-        onSearchSelect={handleSearchSelect}
-        onOpenSearchModal={handleOpenSearchModal}
-        selectedIncident={selectedIncident}
-        onResolve={() => {
-          // If panel is not showing detail, switch to it first
-          if (panelMode !== 'detail' && selectedIncident) {
-            setPanelMode('detail');
-          }
-          // The shared sidebar provides its own resolve confirmation.
-        }}
-      />
+      {!powerSearchMode && (
+        <WorkspaceTopBar
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          onResetToToday={handleResetToToday}
+          onOpenSearch={() => setSearchModalOpen(true)}
+          onOpenAdvancedSearch={() => setPowerSearchMode(true)}
+          activeCount={activeIncidentCount}
+          overdueCount={overdueIncidentCount}
+          onOpenActiveDrawer={() => setActiveDrawer('active')}
+          onToggleFocusMode={() => setFocusMode((p) => !p)}
+          isFocusMode={focusMode}
+          onAddIncident={handleAddIncident}
+          onAddZone={handleAddZone}
+          onOpenZones={handleOpenZones}
+          user={user}
+          onLogout={logout}
+        />
+      )}
 
       {/* Toast Notification */}
       {toast && (
@@ -2111,18 +2331,87 @@ export default function DashboardLayout() {
       )}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
-        {/* Left — Live Activity Feed */}
-        <AdminLiveFeed
-          activities={activities}
-          onSelectEvent={handleSelectFromActivity}
-          onEditEvent={handleEditFromActivity}
-          isCollapsed={feedCollapsed}
-          onToggleCollapse={handleToggleCollapse}
-          unreadCount={unreadCount}
-          onMarkAllRead={handleMarkAllRead}
-          domainFilters={domainFilters}
-          onDomainFilterChange={handleDomainFilterChange}
-        />
+        {/* Left workspace rail + drawer */}
+        {!powerSearchMode && !focusMode && (
+          <WorkspaceRail
+            items={[
+              { id: 'layers', icon: Layers, label: 'Layers' },
+              { id: 'incidents', icon: List, label: 'Incidents' },
+              { id: 'active', icon: Radio, label: 'Active', badge: activeIncidentCount, overdue: overdueIncidentCount > 0 },
+              { id: 'activity', icon: Activity, label: 'Activity', badge: unreadCount },
+              { id: 'notifications', icon: Bell, label: 'Notifications', badge: notificationUnreadCount },
+              { id: 'saved', icon: Bookmark, label: 'Saved' },
+              { id: 'recents', icon: Clock, label: 'Recents' },
+              { id: 'settings', icon: Settings, label: 'Settings' },
+            ]}
+            activeId={activeDrawer}
+            onSelect={setActiveDrawer}
+          />
+        )}
+
+        {!powerSearchMode && !focusMode && activeDrawer && (
+          <WorkspaceDrawer
+            activeDrawer={activeDrawer}
+            onClose={() => setActiveDrawer(null)}
+            domains={domains}
+            zoneCategories={zoneCategories}
+            activeDomainSlugs={visibleDomainSlugs}
+            activeZoneSlugs={activeZoneSlugs}
+            onToggleDomain={handleToggleDomain}
+            onToggleZone={handleToggleZone}
+            onShowAllDomains={handleShowAllDomains}
+            onHideAllDomains={handleHideAllDomains}
+            onShowAllZones={handleShowAllZones}
+            onHideAllZones={handleHideAllZones}
+            incidents={incidents}
+            visibleIncidents={filteredIncidents}
+            onSelectIncident={handleEventClick}
+            activeIncidents={activeIncidents}
+            overdueCount={overdueIncidentCount}
+            now={Date.now()}
+            onResolveIncident={handleResolveFromDrawer}
+            activities={activities}
+            activityLastSeenAt={lastSeenTimestamp}
+            onMarkAllActivitySeen={handleMarkAllRead}
+            onSelectActivityIncident={handleSelectFromActivity}
+            notifications={notifications}
+            notificationUnreadCount={notificationUnreadCount}
+            onMarkNotificationRead={markNotificationRead}
+            onMarkAllNotificationsRead={markAllNotificationsRead}
+            onSelectNotificationIncident={handleSelectFromActivity}
+            savedIncidents={savedIncidents}
+            onSelectSavedIncident={handleEventClick}
+            onUnsaveIncident={unsaveIncident}
+            recents={recents}
+            onClearRecents={clearRecents}
+            onSelectRecentIncident={handleSelectRecent}
+          />
+        )}
+
+        {powerSearchMode && (
+          <PowerSearchPanel
+            isOpen={powerSearchMode}
+            onClose={() => setPowerSearchMode(false)}
+            query={psQuery}
+            onQueryChange={setPsQuery}
+            filters={psFilters}
+            onFiltersChange={setPsFilters}
+            sortBy={psSort}
+            onSortChange={setPsSort}
+            results={psResults}
+            total={psTotal}
+            loading={psLoading}
+            error={psError}
+            hasMore={psResults.length < psTotal}
+            onLoadMore={handlePowerSearchLoadMore}
+            savedIds={savedIds}
+            domains={psDomains}
+            categories={psCategories}
+            onSelectIncident={handlePowerSearchSelect}
+            onToggleSaved={handleToggleSavedPowerSearch}
+            onResetFilters={handleResetPowerSearchFilters}
+          />
+        )}
 
         {/* Center — Map */}
         <div
@@ -2136,13 +2425,29 @@ export default function DashboardLayout() {
         >
           <AdminMap
             ref={mapRef}
-            incidents={pointIncidents}
-            zones={polygonIncidents}
-            showZones={showZones}
-            selectedEventId={selectedIncident?.id}
-            selectedZoneId={selectedZoneId}
+            incidents={
+              powerSearchMode
+                ? psResults.filter((i) => i.geometry_type !== 'polygon')
+                : pointIncidents
+            }
+            zones={
+              powerSearchMode
+                ? psResults.filter((i) => i.geometry_type === 'polygon')
+                : polygonIncidents
+            }
+            showZones={powerSearchMode ? true : showZones}
+            selectedEventId={
+              powerSearchMode && selectedIncident?.geometry_type === 'polygon'
+                ? null
+                : selectedIncident?.id
+            }
+            selectedZoneId={
+              powerSearchMode && selectedIncident?.geometry_type === 'polygon'
+                ? selectedIncident.id
+                : selectedZoneId
+            }
             onEventClick={handleEventClick}
-            onZoneClick={handleZoneClick}
+            onZoneClick={powerSearchMode ? handlePowerSearchZoneClick : handleZoneClick}
             onMapDblClick={handleMapDblClick}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
@@ -2186,7 +2491,7 @@ export default function DashboardLayout() {
             onEditCancel={handleZoneEditCancel}
           />
 
-          {editingZoneId ? (
+          {editingZoneId && (
             <div
               style={{
                 position: 'absolute',
@@ -2253,15 +2558,13 @@ export default function DashboardLayout() {
                 <span>Cancel</span>
               </button>
             </div>
-          ) : (
+          )}
+
+          {mapMode === 'polygon' && !editingZoneId && (
             <DrawingToolbar
-              mode={mapMode}
               hasClosedPolygon={isPolygonClosed}
-              selectedZoneId={selectedZoneId}
-              onSetMode={handleSetMode}
               onSave={() => setShowZoneCreatePanel(true)}
               onCancel={handleDrawCancel}
-              onEditZone={handleEditZone}
             />
           )}
 
@@ -2319,16 +2622,6 @@ export default function DashboardLayout() {
             danger={confirmDialog?.danger || false}
             onConfirm={() => confirmDialog?.onConfirm?.()}
             onCancel={() => setConfirmDialog(null)}
-          />
-
-          <MapLegend
-            domains={domains}
-            activeDomainFilters={activeDomainFilters}
-            onToggleDomain={handleToggleDomain}
-            onShowAll={handleShowAllDomains}
-            onHideAll={handleHideAllDomains}
-            showZones={showZones}
-            onToggleZones={handleToggleZones}
           />
 
           {/* Ghost incident banner */}
@@ -2417,31 +2710,6 @@ export default function DashboardLayout() {
             </div>
           )}
 
-          {/* Location search overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: '380px',
-              zIndex: 15,
-            }}
-          >
-            <LocationSearch
-              onSelect={(result) => {
-                const zoom = getZoomForLocation(result.type, result.class);
-                setFlyToCoords({ lat: parseFloat(result.lat), lng: parseFloat(result.lon), zoom });
-              }}
-              viewbox={(() => {
-                const b = viewportBoundsRef.current;
-                if (!b) return null;
-                const [minLng, minLat, maxLng, maxLat] = b.split(',').map(Number);
-                return `${minLng},${maxLat},${maxLng},${minLat}`;
-              })()}
-            />
-          </div>
-
           {/* Incident counter + viewport filtering indicator overlay */}
           <div
             style={{
@@ -2495,14 +2763,17 @@ export default function DashboardLayout() {
               width: '630px',
               overflowY: 'auto',
               padding:
-                panelMode === 'detail' || panelMode === 'zone-edit' || (panelMode === 'form' && !isEditing)
+                showZoneCreatePanel || panelMode === 'detail' || panelMode === 'zone-edit' || (panelMode === 'form' && !isEditing)
                   ? 0
                   : '20px',
               boxSizing: 'border-box',
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--border-subtle)',
               flexShrink: 0,
+              position: 'relative',
+              zIndex: 70,
               animation: 'slideInRight 0.25s ease-out',
+              marginTop: powerSearchMode ? '90px' : undefined,
             }}
           >
             {renderPanel()}
@@ -2510,12 +2781,19 @@ export default function DashboardLayout() {
         )}
       </div>
 
-      {/* Search Modal */}
-      <SearchModal
-        initialQuery={searchModalQuery}
+      {/* Command Palette */}
+      <CommandPalette
         isOpen={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
-        onSelectEvent={handleSearchSelect}
+        incidents={incidents}
+        savedIds={savedIds}
+        onSelectIncident={handleSearchSelect}
+        onSelectLocation={handleSelectLocation}
+        onAddIncident={handleAddIncident}
+        onAddZone={handleAddZone}
+        onOpenLayers={() => setActiveDrawer('layers')}
+        onToggleFocusMode={() => setFocusMode((p) => !p)}
+        onOpenAdvancedSearch={() => setPowerSearchMode(true)}
       />
 
       {/* Slide-in animation */}

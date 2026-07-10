@@ -128,6 +128,24 @@ export const updateIncidentSchema = z.object({
   { message: 'At least one field must be provided for update' }
 );
 
+// ─── Query helpers ───
+
+function preprocessCommaArray(schema) {
+  return z.preprocess((val) => {
+    if (typeof val === 'string') {
+      return val
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
+    }
+    if (Array.isArray(val)) return val;
+    return undefined;
+  }, schema);
+}
+
+const optionalNumberArray = preprocessCommaArray(z.array(z.coerce.number().int().positive()).optional());
+const optionalStringArray = preprocessCommaArray(z.array(z.string().trim().min(1)).optional());
+
 // ─── Query Schemas ───
 export const listIncidentsQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -141,14 +159,24 @@ export const listIncidentsQuerySchema = z.object({
 });
 
 export const searchIncidentsQuerySchema = z.object({
-  q: z.string().min(1).max(200),
+  q: z.string().min(1).max(200).optional(),
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   categoryId: z.coerce.number().int().positive().optional(),
+  categorySlugs: optionalStringArray,
+  domainSlugs: optionalStringArray,
   severity: z.coerce.number().int().min(1).max(5).optional(),
+  severities: optionalNumberArray,
   status: z.enum(['active', 'resolved']).optional(),
+  statuses: preprocessCommaArray(z.array(z.enum(['active', 'resolved'])).optional()),
   viewport: z.string().regex(/^-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*$/).optional(),
   geometryType: z.enum(['point', 'polygon']).optional(),
+  geometryTypes: preprocessCommaArray(z.array(z.enum(['point', 'polygon'])).optional()),
+  verificationStatus: z.enum(['unverified', 'verified', 'disputed', 'debunked']).optional(),
+  verificationStatuses: preprocessCommaArray(z.array(z.enum(['unverified', 'verified', 'disputed', 'debunked'])).optional()),
+  sourceTypes: preprocessCommaArray(z.array(z.enum(['x_post', 'news_article', 'image', 'video', 'admin_note'])).optional()),
+  savedOnly: z.enum(['true', 'false', '1', '0']).optional().transform((v) => v === 'true' || v === '1'),
+  sort: z.enum(['relevance', 'newest', 'oldest', 'severity_asc', 'severity_desc', 'name_asc', 'name_desc']).optional().default('relevance'),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).default(0),
 });

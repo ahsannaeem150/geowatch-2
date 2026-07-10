@@ -10688,3 +10688,264 @@ Removed the non-functional "Map Workspace Settings" toggles from the trial setti
 ### Verification
 - `npm run build:admin-web` passes.
 
+
+## 📅 2026-07-05 — Admin workspace map UI (rail + drawer shell)
+
+### Summary
+Replaced the legacy `DashboardLayout` top bar and left live-feed rail with the trial-style workspace shell: a new top bar, a 64px left icon rail, and a 360px overlay drawer. Existing map logic, right detail/create/edit panels, and state handlers remain intact. Wired real staff notifications, saved incidents, recents, and SSE activity into the new drawers.
+
+### Created
+- `src/admin-web/src/components/MapWorkspace/WorkspaceTopBar.jsx`
+  - Brand, role pill, search trigger, advanced search, active-incidents pill, live-mode pill, date range picker, focus/zones/add actions, and user pill with logout.
+- `src/admin-web/src/components/MapWorkspace/WorkspaceRail.jsx`
+  - 64px vertical icon rail with active state, badges, and overdue dot.
+- `src/admin-web/src/components/MapWorkspace/WorkspaceDrawer.jsx`
+  - 360px overlay drawer with sections: layers, incidents, active, activity, notifications, saved, recents, settings.
+
+### Changed
+- `src/admin-web/src/components/Layout/DashboardLayout.jsx`
+  - Swapped `TopBar` and `AdminLiveFeed` for `WorkspaceTopBar`, `WorkspaceRail`, and `WorkspaceDrawer`.
+  - Added `activeDrawer`, `focusMode`, `zoneCategories`, and `activeZoneSlugs` state.
+  - Integrated `useStaffNotifications`, `useStaffSavedIncidents`, and `useStaffRecents`.
+  - Records a staff recent when an incident is opened.
+  - Added drawer-specific handlers for domain/zone visibility, active-incident resolve, recents, saved, and notifications.
+
+### Verification
+- `npm run build:admin-web` passes with only the existing chunk-size warning.
+
+---
+
+## 📅 2026-06-27 — Finish workspace integration and add Power Search page
+
+### Summary
+Completed the interrupted trial workspace integration in `admin-web`, fixed runtime bugs in the new shell, and promoted the Power Search concept to a production route at `/search`. Also fixed a backend validation issue that blocked empty array filters on the search endpoint.
+
+### Created
+- `src/admin-web/src/pages/SearchPage.jsx`
+  - Full-page Power Search for incidents.
+  - Fetches real domains/categories from the backend and queries `GET /api/v1/incidents/search`.
+  - Filter rail: domains/categories, severity, status, verification, source type, geometry, date range, saved-only.
+  - Results list with sort, pagination, save toggle, and a 420px detail panel.
+  - Back button returns to the dashboard.
+
+### Changed
+- `src/admin-web/src/components/MapWorkspace/WorkspaceTopBar.jsx`
+  - Removed the undeclared `useNavigate()` call that would have caused a runtime ReferenceError.
+- `src/admin-web/src/components/Layout/DashboardLayout.jsx`
+  - Fixed `handleClosePanel` so it no longer immediately re-opens the panel after closing it.
+  - Wired the top-bar `Zones` button to `handleOpenZones` (`/zones`).
+- `src/admin-web/src/App.jsx`
+  - Added protected `/search` route for `SearchPage`.
+- `src/backend/src/validators/incident.schema.js`
+  - Made `optionalStringArray`, `optionalNumberArray`, and enum-array preprocessors actually optional, so `/incidents/search` no longer rejects requests that omit array filters.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Restarted all services; admin-web is now running cleanly on `http://localhost:5174`.
+- Smoke-tested `GET /api/v1/incidents/search` with auth, query text, and `savedOnly=true` successfully.
+
+---
+
+## 📅 2026-06-27 — Clean up admin map overlays
+
+### Summary
+Removed the now-redundant map legend, OpenStreetMap attribution tag, and location-search overlay from the admin dashboard now that layers/search live in the workspace rail, drawer, and Power Search page.
+
+### Changed
+- `src/admin-web/src/components/Map/AdminMap.jsx`
+  - Removed the explicit `AttributionControl` so the map no longer shows the OSM attribution badge.
+- `src/admin-web/src/components/Layout/DashboardLayout.jsx`
+  - Removed `<MapLegend>`.
+  - Removed the `<LocationSearch>` overlay and its `getZoomForLocation` helper.
+  - Removed now-unused `LocationSearch` import.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+---
+
+## 📅 2026-06-27 — Redraw zone drawing toolbar
+
+### Summary
+Changed the drawing toolbar so it only shows while drawing a new zone, moved it to the center of the map just below the top bar, and removed the Pan/Polygon mode toggles.
+
+### Changed
+- `src/admin-web/src/components/Map/DrawingToolbar.jsx`
+  - Removed Pan and Polygon mode buttons.
+  - New centered design with a "Draw zone" label, hint text, Save, and Cancel buttons.
+  - Save stays disabled until the polygon is closed.
+- `src/admin-web/src/components/Layout/DashboardLayout.jsx`
+  - Toolbar now renders only when `mapMode === 'polygon'` and no zone is being edited.
+  - Removed unused `mode`, `selectedZoneId`, `onSetMode`, and `onEditZone` props from `<DrawingToolbar>`.
+
+### Verification
+- `npm run build:admin-web` passes.
+
+---
+
+## 📅 2026-06-27 — Position draw toolbar directly under top bar and verify drawing
+
+### Summary
+Moved the draw toolbar to sit 12px below the top bar instead of 66px down, and verified that polygon drawing still works.
+
+### Changed
+- `src/admin-web/src/components/Map/DrawingToolbar.jsx`
+  - Changed toolbar `top` from `66px` to `12px` so it appears just under the workspace top bar.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Automated Playwright check: logged in, clicked Add Zone, clicked four points on the map — preview vertices, line, fill, and area counter all rendered correctly.
+
+---
+
+## 📅 2026-06-27 — Fix zone create sidebar clipping
+
+### Summary
+The zone create sidebar was being rendered with the right panel's default 20px padding, causing it to look clipped and nested. Made the right panel use zero padding when the zone creation form is open, matching the create-incident sidebar behavior.
+
+### Changed
+- `src/admin-web/src/components/Layout/DashboardLayout.jsx`
+  - Right panel padding condition now includes `showZoneCreatePanel`, so `<ZoneEditorSidebar>` fills the full 630px width without extra outer padding.
+
+### Verification
+- `npm run build:admin-web` passes.
+- Playwright check confirmed the Create zone sidebar now renders edge-to-edge like the Create incident sidebar.
+
+---
+
+## 📅 2026-06-27 — Wire command-palette search and Power Search page
+
+### Summary
+Split the workspace top-bar search triggers so the search input / ⌘K opens the command-palette `SearchModal`, while the **Advanced** button navigates to the full `/search` Power Search page. Upgraded the modal to use the backend-driven advanced search endpoint with server-side sorting and added keyboard navigation plus a footer link to Power Search.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/MapWorkspace/WorkspaceTopBar.jsx` | Renamed `onSearchSelect` prop to `onOpenSearch`; search input opens the modal, **Advanced** button calls `onOpenAdvancedSearch` |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `Cmd/Ctrl+K` global listener; wired `onOpenSearch` to `SearchModal` and `onOpenAdvancedSearch` to `navigate('/search')` |
+| `src/admin-web/src/components/SearchModal/SearchModal.jsx` | Switched to `api.searchIncidentsAdvanced`, mapped sort options to backend enum, added arrow-key selection + Enter to open, added footer link to `/search` |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Admin-web restarted cleanly on port 5174 after killing stale Vite processes.
+
+---
+
+fix: move SearchModal handleSelect before keyboard effect to fix TDZ blank page
+- `handleSelect` was declared after the `useEffect` that listed it in deps, causing a temporal dead zone ReferenceError on render.
+- Moved `handleSelect` useCallback above the keyboard-navigation effect.
+- Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
+
+---
+
+feat: replace admin-web search modal with trial-style command palette
+- Added `CommandPalette.jsx` based on the `/trial/map-workspace-a` Omnibox design.
+- Wired it into `DashboardLayout.jsx` in place of the old `SearchModal`.
+- Supports scope tabs (All / Incidents / Locations / Actions), recent incidents, saved-star badges, keyboard navigation, ESC to close, and footer link to `/search`.
+- Actions call real dashboard handlers: Add incident, Add zone, Open layers drawer, Toggle focus mode.
+- Selecting a location flies the map to that lat/lng; selecting an incident opens the detail sidebar and flies the map.
+- Updated `WorkspaceTopBar` search placeholder to "Search incidents and locations…".
+- Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
+
+---
+
+feat: port trial Power Search page to production `/search`
+- Replaced `src/admin-web/src/pages/SearchPage.jsx` with the trial three-pane Power Search UI (filter rail, results rail, map stage, detail panel).
+- Wired it to real backend data via `api.searchIncidentsAdvanced` and `api.getIncident`.
+- Uses `useSearchCategories()` for real 17-domain / 162-category taxonomy and `useStaffSavedIncidents()` for saved-star toggles.
+- Active filters, sort, load-more, saved searches, CSV export, and scope tabs now operate on real incident fields.
+- Fixed the missing `ArrowUpDown` import that caused the blank screen.
+- Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
+
+---
+
+---
+
+## 📅 2026-07-05 — Module: Power Search integration into admin dashboard
+
+### Summary
+Integrated the backend-driven Power Search feature directly into `DashboardLayout` as an overlay mode. The standalone `/search` route and `SearchPage.jsx` were removed; the advanced search UI now opens from the command palette and top-bar "Advanced" button.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/PowerSearchPanel/PowerSearchPanel.jsx` | New controlled component rendering the Power Search chrome (top bar, active filter chips, collapsible filter rail, results rail, saved searches, sort, export). |
+| `src/admin-web/src/hooks/useSearchCategories.js` | New hook extracted from the old `SearchPage` for loading domains + categories. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added power-search state, debounced `searchIncidentsAdvanced` fetching, Escape-to-close handling, conditional rendering of rail/drawer, search-result point/zone data passed to `AdminMap`, and detail-sidebar selection on result click. |
+| `src/admin-web/src/pages/SearchPage.jsx` | Deleted; no longer imported anywhere. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Dev server restarted on `http://localhost:5174` and reports HTTP 200.
+
+feat: integrate Power Search as an in-dashboard mode
+- Removed the standalone `/search` route and deleted `src/admin-web/src/pages/SearchPage.jsx`.
+- Added a shared `useSearchCategories()` hook in `src/admin-web/src/hooks/useSearchCategories.js`.
+- Created `src/admin-web/src/components/PowerSearchPanel/PowerSearchPanel.jsx` (controlled filter rail, results rail, active chips, sort, saved searches, CSV export).
+- Updated `DashboardLayout.jsx`:
+  - Added `powerSearchMode` state and debounced `api.searchIncidentsAdvanced` fetching.
+  - In Power Search mode the left rail/drawer are hidden and the Power Search rails are shown alongside the existing `AdminMap`.
+  - Map displays search results (points and zones); clicking a result flies the map and opens the existing shared detail sidebar.
+  - `Esc` closes Power Search mode.
+- Updated the **Advanced** button in both `WorkspaceTopBar` and `CommandPalette` to enter Power Search mode.
+- Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
+
+---
+
+fix: hide normal top bar when Power Search mode is active
+- In `DashboardLayout.jsx`, `WorkspaceTopBar` is now rendered only when `powerSearchMode` is false.
+- This leaves only the Power Search top bar visible in Power Search mode, removing the duplicate bars.
+- Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
+
+---
+
+
+## 📅 2026-07-05 — Module: Power Search top-bar polish
+
+### Summary
+Polished the Power Search chrome by moving the sort control into the Results rail header, replacing the native `<select>` with a custom dropdown, and removing the Save search / Saved searches / CSV export features from the top bar.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/PowerSearchPanel/PowerSearchPanel.jsx` | Removed sort, saved-search, and export UI from `TopBar`; added a new `SortDropdown` component in the `ResultsRail` header; dropped unused saved-search state/CSV helpers and icon imports. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Dev server restarted cleanly on `http://localhost:5174`.
+
+style: polish Power Search chrome
+- Moved the sort dropdown from the Power Search top bar to the Results rail header.
+- Replaced the native `<select>` sort control with a styled custom dropdown (`SortDropdown`).
+- Removed Save search, Saved searches, and CSV export buttons from the top bar.
+- Cleaned up unused imports (`Download`, `Bookmark`, `Trash2`, `Save`) and saved-search/CSV helper code.
+- Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
+
+---
+
+
+## 📅 2026-07-05 — Module: Power Search right-panel overlap fix
+
+### Summary
+Fixed the right incident/zone detail sidebar overlapping the Power Search top bar. In Power Search mode the detail panel now starts below the Power Search chrome (top bar + active-filter chips bar).
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `marginTop: powerSearchMode ? '90px' : undefined` to the right-panel container so it clears the 52px Power Search top bar and 38px active-chips bar. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Dev server restarted cleanly on `http://localhost:5174`.
+
+fix: prevent right detail panel from overlapping Power Search top bar
+- In `DashboardLayout.jsx`, the 630px right detail/zone sidebar now receives a 90px top margin when Power Search mode is active.
+- 90px accounts for the 52px Power Search top bar plus the 38px active-filter chips bar.
+- Normal map mode is unchanged.
+- Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
+
+---

@@ -16,6 +16,10 @@ import { createTimelineUpdate } from '../services/timeline.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
+import {
+  createNotificationsForAllStaff,
+  notifyStaffRecentViewers,
+} from '../services/notification.service.js';
 
 export async function getIncidents(req, res) {
   const filters = {
@@ -46,23 +50,34 @@ export async function searchIncidentsController(req, res) {
     dateFrom: req.query.dateFrom,
     dateTo: req.query.dateTo,
     categoryId: req.query.categoryId,
+    categorySlugs: req.query.categorySlugs,
+    domainSlugs: req.query.domainSlugs,
     zoneCategoryId: req.query.zoneCategoryId,
     severity: req.query.severity,
+    severities: req.query.severities,
     status: req.query.status,
+    statuses: req.query.statuses,
     viewport: req.query.viewport,
     geometryType: req.query.geometryType,
+    geometryTypes: req.query.geometryTypes,
+    verificationStatus: req.query.verificationStatus,
+    verificationStatuses: req.query.verificationStatuses,
+    sourceTypes: req.query.sourceTypes,
+    savedOnly: req.query.savedOnly,
+    userId: req.query.savedOnly ? req.user?.id : undefined,
+    sort: req.query.sort,
     limit: req.query.limit ? parseInt(req.query.limit, 10) : undefined,
     offset: req.query.offset ? parseInt(req.query.offset, 10) : undefined,
   };
 
-  const { incidents, count, limit, offset, hasMore } = await searchIncidents(filters);
+  const { incidents, count, limit, offset, hasMore, query } = await searchIncidents(filters);
   res.apiSuccess({
     incidents,
     count,
     limit,
     offset,
     hasMore,
-    query: filters.q,
+    query,
   });
 }
 
@@ -126,6 +141,17 @@ export async function createIncidentController(req, res) {
   // Fetch enriched incident (with joined domain/category data) for broadcast
   const enriched = await getEventById(incident.id);
   broadcastEvent({ type: 'incident_created', incident: enriched?.incident || incident });
+
+  if (incident.severity >= 4) {
+    createNotificationsForAllStaff({
+      type: 'incident_created',
+      title: incident.severity === 5 ? 'Critical incident created' : 'Severe incident created',
+      body: enriched?.incident?.title || incident.title,
+      linkPath: `/incident/${incident.id}`,
+      payload: { incidentId: incident.id, severity: incident.severity },
+      excludeUserId: req.user.id,
+    }).catch(() => {});
+  }
 
   await auditLog(req, AUDIT_ACTIONS.INCIDENT_CREATED, 'incident', incident.id, {
     title: incident.title,
@@ -220,6 +246,15 @@ export async function updateIncidentController(req, res) {
   // Fetch enriched incident (with joined domain/category data + computed verification) for broadcast
   const enriched = await getEventById(req.params.id);
   broadcastEvent({ type: 'incident_updated', incident: enriched?.incident || incident });
+
+  notifyStaffRecentViewers(req.params.id, {
+    type: 'incident_updated',
+    title: 'Incident updated',
+    body: enriched?.incident?.title || incident.title,
+    linkPath: `/incident/${req.params.id}`,
+    payload: { incidentId: req.params.id },
+    excludeUserId: req.user.id,
+  }).catch(() => {});
 
   const changedFields = computeChangedFields(originalEvent?.incident, req.body);
   await auditLog(req, AUDIT_ACTIONS.INCIDENT_UPDATED, 'incident', req.params.id, {
@@ -320,6 +355,15 @@ export async function resolveIncidentController(req, res) {
   // Fetch enriched incident for broadcast
   const enriched = await getEventById(req.params.id);
   broadcastEvent({ type: 'incident_resolved', incident: enriched?.incident || incident });
+
+  notifyStaffRecentViewers(req.params.id, {
+    type: 'incident_resolved',
+    title: 'Incident resolved',
+    body: enriched?.incident?.title || incident.title,
+    linkPath: `/incident/${req.params.id}`,
+    payload: { incidentId: req.params.id },
+    excludeUserId: req.user.id,
+  }).catch(() => {});
 
   await auditLog(req, AUDIT_ACTIONS.INCIDENT_RESOLVED, 'incident', req.params.id, {
     title: incident.title,

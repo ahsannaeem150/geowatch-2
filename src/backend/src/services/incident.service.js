@@ -80,17 +80,41 @@ function buildIncidentWhereClause(filters, options = {}) {
     conditions.push(`i.category_id = $${idx++}`);
     params.push(filters.categoryId);
   }
+  if (Array.isArray(filters.categorySlugs) && filters.categorySlugs.length > 0) {
+    conditions.push(`c.slug = ANY($${idx++})`);
+    params.push(filters.categorySlugs);
+  }
+  if (Array.isArray(filters.domainSlugs) && filters.domainSlugs.length > 0) {
+    conditions.push(`d.slug = ANY($${idx++})`);
+    params.push(filters.domainSlugs);
+  }
   if (filters.zoneCategoryId) {
     conditions.push(`i.zone_category_id = $${idx++}`);
     params.push(filters.zoneCategoryId);
   }
-  if (filters.severity) {
+  if (filters.severity !== undefined && filters.severity !== null) {
     conditions.push(`i.severity = $${idx++}`);
     params.push(filters.severity);
+  }
+  if (Array.isArray(filters.severities) && filters.severities.length > 0) {
+    conditions.push(`i.severity = ANY($${idx++})`);
+    params.push(filters.severities);
   }
   if (filters.status) {
     conditions.push(`i.status = $${idx++}`);
     params.push(filters.status);
+  }
+  if (Array.isArray(filters.statuses) && filters.statuses.length > 0) {
+    conditions.push(`i.status = ANY($${idx++})`);
+    params.push(filters.statuses);
+  }
+  if (filters.verificationStatus) {
+    conditions.push(`i.verification_status = $${idx++}`);
+    params.push(filters.verificationStatus);
+  }
+  if (Array.isArray(filters.verificationStatuses) && filters.verificationStatuses.length > 0) {
+    conditions.push(`i.verification_status = ANY($${idx++})`);
+    params.push(filters.verificationStatuses);
   }
 
   if (filters.viewport) {
@@ -105,8 +129,42 @@ function buildIncidentWhereClause(filters, options = {}) {
     conditions.push(`i.geometry_type = $${idx++}`);
     params.push(filters.geometryType);
   }
+  if (Array.isArray(filters.geometryTypes) && filters.geometryTypes.length > 0) {
+    conditions.push(`i.geometry_type = ANY($${idx++})`);
+    params.push(filters.geometryTypes);
+  }
+
+  if (Array.isArray(filters.sourceTypes) && filters.sourceTypes.length > 0) {
+    conditions.push(`EXISTS (SELECT 1 FROM incident_sources src WHERE src.incident_id = i.id AND src.source_type = ANY($${idx++}))`);
+    params.push(filters.sourceTypes);
+  }
+
+  if (filters.savedOnly && filters.userId) {
+    conditions.push(`EXISTS (SELECT 1 FROM staff_saved_incidents ssi WHERE ssi.incident_id = i.id AND ssi.user_id = $${idx++})`);
+    params.push(filters.userId);
+  }
 
   return { where: conditions.join(' AND '), params, nextIndex: idx };
+}
+
+function buildSearchOrderBy(sort, hasQuery) {
+  switch (sort) {
+    case 'newest':
+      return 'i.start_date DESC, i.created_at DESC';
+    case 'oldest':
+      return 'i.start_date ASC, i.created_at ASC';
+    case 'severity_asc':
+      return 'i.severity ASC, i.start_date DESC';
+    case 'severity_desc':
+      return 'i.severity DESC, i.start_date DESC';
+    case 'name_asc':
+      return 'i.title ASC';
+    case 'name_desc':
+      return 'i.title DESC';
+    case 'relevance':
+    default:
+      return hasQuery ? 'r.rank DESC, i.severity DESC, i.start_date DESC' : 'i.start_date DESC, i.created_at DESC';
+  }
 }
 
 // ─── Public Queries ───
@@ -138,47 +196,72 @@ export async function listIncidents(filters) {
 }
 
 export async function searchIncidents(filters) {
-  const { where, params, nextIndex } = buildIncidentWhereClause(filters, { skipDefaultDate: true });
-  const searchQuery = filters.q;
+  const searchQuery = filters.q?.trim();
+  const hasQuery = !!searchQuery;
   const limit = Math.min(filters.limit || 25, 100);
   const offset = Math.max(filters.offset || 0, 0);
+  const sort = filters.sort || 'relevance';
+
+  const { where, params, nextIndex } = buildIncidentWhereClause(filters, { skipDefaultDate: true });
+  let idx = nextIndex;
 
   const tsVectorExpr = `to_tsvector('english', COALESCE(i.title, '') || ' ' || COALESCE(i.description, ''))`;
-  const tsQuery = `plainto_tsquery('english', $${nextIndex})`;
+  const textConditions = [];
+  const textParams = [];
+
+  if (hasQuery) {
+    textConditions.push(`(${tsVectorExpr} @@ plainto_tsquery('english', $${idx++}) OR to_tsvector('english', COALESCE(eu.summary, '')) @@ plainto_tsquery('english', $${idx++}))`);
+    textParams.push(searchQuery, searchQuery);
+  }
+
+  const searchWhere = textConditions.length > 0
+    ? `${where} AND ${textConditions.join(' AND ')}`
+    : where;
+
+  const countJoins = hasQuery ? 'LEFT JOIN incident_updates eu ON eu.incident_id = i.id' : '';
 
   const countResult = await query(
     `SELECT COUNT(DISTINCT i.id) as total
      FROM incidents i
-     LEFT JOIN incident_updates eu ON eu.incident_id = i.id
-     WHERE ${where}
-       AND (${tsVectorExpr} @@ ${tsQuery}
-            OR to_tsvector('english', COALESCE(eu.summary, '')) @@ ${tsQuery})`,
-    [...params, searchQuery]
+     ${countJoins}
+     WHERE ${searchWhere}`,
+    [...params, ...textParams]
   );
   const count = parseInt(countResult.rows[0].total, 10);
 
-  const sql = `
-    WITH ranked AS (
-      SELECT i.id,
-        MAX(ts_rank(${tsVectorExpr}, ${tsQuery})) as rank
-      FROM incidents i
-      LEFT JOIN incident_updates eu ON eu.incident_id = i.id
-      WHERE ${where}
-        AND (${tsVectorExpr} @@ ${tsQuery}
-             OR to_tsvector('english', COALESCE(eu.summary, '')) @@ ${tsQuery})
-      GROUP BY i.id
-    )
-    SELECT ${INCIDENT_COLUMNS},
-      r.rank
-    FROM ranked r
-    JOIN incidents i ON i.id = r.id
-    ${INCIDENT_FROM.replace('FROM incidents i', '')}
-    WHERE ${where.replace(/i\./g, 'i.')}
-    ORDER BY r.rank DESC, i.severity DESC, i.start_date DESC
-    LIMIT $${nextIndex + 1} OFFSET $${nextIndex + 2}
-  `;
+  const orderBy = buildSearchOrderBy(sort, hasQuery);
 
-  const result = await query(sql, [...params, searchQuery, limit, offset]);
+  let result;
+  if (hasQuery) {
+    const rankSql = `
+      WITH ranked AS (
+        SELECT i.id,
+          MAX(ts_rank(${tsVectorExpr}, plainto_tsquery('english', $${nextIndex}))) as rank
+        FROM incidents i
+        LEFT JOIN incident_updates eu ON eu.incident_id = i.id
+        WHERE ${searchWhere}
+        GROUP BY i.id
+      )
+      SELECT ${INCIDENT_COLUMNS},
+        r.rank
+      FROM ranked r
+      JOIN incidents i ON i.id = r.id
+      ${INCIDENT_FROM.replace('FROM incidents i', '')}
+      WHERE ${where.replace(/i\./g, 'i.')}
+      ORDER BY ${orderBy}
+      LIMIT $${idx++} OFFSET $${idx++}
+    `;
+    result = await query(rankSql, [...params, ...textParams, limit, offset]);
+  } else {
+    const sql = `
+      SELECT ${INCIDENT_COLUMNS}
+      ${INCIDENT_FROM}
+      WHERE ${searchWhere}
+      ORDER BY ${orderBy}
+      LIMIT $${idx++} OFFSET $${idx++}
+    `;
+    result = await query(sql, [...params, ...textParams, limit, offset]);
+  }
 
   return {
     incidents: result.rows,
@@ -186,6 +269,7 @@ export async function searchIncidents(filters) {
     limit,
     offset,
     hasMore: count > offset + limit,
+    query: searchQuery || null,
   };
 }
 

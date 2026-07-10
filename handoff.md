@@ -65,7 +65,7 @@
 | Self-hosted fonts | Using MapLibre CDN | Future enhancement |
 | Sidebar/page visual polish | In progress | Aligning implemented sidebars with trial designs; see `sidebarImplementationPlan.md` |
 | Zone / polygon detail UI | Active trial | Designing the public zone detail experience in `/trial/zone*`. See zone notes below and `trialRoutes.md` |
-| Admin search UI | Active trial | Designing a dual quick-search + power-search experience in `/trial/map-workspace-a` and `/trial/power-search` — see **Current Focus** below |
+| Admin search UI | Integrated | Command-palette quick search (`⌘K`) and **Advanced** button open Power Search mode inside the main dashboard; no separate `/search` route |
 
 ### ❌ Explicitly Deprioritized or Removed
 
@@ -210,7 +210,8 @@ See `docs/env-template.md` for full template. Critical vars:
 | Zone edit panel | `src/admin-web/src/components/Zones/ZoneEditPanel.jsx` |
 | Location search | `src/admin-web/src/components/LocationSearch/LocationSearch.jsx` |
 | Search dropdown | `src/admin-web/src/components/SearchDropdown/SearchDropdown.jsx` |
-| Search modal | `src/admin-web/src/components/SearchModal/SearchModal.jsx` |
+| Command palette | `src/admin-web/src/components/CommandPalette/CommandPalette.jsx` |
+| Power Search panel | `src/admin-web/src/components/PowerSearchPanel/PowerSearchPanel.jsx` |
 | Date picker | `src/admin-web/src/components/DatePicker/DatePicker.jsx` |
 | Login page | `src/admin-web/src/components/Login/LoginPage.jsx` |
 | Trial / design reference routes | `src/admin-web/src/components/DesignTrial/` (read-only reference) |
@@ -449,24 +450,31 @@ chore: description
 
 ---
 
-## 10. Current Focus — Admin-web Search Trial
+## 10. Current Focus — Admin-web Search Integration
 
-> **What we are doing right now:** designing the admin map-workspace search experience inside isolated `/trial/map-workspace-a` and `/trial/power-search` pages so we can pick the interaction model before wiring it into the real `admin-web` dashboard.
+> **What we are doing right now:** the dual-search model chosen in the `/trial/*` pages has been wired into the production admin dashboard.
 
 ### Chosen Direction
 
 - **Dual-search system:**
-  - **Quick search (`⌘K`)** — a minimal centered command palette for fast recall. Scopes: All, Incidents, Locations, Actions. No advanced filters; just recent items and a link to the power search.
-  - **Power search (`/trial/power-search`)** — a dedicated full-page advanced explorer with a collapsible left filter sidebar, map + list split view, active filter chips, sorting, saved searches, CSV export, and a detail preview panel.
+  - **Quick search (`⌘K`)** — a trial-style command palette (`CommandPalette.jsx`) opens from the workspace top-bar search input and the global `Cmd/Ctrl+K` shortcut. It scopes across All / Incidents / Locations / Actions, shows recent incidents, saved stars, keyboard navigation, and quick actions.
+  - **Power search (`/search`)** — the production Power Search page is a dedicated full-page advanced explorer with a collapsible left filter sidebar, result list, sorting, saved-incident toggles, and a detail preview panel.
 
-### Active Trial Pages
-
-All live under `src/admin-web/src/` and are routed from `src/admin-web/src/App.jsx`:
+### Production Search Routes
 
 | Route | File | Purpose |
 |:--|:--|:--|
-| `/trial/map-workspace-a` | `pages/trial/MapWorkspaceTrialA.jsx` | Map workspace shell with the new quick-search omnibox |
-| `/trial/power-search` | `pages/trial/PowerSearchTrial.jsx` | Full-page advanced search with filters, map, results, and detail panel |
+| `/` (dashboard) | `components/Layout/DashboardLayout.jsx` | `⌘K` and the top-bar search input open `CommandPalette`; the **Advanced** button navigates to `/search` |
+| `/search` | `pages/SearchPage.jsx` | Full-page Power Search with collapsible filters, sorting, saved incidents, and detail panel |
+
+### Archived Trial Pages
+
+Isolated trials remain routable for reference but are no longer the active direction:
+
+| Route | File | Purpose |
+|:--|:--|:--|
+| `/trial/map-workspace-a` | `pages/trial/MapWorkspaceTrialA.jsx` | Original quick-search omnibox trial |
+| `/trial/power-search` | `pages/trial/PowerSearchTrial.jsx` | Original power-search explorer trial |
 
 ### Shared Components Used
 
@@ -513,7 +521,7 @@ You are continuing work on GeoWatch, a map-based global conflict and major-event
 3. Explore the codebase to understand context: backend services, shared components, and especially the user-web zone trial files under `src/user-web/src/pages/ZoneTrial*.jsx`, `zoneTrialData.js`, and `src/user-web/src/App.jsx`.
 
 **CURRENT FOCUS:**
-The admin-web dual-search trial is implemented, build-verified, and the filter sidebar clipping issue is resolved. The quick-search omnibox (`⌘K`) on `/trial/map-workspace-a` is polished, and `/trial/power-search` is a three-pane explorer with a 260 px independently scrollable filter rail, a connected Domains & Categories accordion (selecting a domain selects all its categories; individual categories can be unchecked; the domain list itself is capped and scrollable so it never dominates the rail), real 17-domain / 162-category taxonomy, real status values, verification/source/geometry filters, severity as a multi-select checkbox list, saved searches, CSV export, paginated result lists, cleaner result cards with a single left domain stripe, domain label on its own line, severity/status/verification on a consistent second line, a 630 px slide-over detail panel, and a new left-side Active Incidents drawer. The drawer is opened from a top-bar “Active” badge and shows all unresolved incidents with overdue warnings (>24h), one-click resolve with confirmation, and a 5-second undo toast. Next step is to decide whether to port the chosen search model into the main admin dashboard or continue refining the trial.
+The admin-web dual-search model has been ported from the `/trial/*` pages into the production dashboard. The top-bar search input and global `⌘K` shortcut now open the trial-style `CommandPalette` with All / Incidents / Locations / Actions scopes, recent incidents, saved stars, quick actions (add incident/zone, open layers, toggle focus), keyboard navigation, and a footer link to `/search`. The top-bar **Advanced** button navigates to the production `/search` Power Search page (`pages/SearchPage.jsx`). Power Search is now an in-dashboard mode rather than a separate route. The **Advanced** button (and the command-palette footer) opens a full Power Search workspace inside `DashboardLayout`: a collapsible left filter rail, a results rail, the existing `AdminMap` in the center, and the existing shared detail sidebar on the right. The map shows search results (points and zones), and clicking a result flies the map and opens the appropriate incident/zone sidebar. Filters, sort, load-more pagination, saved searches, active chips, and CSV export are all backed by `api.searchIncidentsAdvanced`. Next step is to verify the interaction feels cohesive and decide whether the trial pages can be deprecated or kept for reference.
 
 **BEFORE MAKING CHANGES:**
 - Run `npm run build:admin-web` and ensure it passes.
@@ -531,4 +539,4 @@ Tell me what you find and what you recommend doing next.
 
 ---
 
-*Last updated: 2026-06-27 (power-search filter sidebar clipping fixed and build-verified)*
+*Last updated: 2026-06-27 (Power Search integrated as in-dashboard mode with live map and shared sidebars; build-verified)*

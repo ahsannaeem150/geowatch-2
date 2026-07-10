@@ -1,47 +1,47 @@
 import React from 'react';
+import { Hexagon, Check, X } from 'lucide-react';
 
 export default function DrawingToolbar({
-  mode = 'pan',
   hasClosedPolygon = false,
-  selectedZoneId = null,
-  onSetMode,
   onSave,
   onCancel,
-  onEditZone,
 }) {
-  const isPolygon = mode === 'polygon';
-
   const btnBase = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '6px',
-    padding: '8px 14px',
+    padding: '7px 14px',
     fontSize: '12px',
-    fontWeight: 600,
+    fontWeight: 700,
     letterSpacing: '0.3px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--border-subtle)',
-    background: 'var(--bg-elevated)',
-    color: 'var(--text-secondary)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-default)',
+    background: 'var(--bg-input)',
+    color: 'var(--text-primary)',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.15s ease',
     whiteSpace: 'nowrap',
     userSelect: 'none',
   };
 
-  const btnActive = {
-    ...btnBase,
-    background: 'var(--accent)',
-    color: '#f2f2f2',
-    borderColor: 'var(--accent-light)',
-    boxShadow: '0 0 12px var(--accent-glow)',
-  };
+  const saveBtn = hasClosedPolygon
+    ? {
+        ...btnBase,
+        background: 'var(--success-bg, rgba(34,197,94,0.15))',
+        color: 'var(--success, #22c55e)',
+        borderColor: 'var(--success, #22c55e)',
+      }
+    : {
+        ...btnBase,
+        opacity: 0.45,
+        cursor: 'not-allowed',
+      };
 
-  const btnDisabled = {
+  const cancelBtn = {
     ...btnBase,
-    opacity: 0.4,
-    cursor: 'not-allowed',
+    color: 'var(--danger, #ef4444)',
+    borderColor: 'rgba(239,68,68,0.4)',
   };
 
   return (
@@ -49,78 +49,67 @@ export default function DrawingToolbar({
       style={{
         position: 'absolute',
         top: '12px',
-        right: '12px',
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 20,
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        padding: '6px',
+        gap: '16px',
+        padding: '8px 12px',
         background: 'var(--bg-surface)',
         backdropFilter: 'blur(12px)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-lg)',
       }}
     >
-      {/* Pan mode */}
-      <button
-        type="button"
-        style={mode === 'pan' ? btnActive : btnBase}
-        onClick={() => onSetMode?.('pan')}
-        title="Pan mode"
-      >
-        <span>👆</span>
-        <span>Pan</span>
-      </button>
-
-      {/* Edit Zone — visible when a zone is selected, not drawing, and editing is wired up */}
-      {mode === 'pan' && selectedZoneId && onEditZone && (
-        <button
-          type="button"
-          style={{ ...btnBase, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', borderColor: '#f59e0b' }}
-          onClick={() => onEditZone?.()}
-          title="Edit selected zone"
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--accent-subtle-bg)',
+            color: 'var(--accent-light)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          <span>✎</span>
-          <span>Edit Zone</span>
-        </button>
-      )}
+          <Hexagon size={14} />
+        </div>
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            Draw zone
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            Click the map to add points · close the shape to save
+          </div>
+        </div>
+      </div>
 
-      {/* Polygon mode */}
-      <button
-        type="button"
-        style={isPolygon ? btnActive : btnBase}
-        onClick={() => onSetMode?.('polygon')}
-        title="Draw polygon zone"
-      >
-        <span>⬡</span>
-        <span>Polygon</span>
-      </button>
-
-      {/* Save — only active when polygon is closed */}
-      <button
-        type="button"
-        style={hasClosedPolygon ? { ...btnBase, background: 'var(--success-bg, rgba(34,197,94,0.15))', color: 'var(--success, #22c55e)', borderColor: 'var(--success, #22c55e)' } : btnDisabled}
-        onClick={() => hasClosedPolygon && onSave?.()}
-        disabled={!hasClosedPolygon}
-        title="Save zone"
-      >
-        <span>✓</span>
-        <span>Save</span>
-      </button>
-
-      {/* Cancel — only visible during polygon drawing */}
-      {isPolygon && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button
           type="button"
-          style={{ ...btnBase, color: 'var(--danger, #ef4444)', borderColor: 'rgba(239,68,68,0.4)' }}
+          style={saveBtn}
+          onClick={() => hasClosedPolygon && onSave?.()}
+          disabled={!hasClosedPolygon}
+          title="Save zone"
+        >
+          <Check size={13} />
+          <span>Save</span>
+        </button>
+
+        <button
+          type="button"
+          style={cancelBtn}
           onClick={() => onCancel?.()}
           title="Cancel drawing"
         >
-          <span>✕</span>
+          <X size={13} />
           <span>Cancel</span>
         </button>
-      )}
+      </div>
     </div>
   );
 }
