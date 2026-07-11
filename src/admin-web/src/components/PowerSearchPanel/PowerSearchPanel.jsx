@@ -65,9 +65,9 @@ const SORT_OPTIONS = [
   { key: 'name', label: 'Name A–Z', api: 'name_asc' },
 ];
 
-const FILTER_RAIL_WIDTH = 260;
-const FILTER_RAIL_COLLAPSED = 44;
-const RESULTS_RAIL_WIDTH = 300;
+const FILTER_RAIL_WIDTH = 'var(--admin-ps-filter-width)';
+const FILTER_RAIL_COLLAPSED = 'var(--admin-ps-filter-collapsed)';
+const RESULTS_RAIL_WIDTH = 'var(--admin-ps-results-width)';
 
 function formatDateInput(ms) {
   if (!ms) return '';
@@ -103,10 +103,26 @@ export default function PowerSearchPanel({
   onSelectIncident,
   onToggleSaved,
   onResetFilters,
+  compactMode,
+  filterCollapsed = false,
+  onFilterCollapsedChange,
+  resultsCollapsed = false,
+  onResultsCollapsedChange,
 }) {
   const { theme } = useTheme();
-  const [filterCollapsed, setFilterCollapsed] = useState(false);
-  const [resultsCollapsed, setResultsCollapsed] = useState(false);
+  const isFilterControlled = onFilterCollapsedChange !== undefined;
+  const isResultsControlled = onResultsCollapsedChange !== undefined;
+  const [internalFilterCollapsed, setInternalFilterCollapsed] = useState(false);
+  const [internalResultsCollapsed, setInternalResultsCollapsed] = useState(false);
+
+  const filterCollapsedState = isFilterControlled ? filterCollapsed : internalFilterCollapsed;
+  const setFilterCollapsedState = isFilterControlled
+    ? onFilterCollapsedChange
+    : setInternalFilterCollapsed;
+  const resultsCollapsedState = isResultsControlled ? resultsCollapsed : internalResultsCollapsed;
+  const setResultsCollapsedState = isResultsControlled
+    ? onResultsCollapsedChange
+    : setInternalResultsCollapsed;
 
   const savedSet = useMemo(() => (savedIds instanceof Set ? savedIds : new Set(savedIds || [])), [savedIds]);
 
@@ -361,6 +377,7 @@ export default function PowerSearchPanel({
           query={query}
           onQueryChange={onQueryChange}
           onClose={onClose}
+          compactMode={compactMode}
         />
       </div>
 
@@ -368,8 +385,8 @@ export default function PowerSearchPanel({
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <FilterRail
-          collapsed={filterCollapsed}
-          onToggleCollapse={() => setFilterCollapsed((p) => !p)}
+          collapsed={filterCollapsedState}
+          onToggleCollapse={() => setFilterCollapsedState((p) => !p)}
           filters={filters}
           domains={domains}
           onToggleDomain={toggleDomain}
@@ -386,8 +403,8 @@ export default function PowerSearchPanel({
         />
 
         <ResultsRail
-          collapsed={resultsCollapsed}
-          onToggleCollapse={() => setResultsCollapsed((p) => !p)}
+          collapsed={resultsCollapsedState}
+          onToggleCollapse={() => setResultsCollapsedState((p) => !p)}
           query={query}
           incidents={results}
           totalIncidents={total}
@@ -438,35 +455,35 @@ const INITIAL_FILTERS = {
   savedOnly: false,
 };
 
-function TopBar({ query, onQueryChange, onClose }) {
+function TopBar({ query, onQueryChange, onClose, compactMode }) {
   return (
     <header
       style={{
         flexShrink: 0,
-        height: '52px',
+        height: 'calc(52px * var(--admin-ui-scale))',
         background: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-default)',
         display: 'flex',
         alignItems: 'center',
-        gap: '14px',
-        padding: '0 16px',
+        gap: 'calc(14px * var(--admin-ui-scale))',
+        padding: '0 calc(16px * var(--admin-ui-scale))',
       }}
     >
       <button onClick={onClose} style={iconButtonStyle} title="Back to workspace">
         <ArrowLeft size={15} />
       </button>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '140px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))', minWidth: 'calc(140px * var(--admin-ui-scale))' }}>
         <div
           style={{
-            width: '26px',
-            height: '26px',
+            width: 'calc(26px * var(--admin-ui-scale))',
+            height: 'calc(26px * var(--admin-ui-scale))',
             borderRadius: 'var(--radius-md)',
             background: 'var(--accent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '12px',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             fontWeight: 700,
             color: 'var(--text-on-accent)',
           }}
@@ -474,12 +491,12 @@ function TopBar({ query, onQueryChange, onClose }) {
           G
         </div>
         <div>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Power Search</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Explore everything</div>
+          <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>Power Search</div>
+          <div style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>Explore everything</div>
         </div>
       </div>
 
-      <div style={{ flex: 1, maxWidth: '480px', position: 'relative' }}>
+      <div style={{ flex: 1, maxWidth: 'calc(480px * var(--admin-ui-scale))', position: 'relative' }}>
         <Search size={15} style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
         <input
           type="text"
@@ -488,12 +505,12 @@ function TopBar({ query, onQueryChange, onClose }) {
           placeholder="Search incidents…"
           style={{
             width: '100%',
-            padding: '8px 34px 8px 36px',
+            padding: 'calc(8px * var(--admin-ui-scale)) calc(34px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale)) calc(36px * var(--admin-ui-scale))',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-default)',
             borderRadius: 'var(--radius-lg)',
             color: 'var(--text-primary)',
-            fontSize: '13px',
+            fontSize: 'calc(13px * var(--admin-ui-scale))',
             fontFamily: 'var(--font-sans)',
             outline: 'none',
           }}
@@ -508,8 +525,8 @@ function TopBar({ query, onQueryChange, onClose }) {
               right: '8px',
               top: '50%',
               transform: 'translateY(-50%)',
-              width: '20px',
-              height: '20px',
+              width: 'calc(20px * var(--admin-ui-scale))',
+              height: 'calc(20px * var(--admin-ui-scale))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -525,7 +542,7 @@ function TopBar({ query, onQueryChange, onClose }) {
         )}
       </div>
 
-      <div style={{ width: '1px' }} />
+      <div style={{ width: 'calc(1px * var(--admin-ui-scale))' }} />
     </header>
   );
 }
@@ -536,11 +553,11 @@ function ActiveChipsBar({ activeFilterCount, activeChips, onReset }) {
     <div
       style={{
         flexShrink: 0,
-        height: '38px',
+        height: 'calc(38px * var(--admin-ui-scale))',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
-        padding: '0 16px',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: '0 calc(16px * var(--admin-ui-scale))',
         borderBottom: '1px solid var(--border-default)',
         background: 'var(--bg-surface)',
         overflowX: 'auto',
@@ -551,8 +568,8 @@ function ActiveChipsBar({ activeFilterCount, activeChips, onReset }) {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          fontSize: '10px',
+          gap: 'calc(6px * var(--admin-ui-scale))',
+          fontSize: 'calc(10px * var(--admin-ui-scale))',
           color: 'var(--text-muted)',
           fontWeight: 800,
           textTransform: 'uppercase',
@@ -565,13 +582,13 @@ function ActiveChipsBar({ activeFilterCount, activeChips, onReset }) {
         {activeFilterCount > 0 && (
           <span
             style={{
-              minWidth: '16px',
-              height: '16px',
-              padding: '0 4px',
+              minWidth: 'calc(16px * var(--admin-ui-scale))',
+              height: 'calc(16px * var(--admin-ui-scale))',
+              padding: '0 calc(4px * var(--admin-ui-scale))',
               borderRadius: '999px',
               background: 'var(--accent-light)',
               color: 'var(--text-on-accent)',
-              fontSize: '9px',
+              fontSize: 'calc(9px * var(--admin-ui-scale))',
               fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
@@ -584,7 +601,7 @@ function ActiveChipsBar({ activeFilterCount, activeChips, onReset }) {
       </span>
 
       {activeChips.length === 0 ? (
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No active filters</span>
+        <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-muted)', fontStyle: 'italic' }}>No active filters</span>
       ) : (
         activeChips.map((chip) => {
           const chipColors = chip.color ? getBadgeColors(chip.color, theme) : null;
@@ -598,13 +615,13 @@ function ActiveChipsBar({ activeFilterCount, activeChips, onReset }) {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '3px 8px',
+                gap: 'calc(5px * var(--admin-ui-scale))',
+                padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
                 background: bg,
                 border: `1px solid ${border}`,
                 borderRadius: 'var(--radius-pill)',
                 color: color,
-                fontSize: '10px',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
                 fontWeight: 700,
                 cursor: 'pointer',
                 flexShrink: 0,
@@ -632,13 +649,13 @@ function ActiveChipsBar({ activeFilterCount, activeChips, onReset }) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '4px',
-            padding: '3px 8px',
+            gap: 'calc(4px * var(--admin-ui-scale))',
+            padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
             background: 'transparent',
             border: '1px solid transparent',
             borderRadius: 'var(--radius-pill)',
             color: 'var(--text-muted)',
-            fontSize: '10px',
+            fontSize: 'calc(10px * var(--admin-ui-scale))',
             fontWeight: 700,
             cursor: 'pointer',
             flexShrink: 0,
@@ -722,7 +739,7 @@ function FilterRail({
     >
       <div
         style={{
-          height: '46px',
+          height: 'calc(46px * var(--admin-ui-scale))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -736,8 +753,8 @@ function FilterRail({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              fontSize: '11px',
+              gap: 'calc(8px * var(--admin-ui-scale))',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '1px',
@@ -748,13 +765,13 @@ function FilterRail({
             {activeDomainFilterCount > 0 && (
               <span
                 style={{
-                  minWidth: '16px',
-                  height: '16px',
-                  padding: '0 4px',
+                  minWidth: 'calc(16px * var(--admin-ui-scale))',
+                  height: 'calc(16px * var(--admin-ui-scale))',
+                  padding: '0 calc(4px * var(--admin-ui-scale))',
                   borderRadius: '999px',
                   background: 'var(--accent-light)',
                   color: 'var(--text-on-accent)',
-                  fontSize: '9px',
+                  fontSize: 'calc(9px * var(--admin-ui-scale))',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
@@ -778,21 +795,21 @@ function FilterRail({
             flex: 1,
             minHeight: 0,
             overflowY: 'auto',
-            padding: '12px',
+            padding: 'calc(12px * var(--admin-ui-scale))',
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px',
+            gap: 'calc(10px * var(--admin-ui-scale))',
           }}
         >
           <FilterSection title="Date range" icon={Calendar} defaultOpen>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
               <input type="date" value={filters.dateFrom} onChange={(e) => onSetDateFrom(e.target.value)} style={smallInputStyle} />
               <input type="date" value={filters.dateTo} onChange={(e) => onSetDateTo(e.target.value)} style={smallInputStyle} />
             </div>
           </FilterSection>
 
           <FilterSection title="Domains & Categories" icon={Tags} defaultOpen scrollable>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(2px * var(--admin-ui-scale))' }}>
               {domains.map((domain) => {
                 const state = getDomainState(domain);
                 const expanded = expandedDomains.has(domain.slug);
@@ -809,8 +826,8 @@ function FilterRail({
                       style={{
                         display: 'flex',
                         alignItems: 'flex-start',
-                        gap: '8px',
-                        padding: '7px 8px',
+                        gap: 'calc(8px * var(--admin-ui-scale))',
+                        padding: 'calc(7px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
                         cursor: 'pointer',
                         borderRadius: 'var(--radius-sm)',
                         transition: 'background 0.15s ease',
@@ -829,18 +846,18 @@ function FilterRail({
                       </span>
                       <span
                         style={{
-                          width: '7px',
-                          height: '7px',
+                          width: 'calc(7px * var(--admin-ui-scale))',
+                          height: 'calc(7px * var(--admin-ui-scale))',
                           borderRadius: '50%',
                           background: getDomainColor(domain, theme),
                           flexShrink: 0,
-                          marginTop: '3px',
+                          marginTop: 'calc(3px * var(--admin-ui-scale))',
                         }}
                       />
                       <span
                         style={{
                           flex: 1,
-                          fontSize: '11px',
+                          fontSize: 'calc(11px * var(--admin-ui-scale))',
                           fontWeight: 600,
                           color: 'var(--text-secondary)',
                           lineHeight: 1.3,
@@ -850,11 +867,11 @@ function FilterRail({
                       </span>
                       <span
                         style={{
-                          fontSize: '10px',
+                          fontSize: 'calc(10px * var(--admin-ui-scale))',
                           color: 'var(--text-muted)',
                           fontWeight: 700,
                           fontFamily: 'var(--font-mono)',
-                          marginTop: '2px',
+                          marginTop: 'calc(2px * var(--admin-ui-scale))',
                         }}
                       >
                         {state.selected}/{state.total}
@@ -866,7 +883,7 @@ function FilterRail({
                           transition: 'transform 0.15s ease',
                           transform: expanded ? 'rotate(90deg)' : 'none',
                           flexShrink: 0,
-                          marginTop: '2px',
+                          marginTop: 'calc(2px * var(--admin-ui-scale))',
                         }}
                       />
                     </div>
@@ -874,7 +891,7 @@ function FilterRail({
                     {expanded && (
                       <div
                         style={{
-                          marginLeft: '13px',
+                          marginLeft: 'calc(13px * var(--admin-ui-scale))',
                           paddingLeft: '10px',
                           borderLeft: `2px solid ${getDomainColor(domain, theme)}30`,
                         }}
@@ -883,7 +900,7 @@ function FilterRail({
                           style={{
                             maxHeight: '200px',
                             overflowY: 'auto',
-                            padding: '2px 0',
+                            padding: 'calc(2px * var(--admin-ui-scale)) 0',
                           }}
                         >
                           {domain.categories.map((cat) => {
@@ -894,8 +911,8 @@ function FilterRail({
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '8px',
-                                  padding: '5px 6px',
+                                  gap: 'calc(8px * var(--admin-ui-scale))',
+                                  padding: 'calc(5px * var(--admin-ui-scale)) calc(6px * var(--admin-ui-scale))',
                                   cursor: 'pointer',
                                   borderRadius: 'var(--radius-sm)',
                                   transition: 'background 0.15s ease',
@@ -906,8 +923,8 @@ function FilterRail({
                                 <input type="checkbox" checked={checked} onChange={() => onToggleCategory(cat.slug)} style={{ display: 'none' }} />
                                 <span
                                   style={{
-                                    width: '12px',
-                                    height: '12px',
+                                    width: 'calc(12px * var(--admin-ui-scale))',
+                                    height: 'calc(12px * var(--admin-ui-scale))',
                                     borderRadius: '3px',
                                     border: `1.5px solid ${checked ? getDomainColor(domain, theme) : 'var(--border-hover)'}`,
                                     background: checked ? getDomainColor(domain, theme) : 'transparent',
@@ -922,8 +939,8 @@ function FilterRail({
                                 </span>
                                 <span
                                   style={{
-                                    width: '4px',
-                                    height: '4px',
+                                    width: 'calc(4px * var(--admin-ui-scale))',
+                                    height: 'calc(4px * var(--admin-ui-scale))',
                                     borderRadius: '50%',
                                     background: getDomainColor(domain, theme),
                                     opacity: 0.7,
@@ -933,7 +950,7 @@ function FilterRail({
                                 <span
                                   style={{
                                     flex: 1,
-                                    fontSize: '10px',
+                                    fontSize: 'calc(10px * var(--admin-ui-scale))',
                                     fontWeight: 500,
                                     color: 'var(--text-secondary)',
                                     lineHeight: 1.3,
@@ -954,7 +971,7 @@ function FilterRail({
           </FilterSection>
 
           <FilterSection title="Severity" icon={Star} defaultOpen>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(3px * var(--admin-ui-scale))' }}>
               {SEVERITY_SCALE.map((sev) => {
                 const active = filters.severities.includes(sev.value);
                 const colors = getSeverityBadgeColors(sev.color, theme);
@@ -964,8 +981,8 @@ function FilterRail({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      padding: '5px 7px',
+                      gap: 'calc(8px * var(--admin-ui-scale))',
+                      padding: 'calc(5px * var(--admin-ui-scale)) calc(7px * var(--admin-ui-scale))',
                       borderRadius: 'var(--radius-sm)',
                       cursor: 'pointer',
                       background: active ? colors.background : 'transparent',
@@ -982,8 +999,8 @@ function FilterRail({
                     <input type="checkbox" checked={active} onChange={() => onToggleSeverity(sev.value)} style={{ display: 'none' }} />
                     <span
                       style={{
-                        width: '14px',
-                        height: '14px',
+                        width: 'calc(14px * var(--admin-ui-scale))',
+                        height: 'calc(14px * var(--admin-ui-scale))',
                         borderRadius: '3px',
                         border: `1.5px solid ${active ? sev.color : 'var(--border-hover)'}`,
                         background: active ? sev.color : 'transparent',
@@ -998,9 +1015,9 @@ function FilterRail({
                     </span>
                     <span
                       style={{
-                        width: '14px',
+                        width: 'calc(14px * var(--admin-ui-scale))',
                         textAlign: 'center',
-                        fontSize: '11px',
+                        fontSize: 'calc(11px * var(--admin-ui-scale))',
                         fontWeight: 700,
                         color: active ? colors.color : 'var(--text-secondary)',
                         fontFamily: 'var(--font-mono)',
@@ -1012,7 +1029,7 @@ function FilterRail({
                     <span
                       style={{
                         flex: 1,
-                        fontSize: '11px',
+                        fontSize: 'calc(11px * var(--admin-ui-scale))',
                         fontWeight: 600,
                         color: active ? colors.color : 'var(--text-secondary)',
                       }}
@@ -1026,7 +1043,7 @@ function FilterRail({
           </FilterSection>
 
           <FilterSection title="Status" icon={CheckCircle2} defaultOpen>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'calc(6px * var(--admin-ui-scale))' }}>
               {STATUSES.map((status) => {
                 const active = filters.statuses.includes(status);
                 const meta = STATUS_META[status];
@@ -1035,8 +1052,8 @@ function FilterRail({
                     key={status}
                     onClick={() => onToggleStatus(status)}
                     style={{
-                      padding: '5px 10px',
-                      fontSize: '11px',
+                      padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                      fontSize: 'calc(11px * var(--admin-ui-scale))',
                       fontWeight: 700,
                       textTransform: 'capitalize',
                       color: active ? 'var(--text-on-accent)' : 'var(--text-secondary)',
@@ -1055,7 +1072,7 @@ function FilterRail({
           </FilterSection>
 
           <FilterSection title="Verification" icon={Shield}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'calc(6px * var(--admin-ui-scale))' }}>
               {VERIFICATION_STATUSES.map((v) => {
                 const active = filters.verificationStatuses.includes(v.value);
                 const vColors = getBadgeColors(v.color, theme);
@@ -1066,9 +1083,9 @@ function FilterRail({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '5px',
-                      padding: '5px 10px',
-                      fontSize: '11px',
+                      gap: 'calc(5px * var(--admin-ui-scale))',
+                      padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                      fontSize: 'calc(11px * var(--admin-ui-scale))',
                       fontWeight: 700,
                       color: active ? vColors.color : 'var(--text-secondary)',
                       background: active ? vColors.background : 'var(--bg-input)',
@@ -1080,8 +1097,8 @@ function FilterRail({
                   >
                     <span
                       style={{
-                        width: '6px',
-                        height: '6px',
+                        width: 'calc(6px * var(--admin-ui-scale))',
+                        height: 'calc(6px * var(--admin-ui-scale))',
                         borderRadius: '50%',
                         background: active ? vColors.color : v.color,
                       }}
@@ -1094,7 +1111,7 @@ function FilterRail({
           </FilterSection>
 
           <FilterSection title="Source type" icon={FileText}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'calc(6px * var(--admin-ui-scale))' }}>
               {SOURCE_TYPES.map((s) => {
                 const active = filters.sourceTypes.includes(s.value);
                 return (
@@ -1102,8 +1119,8 @@ function FilterRail({
                     key={s.value}
                     onClick={() => onToggleSourceType(s.value)}
                     style={{
-                      padding: '5px 10px',
-                      fontSize: '11px',
+                      padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                      fontSize: 'calc(11px * var(--admin-ui-scale))',
                       fontWeight: 700,
                       color: active ? 'var(--text-on-accent)' : 'var(--text-secondary)',
                       background: active ? 'var(--accent-light)' : 'var(--bg-input)',
@@ -1121,7 +1138,7 @@ function FilterRail({
           </FilterSection>
 
           <FilterSection title="Geometry" icon={Hexagon}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'calc(6px * var(--admin-ui-scale))' }}>
               {GEOMETRY_TYPES.map((g) => {
                 const active = filters.geometryTypes.includes(g.value);
                 return (
@@ -1129,8 +1146,8 @@ function FilterRail({
                     key={g.value}
                     onClick={() => onToggleGeometryType(g.value)}
                     style={{
-                      padding: '5px 10px',
-                      fontSize: '11px',
+                      padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                      fontSize: 'calc(11px * var(--admin-ui-scale))',
                       fontWeight: 700,
                       color: active ? 'var(--text-on-accent)' : 'var(--text-secondary)',
                       background: active ? 'var(--accent-light)' : 'var(--bg-input)',
@@ -1148,7 +1165,7 @@ function FilterRail({
           </FilterSection>
 
           <FilterSection title="Options" icon={Settings2} defaultOpen>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
               <ToggleRow label="Saved only" checked={filters.savedOnly} onChange={onToggleSavedOnly} />
             </div>
           </FilterSection>
@@ -1184,13 +1201,13 @@ function SortDropdown({ value, onChange }) {
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          padding: '5px 8px',
+          gap: 'calc(6px * var(--admin-ui-scale))',
+          padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
           background: 'var(--bg-input)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-md)',
           color: 'var(--text-secondary)',
-          fontSize: '11px',
+          fontSize: 'calc(11px * var(--admin-ui-scale))',
           fontWeight: 700,
           cursor: 'pointer',
           outline: 'none',
@@ -1215,7 +1232,7 @@ function SortDropdown({ value, onChange }) {
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-lg)',
             zIndex: 100,
-            padding: '4px',
+            padding: 'calc(4px * var(--admin-ui-scale))',
           }}
         >
           {SORT_OPTIONS.map((opt) => {
@@ -1232,13 +1249,13 @@ function SortDropdown({ value, onChange }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: '8px',
-                  padding: '6px 8px',
+                  gap: 'calc(8px * var(--admin-ui-scale))',
+                  padding: 'calc(6px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
                   background: selected ? 'var(--accent-subtle-bg)' : 'transparent',
                   border: 'none',
                   borderRadius: 'var(--radius-sm)',
                   color: selected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontSize: '11px',
+                  fontSize: 'calc(11px * var(--admin-ui-scale))',
                   fontWeight: 700,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -1297,19 +1314,19 @@ function ResultsRail({
         <>
           <div
             style={{
-              height: '46px',
+              height: 'calc(46px * var(--admin-ui-scale))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '8px',
-              padding: '0 12px',
+              gap: 'calc(8px * var(--admin-ui-scale))',
+              padding: '0 calc(12px * var(--admin-ui-scale))',
               borderBottom: '1px solid var(--border-default)',
               background: 'var(--bg-surface)',
             }}
           >
             <SortDropdown value={sortBy} onChange={onSortChange} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))', flexShrink: 0 }}>
+              <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-secondary)' }}>
                 {incidents.length} / {totalIncidents}
               </span>
               <button onClick={onToggleCollapse} style={iconButtonStyle} title="Hide results">
@@ -1318,7 +1335,7 @@ function ResultsRail({
             </div>
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'calc(8px * var(--admin-ui-scale))' }}>
             {!loading && !error && incidents.length === 0 ? (
               <div
                 style={{
@@ -1326,21 +1343,21 @@ function ResultsRail({
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '48px 20px',
+                  padding: 'calc(48px * var(--admin-ui-scale)) calc(20px * var(--admin-ui-scale))',
                   color: 'var(--text-muted)',
                   textAlign: 'center',
                 }}
               >
-                <Search size={32} strokeWidth={1.2} style={{ opacity: 0.35, marginBottom: '14px' }} />
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <Search size={32} strokeWidth={1.2} style={{ opacity: 0.35, marginBottom: 'calc(14px * var(--admin-ui-scale))' }} />
+                <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 600, color: 'var(--text-secondary)' }}>
                   No incidents match
                 </div>
-                <div style={{ fontSize: '11px', marginTop: '6px' }}>
+                <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', marginTop: 'calc(6px * var(--admin-ui-scale))' }}>
                   {query ? 'Try a different query or adjust filters.' : 'Start typing to search.'}
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(6px * var(--admin-ui-scale))' }}>
                 {incidents.map((inc) => (
                   <IncidentCard
                     key={inc.id}
@@ -1356,13 +1373,13 @@ function ResultsRail({
                   <button
                     onClick={onLoadMore}
                     style={{
-                      marginTop: '4px',
-                      padding: '8px 10px',
+                      marginTop: 'calc(4px * var(--admin-ui-scale))',
+                      padding: 'calc(8px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
                       background: 'var(--bg-surface)',
                       border: '1px solid var(--border-default)',
                       borderRadius: 'var(--radius-md)',
                       color: 'var(--text-secondary)',
-                      fontSize: '11px',
+                      fontSize: 'calc(11px * var(--admin-ui-scale))',
                       fontWeight: 700,
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
@@ -1407,8 +1424,8 @@ const IncidentCard = React.forwardRef(function IncidentCard(
       style={{
         position: 'relative',
         display: 'flex',
-        gap: '8px',
-        padding: '9px',
+        gap: 'calc(8px * var(--admin-ui-scale))',
+        padding: 'calc(9px * var(--admin-ui-scale))',
         background: selected ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
         border: `1px solid ${selected ? 'var(--accent-light)' : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-md)',
@@ -1430,17 +1447,17 @@ const IncidentCard = React.forwardRef(function IncidentCard(
           left: 0,
           top: 0,
           bottom: 0,
-          width: '2px',
+          width: 'calc(2px * var(--admin-ui-scale))',
           background: selected ? 'var(--accent-light)' : getIncidentDomainColor(incident, theme),
           opacity: selected ? 1 : 0.7,
         }}
       />
 
-      <div style={{ width: '6px', flexShrink: 0 }} />
+      <div style={{ width: 'calc(6px * var(--admin-ui-scale))', flexShrink: 0 }} />
 
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, wordBreak: 'break-word' }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(5px * var(--admin-ui-scale))' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, wordBreak: 'break-word' }}>
             {incident.title}
           </div>
           <button
@@ -1449,8 +1466,8 @@ const IncidentCard = React.forwardRef(function IncidentCard(
               onToggleSaved(e);
             }}
             style={{
-              width: '20px',
-              height: '20px',
+              width: 'calc(20px * var(--admin-ui-scale))',
+              height: 'calc(20px * var(--admin-ui-scale))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1469,7 +1486,7 @@ const IncidentCard = React.forwardRef(function IncidentCard(
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>
           <MapPin size={9} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{incident.location_context}</span>
           <span style={{ margin: '0 3px' }}>·</span>
@@ -1477,49 +1494,49 @@ const IncidentCard = React.forwardRef(function IncidentCard(
           <span>{timeAgoLabel(incident.created_at)}</span>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
           <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
-              fontSize: '10px',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               color: 'var(--text-secondary)',
             }}
           >
-            <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: getIncidentDomainColor(incident, theme), flexShrink: 0 }} />
+            <span style={{ width: 'calc(4px * var(--admin-ui-scale))', height: 'calc(4px * var(--admin-ui-scale))', borderRadius: '50%', background: getIncidentDomainColor(incident, theme), flexShrink: 0 }} />
             {incident.domain_name}
           </span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', flexWrap: 'wrap' }}>
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '1px 5px',
+                gap: 'calc(4px * var(--admin-ui-scale))',
+                padding: 'calc(1px * var(--admin-ui-scale)) calc(5px * var(--admin-ui-scale))',
                 borderRadius: 'var(--radius-sm)',
                 background: sevColors.background,
                 border: sevColors.border,
-                fontSize: '10px',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
                 fontWeight: 700,
                 color: sevColors.color,
               }}
             >
-              <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: sevColors.color, flexShrink: 0 }} />
+              <span style={{ width: 'calc(4px * var(--admin-ui-scale))', height: 'calc(4px * var(--admin-ui-scale))', borderRadius: '50%', background: sevColors.color, flexShrink: 0 }} />
               {sev.value} {sev.label}
             </span>
 
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)' }}>
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: statusDotColor, flexShrink: 0 }} />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
+              <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: statusDotColor, flexShrink: 0 }} />
               {status.label}
             </span>
 
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)' }}>
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: verification.color, flexShrink: 0 }} />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
+              <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: verification.color, flexShrink: 0 }} />
               {verification.label}
             </span>
           </div>
@@ -1549,18 +1566,18 @@ function FilterSection({ title, icon: Icon, defaultOpen = false, scrollable = fa
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '9px 11px',
+          padding: 'calc(9px * var(--admin-ui-scale)) calc(11px * var(--admin-ui-scale))',
           background: 'transparent',
           border: 'none',
           color: 'var(--text-secondary)',
-          fontSize: '10px',
+          fontSize: 'calc(10px * var(--admin-ui-scale))',
           fontWeight: 800,
           textTransform: 'uppercase',
           letterSpacing: '0.8px',
           cursor: 'pointer',
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))' }}>
           {Icon && <Icon size={11} />}
           {title}
         </span>
@@ -1570,7 +1587,7 @@ function FilterSection({ title, icon: Icon, defaultOpen = false, scrollable = fa
         <div
           className={scrollable ? 'pw-filter-scroll' : undefined}
           style={{
-            padding: '0 11px 11px',
+            padding: '0 calc(11px * var(--admin-ui-scale)) calc(11px * var(--admin-ui-scale))',
             ...(scrollable ? { maxHeight: '260px', overflowY: 'auto' } : {}),
           }}
         >
@@ -1592,8 +1609,8 @@ function IndeterminateCheckbox({ state, color }) {
     <span
       style={{
         position: 'relative',
-        width: '14px',
-        height: '14px',
+        width: 'calc(14px * var(--admin-ui-scale))',
+        height: 'calc(14px * var(--admin-ui-scale))',
         borderRadius: '3px',
         border: `1.5px solid ${checked || state === 'partial' ? color : 'var(--border-hover)'}`,
         background: checked || state === 'partial' ? color : 'transparent',
@@ -1612,8 +1629,8 @@ function IndeterminateCheckbox({ state, color }) {
         style={{
           position: 'absolute',
           opacity: 0,
-          width: '14px',
-          height: '14px',
+          width: 'calc(14px * var(--admin-ui-scale))',
+          height: 'calc(14px * var(--admin-ui-scale))',
           cursor: 'pointer',
         }}
       />
@@ -1629,18 +1646,18 @@ function ToggleRow({ label, checked, onChange }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '7px 9px',
+        padding: 'calc(7px * var(--admin-ui-scale)) calc(9px * var(--admin-ui-scale))',
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-sm)',
         cursor: 'pointer',
       }}
     >
-      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', fontWeight: 600 }}>{label}</span>
       <span
         style={{
-          width: '30px',
-          height: '17px',
+          width: 'calc(30px * var(--admin-ui-scale))',
+          height: 'calc(17px * var(--admin-ui-scale))',
           borderRadius: '999px',
           background: checked ? 'var(--accent-light)' : 'var(--border-default)',
           position: 'relative',
@@ -1653,8 +1670,8 @@ function ToggleRow({ label, checked, onChange }) {
             position: 'absolute',
             top: '2px',
             left: checked ? '15px' : '2px',
-            width: '13px',
-            height: '13px',
+            width: 'calc(13px * var(--admin-ui-scale))',
+            height: 'calc(13px * var(--admin-ui-scale))',
             borderRadius: '50%',
             background: 'var(--text-on-accent)',
             transition: 'left 0.15s ease',
@@ -1668,8 +1685,8 @@ function ToggleRow({ label, checked, onChange }) {
 }
 
 const iconButtonStyle = {
-  width: '26px',
-  height: '26px',
+  width: 'calc(26px * var(--admin-ui-scale))',
+  height: 'calc(26px * var(--admin-ui-scale))',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -1685,9 +1702,9 @@ const ghostButtonStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: '4px',
-  width: '28px',
-  height: '28px',
+  gap: 'calc(4px * var(--admin-ui-scale))',
+  width: 'calc(28px * var(--admin-ui-scale))',
+  height: 'calc(28px * var(--admin-ui-scale))',
   background: 'var(--bg-input)',
   border: '1px solid var(--border-default)',
   borderRadius: 'var(--radius-md)',
@@ -1697,12 +1714,12 @@ const ghostButtonStyle = {
 
 const smallInputStyle = {
   width: '100%',
-  padding: '5px 6px',
+  padding: 'calc(5px * var(--admin-ui-scale)) calc(6px * var(--admin-ui-scale))',
   background: 'var(--bg-input)',
   border: '1px solid var(--border-default)',
   borderRadius: 'var(--radius-sm)',
   color: 'var(--text-primary)',
-  fontSize: '10px',
+  fontSize: 'calc(10px * var(--admin-ui-scale))',
   fontFamily: 'var(--font-mono)',
   outline: 'none',
   boxSizing: 'border-box',
@@ -1714,13 +1731,13 @@ const resetButtonStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: '6px',
-  padding: '7px 9px',
+  gap: 'calc(6px * var(--admin-ui-scale))',
+  padding: 'calc(7px * var(--admin-ui-scale)) calc(9px * var(--admin-ui-scale))',
   background: 'var(--bg-input)',
   border: '1px solid var(--border-default)',
   borderRadius: 'var(--radius-md)',
   color: 'var(--text-secondary)',
-  fontSize: '11px',
+  fontSize: 'calc(11px * var(--admin-ui-scale))',
   fontWeight: 700,
   cursor: 'pointer',
   transition: 'all 0.15s ease',

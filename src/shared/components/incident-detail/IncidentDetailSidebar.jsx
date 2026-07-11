@@ -8,6 +8,7 @@ import EvidenceBundle from './EvidenceBundle.jsx';
 import Lightbox from './Lightbox.jsx';
 import StatusHistory from './StatusHistory.jsx';
 import DebugMetadata from './DebugMetadata.jsx';
+import RightPanelCollapseButton from '../RightPanelCollapseButton.jsx';
 import { ArticleCard, AdminNoteCard } from './SourceCards.jsx';
 import { VerificationBadge } from './IncidentBadges.jsx';
 import XPostCompactList, { XEmbed, ArchivedPost, ArchiveLightbox } from './XPostCompactList.jsx';
@@ -861,6 +862,7 @@ export default function IncidentDetailSidebar({
   onOpenAudit,
   onViewCreator,
   auditLogs,
+  onCollapse,
 }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const isSuper = mode === 'superadmin';
@@ -1015,8 +1017,39 @@ export default function IncidentDetailSidebar({
 
   return (
     <aside className={`id-sidebar ${isSuper ? 'id-sidebar--superadmin' : ''}`}>
+      {onCollapse && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: 'calc(38px * var(--admin-ui-scale))',
+            padding: '0 calc(16px * var(--admin-ui-scale))',
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: 'var(--text-muted)',
+            }}
+          >
+            {isSuper ? 'Superadmin view' : isAdmin ? 'Admin view' : 'Incident details'}
+          </span>
+          <RightPanelCollapseButton onClick={onCollapse} />
+        </div>
+      )}
       <div className="id-sidebar__scroll">
-          <SummaryCard incident={incident} onTitleClick={goFullDetails} mode={mode}>
+          <SummaryCard
+            incident={incident}
+            onTitleClick={goFullDetails}
+            mode={mode}
+          >
             <div className="id-summary__actions">
               <button className="id-btn-primary" onClick={goFullDetails}>
                 {Icons.external} Full details

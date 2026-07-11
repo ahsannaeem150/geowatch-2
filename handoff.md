@@ -450,15 +450,22 @@ chore: description
 
 ---
 
-## 10. Current Focus — Admin-web Search Integration
+## 10. Current Focus — Admin-web Layout Finalized; Source-aware Selection Done
 
-> **What we are doing right now:** the dual-search model chosen in the `/trial/*` pages has been wired into the production admin dashboard.
+> **What we are doing right now:** the admin-web dashboard layout is now considered final. The first-click black flash is eliminated by animating the right panel with `transform: translateX` while keeping the MapLibre canvas at a constant size; MapLibre padding now accounts for the overlay panel. Zone zoom behavior is unified: all zone selections use a comfort-fit with a 45% viewport margin, then clamp to zoom `[4, 14]`. Users can disable auto-zoom in the Settings drawer; selections then pan-only while preserving the current zoom. Deep-links always comfort-fit regardless of the toggle. The next phase is to port the finalized admin-web layout patterns into `user-web` and `superadmin-web`.
 
 ### Chosen Direction
 
-- **Dual-search system:**
-  - **Quick search (`⌘K`)** — a trial-style command palette (`CommandPalette.jsx`) opens from the workspace top-bar search input and the global `Cmd/Ctrl+K` shortcut. It scopes across All / Incidents / Locations / Actions, shows recent incidents, saved stars, keyboard navigation, and quick actions.
-  - **Power search (`/search`)** — the production Power Search page is a dedicated full-page advanced explorer with a collapsible left filter sidebar, result list, sorting, saved-incident toggles, and a detail preview panel.
+- **Admin-web dashboard layout (final):**
+  - Collapsible left workspace rail/drawer and right detail panel.
+  - Right panel animates in/out via CSS `transform: translateX` as an absolute overlay; the MapLibre canvas stays at a constant size during the animation.
+  - Focus mode hides both sidebars while keeping the rail visible.
+  - Power Search is an in-dashboard mode with collapsible filter/results rails.
+  - Map centering always targets the visible map rectangle after any layout change.
+- **Map selection behavior (final):**
+  - Point incidents: map click nudges `+0.05`; non-map selections fly to zoom `7`.
+  - Zones: all selections use a comfort-fit with 45% viewport margin, clamped to zoom `[4, 14]`. Map clicks that already fit nudge `+0.02` instead of refitting.
+  - Users can disable auto-zoom in Settings; disabled selections pan-only while preserving current zoom. Deep-links always comfort-fit.
 
 ### Production Search Routes
 
@@ -498,6 +505,13 @@ Isolated trials remain routable for reference but are no longer the active direc
 - A new polygon-incident creation sidebar trial is live at `/trial/zone-create`. It is a 630 px left sidebar with all admin-style fields (title, description, zone category, severity, status, verification, start/end dates, sources), a dummy polygon preview using the animated neon-fade mini-map, and console-only submit. The evidence flow now mirrors the active admin create-incident sidebar: media supports multi-file upload with caption editing or image-URL entry; X post only needs the tweet URL; news article uses title/publisher/URL; admin note is a single note field.
 - The chosen neon-fade zone style from `/trial/zone-styles` has been integrated into the **admin-web map**. After testing the MapLibre approximation, the implementation switched to an SVG overlay that matches the trial exactly: per-zone radial gradients, shared glow filter, thin colored stroke, and no centroid dot. An invisible MapLibre `zone-hit` layer handles hover/click detection. Selection and hover intensify the zone's own color instead of switching to amber. Ghost-zone layers only exist in `SuperadminMap` and were not touched; drawing/edit preview layers keep their existing interaction styling.
 - A full-page integration attempt was made and then reverted; the standalone trial pages remain the source of truth until a direction is finalized.
+- Fixed first-click jumpiness in admin-web: the right detail panel now animates open via CSS `transform: translateX` as an absolute overlay so the MapLibre canvas stays at a constant size, and the map `flyTo` is deferred by the transition duration (250 ms) so the panel and map animate in sequence.
+- Finalized admin-web map selection behavior with universal zone comfort-fit:
+  - **Point incidents**: map click nudges `+0.05`; non-map selections fly to zoom `7`.
+  - **Zones**: all selections comfort-fit the polygon bounds with a 45% viewport margin, then clamp to zoom `[4, 14]`. Map clicks that already fit at `currentZoom + 0.02` nudge slightly instead of refitting.
+  - Added a Settings drawer toggle to disable auto-zoom; when disabled, selections pan to the feature center while preserving the user's current zoom. Deep-links ignore the toggle and always comfort-fit.
+  - The legacy source-dependent cap-at-6 rule and `fitBounds` path were removed.
+- Fixed the first-click black flash: the right detail panel now slides in as an absolute `transform: translateX` overlay so the map canvas never resizes during the animation; MapLibre flyTo uses right-panel padding to keep the selected marker centered in the visible area.
 - Build command `npm run build:user-web` must pass after any trial change.
 
 ### Active Warnings (Non-Blocking)
@@ -505,6 +519,7 @@ Isolated trials remain routable for reference but are no longer the active direc
 - Google Sign-In 403 on localhost (pre-existing OAuth origin issue).
 - `XPostCompactList` DOM nesting warning (admin toolbar buttons inside a `<button>` summary).
 - Vite chunk-size warning (> 500 KB JS bundle).
+- Backend login rate limiting can trigger after many consecutive test runs; allow a cooldown or reuse a long-lived token when running scripts repeatedly.
 
 ---
 
@@ -521,7 +536,7 @@ You are continuing work on GeoWatch, a map-based global conflict and major-event
 3. Explore the codebase to understand context: backend services, shared components, and especially the user-web zone trial files under `src/user-web/src/pages/ZoneTrial*.jsx`, `zoneTrialData.js`, and `src/user-web/src/App.jsx`.
 
 **CURRENT FOCUS:**
-The admin-web dual-search model has been ported from the `/trial/*` pages into the production dashboard. The top-bar search input and global `⌘K` shortcut now open the trial-style `CommandPalette` with All / Incidents / Locations / Actions scopes, recent incidents, saved stars, quick actions (add incident/zone, open layers, toggle focus), keyboard navigation, and a footer link to `/search`. The top-bar **Advanced** button navigates to the production `/search` Power Search page (`pages/SearchPage.jsx`). Power Search is now an in-dashboard mode rather than a separate route. The **Advanced** button (and the command-palette footer) opens a full Power Search workspace inside `DashboardLayout`: a collapsible left filter rail, a results rail, the existing `AdminMap` in the center, and the existing shared detail sidebar on the right. The map shows search results (points and zones), and clicking a result flies the map and opens the appropriate incident/zone sidebar. Filters, sort, load-more pagination, saved searches, active chips, and CSV export are all backed by `api.searchIncidentsAdvanced`. Next step is to verify the interaction feels cohesive and decide whether the trial pages can be deprecated or kept for reference.
+The admin-web dashboard layout and map selection behavior are finalized. Completed: collapsible left rail/drawer and right detail panel with `transform: translateX` overlay animation that keeps the MapLibre canvas at a constant size, delayed `flyTo` scheduling, focus mode, in-dashboard Power Search with collapsible filter/results rails, visible-area map centering, universal zone comfort-fit with `[4, 14]` zoom clamps, and a Settings drawer toggle to disable auto-zoom. Verification scripts for right-panel animation, map centering, and map zoom behavior all pass reliably. Next phase is to port the finalized admin-web layout patterns into `user-web` and `superadmin-web` so all three frontends share consistent chrome, map centering, and selection behavior.
 
 **BEFORE MAKING CHANGES:**
 - Run `npm run build:admin-web` and ensure it passes.
@@ -533,10 +548,11 @@ The admin-web dual-search model has been ported from the `/trial/*` pages into t
 - Google Sign-In 403 on localhost (pre-existing).
 - `XPostCompactList` DOM nesting warning.
 - Vite JS chunk > 500 KB warning.
+- Backend login rate limiting after repeated test runs; allow cooldown or reuse a token.
 
 Tell me what you find and what you recommend doing next.
 ```
 
 ---
 
-*Last updated: 2026-06-27 (Power Search integrated as in-dashboard mode with live map and shared sidebars; build-verified)*
+*Last updated: 2026-06-27 (Tuned comfort-fit margin, incident nudge, verified zone auto-zoom toggle; all builds/verifications pass)*

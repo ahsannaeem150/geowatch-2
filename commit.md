@@ -10949,3 +10949,801 @@ fix: prevent right detail panel from overlapping Power Search top bar
 - Verified `npm run build:admin-web` passes and admin-web restarted cleanly on port 5174.
 
 ---
+
+
+## 📅 2026-07-10 — Module: Admin-web compact layout mode
+
+### Summary
+Added a user-toggleable **Compact mode** to the admin dashboard that scales the chrome (top bar, left rail, left drawer, right panel, Power Search rails) and their internal fonts/paddings by ~10%, leaving more viewport for the map when both sidebars are open. The map itself stays at native resolution and interactivity. The toggle is persisted in `localStorage`.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/index.css` | Added `--admin-ui-scale` variable system, layout variables for chrome widths/heights, and scoped `.admin-compact` overrides for shared incident/zone/create sidebar internals. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `compactMode` state read from / persisted to `localStorage`; applied `admin-compact` class to dashboard root; passed `compactMode` to `WorkspaceTopBar` and `PowerSearchPanel`; right panel and Power Search detail offset now use CSS variables. |
+| `src/admin-web/src/components/MapWorkspace/WorkspaceTopBar.jsx` | Added compact toggle button; scaled all inline dimensions/font sizes via `calc(... * var(--admin-ui-scale))` and icon sizes via `iconSize()` helper. |
+| `src/admin-web/src/components/MapWorkspace/WorkspaceRail.jsx` | Width, icon button sizes, padding/gap, and icon sizes now scale with compact mode. |
+| `src/admin-web/src/components/MapWorkspace/WorkspaceDrawer.jsx` | Width and `left` position use CSS variables; header and internal dimensions scale with compact mode. |
+| `src/admin-web/src/components/PowerSearchPanel/PowerSearchPanel.jsx` | Rail widths and header heights use CSS variables; top bar/chips/rail internals scale; icon sizes scale. |
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | Input/label/section/gap dimensions scale with compact mode. |
+| `src/admin-web/src/components/CreateIncidentSidebar/CreateIncidentSidebar.jsx` | Internal padding/gap/font sizes scale with compact mode. |
+| `scripts/screenshot-admin-compact.mjs` | New Playwright script that logs in, opens the left drawer + right detail panel, and captures normal vs compact screenshots. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Admin-web restarted cleanly on `http://localhost:5174`.
+- Playwright screenshots captured at `temp_screenshots/compact-verify/` showing visibly more map area in compact mode while sidebars remain readable.
+
+feat: add Compact mode toggle to admin-web
+- Introduced a single `--admin-ui-scale` CSS variable and derived layout/spacing variables.
+- Added a `Compact` / `Normal` toggle in the workspace top bar, persisted in `localStorage`.
+- Scaled top bar, left rail, left drawer, right panel, Power Search rails, and shared sidebar internals (incident detail, zone detail, zone create/edit, create incident form) by ~10% in compact mode.
+- Map rendering and interactions remain at native size.
+- Verified with `npm run build:admin-web` and Playwright screenshots.
+
+---
+
+
+## 📅 2026-07-10 — Module: Admin compact mode fix (sidebars now shrink)
+
+### Summary
+Fixed the compact mode so the left rail, left drawer, and right panel actually shrink. The root cause was that derived CSS variables (`--admin-rail-width`, `--admin-right-panel-width`, etc.) were defined on `:root` and resolved with `--admin-ui-scale: 1` there, so descendants inherited already-default values. Moved the `admin-compact` class to `document.documentElement` via a `useEffect` so `:root` variables resolve with the correct scale.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `useEffect` that toggles `admin-compact` on `<html>`; removed the class from the dashboard `<div>`. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Playwright computed-style check confirms compact widths: rail `~57.6px`, right panel `567px`.
+- Screenshots at `temp_screenshots/compact-verify/` show both sidebars narrower in compact mode.
+
+fix: apply compact scale to :root so sidebars shrink
+- Moved `admin-compact` class from the dashboard `<div>` to `document.documentElement`.
+- This makes `:root`-derived variables (`--admin-rail-width`, `--admin-drawer-width`, `--admin-right-panel-width`) resolve with `--admin-ui-scale: 0.9` instead of inheriting the default `1` values.
+- Verified rail, drawer, and right panel now shrink alongside the top bar.
+
+---
+
+
+## 📅 2026-07-10 — Module: Fix compact-mode inner drawer clipping + DOM cleanup
+
+### Summary
+Fixed the internal update/evidence drawer clipping in compact mode by making it fill the sidebar width instead of forcing `630px`. Also added a `useEffect` cleanup so the `admin-compact` class is removed from `<html>` when `DashboardLayout` unmounts, preventing the login page from inheriting compact styles after logout.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/styles/incident-detail.css` | `.id-drawer` width changed from `630px` to `100%` so it fills the parent sidebar in both normal and compact modes. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added cleanup function to the compact-mode `useEffect` to remove `admin-compact` from `document.documentElement` on unmount. |
+| `scripts/screenshot-admin-compact.mjs` | Now opens an update drawer before capturing screenshots to verify no clipping occurs. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, and `npm run build:superadmin-web` all pass.
+- Admin-web restarted cleanly on `http://localhost:5174`.
+- Playwright screenshots at `temp_screenshots/compact-verify/` show the update drawer fully contained in both normal and compact modes.
+
+fix: prevent inner drawer clipping in compact mode and clean up html class
+- `.id-drawer` now uses `width: 100%` so it matches the sidebar width (630px normal, 567px compact).
+- Added `useEffect` cleanup to remove `admin-compact` from `<html>` when the dashboard unmounts.
+- Verified all three frontend builds pass and the drawer renders correctly in screenshots.
+
+---
+
+
+## 📅 2026-07-10 — Module: Fix Power Search blank screen in compact mode
+
+### Summary
+Opening Power Search in compact mode threw `ReferenceError: iconSize is not defined` and blanked the screen. The `iconSize` helper was defined inside the main `PowerSearchPanel` component, but `TopBar`, `ActiveChipsBar`, `FilterRail`, and `ResultsRail` are module-level components and couldn't access it. Removed the helper and reverted icon size scaling in Power Search (icons stay their default sizes), which fixes the crash.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/PowerSearchPanel/PowerSearchPanel.jsx` | Removed the inline `iconSize` helper and all `iconSize(N)` calls, reverting Lucide icon sizes to plain numbers. |
+
+### Verification
+- `npm run build:admin-web` passes.
+- Admin-web restarted cleanly on `http://localhost:5174`.
+- Playwright check confirms Power Search opens without JavaScript errors.
+
+fix: resolve iconSize ReferenceError in Power Search
+- `iconSize` was scoped to the main component but used in module-level sub-components.
+- Reverted icon scaling in Power Search to prevent the crash.
+- Power Search now renders correctly in both normal and compact modes.
+
+---
+
+
+## 📅 2026-07-10 — Module: Collapsible right sidebar in admin map workspace
+
+### Summary
+The right panel (incident detail, zone detail, zone editor, and create/edit forms) in the admin dashboard could not be collapsed. Focus mode only hid the left rail/drawer, leaving the right sidebar in place. Added a collapse chevron to every right-panel variant and made focus mode collapse the right panel too, restoring its previous state when focus mode exits.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `rightPanelCollapsed` state, `toggleRightPanel` / `toggleFocusMode` helpers, auto-expand on new panels, collapse button inside the right panel, and a floating expand handle on the right edge when collapsed. |
+| `scripts/screenshot-right-panel-collapse.mjs` | New Playwright verification script covering open, collapse, expand, focus-mode collapse, and focus-mode restore. |
+
+### Behavior
+- A `>` collapse button now sits at the top-right of every open right panel.
+- When collapsed, a vertical `<` handle appears on the right edge of the map; clicking it reopens the panel.
+- Activating Focus mode collapses the right panel; exiting Focus mode restores whatever collapsed state it had before.
+- Opening a new panel (select incident, create incident, create/edit zone) auto-expands the right panel unless Focus mode is active.
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web restarted on `http://localhost:5174`.
+- Playwright screenshots saved to `temp_screenshots/right-panel-collapse-verify/`.
+
+feat: make admin-web right sidebar collapsible
+- Added collapse/expand controls for the right detail/form panel.
+- Focus mode now collapses the right sidebar and restores it on exit.
+- Works for incident detail, zone detail, zone editor, and create/edit forms.
+
+---
+
+
+## 📅 2026-07-10 — Module: Polish right-sidebar collapse button and remove zone back bar
+
+### Summary
+The collapse button added to the admin right panel was creating a blank top row in incident sidebars, and the zone detail sidebar still showed a useless "Back to results" bar. Removed the zone back bar entirely and repositioned the collapse button as a small floating glassy pill that sits over the panel content instead of pushing it down.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/zone/ZoneDetailSidebar.jsx` | Removed the `zone-back-bar` / "Back to results" markup and the unused `ArrowLeft` import. |
+| `src/shared/components/zone/ZoneTrial.css` | Removed `.zone-back-bar`, `.zone-back-button`, and their light-mode styles. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Removed the `paddingTop` strip on the right panel and restyled the collapse button as a smaller, glassy absolute-positioned pill. |
+| `scripts/screenshot-right-panel-collapse.mjs` | Added zone detail checks (skipped if no polygon data is present). |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots saved to `temp_screenshots/right-panel-collapse-verify/` confirm the incident detail panel no longer has a blank top row, the collapse button is a small floating pill, and focus mode still collapses the panel.
+
+style: polish right-panel collapse button and remove zone back bar
+- Removed the useless "Back to results" bar from `ZoneDetailSidebar`.
+- Repositioned the right-panel collapse button as a small floating glassy pill.
+- No more blank top row pushing incident/zone content down.
+
+---
+
+
+## 📅 2026-07-10 — Module: Align right-panel collapse button with each sidebar header
+
+### Summary
+The generic floating collapse button looked out of place and overlapped content. Replaced it with context-aware collapse buttons that live inside each sidebar's natural header row:
+- Incident detail: button sits at the right end of the badge/tag row, vertically centered with the tags.
+- Zone detail: button sits at the right end of the zone badge row, aligned with the tags.
+- Create incident / create zone / edit zone: button sits on the same line as the "Create incident" / "Create zone" / "Edit zone" heading.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/RightPanelCollapseButton.jsx` | New small glassy collapse pill shared by all sidebars. |
+| `src/shared/index.js` | Exported `RightPanelCollapseButton`. |
+| `src/shared/components/incident-detail/SummaryCard.jsx` | Added optional `rightAction` prop rendered at the end of the tag row. |
+| `src/shared/components/incident-detail/IncidentDetailSidebar.jsx` | Added `onCollapse` prop and passed the collapse button into `SummaryCard`. |
+| `src/shared/components/zone/ZoneDetailSidebar.jsx` | Added `onCollapse` prop and rendered the collapse button inside the zone badge row. |
+| `src/shared/components/zone/ZoneEditorSidebar.jsx` | Added `onCollapse` prop and placed the collapse button on the same line as the heading. |
+| `src/admin-web/src/components/CreateIncidentSidebar/CreateIncidentSidebar.jsx` | Added `onCollapse` prop and placed the collapse button on the "Create incident" heading line. |
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | Added `onCollapse` prop and placed the collapse button on the form heading line. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Removed the generic absolute collapse button and passes `onCollapse={toggleRightPanel}` to every panel component. The collapsed expand handle remains. |
+| `scripts/screenshot-right-panel-collapse.mjs` | Updated to verify incident detail, zone detail, create incident, and create zone collapse alignment (creates and cleans up a temporary polygon zone). |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots saved to `temp_screenshots/right-panel-collapse-verify/` show the collapse button aligned with tags/headings in all tested panels.
+
+style: integrate collapse button into each sidebar header row
+- Incident, zone, create/edit sidebars now render the collapse button in their natural header.
+- Removed the generic floating pill that overlapped content.
+- Collapse button looks consistent and aligned across all panel types.
+
+---
+
+
+## 📅 2026-07-10 — Module: Keep collapse button with the tag group in incident/zone sidebars
+
+### Summary
+When the domain/category name was short, `margin-left: auto` pushed the collapse button far to the right, leaving a big empty gap and making it look like the button was on its own row. Removed the auto-margin so the button sits directly after the last tag, traveling with the tag group as one unit.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/incident-detail/SummaryCard.jsx` | Removed the `margin-left: auto` wrapper around `rightAction`; the collapse button now follows the last tag. |
+| `src/shared/components/zone/ZoneDetailSidebar.jsx` | Removed the `margin-left: auto` wrapper around the zone collapse button; it now follows the last badge. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots in `temp_screenshots/right-panel-collapse-verify/` show the collapse button sitting right next to the tags in both incident and zone sidebars.
+
+style: make collapse button part of the tag row
+- Removed far-right auto-margin so the button no longer looks isolated when tags are short.
+- Button now follows the last tag/badge and wraps with the group naturally.
+
+---
+
+
+## 📅 2026-07-10 — Module: Add panel header strip to incident sidebar
+
+### Summary
+To follow the conventional pattern used by major apps, added a thin panel header strip to the incident detail sidebar only. The collapse button now lives in the header (top-right), separate from the tags. Tags are free to wrap naturally below the header. If this looks good, the same pattern can be applied to the zone detail and create/edit sidebars.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/incident-detail/IncidentDetailSidebar.jsx` | Added a thin header strip with a view label and the collapse button; removed the inline collapse button from the tag row. |
+
+### Notes
+- The "Admin" tag in the tag row is a view-mode indicator based on the `mode` prop; it simply signals that the sidebar is rendered in the admin/superadmin context. It is unrelated to the incident itself. With the new "Admin view" header label, that tag is now redundant.
+- Screenshot saved to `temp_screenshots/right-panel-collapse-verify/01-incident-detail.png`.
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+
+feat: add panel header strip with collapse button to incident sidebar
+- Collapse button is now in a conventional top header strip.
+- Tags are no longer mixed with the collapse control.
+- Zone and create/edit sidebars still use the previous inline button until we confirm this direction.
+
+---
+
+
+## 📅 2026-07-10 — Module: Apply header strip to all admin sidebars and remove Admin/Superadmin tag
+
+### Summary
+Rolled out the panel header strip pattern to every admin-web right-panel variant: incident detail, zone detail, create/edit zone, create incident, and edit incident. The collapse button is now consistently at the top-right of the panel chrome. Also removed the redundant `Admin` / `Superadmin` view-mode badge from the incident tag row.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/incident-detail/SummaryCard.jsx` | Removed the `Admin` / `Superadmin` role badge from the tag row. |
+| `src/shared/components/incident-detail/IncidentDetailSidebar.jsx` | Header strip already present; no other change. |
+| `src/shared/components/zone/ZoneDetailSidebar.jsx` | Added header strip with collapse button; removed inline zone badge-row button. |
+| `src/shared/components/zone/ZoneEditorSidebar.jsx` | Styled the existing form header as a header strip. |
+| `src/admin-web/src/components/CreateIncidentSidebar/CreateIncidentSidebar.jsx` | Styled the form header as a header strip. |
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | Styled the form header as a header strip. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots in `temp_screenshots/right-panel-collapse-verify/` show consistent header strips across incident detail, zone detail, create incident, and create zone panels. The Admin tag is gone.
+
+feat: consistent header strips and remove Admin tag from sidebars
+- All admin right-panel sidebars now have a top header strip with the collapse button.
+- Removed the redundant Admin/Superadmin view badge from incident tag rows.
+
+---
+
+## 📅 2026-06-27 — Fix: Separate thin header strips for create/edit sidebars
+
+### Summary
+The incident/zone detail sidebars already had a thin top header with the collapse button, but the **Create Incident**, **Create Zone**, and **Edit Incident** sidebars still embedded the collapse button inside the title row, causing clipping and inconsistent alignment. Extracted the collapse button into its own thin top header strip in the remaining sidebars.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/IncidentForm/IncidentForm.jsx` | Added a thin top header strip with `RightPanelCollapseButton`; removed the button from the `h3` title row and removed the title row's bottom border. |
+| `src/shared/components/zone/ZoneEditorSidebar.jsx` | Added a thin top header strip with `RightPanelCollapseButton`; removed the button and inline flex styles from the `zone-create-header` block. |
+| `scripts/verify-right-panel-collapse.mjs` | Added Playwright verification script that logs into admin-web, opens the create-incident and create-zone panels, and screenshots the right panel. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web restarted cleanly on `http://localhost:5174`.
+- Playwright screenshots saved to `temp_screenshots/right-panel-collapse-verify/admin-create-incident.png` and `admin-create-zone.png` show the collapse button in a separate top header strip, matching incident/zone detail sidebars.
+
+feat: separate thin header strips for create/edit sidebars
+- Extracted right-panel collapse button into its own top header strip in `IncidentForm` and `ZoneEditorSidebar`.
+- Added a Playwright verification script for create-incident and create-zone panels.
+
+---
+
+## 📅 2026-06-27 — Fix: Collapse header strip clipping/oversizing in create sidebars
+
+### Summary
+The create-incident and create-zone sidebars looked wrong because the thin collapse-header strip was rendered **inside** the scrollable content container. That container had `padding: 20px` / `28px`, which pushed the header down, made the top area look oversized, and caused the collapse button to be clipped/misaligned in the zone panel. Moved the header strip outside the scroll container and removed only the top padding from the scroll area when the sidebar is rendered inside the admin dashboard right panel.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/CreateIncidentSidebar/CreateIncidentSidebar.jsx` | Moved the `RightPanelCollapseButton` header strip outside `.id-create-panel__scroll`; set scroll padding to `0 20px 20px` (scaled) when `onCollapse` is present; reduced title-header vertical padding. |
+| `src/shared/components/zone/ZoneEditorSidebar.jsx` | Moved the `RightPanelCollapseButton` header strip outside `.zone-create-form__scroll`; set scroll padding to `0 28px 28px` (scaled) when `onCollapse` is present; reduced `.zone-create-header` bottom margin and added a small top padding. |
+
+### Root Cause
+Both create sidebars were following the same pattern as the detail sidebars, but the detail sidebars keep the header strip **outside** `.id-sidebar__scroll`. The create sidebars had the strip **inside** their padded scroll container, so the container's top padding doubled the header height and the button could be clipped by the scroll boundary.
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web restarted cleanly on `http://localhost:5174`.
+- Playwright screenshots in `temp_screenshots/right-panel-collapse-verify/admin-create-incident.png` and `admin-create-zone.png` now show a thin, flush top header strip matching the incident/zone detail sidebars, with no clipping.
+
+fix: move create sidebar collapse headers outside padded scroll
+- Eliminates oversized top header in create-incident panel.
+- Eliminates collapse-button clipping in create-zone panel.
+
+---
+
+## 📅 2026-06-27 — Feat: Auto-expand right sidebar on incident/zone/create actions
+
+### Summary
+When the right sidebar was collapsed, clicking an incident/zone or starting a create action left the panel collapsed. Focus mode also forcibly collapsed the panel and then blocked auto-expansion. Removed the blanket focus-mode suppression and explicitly expand the right panel in every user-facing action that opens a detail, form, or create panel.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Removed the `useEffect` that only expanded the panel when `isPanelOpen` transitioned and excluded focus mode. Added `setRightPanelCollapsed(false)` to `handleEventClick`, `handleZoneClick`, `handleSearchSelect`, `handlePowerSearchSelect`, `handleSelectFromActivity`, `handleMapDblClick`, `handleAddIncident`, `finishCreateIncident`, `handleSubmit`, `handleEditZone`, `handleZoneInfoEdit`, `handleZoneEditCancel`, `handleZoneEditSubmit`, `handleZoneCreateSubmit`, the zone deep-link restore effect, and the drawing-toolbar "Save" action that reveals the create-zone form. Also expanded the context-menu "Edit Incident" action. |
+| `scripts/verify-collapse-auto-open.mjs` | Added Playwright verification that clicks an incident marker while collapsed, in focus mode, and double-clicks to create an incident in focus mode, confirming the right panel auto-opens. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots saved:
+  - `temp_screenshots/right-panel-collapse-verify/admin-click-incident-while-collapsed.png`
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-incident.png`
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-create-incident.png`
+
+feat: auto-expand right sidebar on incident/zone/create actions
+- Right panel now opens automatically when collapsed and user selects an incident, zone, or starts creation.
+- Auto-expansion also works while focus mode is active.
+
+---
+
+## 📅 2026-06-27 — Feat: Focus mode keeps rail, auto-exits on sidebar actions
+
+### Summary
+Two focus-mode tweaks:
+1. In focus mode only the left **drawer** is hidden; the left **rail icon bar** now stays visible.
+2. Any action that opens a sidebar (selecting an incident/zone, creating an incident/zone, editing, opening a left drawer via rail icon, etc.) now automatically turns focus mode off and performs the requested action.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `exitFocusMode` and `handleDrawerSelect` helpers. Changed `WorkspaceRail` render condition from `!powerSearchMode && !focusMode` to `!powerSearchMode` so the rail stays in focus mode. Wired `exitFocusMode()` into every action that opens a detail/form/create panel or the left drawer. Focus-mode toggle still saves/restores the right-panel collapsed state. |
+| `scripts/verify-focus-mode-tweaks.mjs` | New Playwright verification confirming the rail stays visible in focus mode, clicking a rail icon opens the drawer and exits focus mode, and clicking an incident exits focus mode and opens the detail panel. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots saved:
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-rail-visible.png`
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-drawer-opens-and-exits.png`
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-incident-exits.png`
+
+feat: focus mode keeps rail visible and auto-exits on sidebar actions
+- Left rail icon bar remains visible in focus mode.
+- Selecting content, creating items, or opening a drawer automatically exits focus mode.
+
+---
+
+## 📅 2026-06-27 — Feat: Focus mode only opens the triggered sidebar; rail stays visible
+
+### Summary
+Refined focus-mode behavior so it behaves like a true "clean map" toggle:
+1. Focus mode hides the left **drawer** and right **panel**, but the left **rail icon bar** stays visible.
+2. Clicking the focus button again restores both sidebars to their pre-focus state.
+3. Any action that opens a sidebar (incident/zone selection, create/edit, rail icon click, top-bar actions, etc.) now turns focus mode off, but **only the sidebar directly triggered by that action opens**. The other sidebar stays closed.
+
+Also fixed a stale-closure bug in `AdminMap`: marker and zone click listeners were capturing the first `onEventClick`/`onZoneClick` callbacks, so auto-exit focus mode didn't work for map clicks. Added refs so listeners always call the latest callbacks.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Moved `activeDrawer`, `focusMode`, `rightPanelCollapsed`, `exitFocusMode`, and `handleDrawerSelect` declarations before any effect/callback that uses them. Changed `WorkspaceRail` render condition to keep the rail visible in focus mode. Rewrote `exitFocusMode` so it only clears `focusMode` and `activeDrawer` (no restoration of the other sidebar). Wired `exitFocusMode()` into all sidebar-opening actions and added it to their `useCallback`/`useEffect` dependency arrays. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `onEventClickRef` and `onZoneClickRef`, kept them current on every render, and used them in marker/zone click listeners to avoid stale closures. |
+| `scripts/verify-focus-mode-tweaks.mjs` | Updated Playwright verification to open both sidebars, enter focus mode, then confirm that opening the left drawer only shows the drawer, and clicking an incident marker only shows the right panel. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots saved:
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-both-hidden.png`
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-only-drawer-opens.png`
+  - `temp_screenshots/right-panel-collapse-verify/admin-focus-mode-only-right-opens.png`
+
+feat: focus mode only opens triggered sidebar, keep rail visible
+- Rail icon bar remains visible in focus mode.
+- Focus button toggles both sidebars on/off.
+- Auto-exit actions open only the sidebar they trigger.
+- Fixed stale callback refs for map marker/zone clicks.
+
+---
+
+## 📅 2026-06-27 — Feat: Dynamic map centering + visible-area ghost banner in admin-web
+
+### Summary
+Implemented dynamic, layout-aware map centering and a properly-positioned ghost-incident banner in admin-web.
+
+**Map centering behavior**
+- Selecting a point incident or zone now centers it in the **visible map area** between whatever chrome is open (left rail/drawer, power-search panel, right detail panel).
+- The map no longer hard-zooms to 10; instead it nudges in by only **0.5 zoom levels** from the current zoom so the click feels responsive.
+- Zone click-selection now centers on the polygon centroid at the current zoom level (instead of fitting bounds and zooming way out).
+- Deep-linked, newly-created, and ghost zones still use `fitBounds`, but with padding that respects the visible map rectangle.
+
+**Ghost incident banner**
+- Moved the banner to the dashboard root so it floats above the power-search panel.
+- It is centered in the visible map area using the same layout padding calculation.
+- Extracted a shared `GhostIncidentBanner` component in `@shared/components/` for later reuse in user-web/superadmin-web.
+
+**Implementation details**
+- Added `src/admin-web/src/utils/mapPadding.js` with `computeMapPadding` (for the map viewport) and `computeOuterContainerPadding` (for floating overlays).
+- Lifted power-search `filterCollapsed`/`resultsCollapsed` state from `PowerSearchPanel` up to `DashboardLayout` so padding can use the exact left-hand width.
+- `AdminMap` now calls `map.resize()` before `flyTo`/`fitBounds` so MapLibre uses the current container size after layout changes.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/components/GhostIncidentBanner.jsx` | New shared banner component. |
+| `src/admin-web/src/utils/mapPadding.js` | New utility for layout-aware MapLibre padding. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `resize()` before flyTo/fitBounds; flyTo uses current zoom + 0.5 when no explicit zoom is passed; applies `padding` from props. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `psFilterCollapsed`/`psResultsCollapsed` state; added `getNextMapPadding`/`getZoneFitPadding`/`getBannerPadding` helpers; updated all incident/zone selection paths to pass padding; moved ghost banner to dashboard root with dynamic padding. |
+| `src/admin-web/src/components/PowerSearchPanel/PowerSearchPanel.jsx` | Lifted filter/results collapsed state to props so `DashboardLayout` can read exact widths. |
+| `scripts/verify-map-centering-and-banner.mjs` | New Playwright verification script with screenshots for right-panel-only, left-drawer+right-panel, no sidebars, power-search point/zone, and ghost banner. |
+
+### Verification
+- `npm run build:admin-web`, `npm run build:user-web`, `npm run build:superadmin-web` all pass.
+- Admin-web running on `http://localhost:5174`.
+- Playwright screenshots saved to `temp_screenshots/map-centering-verify/` confirming markers/zones center in the visible map area in every layout configuration.
+
+feat: dynamic visible-area map centering and ghost banner in admin-web
+- Point incidents center in visible map with +0.5 zoom nudge.
+- Zones center on centroid at current zoom.
+- Padding accounts for rail, drawer, power-search panel, and right panel.
+- Ghost banner floats at root, centered in visible map, above power search.
+
+---
+
+## 📅 2026-06-27 — Fix: Admin-web map selection zoom-lock and zone centroid behavior
+
+### Summary
+Finalized admin-web map selection behavior by enforcing a zoom lock around 5.0 and switching all zone-selection paths to centroid panning instead of fit-to-bounds.
+
+**Zoom-lock behavior**
+- Selecting a point incident or zone now follows a predictable zoom rule:
+  - If current zoom `< 5.0`, animate to `current + 0.5` (capped at 5.0).
+  - If current zoom `> 5.0`, smoothly pull back to 5.0.
+  - At exactly 5.0, subsequent clicks pan only.
+- This prevents jarring over-zooming on repeated clicks and keeps the map at a usable overview level.
+
+**Zone selection**
+- All zone-selection paths now fly to the polygon centroid with the same zoom-lock rule:
+  - Direct zone click on the map.
+  - Zone result click in Power Search.
+  - Focus-zone navigation from `ZonesPage`.
+  - `?zone=<id>` deep-link.
+  - Newly created zone.
+  - Ghost zone that is outside the current date range.
+- Removed the legacy `fitBounds` path for zones entirely.
+
+**First-click smoothness**
+- `AdminMap` already deferred `flyTo` one frame after `map.resize()`; the first-ever incident click now animates smoothly as the right panel slides in.
+- A dev-only `window.__geowatchAdminMap` exposure was added so verification scripts can read live zoom/center values.
+
+**Dead-code cleanup**
+- Removed `fitBounds` state, `setFitBounds` calls, `getZoneFitPadding` helper, and the `fitBounds` effect/prop from `AdminMap`.
+- Added a shared `getZoneCentroid(zone)` helper in `DashboardLayout`.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `getZoneCentroid` helper; converted focus-zone, deep-link, ghost-zone, and create-zone flows from `fitBounds` to centroid `flyToCoords`; removed `fitBounds` state and `getZoneFitPadding`; updated dependency arrays. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added dev-only `window.__geowatchAdminMap` exposure; removed `fitBounds` prop and effect; flyTo zoom-lock logic remains. |
+| `scripts/verify-map-zoom-behavior.mjs` | New Playwright script that asserts point and zone clicks follow the zoom-lock rule, including high-zoom pullback and repeated-click cap. |
+| `scripts/verify-map-centering-and-banner.mjs` | Minor update to read zoom via `window.__geowatchAdminMap` when available. |
+
+### Verification
+- `npm run build:user-web`, `npm run build:admin-web`, `npm run build:superadmin-web` all pass.
+- `node scripts/verify-map-centering-and-banner.mjs` passes (marker/zone centering in all layouts).
+- `node scripts/verify-map-zoom-behavior.mjs` passes:
+  - First click from zoom 2.0 → 2.5.
+  - Repeated clicks nudge by 0.5 until locking at 5.0.
+  - High-zoom click (6.5) pulls back to 5.0.
+  - Zone selection follows the same nudge/lock rule.
+- Playwright screenshots and a screen-recording saved to `temp_screenshots/map-zoom-verify/`.
+
+```
+feat: admin-web map zoom-lock at 5.0 and zone centroid panning
+- Point/zone clicks nudge +0.5 below zoom 5, pull back to 5 above.
+- All zone selection paths use centroid flyTo instead of fitBounds.
+- Removed legacy fitBounds state/effect from DashboardLayout and AdminMap.
+```
+
+---
+
+---
+
+## 📅 2026-06-27 — Fix: Smooth right-panel opening and delayed flyTo for first-click map selection
+
+### Summary
+Eliminated the first-click "snap" in admin-web by animating the right detail panel's width while keeping it in the DOM, and by deferring the map `flyTo` until the CSS transition finishes.
+
+**Right-panel smooth open/close**
+- The right panel now stays mounted while collapsing and animates `width` + `opacity` over `250 ms` via CSS transitions.
+- A `rightPanelRendered`/`rightPanelVisible` state pair handles enter/exit so the panel is removed from the DOM only after the collapse animation completes.
+- This lets the surrounding flex container (and therefore the MapLibre canvas) resize smoothly instead of snapping instantly.
+
+**Delayed flyTo scheduling**
+- Added `scheduleFlyTo(coords, panelAlreadyOpen)` in `DashboardLayout`.
+- If the right panel is already open, the map flies immediately.
+- If the panel is opening, the flyTo is deferred by `RIGHT_PANEL_TRANSITION_MS` (`250 ms`) so the map animation starts after the layout transition finishes.
+- All point-incident and zone selection paths now use this scheduler.
+
+**Map integration**
+- `AdminMap` still calls `map.resize()` + `requestAnimationFrame` before `flyTo`.
+- The combined effect: panel slides in smoothly, the map container shrinks gracefully, then the selected marker/zone centroid pans/zooms into the visible area.
+
+**Verification**
+- All three frontend builds pass.
+- `scripts/verify-map-centering-and-banner.mjs` and `scripts/verify-map-zoom-behavior.mjs` still pass.
+- A screen recording in `temp_screenshots/map-zoom-verify/` confirms the first click now opens the panel and flies smoothly.
+
+**Zoom-lock policy note**
+- The existing zoom-lock rule (`+0.5` nudge below 5.0, pull back to 5.0 above) was intentionally left unchanged.
+- The user is evaluating alternative zoom policies; implementation is pending a decision.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `rightPanelRendered`/`rightPanelVisible` animation state; added `scheduleFlyTo` helper; replaced direct `setFlyToCoords` calls with `scheduleFlyTo`; right panel JSX now animates width/opacity with CSS transitions. |
+
+### Git Commit
+
+```
+fix(admin-web): smooth right-panel opening and defer flyTo until transition ends
+- Animate right panel width/opacity while keeping it in the DOM.
+- Delay flyTo by 250ms when the panel is opening.
+- Leave existing zoom-lock behavior unchanged pending decision.
+```
+
+---
+
+## 2026-06-27 — Harden admin-web zoom-behavior and right-panel verification scripts
+
+### Summary
+
+Refactored and re-ran the admin-web verification scripts after the recent map selection behavior changes. The scripts now exercise the actual production selection paths (map click, Power Search result click) rather than relying on SVG overlay visibility, and the right-panel animation test was made less timing-sensitive.
+
+### What changed
+
+**`scripts/verify-map-zoom-behavior.mjs`**
+- Replaced fragile SVG-overlay selectors with centroid screen-projection and direct mouse clicks, plus Power Search result-title clicks.
+- Added `getFittingZoom()` helper that uses `map.cameraForBounds()` in the browser so expected zoom can be derived from the same algorithm the app uses.
+- Updated expectations to match the current selection rules:
+  - Map incident click → `currentZoom + 0.02`.
+  - Map small-zone click → `currentZoom + 0.02` (if it fits).
+  - Map big-zone click → fit exactly.
+  - Power Search incident → zoom `7`.
+  - Power Search zone → `6` if it fits at zoom `6`, otherwise dynamic fit.
+- Fixed missing `await` on `clickFirstMarker()` calls.
+
+**`scripts/verify-right-panel-animation.mjs`**
+- Increased measurement window and reduced sample interval so transient frame drops no longer fail an otherwise-smooth transition.
+- Now reliably captures ~19 frames with 8–10 unique width steps.
+
+### Verification results
+
+```
+verify-map-zoom-behavior.mjs:        Overall PASS
+verify-right-panel-animation.mjs:    Overall PASS (3 consecutive runs)
+verify-map-centering-and-banner.mjs: PASS
+npm run build:admin-web:             PASS
+```
+
+### Notes
+
+- The largest seeded zone (`NONO FLY`) fits comfortably at zoom `6`, so Power Search selection correctly stays at zoom `6` rather than zooming out further. This matches the implemented rule "use zoom 6 when the zone fits there."
+- Backend login rate limiting can still cause consecutive test runs to time out; this is a known infrastructure issue and not addressed here.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `scripts/verify-map-zoom-behavior.mjs` | Robust zone selection via centroid projection; expectations match current map selection rules; added fitting-zoom helper. |
+| `scripts/verify-right-panel-animation.mjs` | Longer measurement window and tighter sampling for reliable smooth-animation detection. |
+
+### Git Commit
+
+```
+chore(admin-web): harden map zoom and right-panel verification scripts
+- Use centroid projection and result-title clicks instead of SVG visibility.
+- Derive expected zone zoom from cameraForBounds in the browser.
+- Relax right-panel animation sampling so timing jitter does not fail passes.
+- Build passes; all verification scripts pass.
+```
+
+---
+
+## 2026-06-27 — Fix admin-web black flash and reverse zone zoom logic
+
+### Summary
+
+Implemented **Option A** for the right-panel animation so the MapLibre canvas never resizes during the slide-in, eliminating the black flash on first click. Also corrected the zone selection zoom logic so small zones cap at zoom `6` and large zones zoom out below `6` to fit comfortably.
+
+### What changed
+
+**`src/admin-web/src/utils/mapPadding.js`**
+- `computeMapPadding` now accepts `isPanelOpen` and `rightPanelCollapsed` and returns `right` padding equal to the panel width when open.
+- This is required because the panel is now an absolute overlay; the physical map container no longer shrinks.
+
+**`src/admin-web/src/components/Layout/DashboardLayout.jsx`**
+- `getNextMapPadding` passes panel state into `computeMapPadding`.
+- Right panel is now `position: absolute` with `transform: translateX(100%) → translateX(0)` animation instead of a `width` transition.
+- Removed the map container's dynamic `borderRight`.
+- Power Search mode uses `top` offset so the panel sits below the PS top bar + chips bar.
+
+**`src/admin-web/src/components/Map/AdminMap.jsx`**
+- Zone selection logic corrected:
+  - Non-map source: `targetZoom = Math.min(6, computeFittingZoom(bounds))`.
+  - Map click: nudge `+0.02` if it fits, otherwise fit exactly (can go below 6).
+- Added `maxZoom: 22` to `cameraForBounds` calls and a no-padding fallback for the cases where MapLibre returns null with heavy padding.
+
+**`scripts/verify-right-panel-animation.mjs`**
+- Now validates the transform slide and confirms the map canvas width stays constant (no resize / no black flash).
+
+**`scripts/verify-map-zoom-behavior.mjs`**
+- Updated expectations: big zones must end up below zoom `6`; small zones cap at `6`.
+
+**`scripts/verify-map-centering-and-banner.mjs`**
+- Visible map center now accounts for the absolute right-panel overlay.
+
+### Verification results
+
+```
+verify-map-zoom-behavior.mjs:        Overall PASS
+verify-right-panel-animation.mjs:    Overall PASS
+verify-map-centering-and-banner.mjs: PASS
+npm run build:admin-web:             PASS
+npm run build:user-web:              PASS
+npm run build:superadmin-web:        PASS
+```
+
+Sample verified zooms:
+- Power Search big zone (`NONO FLY`): `2.914`
+- Map click big zone (`NONO FLY`): `2.670`
+- Power Search small zone: capped at `6.000`
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/utils/mapPadding.js` | Right panel width exposed as map padding. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Absolute transform-based right panel; map padding wired through. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Corrected zone zoom logic; robust cameraForBounds fallback. |
+| `scripts/verify-right-panel-animation.mjs` | Validate transform + constant canvas width. |
+| `scripts/verify-map-zoom-behavior.mjs` | Expect big zones to zoom below 6. |
+| `scripts/verify-map-centering-and-banner.mjs` | Visible center accounts for absolute panel overlay. |
+| `commit.md` / `handoff.md` | Updated project state. |
+
+### Git Commit
+
+```
+fix(admin-web): eliminate first-click black flash and correct zone zoom logic
+- Animate right panel with transform: translateX so the map canvas never resizes.
+- Add right-panel width as MapLibre padding so flyTo targets the visible area.
+- Cap small zones at zoom 6; zoom large zones out below 6 to fit.
+- Harden cameraForBounds with maxZoom and no-padding fallback.
+- Update verification scripts and all frontend builds pass.
+```
+
+---
+
+## 📅 2026-06-27 — Module: Universal Zone Comfort-Fit + Auto-Zoom Toggle
+
+### Summary
+Unified admin-web zone zoom behavior to a comfort-fit rule with sane clamps, and added a user-controlled "Auto-zoom on selection" toggle in the workspace Settings drawer.
+
+### Behavior Changes
+
+- **Comfort-fit rule for zones**: every zone selection (map click, Power Search, drawer, notification, deep-link) now computes a fit with a 30% viewport margin, then clamps the result to `[4, 14]`.
+  - Tiny zones no longer zoom to street level; they cap at zoom 14.
+  - Huge zones still zoom out to fit instead of being forced to an arbitrary cap.
+- **Map-click nudge preserved**: clicking a zone that already fits at `currentZoom + 0.02` still nudges slightly so repeated clicks feel responsive.
+- **Incident zoom unchanged**: non-map selections still fly to zoom 7; map clicks still nudge `+0.02`.
+- **Auto-zoom toggle**: users can disable auto-zoom in Settings. When disabled, selections only pan to the feature center and preserve the current zoom level. Deep-links ignore the toggle and always comfort-fit (explicit navigation intent).
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | Added `autoZoomEnabled` prop; replaced split zone zoom logic with universal comfort-fit clamps. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | Added `autoZoomEnabled` state persisted to `localStorage`; passed to map and drawer. |
+| `src/admin-web/src/components/MapWorkspace/WorkspaceDrawer.jsx` | Added auto-zoom toggle switch in Settings drawer. |
+| `scripts/verify-map-zoom-behavior.mjs` | Updated expectations for comfort-fit clamps; added auto-zoom OFF verification. |
+
+### Verification
+
+- `npm run build:admin-web` ✅
+- `npm run build:user-web` ✅
+- `npm run build:superadmin-web` ✅
+- `node scripts/verify-right-panel-animation.mjs` ✅
+- `node scripts/verify-map-centering-and-banner.mjs` ✅
+- `node scripts/verify-map-zoom-behavior.mjs` ✅
+
+Sample verified zooms:
+- Power Search small zone: `14.000` (clamped to max)
+- Power Search big zone (`NONO FLY`): `4.000`
+- Map click big zone (`NONO FLY`): `4.000`
+- Auto-zoom OFF marker click: preserves manual zoom `5.000`
+
+### Git Commit
+
+```
+feat(admin-web): universal zone comfort-fit and auto-zoom toggle
+- Apply 30% comfort margin + [4, 14] zoom clamps to all zone selections.
+- Preserve +0.02 nudge when clicking a zone that already fits.
+- Add Settings drawer toggle to disable auto-zoom; deep-links still fit.
+- Update verify-map-zoom-behavior.mjs and pass all builds/verifications.
+```
+
+---
+
+## 📅 2026-06-27 — Module: Tune Zone Comfort-Fit & Incident Nudge
+
+### Summary
+Tweaked the admin-web map selection behavior based on user feedback: zones now get more breathing room, point incident map clicks nudge a bit harder, and the auto-zoom toggle was verified to work for zones from all sources.
+
+### Behavior Changes
+
+- **Zone comfort margin increased by 50%**: `ZONE_COMFORT_FACTOR` changed from `0.7` to `0.55`, so zones now occupy ~55% of the visible viewport (45% margin) instead of 70%.
+- **Incident map-click nudge increased**: point incident map clicks now nudge `+0.05` instead of `+0.02`.
+- **Auto-zoom toggle verified for zones**: confirmed the toggle correctly preserves manual zoom for zones selected from the map, Power Search, and (by code path) drawer/notifications. Deep-links still ignore the toggle and comfort-fit.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Map/AdminMap.jsx` | `ZONE_COMFORT_FACTOR` 0.7 → 0.55; incident map-click nudge 0.02 → 0.05. |
+| `scripts/verify-map-zoom-behavior.mjs` | Updated incident nudge expectations; added zone auto-zoom OFF tests for map click and Power Search. |
+
+### Verification
+
+- `npm run build:admin-web` ✅
+- `npm run build:user-web` ✅
+- `npm run build:superadmin-web` ✅
+- `node scripts/verify-right-panel-animation.mjs` ✅
+- `node scripts/verify-map-centering-and-banner.mjs` ✅
+- `node scripts/verify-map-zoom-behavior.mjs` ✅
+
+Sample verified values:
+- Map incident click: `3.050` (was `3.020`)
+- Map incident second click: `3.100` (was `3.040`)
+- Power Search small zone: `14.000`
+- Power Search big zone (`NONO FLY`): `4.000`
+- Auto-zoom OFF point incident: preserves `5.000`
+- Auto-zoom OFF map-click zone: preserves `5.000`
+- Auto-zoom OFF Power Search zone: preserves `5.000`
+
+### Git Commit
+
+```
+feat(admin-web): tune zone comfort-fit and incident nudge
+- Increase zone comfort margin by 50% (COMFORT_FACTOR 0.7 -> 0.55).
+- Increase point incident map-click nudge from +0.02 to +0.05.
+- Verify auto-zoom toggle preserves zoom for zones from map and Power Search.
+- All builds and verification scripts pass.
+```
+
+---

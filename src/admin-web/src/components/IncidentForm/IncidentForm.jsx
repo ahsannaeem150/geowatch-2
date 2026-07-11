@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { Button } from '@shared/components/Button.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import { useCategories } from '@shared/hooks/useCategories.js';
+import RightPanelCollapseButton from '@shared/components/RightPanelCollapseButton.jsx';
 
 export default function IncidentForm({
   initialCoords,
@@ -10,6 +11,7 @@ export default function IncidentForm({
   onSubmit,
   onCancel,
   submitting,
+  onCollapse,
 }) {
   const isEdit = !!initialData;
   const { categories, domains, loading: catsLoading, getCategoryById, getCategoriesByDomain } = useCategories();
@@ -132,22 +134,22 @@ export default function IncidentForm({
     background: 'var(--bg-input)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 'var(--radius-sm)',
-    padding: '10px 12px',
+    padding: 'calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
     color: 'var(--text-primary)',
     fontFamily: 'var(--font-sans)',
-    fontSize: '13px',
+    fontSize: 'calc(13px * var(--admin-ui-scale))',
     outline: 'none',
     width: '100%',
     transition: 'border-color 0.15s ease',
   };
 
   const labelBase = {
-    fontSize: '11px',
+    fontSize: 'calc(11px * var(--admin-ui-scale))',
     color: 'var(--text-muted)',
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: '0.8px',
-    marginBottom: '6px',
+    marginBottom: 'calc(6px * var(--admin-ui-scale))',
     display: 'block',
   };
 
@@ -155,21 +157,40 @@ export default function IncidentForm({
     background: 'var(--bg-elevated)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 'var(--radius-lg)',
-    padding: '16px',
+    padding: 'calc(16px * var(--admin-ui-scale))',
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-        <div style={{ width: '3px', height: '20px', background: 'var(--accent)', borderRadius: '2px' }} />
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-          {isEdit ? 'Edit Incident' : 'Create New Incident'}
-        </h3>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'calc(16px * var(--admin-ui-scale))' }}>
+      {onCollapse && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            height: 'calc(38px * var(--admin-ui-scale))',
+            padding: '0 calc(16px * var(--admin-ui-scale))',
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <RightPanelCollapseButton onClick={onCollapse} />
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))', padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))', marginBottom: 'calc(4px * var(--admin-ui-scale))' }}>
+        <div style={{ width: 'calc(3px * var(--admin-ui-scale))', height: 'calc(20px * var(--admin-ui-scale))', background: 'var(--accent)', borderRadius: '2px' }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ margin: 0, fontSize: 'calc(16px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>
+            {isEdit ? 'Edit Incident' : 'Create New Incident'}
+          </h3>
+        </div>
       </div>
 
       {/* Core Info */}
       <div style={sectionBox}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(14px * var(--admin-ui-scale))' }}>
           <div>
             <label style={labelBase}>Incident Title</label>
             <input
@@ -203,7 +224,7 @@ export default function IncidentForm({
       {/* Location */}
       <div style={sectionBox}>
         <label style={labelBase}>Coordinates</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'calc(12px * var(--admin-ui-scale))' }}>
           <input
             type="number"
             step="any"
@@ -230,24 +251,24 @@ export default function IncidentForm({
         {/* Location context badge */}
         <div
           style={{
-            marginTop: '8px',
-            padding: '8px 12px',
+            marginTop: 'calc(8px * var(--admin-ui-scale))',
+            padding: 'calc(8px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
             background: locationContext ? 'var(--accent-subtle-bg)' : 'var(--bg-deep)',
             border: `1px solid ${locationContext ? 'var(--accent-subtle-border)' : 'var(--border-subtle)'}`,
             borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: 'calc(8px * var(--admin-ui-scale))',
             minHeight: '36px',
           }}
         >
-          <span style={{ fontSize: '13px' }}>📍</span>
+          <span style={{ fontSize: 'calc(13px * var(--admin-ui-scale))' }}>📍</span>
           {locationLoading && !locationContext ? (
             <span
               style={{
                 display: 'inline-block',
-                width: '14px',
-                height: '14px',
+                width: 'calc(14px * var(--admin-ui-scale))',
+                height: 'calc(14px * var(--admin-ui-scale))',
                 border: '2px solid var(--border-subtle)',
                 borderTopColor: 'var(--accent-light)',
                 borderRadius: '50%',
@@ -255,23 +276,23 @@ export default function IncidentForm({
               }}
             />
           ) : locationContext ? (
-            <span style={{ fontSize: '12px', color: 'var(--accent-light)', fontWeight: 500 }}>
+            <span style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--accent-light)', fontWeight: 500 }}>
               {locationContext}
             </span>
           ) : (
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            <span style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--text-muted)', fontStyle: 'italic' }}>
               Locating...
             </span>
           )}
         </div>
-        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+        <p style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-muted)', marginTop: 'calc(6px * var(--admin-ui-scale))' }}>
           Double-click the map to auto-fill coordinates
         </p>
       </div>
 
       {/* Classification */}
       <div style={sectionBox}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'calc(12px * var(--admin-ui-scale))' }}>
           <div>
             <label style={labelBase}>Domain</label>
             <select
@@ -301,7 +322,7 @@ export default function IncidentForm({
             </select>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'calc(12px * var(--admin-ui-scale))', marginTop: 'calc(12px * var(--admin-ui-scale))' }}>
           <div>
             <label style={labelBase}>Severity</label>
             <select
@@ -336,7 +357,7 @@ export default function IncidentForm({
 
       {/* Dates */}
       <div style={sectionBox}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'calc(12px * var(--admin-ui-scale))' }}>
           <div>
             <label style={labelBase}>Start Date & Time</label>
             <input
@@ -370,7 +391,7 @@ export default function IncidentForm({
             style={inputBase}
           />
           {heroImageFile && (
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+            <p style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(8px * var(--admin-ui-scale))' }}>
               Selected: {heroImageFile.name}
             </p>
           )}
@@ -380,16 +401,16 @@ export default function IncidentForm({
       {/* Sources */}
       {!isEdit && (
         <div style={sectionBox}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'calc(12px * var(--admin-ui-scale))' }}>
             <label style={{ ...labelBase, marginBottom: 0 }}>Sources</label>
             <Button type="button" variant="ghost" size="sm" onClick={handleAddSource}>
               + Add Source
             </Button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(10px * var(--admin-ui-scale))' }}>
             {sources.map((src, i) => (
-              <div key={i} style={{ background: 'var(--bg-deep)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <div key={i} style={{ background: 'var(--bg-deep)', padding: 'calc(12px * var(--admin-ui-scale))', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', gap: 'calc(8px * var(--admin-ui-scale))', marginBottom: 'calc(8px * var(--admin-ui-scale))' }}>
                   <select
                     value={src.sourceType}
                     onChange={(e) => handleSourceChange(i, 'sourceType', e.target.value)}
@@ -411,7 +432,7 @@ export default function IncidentForm({
                     value={src.sourceUrl}
                     onChange={(e) => handleSourceChange(i, 'sourceUrl', e.target.value)}
                     placeholder="https://x.com/..."
-                    style={{ ...inputBase, marginBottom: '8px' }}
+                    style={{ ...inputBase, marginBottom: 'calc(8px * var(--admin-ui-scale))' }}
                   />
                 )}
                 <textarea
@@ -427,7 +448,7 @@ export default function IncidentForm({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+      <div style={{ display: 'flex', gap: 'calc(10px * var(--admin-ui-scale))', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>
         <Button type="submit" variant="primary" disabled={submitting || catsLoading}>
           {submitting ? 'Saving...' : isEdit ? 'Update Incident' : 'Create Incident'}
         </Button>

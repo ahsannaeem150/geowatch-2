@@ -73,7 +73,6 @@ const AdminMap = forwardRef(function AdminMap({
   onMapDblClick,
   onViewportChange,
   flyToCoords,
-  fitBounds,
   initialViewport,
   markerCoords,
   ghostIncident,
@@ -108,6 +107,7 @@ const AdminMap = forwardRef(function AdminMap({
   onEditUndo,
   onEditCancel,
   showZones = true,
+  autoZoomEnabled = true,
 }, ref) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -120,6 +120,8 @@ const AdminMap = forwardRef(function AdminMap({
   const isProgrammaticMove = useRef(false);
   const isClamping = useRef(false);
   const onViewportChangeRef = useRef(onViewportChange);
+  const onEventClickRef = useRef(onEventClick);
+  const onZoneClickRef = useRef(onZoneClick);
   const rubberBandCoords = useRef(null);
   const mapModeRef = useRef(mapMode);
   const drawVerticesRef = useRef(drawVertices);
@@ -142,6 +144,8 @@ const AdminMap = forwardRef(function AdminMap({
   const onEditUndoRef = useRef(onEditUndo);
   const onEditCancelRef = useRef(onEditCancel);
   onViewportChangeRef.current = onViewportChange;
+  onEventClickRef.current = onEventClick;
+  onZoneClickRef.current = onZoneClick;
   mapModeRef.current = mapMode;
   drawVerticesRef.current = drawVertices;
   isPolygonClosedRef.current = isPolygonClosed;
@@ -451,6 +455,28 @@ const AdminMap = forwardRef(function AdminMap({
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+    // ResizeObserver keeps the WebGL canvas in sync with the container while
+    // CSS transitions (e.g. the right detail panel opening) are running. Without
+    // this the canvas stays at its old size and the map appears to snap thinner.
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!map.current) return;
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      const canvas = map.current.getCanvas();
+      if (canvas && (canvas.clientWidth !== width || canvas.clientHeight !== height)) {
+        map.current.resize();
+      }
+    });
+    if (mapContainer.current) {
+      resizeObserver.observe(mapContainer.current);
+    }
+
+    // Expose map instance in dev so verification scripts can read zoom/center.
+    if (import.meta.env.DEV) {
+      window.__geowatchAdminMap = map.current;
+    }
+
     map.current.on('dblclick', (e) => {
       // Editing mode: delete vertex on double-click (ignore empty area and midpoints)
       if (editingZoneIdRef.current) {
@@ -563,9 +589,13 @@ const AdminMap = forwardRef(function AdminMap({
     });
 
     return () => {
+      resizeObserver.disconnect();
       markers.current.forEach((m) => m.remove());
       tempMarker.current?.remove();
       popupRef.current?.remove();
+      if (import.meta.env.DEV) {
+        delete window.__geowatchAdminMap;
+      }
       map.current?.remove();
     };
   }, []);
@@ -573,30 +603,122 @@ const AdminMap = forwardRef(function AdminMap({
   // Fly to coordinates
   useEffect(() => {
     if (
-      flyToCoords &&
-      map.current &&
-      Number.isFinite(flyToCoords.lng) &&
-      Number.isFinite(flyToCoords.lat)
+      !flyToCoords ||
+      !map.current ||
+      !Number.isFinite(flyToCoords.lng) ||
+      !Number.isFinite(flyToCoords.lat)
     ) {
-      isProgrammaticMove.current = true;
+      return;
+    }
+
+    isProgrammaticMove.current = true;
+    const currentZoom = map.current.getZoom();
+    const maxZoom = getMaxZoomForCenter(flyToCoords.lng, flyToCoords.lat);
+    const { type, source, bounds, padding } = flyToCoords;
+    const mapInstance = map.current;
+
+    // Comfort-fit constants for polygon selections.
+    // COMFORT_FACTOR = 0.55 means the zone occupies ~55% of the visible viewport
+    // (45% margin on each side). MIN/MAX clamps prevent tiny zones from zooming
+    // to street level and huge zones from zooming to world view.
+    const ZONE_COMFORT_FACTOR = 0.55;
+    const MIN_ZONE_ZOOM = 4;
+    const MAX_ZONE_ZOOM = 14;
+
+    // Compute visible area after layout padding (sidebars / panels).
+    const container = mapInstance.getContainer();
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const padLeft = padding?.left || 0;
+    const padRight = padding?.right || 0;
+    const padTop = padding?.top || 0;
+    const padBottom = padding?.bottom || 0;
+    const visibleWidth = Math.max(1, containerWidth - padLeft - padRight);
+    const visibleHeight = Math.max(1, containerHeight - padTop - padBottom);
+
+    // Helpers for fitting a polygon bounding box into the visible map area.
+    const doesFitAtZoom = (bbox, zoom) => {
+      const camera = mapInstance.cameraForBounds(bbox, { padding, maxZoom: 22 });
+      return camera ? zoom >= camera.zoom : true;
+    };
+
+    const computeFittingZoom = (bbox, comfortFactor = 1.0) => {
+      // Add extra padding so the zone occupies only `comfortFactor` of the
+      // visible rectangle. 1.0 means an exact fit; 0.55 means 45% total margin.
+      const extraHoriz = visibleWidth * (1 - comfortFactor) / 2;
+      const extraVert = visibleHeight * (1 - comfortFactor) / 2;
+      const fittedPadding = {
+        top: padTop + extraVert,
+        bottom: padBottom + extraVert,
+        left: padLeft + extraHoriz,
+        right: padRight + extraHoriz,
+      };
+      // MapLibre warns/returns null when the padded visible area is extremely
+      // small relative to a wide bbox. Skip the padded call in that case.
+      const minVisible = 300;
+      const usePadding = visibleWidth >= minVisible && visibleHeight >= minVisible;
+      let camera = usePadding
+        ? mapInstance.cameraForBounds(bbox, { padding: fittedPadding, maxZoom: 22 })
+        : null;
+      // Fallback: fit without padding (or retry if the padded call failed).
+      if (!camera) {
+        camera = mapInstance.cameraForBounds(bbox, { padding: 0, maxZoom: 22 });
+      }
+      return camera ? camera.zoom : currentZoom;
+    };
+
+    let targetZoom;
+
+    // When auto-zoom is disabled we still pan to the feature so the user can
+    // see what was selected, but we preserve their manually-set zoom level.
+    // Deep-links are the exception: opening a shared URL is an explicit
+    // navigation intent and should always comfort-fit the target.
+    const panOnly = !autoZoomEnabled && source !== 'deep-link';
+
+    if (panOnly) {
+      targetZoom = currentZoom;
+    } else if (type === 'incident') {
+      if (source === 'map') {
+        // Map click: small nudge to keep the transition feeling alive.
+        targetZoom = currentZoom + 0.05;
+      } else {
+        // Non-map selection (search, drawer, notification, deep-link, etc.):
+        // fly to a fixed, readable zoom level.
+        targetZoom = 7;
+      }
+    } else if (type === 'zone' && bounds) {
+      if (source === 'map' && doesFitAtZoom(bounds, currentZoom + 0.02)) {
+        // Map click: if the zone already fits, nudge slightly and pan to the
+        // centroid so repeated clicks don't feel like nothing happened.
+        targetZoom = currentZoom + 0.02;
+      } else {
+        // Comfort-fit the zone bounding box with a 30% margin, then clamp to
+        // sane limits so small zones keep context and large zones stay usable.
+        const fittingZoom = computeFittingZoom(bounds, ZONE_COMFORT_FACTOR);
+        targetZoom = Math.max(MIN_ZONE_ZOOM, Math.min(MAX_ZONE_ZOOM, fittingZoom));
+      }
+    } else {
+      // Location search or legacy requests: preserve current zoom and just pan.
+      targetZoom = Number.isFinite(flyToCoords.zoom) ? flyToCoords.zoom : currentZoom;
+    }
+
+    targetZoom = Math.min(targetZoom, maxZoom);
+
+    // Force a resize so flyTo uses the current container size after layout
+    // changes (e.g. right panel opening) instead of the previous size.
+    mapInstance.resize();
+    // Defer flyTo one frame so the resize has been applied; this makes the
+    // very first selection (which also opens the right panel) smooth.
+    requestAnimationFrame(() => {
+      if (!map.current) return;
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],
-        zoom: flyToCoords.zoom ?? 10,
+        zoom: targetZoom,
+        padding,
         duration: 800,
       });
-    }
+    });
   }, [flyToCoords]);
-
-  // Fit to bounds (for zone selection)
-  useEffect(() => {
-    if (fitBounds && map.current) {
-      isProgrammaticMove.current = true;
-      map.current.fitBounds(fitBounds.bounds, {
-        padding: fitBounds.padding ?? 40,
-        duration: fitBounds.duration ?? 800,
-      });
-    }
-  }, [fitBounds]);
 
   // Switch map style when theme changes
   useEffect(() => {
@@ -708,7 +830,7 @@ const AdminMap = forwardRef(function AdminMap({
       // Click: NO stopPropagation — let MapLibre clean up properly
       el.addEventListener('click', () => {
         hidePopup();
-        onEventClick?.(incident);
+        onEventClickRef.current?.(incident);
       });
 
       // Right-click / long-press context menu
@@ -812,7 +934,7 @@ const AdminMap = forwardRef(function AdminMap({
       });
 
       el.addEventListener('click', () => {
-        onEventClick?.(ghostIncident);
+        onEventClickRef.current?.(ghostIncident);
       });
 
       attachMarkerMenu(el, ghostIncident);
@@ -914,7 +1036,7 @@ const AdminMap = forwardRef(function AdminMap({
       if (topFeature) {
         const zoneId = String(topFeature.id || topFeature.properties?.id);
         if (zoneId && zoneId !== 'undefined') {
-          onZoneClick?.(zoneId);
+          onZoneClickRef.current?.(zoneId);
         }
       }
     };

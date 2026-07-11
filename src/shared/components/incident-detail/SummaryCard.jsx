@@ -10,13 +10,7 @@ function SaveButton({ saved = false }) {
   );
 }
 
-export default function SummaryCard({ incident, children, onTitleClick, mode = 'user' }) {
-  const roleMeta =
-    mode === 'superadmin'
-      ? { label: 'Superadmin', color: '#6366f1' }
-      : mode === 'admin'
-      ? { label: 'Admin', color: '#9f1239' }
-      : null;
+export default function SummaryCard({ incident, children, onTitleClick, mode = 'user', rightAction = null }) {
   return (
     <div className="id-summary">
       <div className="id-summary__row">
@@ -24,7 +18,7 @@ export default function SummaryCard({ incident, children, onTitleClick, mode = '
         <StatusBadge status={incident.status} />
         <VerificationBadge status={incident.verification} />
         <SeverityBadge level={incident.severity} />
-        {roleMeta && <Badge color={roleMeta.color}>{roleMeta.label}</Badge>}
+        {rightAction}
       </div>
 
       <div className="id-summary__title-row">

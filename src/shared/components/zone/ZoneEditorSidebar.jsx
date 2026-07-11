@@ -17,6 +17,7 @@ import {
   fromDatetimeLocal,
 } from './ZoneTrialCommon.jsx';
 import './ZoneTrialCreatePage.css';
+import RightPanelCollapseButton from '../RightPanelCollapseButton.jsx';
 
 function uid() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -74,7 +75,7 @@ function buildPayloadSources(sources) {
   return payloadSources;
 }
 
-export default function ZoneEditorSidebar({ geometry, initialData, onSubmit, onCancel, submitting }) {
+export default function ZoneEditorSidebar({ geometry, initialData, onSubmit, onCancel, submitting, onCollapse }) {
   const isEdit = !!initialData;
   const { categories, loading: catsLoading } = useZoneCategories();
 
@@ -171,13 +172,45 @@ export default function ZoneEditorSidebar({ geometry, initialData, onSubmit, onC
   return (
     <aside className="zone-create-sidebar" style={{ borderRight: 'none', borderLeft: '1px solid var(--border-subtle)' }}>
       <form className="zone-create-form" onSubmit={handleSubmit}>
-        <div className="zone-create-form__scroll">
-          <div className="zone-create-header">
+        {onCollapse && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              height: 'calc(38px * var(--admin-ui-scale))',
+              padding: '0 calc(16px * var(--admin-ui-scale))',
+              borderBottom: '1px solid var(--border-subtle)',
+              background: 'var(--bg-surface)',
+              flexShrink: 0,
+            }}
+          >
+            <RightPanelCollapseButton onClick={onCollapse} />
+          </div>
+        )}
+
+        <div
+          className="zone-create-form__scroll"
+          style={
+            onCollapse
+              ? { padding: '0 calc(28px * var(--admin-ui-scale)) calc(28px * var(--admin-ui-scale))' }
+              : undefined
+          }
+        >
+          <div
+            className="zone-create-header"
+            style={{
+              paddingTop: 'calc(12px * var(--admin-ui-scale))',
+              marginBottom: 'calc(16px * var(--admin-ui-scale))',
+            }}
+          >
             <div className="zone-create-header__icon">
               <Hexagon size={20} />
             </div>
-            <div>
-              <h1 className="zone-create-header__title">{isEdit ? 'Edit zone' : 'Create zone'}</h1>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 className="zone-create-header__title">
+                {isEdit ? 'Edit zone' : 'Create zone'}
+              </h1>
               <p className="zone-create-header__subtitle">
                 {isEdit ? 'Update zone metadata' : 'New polygon incident entry form'}
               </p>

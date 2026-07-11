@@ -9,6 +9,7 @@ import {
   Search,
   Radio,
   Command,
+  Minimize2,
 } from 'lucide-react';
 
 function getInitials(user) {
@@ -49,9 +50,12 @@ export default function WorkspaceTopBar({
   onOpenZones,
   user,
   onLogout,
+  compactMode,
+  onToggleCompactMode,
 }) {
   const isLive = true;
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const iconSize = (n) => (compactMode ? Math.round(n * 0.9) : n);
 
   const displayName = useMemo(() => getDisplayName(user), [user]);
   const initials = useMemo(() => getInitials(user), [user]);
@@ -60,9 +64,9 @@ export default function WorkspaceTopBar({
   const actionBtn = {
     display: 'flex',
     alignItems: 'center',
-    gap: '5px',
-    padding: '5px 8px',
-    fontSize: '11px',
+    gap: 'calc(5px * var(--admin-ui-scale))',
+    padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
+    fontSize: 'calc(11px * var(--admin-ui-scale))',
     fontWeight: 700,
     borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--border-subtle)',
@@ -82,30 +86,30 @@ export default function WorkspaceTopBar({
   return (
     <header
       style={{
-        height: '54px',
+        height: 'calc(54px * var(--admin-ui-scale))',
         background: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 12px',
+        padding: '0 calc(12px * var(--admin-ui-scale))',
         flexShrink: 0,
         zIndex: 100,
       }}
     >
       {/* Left: brand + search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
           <div
             style={{
-              width: '28px',
-              height: '28px',
+              width: 'calc(28px * var(--admin-ui-scale))',
+              height: 'calc(28px * var(--admin-ui-scale))',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--accent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '12px',
+              fontSize: 'calc(12px * var(--admin-ui-scale))',
               fontWeight: 700,
               color: 'var(--text-on-accent)',
               boxShadow: '0 0 20px var(--accent-glow-strong)',
@@ -116,7 +120,7 @@ export default function WorkspaceTopBar({
           </div>
           <span
             style={{
-              fontSize: '15px',
+              fontSize: 'calc(15px * var(--admin-ui-scale))',
               fontWeight: 700,
               color: 'var(--text-primary)',
               letterSpacing: '-0.3px',
@@ -126,12 +130,12 @@ export default function WorkspaceTopBar({
           </span>
           <span
             style={{
-              fontSize: '9px',
+              fontSize: 'calc(9px * var(--admin-ui-scale))',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '1.2px',
               color: 'var(--text-muted)',
-              padding: '2px 8px',
+              padding: 'calc(2px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--bg-elevated)',
               border: '1px solid var(--border-subtle)',
@@ -149,15 +153,15 @@ export default function WorkspaceTopBar({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '6px 10px',
+            gap: 'calc(8px * var(--admin-ui-scale))',
+            padding: 'calc(6px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
             color: 'var(--text-muted)',
-            fontSize: '13px',
+            fontSize: 'calc(13px * var(--admin-ui-scale))',
             cursor: 'pointer',
-            minWidth: '220px',
+            minWidth: 'calc(220px * var(--admin-ui-scale))',
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
@@ -169,23 +173,23 @@ export default function WorkspaceTopBar({
             e.currentTarget.style.color = 'var(--text-muted)';
           }}
         >
-          <Search size={15} />
+          <Search size={iconSize(15)} />
           <span style={{ flex: 1, textAlign: 'left' }}>Search incidents and locations…</span>
           <span
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '2px',
-              fontSize: '11px',
+              gap: 'calc(2px * var(--admin-ui-scale))',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-muted)',
               background: 'var(--bg-surface)',
-              padding: '2px 6px',
+              padding: 'calc(2px * var(--admin-ui-scale)) calc(6px * var(--admin-ui-scale))',
               borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-subtle)',
             }}
           >
-            <Command size={10} />
+            <Command size={iconSize(10)} />
             <span>K</span>
           </span>
         </button>
@@ -196,13 +200,13 @@ export default function WorkspaceTopBar({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '5px 8px',
+            gap: 'calc(6px * var(--admin-ui-scale))',
+            padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
             color: 'var(--text-secondary)',
-            fontSize: '11px',
+            fontSize: 'calc(11px * var(--admin-ui-scale))',
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.15s ease',
@@ -216,7 +220,7 @@ export default function WorkspaceTopBar({
             e.currentTarget.style.color = 'var(--text-secondary)';
           }}
         >
-          <Search size={13} />
+          <Search size={iconSize(13)} />
           <span>Advanced</span>
         </button>
 
@@ -227,13 +231,13 @@ export default function WorkspaceTopBar({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '7px',
-              padding: '5px 10px',
+              gap: 'calc(7px * var(--admin-ui-scale))',
+              padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
               background: 'var(--bg-input)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md)',
               color: 'var(--text-secondary)',
-              fontSize: '11px',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.15s ease',
@@ -247,18 +251,18 @@ export default function WorkspaceTopBar({
               e.currentTarget.style.color = 'var(--text-secondary)';
             }}
           >
-            <Radio size={13} />
+            <Radio size={iconSize(13)} />
             <span>Active</span>
             <span
               style={{
-                minWidth: '20px',
-                height: '18px',
-                padding: '0 6px',
+                minWidth: 'calc(20px * var(--admin-ui-scale))',
+                height: 'calc(18px * var(--admin-ui-scale))',
+                padding: '0 calc(6px * var(--admin-ui-scale))',
                 borderRadius: '999px',
                 background: 'var(--accent-subtle-bg)',
                 border: '1px solid var(--accent-subtle-border)',
                 color: 'var(--accent-light)',
-                fontSize: '10px',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
                 fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
@@ -272,15 +276,15 @@ export default function WorkspaceTopBar({
       </div>
 
       {/* Center: mode + date */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))' }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '5px 8px',
+            gap: 'calc(8px * var(--admin-ui-scale))',
+            padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
             borderRadius: 'var(--radius-sm)',
-            fontSize: '11px',
+            fontSize: 'calc(11px * var(--admin-ui-scale))',
             fontWeight: 700,
             letterSpacing: '1px',
             background: 'var(--alert-error-bg)',
@@ -290,8 +294,8 @@ export default function WorkspaceTopBar({
         >
           <span
             style={{
-              width: '6px',
-              height: '6px',
+              width: 'calc(6px * var(--admin-ui-scale))',
+              height: 'calc(6px * var(--admin-ui-scale))',
               borderRadius: '50%',
               background: 'currentColor',
               boxShadow: '0 0 10px currentColor',
@@ -301,7 +305,7 @@ export default function WorkspaceTopBar({
           LIVE MODE
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))' }}>
           <input
             type="date"
             value={dateRange.from}
@@ -312,16 +316,16 @@ export default function WorkspaceTopBar({
               background: 'var(--bg-input)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              padding: '5px 8px',
+              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
               color: 'var(--text-primary)',
               fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               outline: 'none',
               cursor: 'pointer',
-              width: '124px',
+              width: 'calc(124px * var(--admin-ui-scale))',
             }}
           />
-          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>→</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 'calc(11px * var(--admin-ui-scale))' }}>→</span>
           <input
             type="date"
             value={dateRange.to}
@@ -332,20 +336,20 @@ export default function WorkspaceTopBar({
               background: 'var(--bg-input)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              padding: '5px 8px',
+              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
               color: 'var(--text-primary)',
               fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               outline: 'none',
               cursor: 'pointer',
-              width: '124px',
+              width: 'calc(124px * var(--admin-ui-scale))',
             }}
           />
           <button
             onClick={onResetToToday}
             style={{
-              padding: '5px 10px',
-              fontSize: '10px',
+              padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
@@ -362,7 +366,20 @@ export default function WorkspaceTopBar({
       </div>
 
       {/* Right: actions + user */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
+        <button
+          onClick={onToggleCompactMode}
+          title={compactMode ? 'Switch to default size' : 'Switch to compact mode'}
+          style={{
+            ...actionBtn,
+            color: compactMode ? 'var(--accent-light)' : 'var(--text-secondary)',
+            borderColor: compactMode ? 'var(--accent-light)' : 'var(--border-subtle)',
+          }}
+        >
+          <Minimize2 size={iconSize(13)} />
+          <span>{compactMode ? 'Normal' : 'Compact'}</span>
+        </button>
+
         <button
           onClick={onToggleFocusMode}
           title="Toggle focus mode"
@@ -372,20 +389,20 @@ export default function WorkspaceTopBar({
             borderColor: isFocusMode ? 'var(--accent-light)' : 'var(--border-subtle)',
           }}
         >
-          <Zap size={14} />
+          <Zap size={iconSize(14)} />
           {isFocusMode ? 'Exit Focus' : 'Focus'}
         </button>
 
         <button style={actionBtn} onClick={onOpenZones}>
-          <MapIcon size={13} />
+          <MapIcon size={iconSize(13)} />
           Zones
         </button>
         <button style={actionBtn} onClick={onAddZone}>
-          <Hexagon size={13} />
+          <Hexagon size={iconSize(13)} />
           Add Zone
         </button>
         <button style={primaryBtn} onClick={onAddIncident}>
-          <Plus size={13} />
+          <Plus size={iconSize(13)} />
           Add Incident
         </button>
 
@@ -395,13 +412,13 @@ export default function WorkspaceTopBar({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '2px 2px 2px 10px',
+              gap: 'calc(6px * var(--admin-ui-scale))',
+              padding: 'calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
               background: 'var(--bg-input)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md)',
               color: 'var(--text-secondary)',
-              fontSize: '11px',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.15s ease',
@@ -417,7 +434,7 @@ export default function WorkspaceTopBar({
           >
             <span
               style={{
-                maxWidth: '160px',
+                maxWidth: 'calc(160px * var(--admin-ui-scale))',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -426,7 +443,7 @@ export default function WorkspaceTopBar({
               {displayName}
             </span>
             <ChevronDown
-              size={12}
+              size={iconSize(12)}
               style={{
                 transition: 'transform 0.15s ease',
                 transform: userMenuOpen ? 'rotate(180deg)' : 'none',
@@ -434,14 +451,14 @@ export default function WorkspaceTopBar({
             />
             <div
               style={{
-                width: '24px',
-                height: '24px',
+                width: 'calc(24px * var(--admin-ui-scale))',
+                height: 'calc(24px * var(--admin-ui-scale))',
                 borderRadius: '50%',
                 background: 'var(--accent)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '9px',
+                fontSize: 'calc(9px * var(--admin-ui-scale))',
                 fontWeight: 700,
                 color: 'var(--text-on-accent)',
                 border: '2px solid var(--border-subtle)',
@@ -458,26 +475,26 @@ export default function WorkspaceTopBar({
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
                 right: 0,
-                width: '240px',
+                width: 'calc(240px * var(--admin-ui-scale))',
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border-default)',
                 borderRadius: 'var(--radius-md)',
-                padding: '14px',
+                padding: 'calc(14px * var(--admin-ui-scale))',
                 boxShadow: 'var(--shadow-lg)',
                 zIndex: 200,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))', marginBottom: 'calc(14px * var(--admin-ui-scale))' }}>
                 <div
                   style={{
-                    width: '34px',
-                    height: '34px',
+                    width: 'calc(34px * var(--admin-ui-scale))',
+                    height: 'calc(34px * var(--admin-ui-scale))',
                     borderRadius: '50%',
                     background: 'var(--accent)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '11px',
+                    fontSize: 'calc(11px * var(--admin-ui-scale))',
                     fontWeight: 700,
                     color: 'var(--text-on-accent)',
                     border: '2px solid var(--border-subtle)',
@@ -487,14 +504,14 @@ export default function WorkspaceTopBar({
                   {initials}
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {displayName}
                   </div>
                   <div
                     style={{
-                      fontSize: '11px',
+                      fontSize: 'calc(11px * var(--admin-ui-scale))',
                       color: 'var(--text-muted)',
-                      marginTop: '2px',
+                      marginTop: 'calc(2px * var(--admin-ui-scale))',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -502,29 +519,29 @@ export default function WorkspaceTopBar({
                   >
                     {user?.email || ''}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', marginTop: 'calc(6px * var(--admin-ui-scale))' }}>
                     <span
                       style={{
-                        width: '7px',
-                        height: '7px',
+                        width: 'calc(7px * var(--admin-ui-scale))',
+                        height: 'calc(7px * var(--admin-ui-scale))',
                         borderRadius: '50%',
                         background: 'var(--success)',
                         boxShadow: '0 0 6px var(--success)',
                       }}
                     />
-                    <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 700 }}>Online</span>
+                    <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--success)', fontWeight: 700 }}>Online</span>
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', gap: 'calc(8px * var(--admin-ui-scale))', marginBottom: 'calc(14px * var(--admin-ui-scale))' }}>
                 <span
                   style={{
-                    padding: '3px 8px',
+                    padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
                     borderRadius: 'var(--radius-sm)',
                     background: 'var(--badge-amber-bg)',
                     color: 'var(--badge-amber-text)',
-                    fontSize: '11px',
+                    fontSize: 'calc(11px * var(--admin-ui-scale))',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                   }}
@@ -533,11 +550,11 @@ export default function WorkspaceTopBar({
                 </span>
                 <span
                   style={{
-                    padding: '3px 8px',
+                    padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
                     borderRadius: 'var(--radius-sm)',
                     background: 'var(--badge-purple-bg)',
                     color: 'var(--badge-purple-text)',
-                    fontSize: '11px',
+                    fontSize: 'calc(11px * var(--admin-ui-scale))',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                   }}
@@ -553,9 +570,9 @@ export default function WorkspaceTopBar({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    padding: '8px 12px',
-                    fontSize: '13px',
+                    gap: 'calc(8px * var(--admin-ui-scale))',
+                    padding: 'calc(8px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
+                    fontSize: 'calc(13px * var(--admin-ui-scale))',
                     fontWeight: 700,
                     color: 'var(--text-secondary)',
                     background: 'var(--bg-input)',
@@ -579,7 +596,7 @@ export default function WorkspaceTopBar({
                     onLogout?.();
                   }}
                 >
-                  <LogOut size={14} />
+                  <LogOut size={iconSize(14)} />
                   Log out
                 </button>
               </div>

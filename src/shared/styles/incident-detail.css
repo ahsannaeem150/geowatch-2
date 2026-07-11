@@ -634,7 +634,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 630px;
+  width: 100%;
   background: var(--bg-surface);
   border-left: 1px solid var(--border-subtle);
   box-shadow:

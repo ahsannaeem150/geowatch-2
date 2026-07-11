@@ -12,13 +12,13 @@ import {
   ZoneEvidenceDrawer,
   UpdateFormModal,
   useZoneFeaturedItems,
-  ArrowLeft,
 } from './ZoneTrialCommon.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { formatDate, formatTime } from '@shared/components/incident-detail/IncidentUtils.js';
 import StatusHistory from '@shared/components/incident-detail/StatusHistory.jsx';
 import DebugMetadata from '@shared/components/incident-detail/DebugMetadata.jsx';
 import './ZoneTrial.css';
+import RightPanelCollapseButton from '../RightPanelCollapseButton.jsx';
 
 export default function ZoneDetailSidebar({
   incident,
@@ -49,6 +49,7 @@ export default function ZoneDetailSidebar({
   onOpenAudit,
   onViewCreator,
   auditLogs = [],
+  onCollapse,
 }) {
   const [drawerEvent, setDrawerEvent] = useState(null);
   const [addUpdateOpen, setAddUpdateOpen] = useState(false);
@@ -92,13 +93,37 @@ export default function ZoneDetailSidebar({
 
   return (
     <aside className="zone-detail-sidebar" data-role={effectiveMode}>
-      <div className="zone-back-bar">
-        <button className="zone-back-button" onClick={onBack}>
-          <ArrowLeft size={14} />
-          Back to results
-        </button>
-      </div>
-
+      {onCollapse && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: 'calc(38px * var(--admin-ui-scale))',
+            padding: '0 calc(16px * var(--admin-ui-scale))',
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: 'var(--text-muted)',
+            }}
+          >
+            {effectiveMode === 'superadmin'
+              ? 'Superadmin view'
+              : effectiveMode === 'admin'
+              ? 'Admin view'
+              : 'Zone details'}
+          </span>
+          <RightPanelCollapseButton onClick={onCollapse} />
+        </div>
+      )}
       <div className="zone-sidebar-scroll">
         <div className="zone-summary" key={incident.id}>
           <div className="zone-badge-row">

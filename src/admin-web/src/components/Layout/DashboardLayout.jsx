@@ -9,6 +9,7 @@ import {
   Settings,
   Clock,
   Radio,
+  ChevronLeft,
 } from 'lucide-react';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
@@ -29,6 +30,8 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import MapContextMenu from '../Map/MapContextMenu.jsx';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
+import GhostIncidentBanner from '@shared/components/GhostIncidentBanner.jsx';
+import { computeMapPadding, computeOuterContainerPadding } from '../../utils/mapPadding.js';
 
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
 import { api, mapIncidentForShared } from '../../services/api.js';
@@ -81,6 +84,37 @@ function findNearestSegmentIndex(point, vertices) {
   return minIdx;
 }
 
+function getZoneCentroid(zone) {
+  const coords = zone?.geometry?.coordinates?.[0];
+  if (!coords || coords.length === 0) return null;
+  let sumLng = 0;
+  let sumLat = 0;
+  coords.forEach(([lng, lat]) => {
+    sumLng += lng;
+    sumLat += lat;
+  });
+  return { lng: sumLng / coords.length, lat: sumLat / coords.length };
+}
+
+function getZoneBounds(zone) {
+  const coords = zone?.geometry?.coordinates?.[0];
+  if (!coords || coords.length === 0) return null;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  coords.forEach(([lng, lat]) => {
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+  });
+  if (!Number.isFinite(minLng) || !Number.isFinite(maxLng) || !Number.isFinite(minLat) || !Number.isFinite(maxLat)) {
+    return null;
+  }
+  return [minLng, minLat, maxLng, maxLat];
+}
+
 export default function DashboardLayout() {
   // Use local timezone date, not UTC
   const now = new Date();
@@ -126,7 +160,86 @@ export default function DashboardLayout() {
 
   // ─── Zones (polygon incidents) ───
   const [selectedZoneId, setSelectedZoneId] = useState(null);
-  const [fitBounds, setFitBounds] = useState(null);
+
+  // ─── Zone creation panel ───
+  const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
+
+  // ─── Workspace rail / drawer ───
+  const [activeDrawer, setActiveDrawer] = useState(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const preFocusRightCollapsedRef = useRef(false);
+
+  // Derived layout flag needed by map-padding helpers and panel animation.
+  const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel;
+
+  // Right-panel width animation. We keep the panel in the DOM while it
+  // collapses so the flex layout (and therefore the map container) shrinks
+  // smoothly instead of snapping.
+  const RIGHT_PANEL_TRANSITION_MS = 250;
+  const [rightPanelRendered, setRightPanelRendered] = useState(false);
+  const [rightPanelVisible, setRightPanelVisible] = useState(false);
+  const rightPanelRef = useRef(null);
+  const flyToTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const shouldShow = isPanelOpen && !rightPanelCollapsed;
+    if (shouldShow) {
+      setRightPanelRendered(true);
+      // Use a double requestAnimationFrame so the browser paints the panel
+      // at width 0 before we switch to full width. Without this the element
+      // can be created at full width and the CSS transition is skipped,
+      // making the container pop in suddenly.
+      const raf1 = requestAnimationFrame(() => {
+        const raf2 = requestAnimationFrame(() => {
+          // Force a reflow right before expanding so the transition is
+          // guaranteed to start from the collapsed state.
+          rightPanelRef.current?.offsetWidth;
+          setRightPanelVisible(true);
+        });
+        return () => cancelAnimationFrame(raf2);
+      });
+      return () => cancelAnimationFrame(raf1);
+    }
+    setRightPanelVisible(false);
+    const timer = setTimeout(() => setRightPanelRendered(false), RIGHT_PANEL_TRANSITION_MS);
+    return () => clearTimeout(timer);
+  }, [isPanelOpen, rightPanelCollapsed, RIGHT_PANEL_TRANSITION_MS]);
+
+  useEffect(() => () => clearTimeout(flyToTimeoutRef.current), []);
+
+  const scheduleFlyTo = useCallback((request, panelAlreadyOpen) => {
+    clearTimeout(flyToTimeoutRef.current);
+    if (!request) {
+      setFlyToCoords(null);
+    } else if (panelAlreadyOpen) {
+      setFlyToCoords(request);
+    } else {
+      flyToTimeoutRef.current = setTimeout(() => setFlyToCoords(request), RIGHT_PANEL_TRANSITION_MS);
+    }
+  }, [RIGHT_PANEL_TRANSITION_MS]);
+
+  // Power Search collapsed states are lifted so layout padding can account for
+  // the exact left-hand chrome width.
+  const [psFilterCollapsed, setPsFilterCollapsed] = useState(false);
+  const [psResultsCollapsed, setPsResultsCollapsed] = useState(false);
+
+  const exitFocusMode = useCallback(() => {
+    if (!focusMode) return;
+    // When focus mode is auto-exited by an action, do NOT restore the other
+    // sidebar; only the sidebar directly triggered by the action should open.
+    setFocusMode(false);
+    setActiveDrawer(null);
+  }, [focusMode]);
+
+  const handleDrawerSelect = useCallback(
+    (id) => {
+      exitFocusMode();
+      setActiveDrawer(id);
+    },
+    [exitFocusMode]
+  );
+
   const polygonIncidents = useMemo(
     () => incidents.filter((i) => i.geometry_type === 'polygon'),
     [incidents]
@@ -176,17 +289,18 @@ export default function DashboardLayout() {
     if (selectedIncident?.id === selectedZoneId) return;
     const zone = polygonIncidents.find((z) => z.id === selectedZoneId);
     if (zone) {
+      exitFocusMode();
       setSelectedIncident(zone);
       setPanelMode('detail');
+      setRightPanelCollapsed(false);
     }
-  }, [selectedZoneId, polygonIncidents, selectedIncident?.id]);
+  }, [selectedZoneId, polygonIncidents, selectedIncident?.id, exitFocusMode]);
 
   // ─── Zone Drawing ───
   const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
   const [drawVertices, setDrawVertices] = useState([]);
   const [isPolygonClosed, setIsPolygonClosed] = useState(false);
   const isPolygonClosedRef = useRef(isPolygonClosed);
-  const [showZoneCreatePanel, setShowZoneCreatePanel] = useState(false);
   const [selectedDrawVertexIndex, setSelectedDrawVertexIndex] = useState(null);
   const [drawContextMenu, setDrawContextMenu] = useState(null); // { x, y, type, index }
   const mapRef = useRef(null);
@@ -278,6 +392,50 @@ export default function DashboardLayout() {
   // Search modal state
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
+  // Compact mode toggle (persisted)
+  const [compactMode, setCompactMode] = useState(() => {
+    try {
+      return localStorage.getItem('geowatch_admin_compact_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleCompactMode = useCallback(() => {
+    setCompactMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('geowatch_admin_compact_mode', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Auto-zoom on selection toggle (persisted)
+  const [autoZoomEnabled, setAutoZoomEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('geowatch_admin_auto_zoom');
+      return saved === null ? true : saved === 'true';
+    } catch {
+      return true;
+    }
+  });
+  const toggleAutoZoom = useCallback(() => {
+    setAutoZoomEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('geowatch_admin_auto_zoom', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (compactMode) root.classList.add('admin-compact');
+    else root.classList.remove('admin-compact');
+    return () => root.classList.remove('admin-compact');
+  }, [compactMode]);
+
   // Power Search mode
   const [powerSearchMode, setPowerSearchMode] = useState(false);
   const [psQuery, setPsQuery] = useState('');
@@ -301,6 +459,62 @@ export default function DashboardLayout() {
   const [psOffset, setPsOffset] = useState(0);
   const [psVisibleCount, setPsVisibleCount] = useState(PAGE_SIZE);
   const psTimerRef = useRef(null);
+
+  // Compute the padding MapLibre should apply so flyTo targets the
+  // visible map rectangle after a layout change. `overrides` lets callers
+  // describe the state *after* the action they are about to trigger.
+  const getNextMapPadding = useCallback(
+    (overrides = {}) => {
+      const scale = compactMode ? 0.9 : 1;
+      return computeMapPadding({
+        scale,
+        powerSearchMode: overrides.powerSearchMode ?? powerSearchMode,
+        psFilterCollapsed: overrides.psFilterCollapsed ?? psFilterCollapsed,
+        psResultsCollapsed: overrides.psResultsCollapsed ?? psResultsCollapsed,
+        activeDrawer: overrides.activeDrawer ?? activeDrawer,
+        focusMode: overrides.focusMode ?? focusMode,
+        isPanelOpen: overrides.isPanelOpen ?? isPanelOpen,
+        rightPanelCollapsed: overrides.rightPanelCollapsed ?? rightPanelCollapsed,
+      });
+    },
+    [
+      compactMode,
+      powerSearchMode,
+      psFilterCollapsed,
+      psResultsCollapsed,
+      activeDrawer,
+      focusMode,
+      isPanelOpen,
+      rightPanelCollapsed,
+    ]
+  );
+
+  // Padding for floating overlays (ghost banner) that live at the dashboard
+  // root and must avoid both flex-layout chrome and absolute overlays.
+  const getBannerPadding = useCallback(
+    (overrides = {}) => {
+      return computeOuterContainerPadding({
+        scale: compactMode ? 0.9 : 1,
+        powerSearchMode: overrides.powerSearchMode ?? powerSearchMode,
+        psFilterCollapsed: overrides.psFilterCollapsed ?? psFilterCollapsed,
+        psResultsCollapsed: overrides.psResultsCollapsed ?? psResultsCollapsed,
+        activeDrawer: overrides.activeDrawer ?? activeDrawer,
+        focusMode: overrides.focusMode ?? focusMode,
+        isPanelOpen: overrides.isPanelOpen ?? isPanelOpen,
+        rightPanelCollapsed: overrides.rightPanelCollapsed ?? rightPanelCollapsed,
+      });
+    },
+    [
+      compactMode,
+      powerSearchMode,
+      psFilterCollapsed,
+      psResultsCollapsed,
+      activeDrawer,
+      focusMode,
+      isPanelOpen,
+      rightPanelCollapsed,
+    ]
+  );
 
   // Open command-palette search on Cmd/Ctrl+K
   useEffect(() => {
@@ -366,9 +580,6 @@ export default function DashboardLayout() {
   const [activities, setActivities] = useState([]);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
 
-  // ─── Workspace rail / drawer ───
-  const [activeDrawer, setActiveDrawer] = useState(null);
-  const [focusMode, setFocusMode] = useState(false);
   const [newIncidentIds, setNewIncidentIds] = useState(new Set());
   const esRef = useRef(null);
 
@@ -465,18 +676,29 @@ export default function DashboardLayout() {
       setEditingZoneVertices([]);
       setOriginalZoneVertices([]);
       if (zone.geometry?.coordinates?.[0]) {
-        const coords = zone.geometry.coordinates[0];
-        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-        coords.forEach(([lng, lat]) => {
-          minLng = Math.min(minLng, lng);
-          minLat = Math.min(minLat, lat);
-          maxLng = Math.max(maxLng, lng);
-          maxLat = Math.max(maxLat, lat);
-        });
-        if (skipNextZoneFitRef.current) {
-          skipNextZoneFitRef.current = false;
-        } else {
-          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        const centroid = getZoneCentroid(zone);
+        const bounds = getZoneBounds(zone);
+        if (centroid && bounds) {
+          if (skipNextZoneFitRef.current) {
+            skipNextZoneFitRef.current = false;
+          } else {
+            scheduleFlyTo(
+              {
+                type: 'zone',
+                source: 'deep-link',
+                lat: centroid.lat,
+                lng: centroid.lng,
+                bounds,
+                padding: getNextMapPadding({
+                  focusMode: false,
+                  activeDrawer: focusMode ? null : activeDrawer,
+                  rightPanelCollapsed: false,
+                  isPanelOpen: true,
+                }),
+              },
+              isPanelOpen && !rightPanelCollapsed
+            );
+          }
         }
       }
       // Clear any stale incident/zone URL params so they don't fight this selection
@@ -521,22 +743,35 @@ export default function DashboardLayout() {
 
     const zone = polygonIncidents.find((z) => z.id === zoneIdFromUrl);
     if (zone && !zoneDeepLinkProcessed.current) {
+      exitFocusMode();
       setSelectedZoneId(zone.id);
       setSelectedIncident(zone);
       setPanelMode('detail');
+      setRightPanelCollapsed(false);
       if (zone.geometry?.coordinates?.[0]) {
-        const coords = zone.geometry.coordinates[0];
-        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-        coords.forEach(([lng, lat]) => {
-          minLng = Math.min(minLng, lng);
-          minLat = Math.min(minLat, lat);
-          maxLng = Math.max(maxLng, lng);
-          maxLat = Math.max(maxLat, lat);
-        });
-        if (skipNextZoneFitRef.current) {
-          skipNextZoneFitRef.current = false;
-        } else {
-          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        const centroid = getZoneCentroid(zone);
+        const bounds = getZoneBounds(zone);
+        if (centroid && bounds) {
+          if (skipNextZoneFitRef.current) {
+            skipNextZoneFitRef.current = false;
+          } else {
+            scheduleFlyTo(
+              {
+                type: 'zone',
+                source: 'deep-link',
+                lat: centroid.lat,
+                lng: centroid.lng,
+                bounds,
+                padding: getNextMapPadding({
+                  focusMode: false,
+                  activeDrawer: focusMode ? null : activeDrawer,
+                  rightPanelCollapsed: false,
+                  isPanelOpen: true,
+                }),
+              },
+              isPanelOpen && !rightPanelCollapsed
+            );
+          }
         }
       }
       zoneDeepLinkProcessed.current = true;
@@ -552,7 +787,7 @@ export default function DashboardLayout() {
       });
       setToast({ message: 'Zone not found in current date range', type: 'error' });
     }
-  }, [location.state, location.pathname, location.search, zoneIdFromUrl, polygonIncidents, navigate, setSearchParams]);
+  }, [location.state, location.pathname, location.search, zoneIdFromUrl, polygonIncidents, navigate, setSearchParams, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const prevIncidentIdRef = useRef(null);
 
@@ -808,7 +1043,6 @@ export default function DashboardLayout() {
               }
               return prev;
             });
-            setFitBounds((prev) => (selectedIncidentRef.current?.id === payload.incidentId ? null : prev));
             if (selectedIncidentRef.current?.id === payload.incidentId) {
               setSearchParams((prev) => {
                 const next = new URLSearchParams(prev);
@@ -880,10 +1114,12 @@ export default function DashboardLayout() {
   }, [toast]);
 
   const handleMapDblClick = useCallback((coords) => {
+    exitFocusMode();
     setMarkerCoords({ lat: coords.lat, lng: coords.lng, locationContext: undefined });
     setSelectedIncident(null);
     setIsEditing(false);
     setPanelMode('form');
+    setRightPanelCollapsed(false);
     // Clear any stale incident ID from URL so the deep-link effect doesn't
     // re-trigger after the incident list refreshes post-creation.
     setSearchParams((prev) => {
@@ -899,17 +1135,35 @@ export default function DashboardLayout() {
         return { ...prev, locationContext: locationContext || null };
       });
     });
-  }, [setSearchParams]);
+  }, [setSearchParams, exitFocusMode]);
 
   const handleEventClick = useCallback((incident, opts = {}) => {
+    const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+    const source = opts.source || 'map';
+    exitFocusMode();
     setSelectedIncident(incident);
     setIsEditing(false);
     setPanelMode('detail');
-    setFitBounds(null);
+    setRightPanelCollapsed(false);
     if (!opts.skipFlyTo) {
-      setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
+      const padding = getNextMapPadding({
+        focusMode: false,
+        activeDrawer: focusMode ? null : activeDrawer,
+        rightPanelCollapsed: false,
+        isPanelOpen: true,
+      });
+      scheduleFlyTo(
+        {
+          type: 'incident',
+          source,
+          lat: parseFloat(incident.latitude),
+          lng: parseFloat(incident.longitude),
+          padding,
+        },
+        panelAlreadyOpen
+      );
     } else {
-      setFlyToCoords(null);
+      scheduleFlyTo(null, true);
     }
     setMarkerCoords(null);
     // Clear zone selection and editing when an incident is selected
@@ -930,7 +1184,7 @@ export default function DashboardLayout() {
     } catch {
       // ignore
     }
-  }, [setSearchParams, recordRecent]);
+  }, [setSearchParams, recordRecent, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   // ─── Handle incident ID from URL — deep-linking with ghost support ───
   useEffect(() => {
@@ -960,7 +1214,7 @@ export default function DashboardLayout() {
 
     const inList = incidents.find((i) => i.id === incidentIdFromUrl);
     if (inList) {
-      handleEventClick(inList, { skipFlyTo: hasViewportParams });
+      handleEventClick(inList, { skipFlyTo: hasViewportParams, source: 'deep-link' });
       ghostFetchAttempted.current = true;
       return;
     }
@@ -972,7 +1226,7 @@ export default function DashboardLayout() {
         .getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            handleEventClick(res.data.incident, { skipFlyTo: hasViewportParams });
+            handleEventClick(res.data.incident, { skipFlyTo: hasViewportParams, source: 'deep-link' });
           }
         })
         .catch(() => {
@@ -990,27 +1244,43 @@ export default function DashboardLayout() {
     }
   }, [incidentIdFromUrl, incidents.length, handleEventClick, hasViewportParams, zoneIdFromUrl]);
 
-  const handleZoneClick = useCallback((zoneId) => {
-    const zone = polygonIncidents.find((z) => z.id === zoneId);
+  const handleZoneClick = useCallback((zoneIdOrZone, opts = {}) => {
+    const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+    const source = opts.source || 'map';
+    exitFocusMode();
+    const zone = zoneIdOrZone && typeof zoneIdOrZone === 'object'
+      ? zoneIdOrZone
+      : polygonIncidents.find((z) => z.id === zoneIdOrZone);
     if (!zone) return;
-    setSelectedZoneId(zoneId);
+    setSelectedZoneId(zone.id);
     setSelectedIncident(zone);
     setPanelMode('detail');
+    setRightPanelCollapsed(false);
     // Clear editing state when selecting a different zone
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
-    // Compute bounds from polygon and fly map there
-    if (zone.geometry?.coordinates?.[0]) {
-      const coords = zone.geometry.coordinates[0];
-      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-      coords.forEach(([lng, lat]) => {
-        minLng = Math.min(minLng, lng);
-        minLat = Math.min(minLat, lat);
-        maxLng = Math.max(maxLng, lng);
-        maxLat = Math.max(maxLat, lat);
+    // Center the zone in the visible map area.
+    const centroid = getZoneCentroid(zone);
+    const bounds = getZoneBounds(zone);
+    if (centroid && bounds) {
+      const padding = getNextMapPadding({
+        focusMode: false,
+        activeDrawer: focusMode ? null : activeDrawer,
+        rightPanelCollapsed: false,
+        isPanelOpen: true,
       });
-      setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      scheduleFlyTo(
+        {
+          type: 'zone',
+          source,
+          lat: centroid.lat,
+          lng: centroid.lng,
+          bounds,
+          padding,
+        },
+        panelAlreadyOpen
+      );
     }
     // Update URL to make zone shareable
     setSearchParams((prev) => {
@@ -1019,7 +1289,7 @@ export default function DashboardLayout() {
       next.delete('incident');
       return next;
     });
-  }, [polygonIncidents, setSearchParams]);
+  }, [polygonIncidents, setSearchParams, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   // ─── Drawing handlers ───
   const handleSetMode = useCallback((mode) => {
@@ -1162,7 +1432,6 @@ export default function DashboardLayout() {
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
     setSelectedZoneId(null);
-    setFitBounds(null);
     // Clear selected incident/zone from URL while preserving other params
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -1211,13 +1480,14 @@ export default function DashboardLayout() {
   }, []);
 
   const handleCreateZoneHere = useCallback((lat, lng) => {
+    exitFocusMode();
     handleSetMode('polygon');
     // Let handleSetMode reset state before adding the first vertex
     setTimeout(() => {
       handleDrawVertexAdd({ lat, lng });
     }, 0);
     closeMapMenu();
-  }, [handleSetMode, handleDrawVertexAdd, closeMapMenu]);
+  }, [handleSetMode, handleDrawVertexAdd, closeMapMenu, exitFocusMode]);
 
   const handleCenterMapHere = useCallback((lng, lat) => {
     mapRef.current?.centerAt(lng, lat);
@@ -1245,14 +1515,15 @@ export default function DashboardLayout() {
     if (!incident) return [];
     return [
       { label: 'View Details', onClick: () => { handleEventClick(incident); closeMapMenu(); } },
-      { label: 'Edit Incident', onClick: () => { setSelectedIncident(incident); setIsEditing(true); setPanelMode('form'); setMarkerCoords(null); closeMapMenu(); } },
+      { label: 'Edit Incident', onClick: () => { exitFocusMode(); setSelectedIncident(incident); setIsEditing(true); setPanelMode('form'); setMarkerCoords(null); setRightPanelCollapsed(false); closeMapMenu(); } },
       { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: incident.id, title: 'Resolve incident?', message: 'Mark this incident as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(incident.id) }) },
       { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: incident.id, title: 'Delete incident?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(incident.id) }) },
       { label: 'Copy Link', onClick: () => copyLink('incident', incident.id) },
     ];
-  }, [handleEventClick, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu]);
+  }, [handleEventClick, handleResolveIncident, handleDeleteIncident, copyLink, closeMapMenu, exitFocusMode]);
 
   const handleZoneCreateSubmit = useCallback(async ({ payload, mediaFiles }) => {
+    exitFocusMode();
     setSubmitting(true);
     try {
       const res = await api.createIncident(payload);
@@ -1286,25 +1557,37 @@ export default function DashboardLayout() {
         }
 
         // Select the newly created zone and fly the map to it
+        const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
         setSelectedIncident(newZone);
         setSelectedZoneId(newZone.id);
         setPanelMode('detail');
+        setRightPanelCollapsed(false);
         setMarkerCoords(null);
-        setFlyToCoords(null);
         setEditingZoneId(null);
         setEditingZoneVertices([]);
         setOriginalZoneVertices([]);
 
         if (newZone.geometry?.coordinates?.[0]) {
-          const coords = newZone.geometry.coordinates[0];
-          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-          coords.forEach(([lng, lat]) => {
-            minLng = Math.min(minLng, lng);
-            minLat = Math.min(minLat, lat);
-            maxLng = Math.max(maxLng, lng);
-            maxLat = Math.max(maxLat, lat);
-          });
-          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+          const centroid = getZoneCentroid(newZone);
+          const bounds = getZoneBounds(newZone);
+          if (centroid && bounds) {
+            scheduleFlyTo(
+              {
+                type: 'zone',
+                source: 'create',
+                lat: centroid.lat,
+                lng: centroid.lng,
+                bounds,
+                padding: getNextMapPadding({
+                  focusMode: false,
+                  activeDrawer: focusMode ? null : activeDrawer,
+                  rightPanelCollapsed: false,
+                  isPanelOpen: true,
+                }),
+              },
+              panelAlreadyOpen
+            );
+          }
         }
       }
 
@@ -1314,9 +1597,10 @@ export default function DashboardLayout() {
     } finally {
       setSubmitting(false);
     }
-  }, []);
+  }, [exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const handleEditZone = useCallback((explicitZone) => {
+    exitFocusMode();
     const zone = explicitZone || polygonIncidents.find((z) => z.id === selectedZoneId);
     if (!zone || !zone.geometry?.coordinates?.[0]) return;
 
@@ -1347,9 +1631,11 @@ export default function DashboardLayout() {
     editHistoryIndexRef.current = 0;
     // Keep the zone detail sidebar visible while editing shape
     setPanelMode('detail');
-  }, [selectedZoneId, polygonIncidents]);
+    setRightPanelCollapsed(false);
+  }, [selectedZoneId, polygonIncidents, exitFocusMode]);
 
   const handleZoneInfoEdit = useCallback((explicitZone) => {
+    exitFocusMode();
     const zone = explicitZone || selectedIncident;
     const isPolygon = zone?.geometryType === 'polygon' || zone?.geometry_type === 'polygon';
     if (!zone || !isPolygon) return;
@@ -1368,7 +1654,8 @@ export default function DashboardLayout() {
     setSelectedZoneId(zone.id);
     // Switch the sidebar to the zone-edit form (same as superadmin)
     setPanelMode('zone-edit');
-  }, [selectedIncident]);
+    setRightPanelCollapsed(false);
+  }, [selectedIncident, exitFocusMode]);
 
   const buildZoneMenuItems = useCallback((zone) => {
     if (!zone) return [];
@@ -1457,16 +1744,19 @@ export default function DashboardLayout() {
   }, [pushToEditHistory]);
 
   const handleZoneEditCancel = useCallback(() => {
+    exitFocusMode();
     setEditingZoneId(null);
-    setEditingZoneVertices([]);
-    setOriginalZoneVertices([]);
+    setEditingZoneVertices([exitFocusMode]);
+    setOriginalZoneVertices([exitFocusMode]);
     setSelectedEditVertexIndex(null);
-    editHistoryRef.current = [];
+    editHistoryRef.current = [exitFocusMode];
     editHistoryIndexRef.current = -1;
     setPanelMode('detail');
-  }, []);
+    setRightPanelCollapsed(false);
+  }, [exitFocusMode]);
 
   const handleZoneEditSubmit = useCallback(async () => {
+    exitFocusMode();
     if (!editingZoneId || editingZoneVertices.length < 3) {
       setToast({ message: 'A zone must have at least 3 vertices', type: 'error' });
       return;
@@ -1487,6 +1777,7 @@ export default function DashboardLayout() {
       editHistoryRef.current = [];
       editHistoryIndexRef.current = -1;
       setPanelMode('detail');
+      setRightPanelCollapsed(false);
 
       setToast({ message: 'Zone updated successfully', type: 'success' });
       setRefreshKey((k) => k + 1);
@@ -1498,10 +1789,28 @@ export default function DashboardLayout() {
   }, [editingZoneId, editingZoneVertices]);
 
   const handleSearchSelect = useCallback((incident) => {
+    const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+    exitFocusMode();
     setSelectedIncident(incident);
     setIsEditing(false);
     setPanelMode('detail');
-    setFlyToCoords({ lat: parseFloat(incident.latitude), lng: parseFloat(incident.longitude) });
+    setRightPanelCollapsed(false);
+    const padding = getNextMapPadding({
+      focusMode: false,
+      activeDrawer: focusMode ? null : activeDrawer,
+      rightPanelCollapsed: false,
+      isPanelOpen: true,
+    });
+    scheduleFlyTo(
+      {
+        type: 'incident',
+        source: 'search',
+        lat: parseFloat(incident.latitude),
+        lng: parseFloat(incident.longitude),
+        padding,
+      },
+      panelAlreadyOpen
+    );
     setMarkerCoords(null);
     // Update URL to make incident shareable
     setSearchParams((prev) => {
@@ -1509,10 +1818,13 @@ export default function DashboardLayout() {
       next.set('incident', incident.id);
       return next;
     });
-  }, [setSearchParams]);
+  }, [setSearchParams, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const handlePowerSearchSelect = useCallback((incident) => {
     if (!incident) return;
+    const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+    exitFocusMode();
+    setRightPanelCollapsed(false);
     const isPolygon = incident.geometry_type === 'polygon' || incident.geometryType === 'polygon';
     if (isPolygon) {
       setSelectedIncident(incident);
@@ -1520,32 +1832,48 @@ export default function DashboardLayout() {
       setIsEditing(false);
       setPanelMode('detail');
       setMarkerCoords(null);
-      setFlyToCoords(null);
-      if (incident.geometry?.coordinates?.[0]) {
-        const coords = incident.geometry.coordinates[0];
-        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-        coords.forEach(([lng, lat]) => {
-          minLng = Math.min(minLng, lng);
-          minLat = Math.min(minLat, lat);
-          maxLng = Math.max(maxLng, lng);
-          maxLat = Math.max(maxLat, lat);
+      const centroid = getZoneCentroid(incident);
+      const bounds = getZoneBounds(incident);
+      if (centroid && bounds) {
+        const padding = getNextMapPadding({
+          focusMode: false,
+          activeDrawer: focusMode ? null : activeDrawer,
+          rightPanelCollapsed: false,
+          isPanelOpen: true,
         });
-        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        scheduleFlyTo(
+          {
+            type: 'zone',
+            source: 'power-search',
+            lat: centroid.lat,
+            lng: centroid.lng,
+            bounds,
+            padding,
+          },
+          panelAlreadyOpen
+        );
       }
       return;
     }
     handleSearchSelect(incident);
-  }, [handleSearchSelect]);
+  }, [handleSearchSelect, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const handlePowerSearchZoneClick = useCallback((zoneId) => {
     const zone = psResults.find((z) => z.id === zoneId);
-    if (zone) handlePowerSearchSelect(zone);
-  }, [psResults, handlePowerSearchSelect]);
+    if (zone) handleZoneClick(zone, { source: 'map' });
+  }, [psResults, handleZoneClick]);
 
   const handleSelectLocation = useCallback((location) => {
-    setFlyToCoords({ lat: parseFloat(location.lat), lng: parseFloat(location.lng) });
+    const padding = getNextMapPadding();
+    setFlyToCoords({
+      type: 'location',
+      source: 'search',
+      lat: parseFloat(location.lat),
+      lng: parseFloat(location.lng),
+      padding,
+    });
     setMarkerCoords(null);
-  }, []);
+  }, [getNextMapPadding]);
 
   // ─── Power Search data fetching ───
   const fetchPowerSearchResults = useCallback(
@@ -1647,13 +1975,16 @@ export default function DashboardLayout() {
   );
 
   const handleAddIncident = () => {
+    exitFocusMode();
     setMarkerCoords(null);
     setSelectedIncident(null);
     setIsEditing(false);
     setPanelMode('form');
+    setRightPanelCollapsed(false);
   };
 
   const handleAddZone = useCallback(() => {
+    exitFocusMode();
     // Reset any incident/marker state
     setMarkerCoords(null);
     setSelectedIncident(null);
@@ -1680,11 +2011,27 @@ export default function DashboardLayout() {
       next.delete('zone');
       return next;
     });
-  }, [setSearchParams]);
+  }, [setSearchParams, exitFocusMode]);
 
   const handleResetToToday = () => {
     setDateRange({ from: today, to: today });
   };
+
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode((prev) => {
+      if (!prev) {
+        preFocusRightCollapsedRef.current = rightPanelCollapsed;
+        setRightPanelCollapsed(true);
+      } else {
+        setRightPanelCollapsed(preFocusRightCollapsedRef.current);
+      }
+      return !prev;
+    });
+  }, [rightPanelCollapsed]);
+
+  const toggleRightPanel = useCallback(() => {
+    setRightPanelCollapsed((prev) => !prev);
+  }, []);
 
   const handleEditFromDetail = (incident) => {
     setIsEditing(true);
@@ -1713,20 +2060,32 @@ export default function DashboardLayout() {
   // Fly to ghost zones that are outside the current date range
   useEffect(() => {
     if (!ghostZone?.geometry?.coordinates?.[0]) return;
-    const coords = ghostZone.geometry.coordinates[0];
-    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-    coords.forEach(([lng, lat]) => {
-      minLng = Math.min(minLng, lng);
-      minLat = Math.min(minLat, lat);
-      maxLng = Math.max(maxLng, lng);
-      maxLat = Math.max(maxLat, lat);
-    });
-    setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
-  }, [ghostZone?.id]);
+    const centroid = getZoneCentroid(ghostZone);
+    const bounds = getZoneBounds(ghostZone);
+    if (!centroid || !bounds) return;
+    scheduleFlyTo(
+      {
+        type: 'zone',
+        source: 'ghost',
+        lat: centroid.lat,
+        lng: centroid.lng,
+        bounds,
+        padding: getNextMapPadding({
+          focusMode: false,
+          activeDrawer: focusMode ? null : activeDrawer,
+          rightPanelCollapsed: false,
+          isPanelOpen: true,
+        }),
+      },
+      isPanelOpen && !rightPanelCollapsed
+    );
+  }, [ghostZone?.id, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const finishCreateIncident = (newIncident) => {
+    exitFocusMode();
     setSelectedIncident(newIncident);
     setPanelMode('detail');
+    setRightPanelCollapsed(false);
     setMarkerCoords(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -1757,6 +2116,7 @@ export default function DashboardLayout() {
   };
 
   const handleSubmit = async (payload) => {
+    exitFocusMode();
     setSubmitting(true);
     try {
       if (isEditing && selectedIncident) {
@@ -1764,6 +2124,7 @@ export default function DashboardLayout() {
         setSelectedIncident((prev) => ({ ...prev, ...payload, start_date: payload.startDate, end_date: payload.endDate }));
         setIsEditing(false);
         setPanelMode('detail');
+        setRightPanelCollapsed(false);
         setRefreshKey((k) => k + 1);
       }
     } catch (err) {
@@ -1774,13 +2135,34 @@ export default function DashboardLayout() {
   };
 
   const handleSelectFromActivity = useCallback(
-    (incidentId, incidentData) => {
+    (incidentId, incidentData, { source = 'drawer' } = {}) => {
+      const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+      exitFocusMode();
+      const padding = getNextMapPadding({
+        focusMode: false,
+        activeDrawer: focusMode ? null : activeDrawer,
+        rightPanelCollapsed: false,
+        isPanelOpen: true,
+      });
+      const flyToIncident = (incident) => {
+        scheduleFlyTo(
+          {
+            type: 'incident',
+            source,
+            lat: parseFloat(incident.latitude),
+            lng: parseFloat(incident.longitude),
+            padding,
+          },
+          panelAlreadyOpen
+        );
+      };
       if (incidentData && incidentData.latitude && incidentData.longitude) {
         setSelectedIncident(incidentData);
         setIsEditing(false);
         setPanelMode('detail');
-        setFlyToCoords({ lat: parseFloat(incidentData.latitude), lng: parseFloat(incidentData.longitude) });
         setMarkerCoords(null);
+        setRightPanelCollapsed(false);
+        flyToIncident(incidentData);
         return;
       }
       const found = incidents.find((i) => i.id === incidentId);
@@ -1788,8 +2170,9 @@ export default function DashboardLayout() {
         setSelectedIncident(found);
         setIsEditing(false);
         setPanelMode('detail');
-        setFlyToCoords({ lat: parseFloat(found.latitude), lng: parseFloat(found.longitude) });
         setMarkerCoords(null);
+        setRightPanelCollapsed(false);
+        flyToIncident(found);
         return;
       }
       api
@@ -1799,15 +2182,21 @@ export default function DashboardLayout() {
             setSelectedIncident(res.data.incident);
             setIsEditing(false);
             setPanelMode('detail');
-            setFlyToCoords({ lat: parseFloat(res.data.incident.latitude), lng: parseFloat(res.data.incident.longitude) });
             setMarkerCoords(null);
+            setRightPanelCollapsed(false);
+            flyToIncident(res.data.incident);
           }
         })
         .catch(() => {
           console.warn('Could not fetch incident', incidentId);
         });
     },
-    [incidents]
+    [incidents, getNextMapPadding, activeDrawer, focusMode, exitFocusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]
+  );
+
+  const handleSelectFromNotification = useCallback(
+    (incidentId, incidentData) => handleSelectFromActivity(incidentId, incidentData, { source: 'notification' }),
+    [handleSelectFromActivity]
   );
 
   const handleMarkAllRead = useCallback(() => {
@@ -1829,7 +2218,7 @@ export default function DashboardLayout() {
   const handleSelectRecent = useCallback(
     (recent) => {
       if (recent?.id) {
-        handleSelectFromActivity(recent.id);
+        handleSelectFromActivity(recent.id, null, { source: 'recent' });
       }
     },
     [handleSelectFromActivity]
@@ -2132,6 +2521,7 @@ export default function DashboardLayout() {
           onSubmit={handleZoneCreateSubmit}
           onCancel={handleDrawCancel}
           submitting={submitting}
+          onCollapse={toggleRightPanel}
         />
       );
     }
@@ -2144,6 +2534,7 @@ export default function DashboardLayout() {
           onSubmit={handleZoneInfoSubmit}
           onCancel={() => setPanelMode('detail')}
           submitting={submitting}
+          onCollapse={toggleRightPanel}
         />
       );
     }
@@ -2173,6 +2564,7 @@ export default function DashboardLayout() {
             incident={selectedIncidentDetail.incident}
             timeline={selectedIncidentDetail.timeline}
             onBack={handleClosePanel}
+            onCollapse={toggleRightPanel}
             onFullDetails={handleNavigateToFullPage}
             onShare={handleCopyIncidentLink}
             onSave={() => {}}
@@ -2242,6 +2634,7 @@ export default function DashboardLayout() {
           onAutoCheck={handleCheckSource}
           onOpenAudit={() => {}}
           onViewCreator={() => {}}
+          onCollapse={toggleRightPanel}
         />
       );
     }
@@ -2255,6 +2648,7 @@ export default function DashboardLayout() {
             onSubmit={handleSubmit}
             onCancel={handleClosePanel}
             submitting={submitting}
+            onCollapse={toggleRightPanel}
           />
         );
       }
@@ -2263,14 +2657,13 @@ export default function DashboardLayout() {
           initialCoords={markerCoords}
           onSuccess={finishCreateIncident}
           onCancel={handleClosePanel}
+          onCollapse={toggleRightPanel}
         />
       );
     }
 
     return null;
   };
-
-  const isPanelOpen = panelMode !== 'empty' || showZoneCreatePanel;
 
   return (
     <div className="dashboard-layout page-enter--dashboard" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-gradient)' }}>
@@ -2284,13 +2677,15 @@ export default function DashboardLayout() {
           activeCount={activeIncidentCount}
           overdueCount={overdueIncidentCount}
           onOpenActiveDrawer={() => setActiveDrawer('active')}
-          onToggleFocusMode={() => setFocusMode((p) => !p)}
+          onToggleFocusMode={toggleFocusMode}
           isFocusMode={focusMode}
           onAddIncident={handleAddIncident}
           onAddZone={handleAddZone}
           onOpenZones={handleOpenZones}
           user={user}
           onLogout={logout}
+          compactMode={compactMode}
+          onToggleCompactMode={toggleCompactMode}
         />
       )}
 
@@ -2321,7 +2716,7 @@ export default function DashboardLayout() {
           onClick={() => {
             if (toast.incidentId) {
               const found = incidents.find((i) => i.id === toast.incidentId);
-              if (found) handleEventClick(found);
+              if (found) handleEventClick(found, { source: 'toast' });
               setToast(null);
             }
           }}
@@ -2332,8 +2727,9 @@ export default function DashboardLayout() {
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
         {/* Left workspace rail + drawer */}
-        {!powerSearchMode && !focusMode && (
+        {!powerSearchMode && (
           <WorkspaceRail
+            compactMode={compactMode}
             items={[
               { id: 'layers', icon: Layers, label: 'Layers' },
               { id: 'incidents', icon: List, label: 'Incidents' },
@@ -2345,7 +2741,7 @@ export default function DashboardLayout() {
               { id: 'settings', icon: Settings, label: 'Settings' },
             ]}
             activeId={activeDrawer}
-            onSelect={setActiveDrawer}
+            onSelect={handleDrawerSelect}
           />
         )}
 
@@ -2365,7 +2761,7 @@ export default function DashboardLayout() {
             onHideAllZones={handleHideAllZones}
             incidents={incidents}
             visibleIncidents={filteredIncidents}
-            onSelectIncident={handleEventClick}
+            onSelectIncident={(incident) => handleEventClick(incident, { source: 'drawer' })}
             activeIncidents={activeIncidents}
             overdueCount={overdueIncidentCount}
             now={Date.now()}
@@ -2378,13 +2774,15 @@ export default function DashboardLayout() {
             notificationUnreadCount={notificationUnreadCount}
             onMarkNotificationRead={markNotificationRead}
             onMarkAllNotificationsRead={markAllNotificationsRead}
-            onSelectNotificationIncident={handleSelectFromActivity}
+            onSelectNotificationIncident={handleSelectFromNotification}
             savedIncidents={savedIncidents}
-            onSelectSavedIncident={handleEventClick}
+            onSelectSavedIncident={(incident) => handleEventClick(incident, { source: 'drawer' })}
             onUnsaveIncident={unsaveIncident}
             recents={recents}
             onClearRecents={clearRecents}
             onSelectRecentIncident={handleSelectRecent}
+            autoZoomEnabled={autoZoomEnabled}
+            onToggleAutoZoom={toggleAutoZoom}
           />
         )}
 
@@ -2410,6 +2808,11 @@ export default function DashboardLayout() {
             onSelectIncident={handlePowerSearchSelect}
             onToggleSaved={handleToggleSavedPowerSearch}
             onResetFilters={handleResetPowerSearchFilters}
+            compactMode={compactMode}
+            filterCollapsed={psFilterCollapsed}
+            onFilterCollapsedChange={setPsFilterCollapsed}
+            resultsCollapsed={psResultsCollapsed}
+            onResultsCollapsedChange={setPsResultsCollapsed}
           />
         )}
 
@@ -2418,7 +2821,6 @@ export default function DashboardLayout() {
           style={{
             flex: 1,
             position: 'relative',
-            borderRight: isPanelOpen ? '1px solid var(--border-subtle)' : 'none',
             background: 'var(--bg-deep)',
             minWidth: 0,
           }}
@@ -2460,7 +2862,6 @@ export default function DashboardLayout() {
             ghostIncident={ghostIncident}
             ghostZone={ghostZone}
             newIncidentIds={newIncidentIds}
-            fitBounds={fitBounds}
             mapMode={mapMode}
             drawVertices={drawVertices}
             isPolygonClosed={isPolygonClosed}
@@ -2489,6 +2890,7 @@ export default function DashboardLayout() {
             onEditVertexDelete={handleEditVertexDelete}
             onEditUndo={handleEditUndo}
             onEditCancel={handleZoneEditCancel}
+            autoZoomEnabled={autoZoomEnabled}
           />
 
           {editingZoneId && (
@@ -2563,7 +2965,11 @@ export default function DashboardLayout() {
           {mapMode === 'polygon' && !editingZoneId && (
             <DrawingToolbar
               hasClosedPolygon={isPolygonClosed}
-              onSave={() => setShowZoneCreatePanel(true)}
+              onSave={() => {
+                exitFocusMode();
+                setShowZoneCreatePanel(true);
+                setRightPanelCollapsed(false);
+              }}
               onCancel={handleDrawCancel}
             />
           )}
@@ -2624,92 +3030,6 @@ export default function DashboardLayout() {
             onCancel={() => setConfirmDialog(null)}
           />
 
-          {/* Ghost incident banner */}
-          {ghostIncident && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '16px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 20,
-                background: 'var(--bg-surface)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 18px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                boxShadow: 'var(--shadow-lg)',
-                maxWidth: '90%',
-              }}
-            >
-              <div
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: 'var(--text-muted)',
-                  opacity: 0.5,
-                  border: '2px dashed var(--text-muted)',
-                  flexShrink: 0,
-                }}
-              />
-              <div>
-                <p
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    fontWeight: 500,
-                    margin: 0,
-                  }}
-                >
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                    {ghostIncident.title}
-                  </span>{' '}
-                  occurred on{' '}
-                  <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
-                    {ghostIncident.start_date
-                      ? new Date(ghostIncident.start_date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : 'unknown date'}
-                  </span>
-                  {' — outside your current date range'}
-                </p>
-              </div>
-              <button
-                onClick={() => handleSwitchToIncidentDate(ghostIncident)}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--accent-light)',
-                  background: 'var(--accent-subtle-bg)',
-                  color: 'var(--accent-light)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--accent-subtle-border)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--accent-subtle-bg)';
-                }}
-              >
-                Switch to this date
-              </button>
-            </div>
-          )}
-
           {/* Incident counter + viewport filtering indicator overlay */}
           <div
             style={{
@@ -2755,31 +3075,141 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        {/* Right Panel — 630px slide-in */}
-        {isPanelOpen && (
+        {/* Right Panel — 630px absolute overlay that slides in with transform */}
+        {rightPanelRendered && (
           <div
-            className="dashboard-right-panel"
+            ref={rightPanelRef}
+            className="dashboard-right-panel-outer"
             style={{
-              width: '630px',
-              overflowY: 'auto',
-              padding:
-                showZoneCreatePanel || panelMode === 'detail' || panelMode === 'zone-edit' || (panelMode === 'form' && !isEditing)
-                  ? 0
-                  : '20px',
-              boxSizing: 'border-box',
-              background: 'var(--bg-surface)',
-              borderLeft: '1px solid var(--border-subtle)',
-              flexShrink: 0,
-              position: 'relative',
+              position: 'absolute',
+              top: powerSearchMode ? 'calc(var(--admin-ps-topbar-height) + var(--admin-ps-chips-height))' : 0,
+              right: 0,
+              bottom: 0,
+              width: 'var(--admin-right-panel-width)',
+              overflow: 'hidden',
+              transform: rightPanelVisible ? 'translateX(0)' : 'translateX(100%)',
+              transition: `transform ${RIGHT_PANEL_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
               zIndex: 70,
-              animation: 'slideInRight 0.25s ease-out',
-              marginTop: powerSearchMode ? '90px' : undefined,
+              willChange: 'transform',
+              pointerEvents: rightPanelVisible ? 'auto' : 'none',
             }}
           >
-            {renderPanel()}
+            <div
+              className="dashboard-right-panel"
+              style={{
+                width: 'var(--admin-right-panel-width)',
+                height: '100%',
+                overflowY: 'auto',
+                padding:
+                  showZoneCreatePanel || panelMode === 'detail' || panelMode === 'zone-edit' || (panelMode === 'form' && !isEditing)
+                    ? 0
+                    : '20px',
+                boxSizing: 'border-box',
+                background: 'var(--bg-surface)',
+                borderLeft: '1px solid var(--border-subtle)',
+                position: 'relative',
+                zIndex: 70,
+                animation: rightPanelVisible ? 'slideInRight 0.25s ease-out' : 'none',
+              }}
+            >
+              {renderPanel()}
+            </div>
           </div>
         )}
+
+        {/* Collapsed right-panel handle — show only after the panel has fully closed */}
+        {isPanelOpen && rightPanelCollapsed && !rightPanelRendered && (
+          <button
+            type="button"
+            onClick={toggleRightPanel}
+            title="Expand sidebar"
+            style={{
+              position: 'absolute',
+              top: '50%',
+              right: 0,
+              transform: 'translateY(-50%)',
+              zIndex: 100,
+              width: 'calc(32px * var(--admin-ui-scale))',
+              height: 'calc(96px * var(--admin-ui-scale))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              borderRight: 'none',
+              borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-md)',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent-light)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
+          >
+            <ChevronLeft size={compactMode ? 16 : 18} />
+          </button>
+        )}
       </div>
+
+      {/* Ghost incident banner — centered on the visible map area */}
+      {ghostIncident && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: 0,
+            right: 0,
+            zIndex: 80,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-end',
+            pointerEvents: 'none',
+            paddingLeft: getBannerPadding().left,
+            paddingRight: getBannerPadding().right,
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ pointerEvents: 'auto', maxWidth: '100%' }}>
+            <GhostIncidentBanner
+              ghostIncident={ghostIncident}
+              actionButton={
+                <button
+                  type="button"
+                  onClick={() => handleSwitchToIncidentDate(ghostIncident)}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--accent-light)',
+                    background: 'var(--accent-subtle-bg)',
+                    color: 'var(--accent-light)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-subtle-border)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-subtle-bg)';
+                  }}
+                >
+                  Switch to this date
+                </button>
+              }
+            />
+          </div>
+        </div>
+      )}
 
       {/* Command Palette */}
       <CommandPalette
@@ -2792,7 +3222,7 @@ export default function DashboardLayout() {
         onAddIncident={handleAddIncident}
         onAddZone={handleAddZone}
         onOpenLayers={() => setActiveDrawer('layers')}
-        onToggleFocusMode={() => setFocusMode((p) => !p)}
+        onToggleFocusMode={toggleFocusMode}
         onOpenAdvancedSearch={() => setPowerSearchMode(true)}
       />
 

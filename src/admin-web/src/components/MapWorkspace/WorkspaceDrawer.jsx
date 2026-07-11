@@ -15,6 +15,7 @@ import {
   Monitor,
   Palette,
   Plus,
+  Crosshair,
   RefreshCw,
   Trash2,
   FileText,
@@ -43,12 +44,12 @@ function timeAgo(dateValue, nowMs = Date.now()) {
 
 function LayerSection({ title, active, total, onShowAll, onHideAll, children }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(10px * var(--admin-ui-scale))' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'calc(8px * var(--admin-ui-scale))' }}>
           <span
             style={{
-              fontSize: '12px',
+              fontSize: 'calc(12px * var(--admin-ui-scale))',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '1px',
@@ -57,11 +58,11 @@ function LayerSection({ title, active, total, onShowAll, onHideAll, children }) 
           >
             {title}
           </span>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
             {active}/{total}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: 'calc(6px * var(--admin-ui-scale))' }}>
           <button onClick={onShowAll} style={layerActionBtnStyle}>
             Show all
           </button>
@@ -76,8 +77,8 @@ function LayerSection({ title, active, total, onShowAll, onHideAll, children }) 
 }
 
 const layerActionBtnStyle = {
-  padding: '3px 8px',
-  fontSize: '10px',
+  padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
+  fontSize: 'calc(10px * var(--admin-ui-scale))',
   fontWeight: 700,
   background: 'var(--bg-input)',
   border: '1px solid var(--border-default)',
@@ -96,7 +97,7 @@ function LayerIcon({ icon }) {
     return <Icon size={12} strokeWidth={2} />;
   }
   if (typeof icon === 'string') {
-    return <span style={{ fontSize: '10px', fontWeight: 700 }}>{icon.slice(0, 2)}</span>;
+    return <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', fontWeight: 700 }}>{icon.slice(0, 2)}</span>;
   }
   return <Hexagon size={12} strokeWidth={2} />;
 }
@@ -110,8 +111,8 @@ function LayerRow({ data, active, theme, onToggle }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        padding: '6px 8px',
+        gap: 'calc(8px * var(--admin-ui-scale))',
+        padding: 'calc(6px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
         border: `1px solid ${active ? softTint : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-sm)',
@@ -131,8 +132,8 @@ function LayerRow({ data, active, theme, onToggle }) {
     >
       <span
         style={{
-          width: '20px',
-          height: '20px',
+          width: 'calc(20px * var(--admin-ui-scale))',
+          height: 'calc(20px * var(--admin-ui-scale))',
           borderRadius: 'var(--radius-sm)',
           background: tint,
           color: 'var(--text-on-accent)',
@@ -147,7 +148,7 @@ function LayerRow({ data, active, theme, onToggle }) {
       <span
         style={{
           flex: 1,
-          fontSize: '12px',
+          fontSize: 'calc(12px * var(--admin-ui-scale))',
           fontWeight: 600,
           color: 'var(--text-primary)',
           overflow: 'hidden',
@@ -176,8 +177,8 @@ function IncidentCard({ incident, onClick }) {
       onClick={() => onClick(incident)}
       style={{
         display: 'flex',
-        gap: '12px',
-        padding: '14px',
+        gap: 'calc(12px * var(--admin-ui-scale))',
+        padding: 'calc(14px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
@@ -186,7 +187,7 @@ function IncidentCard({ incident, onClick }) {
         transition: 'all 0.15s ease',
         overflow: 'hidden',
         flexShrink: 0,
-        marginBottom: '8px',
+        marginBottom: 'calc(8px * var(--admin-ui-scale))',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'var(--accent-light)';
@@ -199,7 +200,7 @@ function IncidentCard({ incident, onClick }) {
     >
       <div
         style={{
-          width: '2px',
+          width: 'calc(2px * var(--admin-ui-scale))',
           borderRadius: '2px',
           background: categoryColor,
           flexShrink: 0,
@@ -213,12 +214,12 @@ function IncidentCard({ incident, onClick }) {
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
-            gap: '10px',
+            gap: 'calc(10px * var(--admin-ui-scale))',
           }}
         >
           <div
             style={{
-              fontSize: '15px',
+              fontSize: 'calc(15px * var(--admin-ui-scale))',
               fontWeight: 700,
               color: 'var(--text-primary)',
               lineHeight: 1.35,
@@ -233,9 +234,9 @@ function IncidentCard({ incident, onClick }) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            marginTop: '6px',
-            fontSize: '12px',
+            gap: 'calc(6px * var(--admin-ui-scale))',
+            marginTop: 'calc(6px * var(--admin-ui-scale))',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             color: 'var(--text-secondary)',
           }}
         >
@@ -245,12 +246,12 @@ function IncidentCard({ incident, onClick }) {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: categoryColor }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'calc(10px * var(--admin-ui-scale))' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
+            <span style={{ width: 'calc(7px * var(--admin-ui-scale))', height: 'calc(7px * var(--admin-ui-scale))', borderRadius: '50%', background: categoryColor }} />
             {categoryName}
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{timeAgo(createdAt)}</span>
+          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>{timeAgo(createdAt)}</span>
         </div>
       </div>
     </div>
@@ -269,8 +270,8 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
     <div
       style={{
         display: 'flex',
-        gap: '10px',
-        padding: '10px',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
@@ -281,7 +282,7 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
     >
       <div
         style={{
-          width: '2px',
+          width: 'calc(2px * var(--admin-ui-scale))',
           borderRadius: '2px',
           background: categoryColor,
           flexShrink: 0,
@@ -289,11 +290,11 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
           marginLeft: '-11px',
         }}
       />
-      <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(5px * var(--admin-ui-scale))' }}>
         <div
           onClick={() => onOpen(incident)}
           style={{
-            fontSize: '13px',
+            fontSize: 'calc(13px * var(--admin-ui-scale))',
             fontWeight: 700,
             color: 'var(--text-primary)',
             lineHeight: 1.35,
@@ -303,7 +304,7 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
         >
           {incident.title}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
           <MapPin size={11} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{location}</span>
           <span>·</span>
@@ -315,8 +316,8 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '3px',
-                  fontSize: '9px',
+                  gap: 'calc(3px * var(--admin-ui-scale))',
+                  fontSize: 'calc(9px * var(--admin-ui-scale))',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
@@ -330,9 +331,9 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
             </>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'var(--text-secondary)' }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: categoryColor }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
+            <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: categoryColor }} />
             {categoryName}
           </span>
           <SeverityBadge level={incident.severity} style={{ transform: 'scale(0.78)', transformOrigin: 'right center', flexShrink: 0 }} />
@@ -344,13 +345,13 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
           }}
           style={{
             alignSelf: 'flex-start',
-            marginTop: '2px',
-            padding: '3px 8px',
+            marginTop: 'calc(2px * var(--admin-ui-scale))',
+            padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-default)',
             borderRadius: 'var(--radius-sm)',
             color: 'var(--text-primary)',
-            fontSize: '10px',
+            fontSize: 'calc(10px * var(--admin-ui-scale))',
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.15s ease',
@@ -398,8 +399,8 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        padding: '10px 12px',
+        gap: 'calc(12px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
         background: isUnseen ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
         borderWidth: '1px 1px 1px 3px',
         borderStyle: 'solid',
@@ -424,8 +425,8 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
     >
       <div
         style={{
-          width: '30px',
-          height: '30px',
+          width: 'calc(30px * var(--admin-ui-scale))',
+          height: 'calc(30px * var(--admin-ui-scale))',
           borderRadius: 'var(--radius-sm)',
           background: meta.bg,
           color: meta.color,
@@ -438,18 +439,18 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
         <Icon size={14} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+        <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--text-primary)' }}>
           {event.incident?.title ? `${event.type === 'incident_created' ? 'New' : 'Update'}: ${event.incident.title}` : event.type}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>
           {meta.label} · {timeAgo(event.timestamp)}
           {isUnseen && (
             <span
               style={{
-                marginLeft: '8px',
-                padding: '1px 6px',
+                marginLeft: 'calc(8px * var(--admin-ui-scale))',
+                padding: 'calc(1px * var(--admin-ui-scale)) calc(6px * var(--admin-ui-scale))',
                 borderRadius: 'var(--radius-sm)',
-                fontSize: '10px',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
                 fontWeight: 800,
                 textTransform: 'uppercase',
                 background: 'var(--alert-error-bg)',
@@ -464,8 +465,8 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
       {isUnseen && (
         <span
           style={{
-            width: '7px',
-            height: '7px',
+            width: 'calc(7px * var(--admin-ui-scale))',
+            height: 'calc(7px * var(--admin-ui-scale))',
             borderRadius: '50%',
             background: 'var(--danger)',
             boxShadow: '0 0 0 0 var(--danger-glow)',
@@ -490,7 +491,7 @@ function NotificationRow({ notification, onOpen, onMarkRead }) {
         }
       }}
       style={{
-        padding: '12px',
+        padding: 'calc(12px * var(--admin-ui-scale))',
         background: isUnread ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
         border: `1px solid ${isUnread ? 'var(--accent-subtle-border)' : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-sm)',
@@ -498,26 +499,26 @@ function NotificationRow({ notification, onOpen, onMarkRead }) {
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'flex-start',
-        gap: '10px',
+        gap: 'calc(10px * var(--admin-ui-scale))',
       }}
     >
       <Bell
         size={16}
         color={isUnread ? 'var(--danger-light)' : 'var(--text-secondary)'}
-        style={{ flexShrink: 0, marginTop: '2px' }}
+        style={{ flexShrink: 0, marginTop: 'calc(2px * var(--admin-ui-scale))' }}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontSize: '12px',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             fontWeight: isUnread ? 700 : 500,
             color: isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
           }}
         >
           {notification.title}
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{notification.message}</div>
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>{timeAgo(createdAt)}</div>
+        <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>{notification.message}</div>
+        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>{timeAgo(createdAt)}</div>
       </div>
       {isUnread && (
         <button
@@ -527,8 +528,8 @@ function NotificationRow({ notification, onOpen, onMarkRead }) {
           }}
           style={{
             flexShrink: 0,
-            width: '24px',
-            height: '24px',
+            width: 'calc(24px * var(--admin-ui-scale))',
+            height: 'calc(24px * var(--admin-ui-scale))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -557,8 +558,8 @@ function SavedRow({ incident, onOpen, onUnsave }) {
     <div
       style={{
         display: 'flex',
-        gap: '10px',
-        padding: '10px',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
@@ -567,7 +568,7 @@ function SavedRow({ incident, onOpen, onUnsave }) {
     >
       <div
         style={{
-          width: '2px',
+          width: 'calc(2px * var(--admin-ui-scale))',
           borderRadius: '2px',
           background: categoryColor,
           flexShrink: 0,
@@ -579,7 +580,7 @@ function SavedRow({ incident, onOpen, onUnsave }) {
         <div
           onClick={() => onOpen(incident)}
           style={{
-            fontSize: '13px',
+            fontSize: 'calc(13px * var(--admin-ui-scale))',
             fontWeight: 700,
             color: 'var(--text-primary)',
             cursor: 'pointer',
@@ -589,7 +590,7 @@ function SavedRow({ incident, onOpen, onUnsave }) {
         >
           {incident.title}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>
           {categoryName} · {timeAgo(createdAt)}
         </div>
       </div>
@@ -598,8 +599,8 @@ function SavedRow({ incident, onOpen, onUnsave }) {
         title="Unsave"
         style={{
           flexShrink: 0,
-          width: '26px',
-          height: '26px',
+          width: 'calc(26px * var(--admin-ui-scale))',
+          height: 'calc(26px * var(--admin-ui-scale))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -627,8 +628,8 @@ function RecentRow({ recent, onOpen }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
-        padding: '10px',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
@@ -646,8 +647,8 @@ function RecentRow({ recent, onOpen }) {
     >
       <Clock size={16} color="var(--text-secondary)" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>viewed {timeAgo(openedAt)}</div>
+        <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
+        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>viewed {timeAgo(openedAt)}</div>
       </div>
     </div>
   );
@@ -655,10 +656,10 @@ function RecentRow({ recent, onOpen }) {
 
 function EmptyState({ icon: Icon, title, children }) {
   return (
-    <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+    <div style={{ textAlign: 'center', padding: 'calc(40px * var(--admin-ui-scale)) 0', color: 'var(--text-muted)', fontSize: 'calc(13px * var(--admin-ui-scale))' }}>
       <Icon size={28} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
       <div style={{ fontWeight: 600 }}>{title}</div>
-      {children && <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>{children}</div>}
+      {children && <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', opacity: 0.8, marginTop: 'calc(4px * var(--admin-ui-scale))' }}>{children}</div>}
     </div>
   );
 }
@@ -677,7 +678,7 @@ function LayersDrawer({
 }) {
   const { theme } = useTheme();
   return (
-    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', overflowY: 'auto' }}>
+    <div style={{ padding: 'calc(16px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(14px * var(--admin-ui-scale))', height: '100%', overflowY: 'auto' }}>
       <LayerSection
         title="Incident Domains"
         active={domains.filter((d) => activeDomainSlugs.has(d.slug)).length}
@@ -685,7 +686,7 @@ function LayersDrawer({
         onShowAll={onShowAllDomains}
         onHideAll={onHideAllDomains}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(5px * var(--admin-ui-scale))' }}>
           {domains.map((domain) => (
             <LayerRow
               key={domain.slug}
@@ -698,7 +699,7 @@ function LayersDrawer({
         </div>
       </LayerSection>
 
-      <div style={{ height: '1px', background: 'var(--border-default)', margin: '2px 0' }} />
+      <div style={{ height: 'calc(1px * var(--admin-ui-scale))', background: 'var(--border-default)', margin: '2px 0' }} />
 
       <LayerSection
         title="Zone Overlays"
@@ -707,7 +708,7 @@ function LayersDrawer({
         onShowAll={onShowAllZones}
         onHideAll={onHideAllZones}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(5px * var(--admin-ui-scale))' }}>
           {zoneCategories.map((zone) => (
             <LayerRow
               key={zone.slug}
@@ -726,14 +727,14 @@ function LayersDrawer({
 function IncidentsDrawer({ visibleIncidents, onSelectIncident }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '12px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{visibleIncidents.length} visible</span>
-        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div style={{ padding: 'calc(12px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale)) 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{visibleIncidents.length} visible</span>
+        <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))' }}>
           <Filter size={11} />
           Filtered by active layers
         </span>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 18px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale)) calc(18px * var(--admin-ui-scale))' }}>
         {visibleIncidents.length === 0 ? (
           <EmptyState icon={AlertCircle} title="No incidents visible." />
         ) : (
@@ -754,7 +755,7 @@ function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, on
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
         style={{
-          padding: '12px 16px',
+          padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
           borderBottom: '1px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
@@ -763,7 +764,7 @@ function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, on
       >
         <span
           style={{
-            fontSize: '12px',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1px',
@@ -772,17 +773,17 @@ function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, on
         >
           Active Incidents
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
           {overdueCount > 0 && (
             <span
               style={{
-                height: '18px',
-                padding: '0 7px',
+                height: 'calc(18px * var(--admin-ui-scale))',
+                padding: '0 calc(7px * var(--admin-ui-scale))',
                 borderRadius: '999px',
                 background: 'var(--badge-red-bg)',
                 border: '1px solid var(--badge-red-bg)',
                 color: 'var(--badge-red-text)',
-                fontSize: '10px',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
                 fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
@@ -791,10 +792,10 @@ function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, on
               {overdueCount} overdue
             </span>
           )}
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>
+          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {sorted.length === 0 ? (
           <EmptyState icon={CheckCircle2} title="No active incidents." />
         ) : (
@@ -819,7 +820,7 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
         style={{
-          padding: '12px 16px',
+          padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
           borderBottom: '1px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
@@ -828,7 +829,7 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
       >
         <span
           style={{
-            fontSize: '12px',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1px',
@@ -837,13 +838,13 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
         >
           Live Activity
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{activities.length} events</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))' }}>
+          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{activities.length} events</span>
           {unreadCount > 0 && (
             <button
               onClick={onMarkAllActivitySeen}
               style={{
-                fontSize: '11px',
+                fontSize: 'calc(11px * var(--admin-ui-scale))',
                 fontWeight: 700,
                 color: 'var(--accent-light)',
                 background: 'transparent',
@@ -856,7 +857,7 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
           )}
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {activities.length === 0 ? (
           <EmptyState icon={ActivityIcon} title="No recent activity." />
         ) : (
@@ -879,7 +880,7 @@ function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNot
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
         style={{
-          padding: '12px 16px',
+          padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
           borderBottom: '1px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
@@ -888,7 +889,7 @@ function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNot
       >
         <span
           style={{
-            fontSize: '12px',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1px',
@@ -901,7 +902,7 @@ function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNot
           <button
             onClick={onMarkAllNotificationsRead}
             style={{
-              fontSize: '11px',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               fontWeight: 700,
               color: 'var(--accent-light)',
               background: 'transparent',
@@ -913,7 +914,7 @@ function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNot
           </button>
         )}
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {notifications.length === 0 ? (
           <EmptyState icon={Bell} title="No notifications." />
         ) : (
@@ -934,10 +935,10 @@ function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNot
 function SavedDrawer({ savedIncidents, onSelectSavedIncident, onUnsaveIncident }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-default)' }}>
+      <div style={{ padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))', borderBottom: '1px solid var(--border-default)' }}>
         <span
           style={{
-            fontSize: '12px',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1px',
@@ -947,7 +948,7 @@ function SavedDrawer({ savedIncidents, onSelectSavedIncident, onUnsaveIncident }
           Saved Incidents
         </span>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {savedIncidents.length === 0 ? (
           <EmptyState icon={Bookmark} title="No saved incidents yet." />
         ) : (
@@ -965,7 +966,7 @@ function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
         style={{
-          padding: '12px 16px',
+          padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
           borderBottom: '1px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
@@ -974,7 +975,7 @@ function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
       >
         <span
           style={{
-            fontSize: '12px',
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1px',
@@ -987,7 +988,7 @@ function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
           <button
             onClick={onClearRecents}
             style={{
-              fontSize: '11px',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
               fontWeight: 700,
               color: 'var(--accent-light)',
               background: 'transparent',
@@ -999,7 +1000,7 @@ function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
           </button>
         )}
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {recents.length === 0 ? (
           <EmptyState icon={Clock} title="No recently viewed incidents.">
             Open an incident from the map or list to see it here.
@@ -1012,13 +1013,13 @@ function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
   );
 }
 
-function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle }) {
+function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabled, onToggleAutoZoom }) {
   return (
-    <div style={{ padding: '16px' }}>
+    <div style={{ padding: 'calc(16px * var(--admin-ui-scale))' }}>
       <div
         style={{
-          marginBottom: '14px',
-          fontSize: '12px',
+          marginBottom: 'calc(14px * var(--admin-ui-scale))',
+          fontSize: 'calc(12px * var(--admin-ui-scale))',
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '1px',
@@ -1033,19 +1034,19 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px',
+          padding: 'calc(12px * var(--admin-ui-scale))',
           background: 'var(--bg-input)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-sm)',
           boxShadow: 'var(--shadow-sm)',
-          marginBottom: '10px',
+          marginBottom: 'calc(10px * var(--admin-ui-scale))',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
           <Monitor size={16} color="var(--text-secondary)" />
           <div>
-            <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Theme</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Toggle light or dark mode</div>
+            <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', color: 'var(--text-primary)' }}>Theme</div>
+            <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>Toggle light or dark mode</div>
           </div>
         </div>
         <ThemeToggle size={18} />
@@ -1053,22 +1054,73 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle }) {
 
       <div
         style={{
-          padding: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 'calc(12px * var(--admin-ui-scale))',
           background: 'var(--bg-input)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-sm)',
           boxShadow: 'var(--shadow-sm)',
-          marginBottom: '16px',
+          marginBottom: 'calc(10px * var(--admin-ui-scale))',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-          <Palette size={16} color="var(--text-secondary)" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
+          <Crosshair size={16} color="var(--text-secondary)" />
           <div>
-            <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Interface style</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Choose a visual treatment</div>
+            <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', color: 'var(--text-primary)' }}>Auto-zoom on selection</div>
+            <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>Zoom map to selected incidents and zones</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <button
+          onClick={onToggleAutoZoom}
+          aria-checked={autoZoomEnabled}
+          role="switch"
+          style={{
+            width: 'calc(40px * var(--admin-ui-scale))',
+            height: 'calc(22px * var(--admin-ui-scale))',
+            borderRadius: 'calc(11px * var(--admin-ui-scale))',
+            border: 'none',
+            background: autoZoomEnabled ? 'var(--accent)' : 'var(--border-strong)',
+            position: 'relative',
+            cursor: 'pointer',
+            transition: 'background 0.15s ease',
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              top: 'calc(2px * var(--admin-ui-scale))',
+              left: autoZoomEnabled ? 'calc(20px * var(--admin-ui-scale))' : 'calc(2px * var(--admin-ui-scale))',
+              width: 'calc(18px * var(--admin-ui-scale))',
+              height: 'calc(18px * var(--admin-ui-scale))',
+              borderRadius: '50%',
+              background: '#fff',
+              transition: 'left 0.15s ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+            }}
+          />
+        </button>
+      </div>
+
+      <div
+        style={{
+          padding: 'calc(12px * var(--admin-ui-scale))',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-sm)',
+          boxShadow: 'var(--shadow-sm)',
+          marginBottom: 'calc(16px * var(--admin-ui-scale))',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))', marginBottom: 'calc(10px * var(--admin-ui-scale))' }}>
+          <Palette size={16} color="var(--text-secondary)" />
+          <div>
+            <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', color: 'var(--text-primary)' }}>Interface style</div>
+            <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>Choose a visual treatment</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 'calc(8px * var(--admin-ui-scale))' }}>
           {[
             { key: 'tactical', label: 'Tactical', short: 'T' },
             { key: 'saas', label: 'SaaS', short: 'S' },
@@ -1081,7 +1133,7 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle }) {
                 onClick={() => onSetStyle(opt.key)}
                 style={{
                   flex: 1,
-                  padding: '10px 8px',
+                  padding: 'calc(10px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid',
                   borderColor: active ? 'var(--accent-light)' : 'var(--border-default)',
@@ -1091,27 +1143,27 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle }) {
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: 'calc(6px * var(--admin-ui-scale))',
                   transition: 'all 0.15s ease',
                 }}
               >
                 <span
                   style={{
-                    width: '24px',
-                    height: '24px',
+                    width: 'calc(24px * var(--admin-ui-scale))',
+                    height: 'calc(24px * var(--admin-ui-scale))',
                     borderRadius: 'var(--radius-sm)',
                     background: active ? 'var(--accent)' : 'var(--bg-elevated)',
                     color: active ? 'var(--text-on-accent)' : 'var(--text-secondary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '11px',
+                    fontSize: 'calc(11px * var(--admin-ui-scale))',
                     fontWeight: 800,
                   }}
                 >
                   {opt.short}
                 </span>
-                <span style={{ fontSize: '11px', fontWeight: 700 }}>{opt.label}</span>
+                <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', fontWeight: 700 }}>{opt.label}</span>
               </button>
             );
           })}
@@ -1120,18 +1172,18 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle }) {
 
       <div
         style={{
-          padding: '12px',
+          padding: 'calc(12px * var(--admin-ui-scale))',
           background: 'var(--bg-input)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-sm)',
           boxShadow: 'var(--shadow-sm)',
-          fontSize: '12px',
+          fontSize: 'calc(12px * var(--admin-ui-scale))',
           color: 'var(--text-secondary)',
           lineHeight: 1.5,
         }}
       >
-        <Info size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-        Theme and style preferences are stored locally in your browser.
+        <Info size={14} style={{ display: 'inline', marginRight: 'calc(6px * var(--admin-ui-scale))', verticalAlign: 'middle' }} />
+        Preferences are stored locally in your browser.
       </div>
     </div>
   );
@@ -1207,7 +1259,7 @@ export default function WorkspaceDrawer(props) {
           />
         );
       case 'settings':
-        return <SettingsDrawer theme={theme} style={style} onToggleTheme={toggleTheme} onSetStyle={setStyle} />;
+        return <SettingsDrawer theme={theme} style={style} onToggleTheme={toggleTheme} onSetStyle={setStyle} autoZoomEnabled={props.autoZoomEnabled} onToggleAutoZoom={props.onToggleAutoZoom} />;
       default:
         return null;
     }
@@ -1217,10 +1269,10 @@ export default function WorkspaceDrawer(props) {
     <div
       style={{
         position: 'absolute',
-        left: '64px',
+        left: 'var(--admin-rail-width)',
         top: 0,
         bottom: 0,
-        width: `${DRAWER_WIDTH}px`,
+        width: 'var(--admin-drawer-width)',
         background: 'var(--bg-surface)',
         borderRight: '1px solid var(--border-default)',
         boxShadow: 'var(--shadow-lg)',
@@ -1231,20 +1283,20 @@ export default function WorkspaceDrawer(props) {
     >
       <div
         style={{
-          height: '48px',
+          height: 'calc(48px * var(--admin-ui-scale))',
           borderBottom: '1px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 8px 0 12px',
+          padding: '0 calc(8px * var(--admin-ui-scale)) 0 calc(12px * var(--admin-ui-scale))',
         }}
       >
-        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{drawerTitles[activeDrawer] || ''}</span>
+        <span style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>{drawerTitles[activeDrawer] || ''}</span>
         <button
           onClick={onClose}
           style={{
-            width: '28px',
-            height: '28px',
+            width: 'calc(28px * var(--admin-ui-scale))',
+            height: 'calc(28px * var(--admin-ui-scale))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

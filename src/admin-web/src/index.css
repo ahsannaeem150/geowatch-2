@@ -20,6 +20,41 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Admin Compact Mode Variables ─── */
+:root {
+  --admin-ui-scale: 1;
+
+  /* Layout chrome */
+  --admin-topbar-height: calc(54px * var(--admin-ui-scale));
+  --admin-rail-width: calc(64px * var(--admin-ui-scale));
+  --admin-drawer-width: calc(360px * var(--admin-ui-scale));
+  --admin-right-panel-width: calc(630px * var(--admin-ui-scale));
+
+  /* Power Search chrome */
+  --admin-ps-topbar-height: calc(52px * var(--admin-ui-scale));
+  --admin-ps-chips-height: calc(38px * var(--admin-ui-scale));
+  --admin-ps-filter-width: calc(260px * var(--admin-ui-scale));
+  --admin-ps-filter-collapsed: calc(44px * var(--admin-ui-scale));
+  --admin-ps-results-width: calc(300px * var(--admin-ui-scale));
+  --admin-ps-header-height: calc(46px * var(--admin-ui-scale));
+
+  /* Shared component density */
+  --admin-summary-padding-x: calc(20px * var(--admin-ui-scale));
+  --admin-summary-padding-y: calc(24px * var(--admin-ui-scale));
+  --admin-summary-margin: calc(20px * var(--admin-ui-scale));
+  --admin-section-title-margin-y: calc(22px * var(--admin-ui-scale));
+  --admin-card-padding: calc(20px * var(--admin-ui-scale));
+  --admin-update-padding: calc(18px * var(--admin-ui-scale));
+  --admin-input-padding-y: calc(10px * var(--admin-ui-scale));
+  --admin-input-padding-x: calc(12px * var(--admin-ui-scale));
+  --admin-form-gap: calc(16px * var(--admin-ui-scale));
+  --admin-form-section-padding: calc(16px * var(--admin-ui-scale));
+}
+
+.admin-compact {
+  --admin-ui-scale: 0.9;
+}
+
 /* ─── Light Theme Scrollbar Adjustments ─── */
 [data-theme="light"] ::-webkit-scrollbar-thumb {
   background: var(--border-hover);
@@ -588,4 +623,176 @@ body,
 .page-enter--fullpage {
   animation: pageSlideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
+}
+
+
+/* ─── Compact Mode: shared sidebar density overrides ─── */
+.admin-compact .id-summary {
+  margin: calc(20px * var(--admin-ui-scale));
+  padding: var(--admin-summary-padding-y) var(--admin-summary-padding-x);
+}
+
+.admin-compact .id-summary__title {
+  font-size: calc(20px * var(--admin-ui-scale));
+}
+
+.admin-compact .id-section-title {
+  margin: var(--admin-section-title-margin-y) var(--admin-summary-padding-x) calc(12px * var(--admin-ui-scale));
+  font-size: calc(12px * var(--admin-ui-scale));
+  gap: calc(10px * var(--admin-ui-scale));
+}
+
+.admin-compact .id-latest {
+  margin: 0 var(--admin-summary-padding-x) var(--admin-summary-padding-x);
+  padding: var(--admin-card-padding);
+}
+
+.admin-compact .id-update-card {
+  margin: 0 var(--admin-summary-padding-x) calc(16px * var(--admin-ui-scale));
+}
+
+.admin-compact .id-update-card__body {
+  padding: var(--admin-update-padding) var(--admin-summary-padding-x);
+}
+
+.admin-compact .id-update-card__title {
+  font-size: calc(16px * var(--admin-ui-scale));
+  margin: 0 0 calc(8px * var(--admin-ui-scale));
+}
+
+.admin-compact .id-update-card__text {
+  font-size: calc(14px * var(--admin-ui-scale));
+  margin: 0 0 calc(16px * var(--admin-ui-scale));
+}
+
+.admin-compact .id-admin-bar {
+  gap: calc(8px * var(--admin-ui-scale));
+  margin-top: calc(14px * var(--admin-ui-scale));
+  padding-top: calc(14px * var(--admin-ui-scale));
+}
+
+/* Zone detail */
+.admin-compact .zone-summary {
+  padding: calc(22px * var(--admin-ui-scale)) var(--admin-summary-padding-x) calc(18px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-title {
+  font-size: calc(23px * var(--admin-ui-scale));
+  margin: 0 0 calc(16px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-description {
+  font-size: calc(14px * var(--admin-ui-scale));
+  margin: 0 0 calc(18px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-section-title {
+  padding: 0 var(--admin-summary-padding-x);
+  margin: calc(26px * var(--admin-ui-scale)) 0 calc(14px * var(--admin-ui-scale));
+  font-size: calc(11px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-btn {
+  gap: calc(6px * var(--admin-ui-scale));
+  padding: calc(9px * var(--admin-ui-scale)) calc(14px * var(--admin-ui-scale));
+  font-size: calc(12px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-admin-actions {
+  gap: calc(8px * var(--admin-ui-scale));
+  margin-top: calc(14px * var(--admin-ui-scale));
+  padding-top: calc(14px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-timeline-event__content {
+  padding: calc(14px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-evidence__toggle {
+  gap: calc(8px * var(--admin-ui-scale));
+  padding: calc(6px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale));
+  font-size: calc(11px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-evidence-chip {
+  gap: calc(4px * var(--admin-ui-scale));
+  padding: calc(4px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale));
+  font-size: calc(10px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-featured-preview__caption {
+  padding: calc(8px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale));
+  font-size: calc(11px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-x-post {
+  padding: calc(14px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-source {
+  gap: calc(10px * var(--admin-ui-scale));
+  padding: calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale));
+}
+
+/* Zone create / edit sidebar */
+.admin-compact .zone-create-sidebar {
+  width: var(--admin-right-panel-width);
+  height: calc(100vh - var(--admin-topbar-height));
+}
+
+.admin-compact .zone-create-form__scroll {
+  padding: calc(28px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-header__title {
+  font-size: calc(20px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-section {
+  padding: calc(18px * var(--admin-ui-scale));
+  margin-bottom: calc(16px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-input {
+  padding: var(--admin-input-padding-y) var(--admin-input-padding-x);
+  font-size: calc(14px * var(--admin-ui-scale));
+}
+
+.admin-compact select.zone-create-input {
+  background-position: right var(--admin-input-padding-x) center;
+  padding-right: calc(32px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-field__hint {
+  margin: calc(6px * var(--admin-ui-scale)) 0 0;
+  font-size: calc(11px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-source-toolbar__label {
+  margin-right: calc(4px * var(--admin-ui-scale));
+  font-size: calc(10px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-source-btn {
+  gap: calc(5px * var(--admin-ui-scale));
+  padding: calc(7px * var(--admin-ui-scale)) calc(11px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-actions {
+  gap: calc(10px * var(--admin-ui-scale));
+  padding-bottom: calc(30px * var(--admin-ui-scale));
+}
+
+.admin-compact .zone-create-btn {
+  padding: calc(11px * var(--admin-ui-scale)) calc(18px * var(--admin-ui-scale));
+  font-size: calc(13px * var(--admin-ui-scale));
+}
+
+/* Create incident panel */
+.admin-compact .id-create-panel {
+  width: var(--admin-right-panel-width);
+}
+
+.admin-compact .id-create-panel__scroll {
+  padding: calc(20px * var(--admin-ui-scale));
 }

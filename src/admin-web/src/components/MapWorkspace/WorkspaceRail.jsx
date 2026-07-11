@@ -1,17 +1,17 @@
 import React from 'react';
 
-export default function WorkspaceRail({ items, activeId, onSelect }) {
+export default function WorkspaceRail({ items, activeId, onSelect, compactMode }) {
   return (
     <div
       style={{
-        width: '64px',
+        width: 'var(--admin-rail-width)',
         background: 'var(--bg-surface)',
         borderRight: '1px solid var(--border-default)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '12px 0',
-        gap: '8px',
+        padding: 'calc(12px * var(--admin-ui-scale)) 0',
+        gap: 'calc(8px * var(--admin-ui-scale))',
         zIndex: 50,
       }}
     >
@@ -25,8 +25,8 @@ export default function WorkspaceRail({ items, activeId, onSelect }) {
             title={item.label}
             style={{
               position: 'relative',
-              width: '44px',
-              height: '44px',
+              width: 'calc(44px * var(--admin-ui-scale))',
+              height: 'calc(44px * var(--admin-ui-scale))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -50,20 +50,20 @@ export default function WorkspaceRail({ items, activeId, onSelect }) {
               }
             }}
           >
-            <Icon size={20} />
+            <Icon size={compactMode ? 18 : 20} />
             {item.badge > 0 && (
               <span
                 style={{
                   position: 'absolute',
-                  top: '4px',
-                  right: '4px',
-                  minWidth: '16px',
-                  height: '16px',
-                  padding: '0 4px',
-                  borderRadius: '8px',
+                  top: 'calc(4px * var(--admin-ui-scale))',
+                  right: 'calc(4px * var(--admin-ui-scale))',
+                  minWidth: 'calc(16px * var(--admin-ui-scale))',
+                  height: 'calc(16px * var(--admin-ui-scale))',
+                  padding: '0 calc(4px * var(--admin-ui-scale))',
+                  borderRadius: 'calc(8px * var(--admin-ui-scale))',
                   background: 'var(--accent-light)',
                   color: 'var(--text-on-accent)',
-                  fontSize: '10px',
+                  fontSize: 'calc(10px * var(--admin-ui-scale))',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
@@ -78,10 +78,10 @@ export default function WorkspaceRail({ items, activeId, onSelect }) {
               <span
                 style={{
                   position: 'absolute',
-                  top: '6px',
-                  right: '6px',
-                  width: '8px',
-                  height: '8px',
+                  top: 'calc(6px * var(--admin-ui-scale))',
+                  right: 'calc(6px * var(--admin-ui-scale))',
+                  width: 'calc(8px * var(--admin-ui-scale))',
+                  height: 'calc(8px * var(--admin-ui-scale))',
                   borderRadius: '50%',
                   background: 'var(--accent-light)',
                   boxShadow: '0 0 0 2px var(--bg-surface)',

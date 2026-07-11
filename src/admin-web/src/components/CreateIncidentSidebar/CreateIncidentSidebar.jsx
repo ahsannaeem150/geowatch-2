@@ -8,6 +8,7 @@ import {
   ALL_SOURCE_TYPES,
 } from '../DesignTrial/IncidentDetailTrialData.js';
 import { api } from '../../services/api.js';
+import RightPanelCollapseButton from '@shared/components/RightPanelCollapseButton.jsx';
 import '../DesignTrial/IncidentDetailTrial.css';
 
 const DEFAULT_HERO_IMAGE =
@@ -69,7 +70,7 @@ function Input(props) {
       {...props}
       style={{
         width: '100%',
-        padding: '10px 12px',
+        padding: 'calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
         borderRadius: 10,
         border: '1px solid var(--border-subtle)',
         background: 'var(--bg-primary)',
@@ -89,7 +90,7 @@ function TextArea(props) {
       {...props}
       style={{
         width: '100%',
-        padding: '10px 12px',
+        padding: 'calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
         borderRadius: 10,
         border: '1px solid var(--border-subtle)',
         background: 'var(--bg-primary)',
@@ -112,7 +113,7 @@ function Select(props) {
       {...props}
       style={{
         width: '100%',
-        padding: '10px 12px',
+        padding: 'calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
         borderRadius: 10,
         border: '1px solid var(--border-subtle)',
         background: 'var(--bg-primary)',
@@ -271,7 +272,7 @@ function SourceListItem({ item, onEdit, onDelete }) {
           type="button"
           onClick={onEdit}
           style={{
-            padding: '4px 10px',
+            padding: 'calc(4px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
             fontSize: 12,
             fontWeight: 600,
             borderRadius: 6,
@@ -287,7 +288,7 @@ function SourceListItem({ item, onEdit, onDelete }) {
           type="button"
           onClick={onDelete}
           style={{
-            padding: '4px 10px',
+            padding: 'calc(4px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
             fontSize: 12,
             fontWeight: 600,
             borderRadius: 6,
@@ -304,7 +305,7 @@ function SourceListItem({ item, onEdit, onDelete }) {
   );
 }
 
-export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCancel }) {
+export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCancel, onCollapse }) {
   const { categories, domains, loading: catsLoading } = useCategories();
   const [submitting, setSubmitting] = useState(false);
 
@@ -513,9 +514,33 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
 
   return (
     <form className="id-create-panel" onSubmit={handleSubmit}>
-      <div className="id-create-panel__scroll">
+      {onCollapse && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            height: 'calc(38px * var(--admin-ui-scale))',
+            padding: '0 calc(16px * var(--admin-ui-scale))',
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <RightPanelCollapseButton onClick={onCollapse} />
+        </div>
+      )}
+
+      <div
+        className="id-create-panel__scroll"
+        style={
+          onCollapse
+            ? { padding: '0 calc(20px * var(--admin-ui-scale)) calc(20px * var(--admin-ui-scale))' }
+            : undefined
+        }
+      >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 'calc(12px * var(--admin-ui-scale)) 0', marginBottom: 2 }}>
           <div
             style={{
               width: 36,
@@ -530,8 +555,10 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
           >
             +
           </div>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>Create incident</h2>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
+              Create incident
+            </h2>
             <p style={{ margin: 2, fontSize: 12, color: 'var(--text-muted)' }}>New incident entry form</p>
           </div>
         </div>
@@ -786,7 +813,7 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 5,
-                  padding: '7px 11px',
+                  padding: 'calc(7px * var(--admin-ui-scale)) calc(11px * var(--admin-ui-scale))',
                   borderRadius: 999,
                   border: '1px solid var(--border-subtle)',
                   background: 'var(--bg-elevated)',
@@ -816,7 +843,7 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
               <div
                 style={{
                   textAlign: 'center',
-                  padding: '28px 16px',
+                  padding: 'calc(28px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
                   color: 'var(--text-muted)',
                   fontSize: 13,
                   border: '1px dashed var(--border-subtle)',
