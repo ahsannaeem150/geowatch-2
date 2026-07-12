@@ -93,7 +93,7 @@ function AppContent() {
       }}
     >
       <ScrollToTop />
-      <Header />
+      {!isMapPage && <Header />}
       <main
         style={{
           flex: 1,

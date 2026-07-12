@@ -1,22 +1,49 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { api } from '../services/api.js';
+import {
+  Layers,
+  AlertCircle,
+  Activity as ActivityIcon,
+  Bookmark,
+  Settings,
+  Zap,
+} from 'lucide-react';
+import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import UserMap from '../components/Map/UserMap.jsx';
-import MapControls from '../components/Map/MapControls.jsx';
-import LocationSearch from '../components/LocationSearch/LocationSearch.jsx';
-import IncidentSidebar from '../components/IncidentList/IncidentSidebar.jsx';
-import LiveActivityFeed from '../components/LiveActivity/LiveActivityFeed.jsx';
-import TickerBar from '../components/Ticker/TickerBar.jsx';
+import WorkspaceTopBar from '../components/Layout/WorkspaceTopBar.jsx';
+import WorkspaceRail from '../components/Layout/WorkspaceRail.jsx';
+import WorkspaceDrawer from '../components/Layout/WorkspaceDrawer.jsx';
+import PowerSearchPanel from '../components/Layout/PowerSearchPanel.jsx';
+import UserCommandPalette from '../components/Layout/UserCommandPalette.jsx';
 import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
 import MapLegend from '@shared/components/MapLegend.jsx';
 import MapContextMenu from '@shared/components/MapContextMenu.jsx';
+import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 import { useSignInModal } from '../contexts/SignInModalContext.jsx';
+import { computeMapPadding, computeOuterContainerPadding } from '../utils/mapPadding.js';
 
 const LS_KEY = 'geowatch_last_seen';
+const LS_COMPACT = 'geowatch_user_compact_mode';
+const LS_AUTO_ZOOM = 'geowatch_user_auto_zoom';
 const MAX_ACTIVITIES = 50;
+const RIGHT_PANEL_TRANSITION_MS = 250;
+const PS_PAGE_SIZE = 25;
+
+const DEFAULT_PS_FILTERS = {
+  domainSlugs: [],
+  categorySlugs: [],
+  statuses: ['active'],
+  verificationStatuses: [],
+  sourceTypes: [],
+  severities: [],
+  geometryTypes: [],
+  savedOnly: false,
+  dateFrom: '',
+  dateTo: '',
+};
 
 function getLastSeen() {
   const raw = localStorage.getItem(LS_KEY);
@@ -36,6 +63,11 @@ function uniqueById(items) {
   });
 }
 
+function getToday() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -53,15 +85,19 @@ export default function MapPage() {
     Number.isFinite(parseFloat(zoomParam));
 
   // ─── Date & filters ───
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = getToday();
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(
     hasViewportParams
-      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: parseFloat(zoomParam) }
+      ? {
+          lat: parseFloat(latParam),
+          lng: parseFloat(lngParam),
+          zoom: parseFloat(zoomParam),
+          source: 'deep-link',
+        }
       : null
   );
   const [filters, setFilters] = useState({
@@ -70,29 +106,61 @@ export default function MapPage() {
     verifiedOnly: false,
   });
 
-  // ─── Domain Filter / Legend ───
+  // ─── Domain / Zone legend ───
   const [domains, setDomains] = useState([]);
+  const [zoneCategories, setZoneCategories] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
+  const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
   const [showZones, setShowZones] = useState(true);
-  const [fitBounds, setFitBounds] = useState(null);
 
-  // Ghost fetch tracking
-  const ghostFetchAttempted = useRef(false);
+  // ─── Layout state ───
+  const [activeDrawer, setActiveDrawer] = useState(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const [compactMode, setCompactMode] = useState(() => {
+    try {
+      return localStorage.getItem(LS_COMPACT) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [rightPanelRendered, setRightPanelRendered] = useState(false);
+  const [rightPanelVisible, setRightPanelVisible] = useState(false);
+  const [powerSearchMode, setPowerSearchMode] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [autoZoomEnabled, setAutoZoomEnabled] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LS_AUTO_ZOOM);
+      return raw === null ? true : raw === 'true';
+    } catch {
+      return true;
+    }
+  });
 
-  // Sync categoryId filter from URL params
-  useEffect(() => {
-    const cid = searchParams.get('categoryId');
-    setFilters((prev) => ({ ...prev, categoryId: cid || '' }));
-  }, [searchParams]);
+  // ─── Power Search state ───
+  const [psQuery, setPsQuery] = useState('');
+  const [psFilters, setPsFilters] = useState(DEFAULT_PS_FILTERS);
+  const [psSort, setPsSort] = useState('newest');
+  const [psResults, setPsResults] = useState([]);
+  const [psTotal, setPsTotal] = useState(0);
+  const [psLoading, setPsLoading] = useState(false);
+  const [psError, setPsError] = useState('');
+  const [psFilterCollapsed, setPsFilterCollapsed] = useState(false);
+  const [psResultsCollapsed, setPsResultsCollapsed] = useState(false);
+
+  // ─── Detail panel state ───
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
 
   // ─── Smart Viewport Filtering ───
-  const [viewportFiltering, setViewportFiltering] = useState(null); // null = unknown, true = on, false = off
+  const [viewportFiltering, setViewportFiltering] = useState(null);
   const [totalEventCount, setTotalEventCount] = useState(0);
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
   // ─── Saved Incidents ───
-  const { isAuthenticated } = usePublicAuth();
+  const { isAuthenticated, user } = usePublicAuth();
   const { openSignInModal } = useSignInModal();
   const [savedIncidents, setSavedIncidents] = useState([]);
   const [savedIds, setSavedIds] = useState(new Set());
@@ -107,12 +175,8 @@ export default function MapPage() {
     close: closeMapMenu,
   } = useMapContextMenu();
 
-  const [sidebarTab, setSidebarTab] = useState('events'); // 'events' | 'saved'
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   // ─── Live Activity ───
   const [activities, setActivities] = useState([]);
-  const [feedCollapsed, setFeedCollapsed] = useState(false);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
   const [showAwayBanner, setShowAwayBanner] = useState(false);
   const [awayStats, setAwayStats] = useState({ newEvents: 0, updatedEvents: 0 });
@@ -121,14 +185,42 @@ export default function MapPage() {
   const selectedIncidentRef = useRef(null);
   const skipNextZoneFitRef = useRef(false);
   const zoneGhostFetchAttempted = useRef(false);
-
-  // Detail refresh key — increments when SSE triggers an update for selected incident
-  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
+  const ghostFetchAttempted = useRef(false);
 
   // Keep ref in sync with state for SSE handler
   useEffect(() => {
     selectedIncidentRef.current = selectedIncident;
   }, [selectedIncident]);
+
+  // ─── Apply compact-mode class to html ───
+  useEffect(() => {
+    const html = document.documentElement;
+    if (compactMode) {
+      html.classList.add('admin-compact');
+    } else {
+      html.classList.remove('admin-compact');
+    }
+    try {
+      localStorage.setItem(LS_COMPACT, String(compactMode));
+    } catch {
+      // ignore
+    }
+  }, [compactMode]);
+
+  // ─── Persist auto-zoom preference ───
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_AUTO_ZOOM, String(autoZoomEnabled));
+    } catch {
+      // ignore
+    }
+  }, [autoZoomEnabled]);
+
+  // ─── Sync categoryId filter from URL params ───
+  useEffect(() => {
+    const cid = searchParams.get('categoryId');
+    setFilters((prev) => ({ ...prev, categoryId: cid || '' }));
+  }, [searchParams]);
 
   // ─── Fetch point incidents and polygon zones with smart viewport filtering ───
   useEffect(() => {
@@ -143,12 +235,9 @@ export default function MapPage() {
       if (filters.categoryId) baseParams.categoryId = filters.categoryId;
       if (filters.severity) baseParams.severity = filters.severity;
 
-      // Point incidents: marker category/severity filters apply
       const pointParams = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
-      // Polygon zones: date filter applies; marker category filters do not
       const zoneParams = { dateFrom: dateRange.from, dateTo: dateRange.to, geometryType: 'polygon' };
 
-      // Step 1: Fetch counts without viewport
       const [pointRes, zoneRes] = await Promise.all([
         api.getIncidents(pointParams),
         api.getIncidents(zoneParams),
@@ -160,17 +249,14 @@ export default function MapPage() {
       setTotalEventCount(pointCount + zoneCount);
 
       if (pointCount <= 100) {
-        // Light load: show all points and zones, no viewport filtering needed
         setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
         setViewportFiltering(false);
         viewportFilteringRef.current = false;
         setLoading(false);
       } else {
-        // Heavy load: enable viewport filtering
         setViewportFiltering(true);
         viewportFilteringRef.current = true;
 
-        // Step 2: If viewport bounds are already known, fetch visible points and zones
         if (viewportBoundsRef.current) {
           const [pointRes2, zoneRes2] = await Promise.all([
             api.getIncidents({ ...pointParams, viewport: viewportBoundsRef.current }),
@@ -180,7 +266,6 @@ export default function MapPage() {
           setIncidents([...(pointRes2.data.incidents || []), ...(zoneRes2.data.incidents || [])]);
           setTotalEventCount((pointRes2.data.count || 0) + (zoneRes2.data.count || 0));
         } else {
-          // Bounds not ready yet — show the first batch temporarily
           setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
         }
         setLoading(false);
@@ -194,13 +279,14 @@ export default function MapPage() {
     };
   }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu]);
 
-  // Fetch domains for legend
+  // Fetch domains and zone categories
   useEffect(() => {
     api.getDomains()
-      .then((res) => {
-        setDomains(res.data.domains || []);
-      })
+      .then((res) => setDomains(res.data.domains || []))
       .catch(() => setDomains([]));
+    api.getZoneCategories()
+      .then((res) => setZoneCategories(res.data.categories || res.data.zoneCategories || []))
+      .catch(() => setZoneCategories([]));
   }, []);
 
   // Fetch saved incidents
@@ -217,7 +303,6 @@ export default function MapPage() {
       setSavedIds(new Set(list.map((i) => i.id)));
     } catch (err) {
       console.error('Failed to refresh saved incidents:', err);
-      // Keep existing state on error — don't clear user's saves
     }
   }, [isAuthenticated]);
 
@@ -226,89 +311,190 @@ export default function MapPage() {
   }, [refreshSaves]);
 
   // Separate point and polygon incidents for the map
+  const visibleDomainSlugs = useMemo(
+    () => new Set(domains.map((d) => d.slug).filter((slug) => !activeDomainFilters.has(slug))),
+    [domains, activeDomainFilters]
+  );
+
+  const activeZoneIds = useMemo(
+    () => new Set(zoneCategories.filter((z) => activeZoneSlugs.has(z.slug)).map((z) => String(z.id))),
+    [zoneCategories, activeZoneSlugs]
+  );
+
   const pointIncidents = useMemo(() => {
     return incidents.filter((i) => i.geometry_type !== 'polygon' && !activeDomainFilters.has(i.domain_slug));
   }, [incidents, activeDomainFilters]);
 
   const polygonIncidents = useMemo(() => {
-    return incidents.filter((i) => i.geometry_type === 'polygon');
-  }, [incidents]);
+    if (!showZones || activeZoneSlugs.size === 0) return [];
+    return incidents.filter(
+      (i) => i.geometry_type === 'polygon' && activeZoneIds.has(String(i.zone_category_id))
+    );
+  }, [incidents, showZones, activeZoneSlugs, activeZoneIds]);
 
-  // Legend handlers
-  const handleToggleDomain = useCallback((slug) => {
-    setActiveDomainFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) {
-        next.delete(slug);
-      } else {
-        next.add(slug);
-      }
-      return next;
-    });
+  const visibleIncidents = useMemo(() => {
+    if (!filters.verifiedOnly) return pointIncidents;
+    return pointIncidents.filter((i) => i.verification_status === 'verified');
+  }, [pointIncidents, filters.verifiedOnly]);
+
+  const activeIncidents = useMemo(() => {
+    return pointIncidents.filter((i) => i.status === 'active');
+  }, [pointIncidents]);
+
+  const overdueCount = useMemo(() => {
+    const nowMs = Date.now();
+    return activeIncidents.filter((i) => {
+      const t = i.created_at || i.createdAt;
+      if (!t) return false;
+      return nowMs - new Date(t).getTime() > 24 * 60 * 60 * 1000;
+    }).length;
+  }, [activeIncidents]);
+
+  const visibleSavedIncidents = useMemo(() => {
+    let result = savedIncidents;
+    if (filters.verifiedOnly) {
+      result = result.filter((i) => i.verification_status === 'verified');
+    }
+    if (activeDomainFilters.size > 0) {
+      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
+    }
+    return result;
+  }, [savedIncidents, filters.verifiedOnly, activeDomainFilters]);
+
+  useEffect(() => {
+    setShowZones(activeZoneSlugs.size > 0);
+  }, [activeZoneSlugs]);
+
+  const panelMode = useMemo(() => {
+    if (!selectedIncident) return 'empty';
+    return selectedIncident.geometry_type === 'polygon' ? 'zone' : 'incident';
+  }, [selectedIncident]);
+
+  const isPanelOpen = panelMode !== 'empty';
+
+  const getNextMapPadding = useCallback(
+    (overrides = {}) =>
+      computeMapPadding({
+        scale: compactMode ? 0.9 : 1,
+        powerSearchMode: overrides.powerSearchMode ?? powerSearchMode,
+        psFilterCollapsed: overrides.psFilterCollapsed ?? psFilterCollapsed,
+        psResultsCollapsed: overrides.psResultsCollapsed ?? psResultsCollapsed,
+        activeDrawer: overrides.activeDrawer ?? activeDrawer,
+        focusMode: overrides.focusMode ?? focusMode,
+        isPanelOpen: overrides.isPanelOpen ?? isPanelOpen,
+        rightPanelCollapsed: overrides.rightPanelCollapsed ?? rightPanelCollapsed,
+      }),
+    [compactMode, powerSearchMode, psFilterCollapsed, psResultsCollapsed, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed]
+  );
+
+  const getBannerPadding = useCallback(
+    (overrides = {}) =>
+      computeOuterContainerPadding({
+        scale: compactMode ? 0.9 : 1,
+        powerSearchMode: overrides.powerSearchMode ?? powerSearchMode,
+        psFilterCollapsed: overrides.psFilterCollapsed ?? psFilterCollapsed,
+        psResultsCollapsed: overrides.psResultsCollapsed ?? psResultsCollapsed,
+        activeDrawer: overrides.activeDrawer ?? activeDrawer,
+        focusMode: overrides.focusMode ?? focusMode,
+        isPanelOpen: overrides.isPanelOpen ?? isPanelOpen,
+        rightPanelCollapsed: overrides.rightPanelCollapsed ?? rightPanelCollapsed,
+      }),
+    [compactMode, powerSearchMode, psFilterCollapsed, psResultsCollapsed, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed]
+  );
+
+  // ─── Right panel animation lifecycle ───
+  useEffect(() => {
+    if (isPanelOpen) {
+      setRightPanelRendered(true);
+      const timer = setTimeout(() => setRightPanelVisible(true), 10);
+      return () => clearTimeout(timer);
+    }
+    setRightPanelVisible(false);
+    const timer = setTimeout(() => setRightPanelRendered(false), RIGHT_PANEL_TRANSITION_MS);
+    return () => clearTimeout(timer);
+  }, [isPanelOpen]);
+
+  // ─── Fetch detail for right panel ───
+  const fetchDetail = useCallback(async (incidentId, opts = {}) => {
+    if (!incidentId) {
+      setDetail(null);
+      return;
+    }
+    if (!opts.silent) setDetailLoading(true);
+    try {
+      const res = await api.getIncident(incidentId);
+      setDetail(mapIncidentForShared(res.data));
+    } catch (err) {
+      console.error('Failed to fetch incident detail:', err);
+      if (!opts.silent) setDetail(null);
+    } finally {
+      if (!opts.silent) setDetailLoading(false);
+    }
   }, []);
 
-  const handleShowAllDomains = useCallback(() => {
-    setActiveDomainFilters(new Set());
-  }, []);
+  useEffect(() => {
+    if (selectedIncident?.id) {
+      fetchDetail(selectedIncident.id);
+    } else {
+      setDetail(null);
+    }
+  }, [selectedIncident?.id, fetchDetail]);
 
-  const handleHideAllDomains = useCallback(() => {
-    setActiveDomainFilters(new Set(domains.map((d) => d.slug)));
-  }, [domains]);
-
-  const handleToggleZones = useCallback(() => {
-    setShowZones((prev) => !prev);
-  }, []);
+  useEffect(() => {
+    if (selectedIncident?.id && detailRefreshKey > 0) {
+      fetchDetail(selectedIncident.id, { silent: true });
+    }
+  }, [detailRefreshKey, selectedIncident?.id, fetchDetail]);
 
   // ─── Handle viewport bounds changes from the map ───
-  const handleViewportChange = useCallback(({ bounds, center, zoom }) => {
-    closeMapMenu();
-    viewportBoundsRef.current = bounds;
+  const handleViewportChange = useCallback(
+    ({ bounds, center, zoom }) => {
+      closeMapMenu();
+      viewportBoundsRef.current = bounds;
 
-    // Persist viewport in the URL so back-navigation restores the map view
-    if (center && Number.isFinite(zoom)) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('lat', center.lat.toFixed(6));
-          next.set('lng', center.lng.toFixed(6));
-          next.set('zoom', zoom.toFixed(2));
-          // If the user just cleared the selection, don't let a lingering map
-          // animation restore the incident/zone param.
-          if (!selectedIncidentRef.current) {
-            next.delete('incident');
-            next.delete('zone');
-          }
-          return next;
-        },
-        { replace: true }
-      );
-    }
+      if (center && Number.isFinite(zoom)) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('lat', center.lat.toFixed(6));
+            next.set('lng', center.lng.toFixed(6));
+            next.set('zoom', zoom.toFixed(2));
+            if (!selectedIncidentRef.current) {
+              next.delete('incident');
+              next.delete('zone');
+            }
+            return next;
+          },
+          { replace: true }
+        );
+      }
 
-    // If viewport filtering is already active, re-fetch points and zones with new bounds
-    if (viewportFilteringRef.current === true) {
-      const pointParams = {
-        dateFrom: dateRange.from,
-        dateTo: dateRange.to,
-        viewport: bounds,
-      };
-      if (filters.categoryId) pointParams.categoryId = filters.categoryId;
-      if (filters.severity) pointParams.severity = filters.severity;
+      if (viewportFilteringRef.current === true) {
+        const pointParams = {
+          dateFrom: dateRange.from,
+          dateTo: dateRange.to,
+          viewport: bounds,
+        };
+        if (filters.categoryId) pointParams.categoryId = filters.categoryId;
+        if (filters.severity) pointParams.severity = filters.severity;
 
-      const zoneParams = {
-        dateFrom: dateRange.from,
-        dateTo: dateRange.to,
-        geometryType: 'polygon',
-        viewport: bounds,
-      };
+        const zoneParams = {
+          dateFrom: dateRange.from,
+          dateTo: dateRange.to,
+          geometryType: 'polygon',
+          viewport: bounds,
+        };
 
-      Promise.all([api.getIncidents(pointParams), api.getIncidents(zoneParams)])
-        .then(([pointRes, zoneRes]) => {
-          setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
-          setTotalEventCount((pointRes.data.count || 0) + (zoneRes.data.count || 0));
-        })
-        .catch(() => setIncidents([]));
-    }
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, setSearchParams]);
+        Promise.all([api.getIncidents(pointParams), api.getIncidents(zoneParams)])
+          .then(([pointRes, zoneRes]) => {
+            setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
+            setTotalEventCount((pointRes.data.count || 0) + (zoneRes.data.count || 0));
+          })
+          .catch(() => setIncidents([]));
+      }
+    },
+    [dateRange.from, dateRange.to, filters.categoryId, filters.severity, setSearchParams]
+  );
 
   // ─── SSE Connection ───
   useEffect(() => {
@@ -326,13 +512,9 @@ export default function MapPage() {
       if (!e.data) return;
       try {
         const payload = JSON.parse(e.data);
-
-        // Skip initial comment/heartbeat
         if (!payload.type) return;
 
-        // Skip deletion incidents — users don't need to see admin deletions
         if (payload.type === 'incident_deleted' || payload.type === 'timeline_deleted') {
-          // Still update the incidents list if an incident was deleted
           if (payload.type === 'incident_deleted') {
             setIncidents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
           }
@@ -340,7 +522,6 @@ export default function MapPage() {
         }
 
         setActivities((prev) => {
-          // Deduplicate: skip if the most recent activity is identical (same type + incidentId within 2s)
           const last = prev[0];
           const now = Date.now();
           if (
@@ -365,42 +546,31 @@ export default function MapPage() {
           return [activity, ...prev].slice(0, MAX_ACTIVITIES);
         });
 
-        // If the activity is about an incident we know, refresh it in our list
         if (payload.incident) {
           setIncidents((prev) => {
             const exists = prev.find((ev) => ev.id === payload.incident.id);
             if (exists) {
-              // Merge payload with existing data so we don't lose joined fields (domain_color, etc.)
               return prev.map((ev) => (ev.id === payload.incident.id ? { ...ev, ...payload.incident } : ev));
             }
             return [payload.incident, ...prev];
           });
         }
 
-        // NEW: If this event affects the currently selected incident, refresh detail
         const currentSelected = selectedIncidentRef.current;
         const affectedIncidentId = payload.incidentId || payload.incident?.id;
         if (currentSelected?.id && affectedIncidentId === currentSelected.id) {
-          // Update selectedIncident with payload data if available
           if (payload.incident) {
             setSelectedIncident(payload.incident);
           }
-          // Always trigger a detail refresh (for timeline events that don't include full incident)
           api.getIncident(currentSelected.id)
             .then((res) => {
               if (res.data?.incident) {
                 setSelectedIncident(res.data.incident);
-                // Also update in the incidents list
-                setIncidents((prev) =>
-                  prev.map((i) => (i.id === currentSelected.id ? res.data.incident : i))
-                );
-                // Trigger detail view re-render with flash
+                setIncidents((prev) => prev.map((i) => (i.id === currentSelected.id ? res.data.incident : i)));
                 setDetailRefreshKey((k) => k + 1);
               }
             })
-            .catch(() => {
-              // Silent fail — detail will still show old data
-            });
+            .catch(() => {});
         }
       } catch (err) {
         console.warn('[SSE] Failed to parse message:', err);
@@ -436,7 +606,6 @@ export default function MapPage() {
         const lastSeen = getLastSeen();
         const nowTs = Date.now();
         if (nowTs - lastSeen > 30000) {
-          // Only show if away > 30s
           const newEvents = activities.filter(
             (a) => a.timestamp > lastSeen && a.type === 'incident_created'
           ).length;
@@ -455,41 +624,62 @@ export default function MapPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [activities]);
 
-  // ─── Handlers ───
+  // ─── Selection handlers ───
   const handleSelectIncident = useCallback(
     (incident, opts = {}) => {
       setSelectedIncident(incident);
-      setFitBounds(null);
 
       const isPolygon = incident.geometry_type === 'polygon';
+      const padding = getNextMapPadding();
 
       if (!opts.skipFlyTo) {
         if (isPolygon) {
           if (skipNextZoneFitRef.current) {
             skipNextZoneFitRef.current = false;
+            setFlyToCoords({
+              lat: parseFloat(incident.latitude),
+              lng: parseFloat(incident.longitude),
+              type: 'zone',
+              source: opts.source || 'list',
+              padding,
+            });
           } else if (incident.geometry?.coordinates?.[0]) {
             const coords = incident.geometry.coordinates[0];
-            let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+            let minLng = Infinity,
+              minLat = Infinity,
+              maxLng = -Infinity,
+              maxLat = -Infinity;
             coords.forEach(([lng, lat]) => {
               minLng = Math.min(minLng, lng);
               minLat = Math.min(minLat, lat);
               maxLng = Math.max(maxLng, lng);
               maxLat = Math.max(maxLat, lat);
             });
-            setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+            setFlyToCoords({
+              lat: parseFloat(incident.latitude),
+              lng: parseFloat(incident.longitude),
+              type: 'zone',
+              source: opts.source || 'list',
+              bounds: [
+                [minLng, minLat],
+                [maxLng, maxLat],
+              ],
+              padding,
+            });
           }
         } else {
           setFlyToCoords({
             lat: parseFloat(incident.latitude),
             lng: parseFloat(incident.longitude),
-            zoom: 10,
+            type: 'incident',
+            source: opts.source || 'list',
+            padding,
           });
         }
       } else {
         setFlyToCoords(null);
       }
 
-      // Update URL to make incident / zone shareable, preserving other params
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         if (isPolygon) {
@@ -502,26 +692,24 @@ export default function MapPage() {
         return next;
       });
     },
-    [setSearchParams]
+    [getNextMapPadding, setSearchParams]
   );
 
   const handleSelectEventFromActivity = useCallback(
     (incidentId, incidentData) => {
       if (incidentData && incidentData.latitude && incidentData.longitude) {
-        handleSelectIncident(incidentData);
+        handleSelectIncident(incidentData, { source: 'activity' });
         return;
       }
-      // Try to find in current incidents list
       const found = incidents.find((i) => i.id === incidentId);
       if (found) {
-        handleSelectIncident(found);
+        handleSelectIncident(found, { source: 'activity' });
         return;
       }
-      // Fetch from API as fallback
       api
         .getIncident(incidentId)
         .then((res) => {
-          if (res.data?.incident) handleSelectIncident(res.data.incident);
+          if (res.data?.incident) handleSelectIncident(res.data.incident, { source: 'activity' });
         })
         .catch(() => {
           console.warn('Could not fetch incident', incidentId);
@@ -531,8 +719,6 @@ export default function MapPage() {
   );
 
   const handleBack = useCallback(() => {
-    // Stop any in-flight map animation so a viewport update doesn't overwrite
-    // the cleared selection in the same React batch.
     const map = mapRef.current?.getMap?.();
     if (map && typeof map.stop === 'function') {
       map.stop();
@@ -540,10 +726,8 @@ export default function MapPage() {
 
     selectedIncidentRef.current = null;
     setSelectedIncident(null);
-    setFitBounds(null);
     setFlyToCoords(null);
 
-    // Clear incident / zone from URL while preserving other params
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -553,11 +737,10 @@ export default function MapPage() {
       },
       { replace: true }
     );
-  }, [setSearchParams, setFitBounds, setFlyToCoords]);
+  }, [setSearchParams]);
 
   const handleNavigateToFullPage = useCallback(
     (incidentId) => {
-      // Capture the current map viewport so the back button returns to the same view
       const map = mapRef.current?.getMap?.();
       const isZone = selectedIncident?.geometry_type === 'polygon';
 
@@ -624,11 +807,7 @@ export default function MapPage() {
     if (!raw) return;
     try {
       const { lat, lng, zoom } = JSON.parse(raw);
-      if (
-        Number.isFinite(lat) &&
-        Number.isFinite(lng) &&
-        Number.isFinite(zoom)
-      ) {
+      if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom)) {
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev);
@@ -652,28 +831,25 @@ export default function MapPage() {
       return;
     }
 
-    // If a zone is currently selected, do not auto-switch to a stale incident id
     if (selectedIncident?.geometry_type === 'polygon') return;
 
     const inList = incidents.find((i) => i.id === incidentIdFromUrl);
     if (inList) {
-      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
+      handleSelectIncident(inList, { skipFlyTo: hasViewportParams, source: 'deep-link' });
       ghostFetchAttempted.current = true;
       return;
     }
 
-    // Incident not in current list — fetch as ghost after initial load completes
     if (incidents.length > 0 && !ghostFetchAttempted.current) {
       ghostFetchAttempted.current = true;
       api
         .getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams });
+            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams, source: 'deep-link' });
           }
         })
         .catch(() => {
-          // Incident not found or deleted — clean up URL
           setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             next.delete('incident');
@@ -696,7 +872,7 @@ export default function MapPage() {
 
     const inList = incidents.find((i) => i.id === zoneIdFromUrl);
     if (inList) {
-      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
+      handleSelectIncident(inList, { skipFlyTo: hasViewportParams, source: 'deep-link' });
       zoneGhostFetchAttempted.current = true;
       return;
     }
@@ -707,7 +883,7 @@ export default function MapPage() {
         .getIncident(zoneIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams });
+            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams, source: 'deep-link' });
           }
         })
         .catch(() => {
@@ -724,136 +900,210 @@ export default function MapPage() {
     setDateRange({ from: today, to: today });
   }, [today]);
 
-  // ─── General map context menu handlers ───
-  const handleMarkerContextMenu = useCallback((incident, point) => {
-    openMapMenu(point, { type: 'incident', incident });
-  }, [openMapMenu]);
+  // ─── Layer filter handlers ───
+  const handleToggleDomain = useCallback((slug) => {
+    setActiveDomainFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }, []);
 
-  const handleZoneContextMenu = useCallback((feature, point, latLng) => {
-    const zoneId = feature?.properties?.id || feature?.id;
-    const zone = polygonIncidents.find((z) => String(z.id) === String(zoneId));
-    if (zone) {
-      openMapMenu(point, { type: 'zone', zone, latLng });
-    } else {
+  const handleShowAllDomains = useCallback(() => setActiveDomainFilters(new Set()), []);
+
+  const handleHideAllDomains = useCallback(() => {
+    setActiveDomainFilters(new Set(domains.map((d) => d.slug)));
+  }, [domains]);
+
+  const handleToggleZones = useCallback(() => {
+    setActiveZoneSlugs((prev) => {
+      if (prev.size > 0) return new Set();
+      return new Set(zoneCategories.map((z) => z.slug).filter(Boolean));
+    });
+  }, [zoneCategories]);
+
+  const handleToggleZoneCategory = useCallback((slug) => {
+    setActiveZoneSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }, []);
+
+  const handleShowAllZones = useCallback(() => {
+    setActiveZoneSlugs(new Set(zoneCategories.map((z) => z.slug).filter(Boolean)));
+  }, [zoneCategories]);
+
+  const handleHideAllZones = useCallback(() => setActiveZoneSlugs(new Set()), []);
+
+  // ─── Saved incident handlers ───
+  const handleSaveChange = useCallback(
+    async (incidentId, isSaved) => {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (isSaved) next.add(incidentId);
+        else next.delete(incidentId);
+        return next;
+      });
+      if (isSaved) {
+        setSavedIncidents((prev) => {
+          if (prev.some((i) => i.id === incidentId)) return prev;
+          const incident = incidents.find((i) => i.id === incidentId);
+          if (incident) return [incident, ...prev];
+          return prev;
+        });
+      } else {
+        setSavedIncidents((prev) => prev.filter((i) => i.id !== incidentId));
+      }
+      await refreshSaves();
+    },
+    [incidents, refreshSaves]
+  );
+
+  const handleToggleSave = useCallback(
+    async (incidentId) => {
+      const isSaved = savedIds.has(incidentId);
+      await handleSaveChange(incidentId, !isSaved);
+      closeMapMenu();
+    },
+    [savedIds, handleSaveChange, closeMapMenu]
+  );
+
+  // ─── Map context menu handlers ───
+  const handleMarkerContextMenu = useCallback(
+    (incident, point) => {
+      openMapMenu(point, { type: 'incident', incident });
+    },
+    [openMapMenu]
+  );
+
+  const handleZoneContextMenu = useCallback(
+    (feature, point, latLng) => {
+      const zoneId = feature?.properties?.id || feature?.id;
+      const zone = polygonIncidents.find((z) => String(z.id) === String(zoneId));
+      if (zone) {
+        openMapMenu(point, { type: 'zone', zone, latLng });
+      } else {
+        openMapMenu(point, { type: 'empty', latLng });
+      }
+    },
+    [openMapMenu, polygonIncidents]
+  );
+
+  const handleMapContextMenu = useCallback(
+    (point, latLng) => {
       openMapMenu(point, { type: 'empty', latLng });
-    }
-  }, [openMapMenu, polygonIncidents]);
+    },
+    [openMapMenu]
+  );
 
-  const handleMapContextMenu = useCallback((point, latLng) => {
-    openMapMenu(point, { type: 'empty', latLng });
-  }, [openMapMenu]);
+  const copyCoordinates = useCallback(
+    async (lat, lng) => {
+      try {
+        await navigator.clipboard.writeText(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      } catch {}
+      closeMapMenu();
+    },
+    [closeMapMenu]
+  );
 
-  const copyCoordinates = useCallback(async (lat, lng) => {
-    try {
-      await navigator.clipboard.writeText(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-    } catch {}
-    closeMapMenu();
-  }, [closeMapMenu]);
+  const copyLink = useCallback(
+    async (key, id) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set(key, id);
+      try {
+        await navigator.clipboard.writeText(url.toString());
+      } catch {}
+      closeMapMenu();
+    },
+    [closeMapMenu]
+  );
 
-  const copyLink = useCallback(async (key, id) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set(key, id);
-    try {
-      await navigator.clipboard.writeText(url.toString());
-    } catch {}
-    closeMapMenu();
-  }, [closeMapMenu]);
-
-  const handleCenterMapHere = useCallback((lng, lat) => {
-    mapRef.current?.centerAt(lng, lat);
-    closeMapMenu();
-  }, [closeMapMenu]);
+  const handleCenterMapHere = useCallback(
+    (lng, lat) => {
+      mapRef.current?.centerAt(lng, lat);
+      closeMapMenu();
+    },
+    [closeMapMenu]
+  );
 
   const handleResetMapView = useCallback(() => {
     mapRef.current?.resetView();
     closeMapMenu();
   }, [closeMapMenu]);
 
-  const handleSaveChange = useCallback(async (incidentId, isSaved) => {
-    // Optimistic update for instant UI feedback
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (isSaved) next.add(incidentId);
-      else next.delete(incidentId);
-      return next;
-    });
-    if (isSaved) {
-      setSavedIncidents((prev) => {
-        if (prev.some((i) => i.id === incidentId)) return prev;
-        const incident = incidents.find((i) => i.id === incidentId);
-        if (incident) return [incident, ...prev];
-        return prev;
-      });
-    } else {
-      setSavedIncidents((prev) => prev.filter((i) => i.id !== incidentId));
-    }
-    // Refetch to ensure consistency (notes, saved_at, ghost incidents)
-    await refreshSaves();
-  }, [incidents, refreshSaves]);
-  const handleToggleSave = useCallback(async (incidentId) => {
-    const isSaved = savedIds.has(incidentId);
-    await handleSaveChange(incidentId, !isSaved);
-    closeMapMenu();
-  }, [savedIds, handleSaveChange, closeMapMenu]);
+  const buildEmptyMenuItems = useCallback(
+    (latLng) => {
+      if (!latLng) return [];
+      const { lat, lng } = latLng;
+      return [
+        { label: 'Center Map Here', onClick: () => handleCenterMapHere(lng, lat) },
+        { label: 'Copy Coordinates', onClick: () => copyCoordinates(lat, lng) },
+        { label: 'Reset Map View', onClick: handleResetMapView },
+      ];
+    },
+    [handleCenterMapHere, copyCoordinates, handleResetMapView]
+  );
 
-  const buildEmptyMenuItems = useCallback((latLng) => {
-    if (!latLng) return [];
-    const { lat, lng } = latLng;
-    return [
-      { label: 'Center Map Here', onClick: () => handleCenterMapHere(lng, lat) },
-      { label: 'Copy Coordinates', onClick: () => copyCoordinates(lat, lng) },
-      { label: 'Reset Map View', onClick: handleResetMapView },
-    ];
-  }, [handleCenterMapHere, copyCoordinates, handleResetMapView]);
-
-  const buildIncidentMenuItems = useCallback((incident) => {
-    if (!incident) return [];
-    const isSaved = savedIds.has(incident.id);
-    return [
-      { label: 'View Details', onClick: () => { handleSelectIncident(incident); closeMapMenu(); } },
-      {
-        label: isSaved ? 'Unsave Incident' : 'Save Incident',
-        onClick: () => {
-          if (!isAuthenticated) {
-            openSignInModal();
-          } else {
-            handleToggleSave(incident.id);
-          }
-          closeMapMenu();
+  const buildIncidentMenuItems = useCallback(
+    (incident) => {
+      if (!incident) return [];
+      const isSaved = savedIds.has(incident.id);
+      return [
+        {
+          label: 'View Details',
+          onClick: () => {
+            handleSelectIncident(incident, { source: 'map' });
+            closeMapMenu();
+          },
         },
-      },
-      { label: 'Share Incident', onClick: () => copyLink('incident', incident.id) },
-    ];
-  }, [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu, openSignInModal]);
-
-  const buildZoneMenuItems = useCallback((zone) => {
-    if (!zone) return [];
-    const isSaved = savedIds.has(zone.id);
-    return [
-      { label: 'View Zone Details', onClick: () => { handleSelectIncident(zone); closeMapMenu(); } },
-      {
-        label: isSaved ? 'Unsave Zone' : 'Save Zone',
-        onClick: () => {
-          if (!isAuthenticated) {
-            openSignInModal();
-          } else {
-            handleToggleSave(zone.id);
-          }
-          closeMapMenu();
+        {
+          label: isSaved ? 'Unsave Incident' : 'Save Incident',
+          onClick: () => {
+            if (!isAuthenticated) {
+              openSignInModal();
+            } else {
+              handleToggleSave(incident.id);
+            }
+            closeMapMenu();
+          },
         },
-      },
-      { label: 'Share Zone', onClick: () => copyLink('zone', zone.id) },
-    ];
-  }, [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu, openSignInModal]);
+        { label: 'Share Incident', onClick: () => copyLink('incident', incident.id) },
+      ];
+    },
+    [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu, openSignInModal]
+  );
 
-  const handleLocationSelect = useCallback((result) => {
-    const zoom = getZoomForLocation(result.type, result.class);
-    setFlyToCoords({
-      lat: parseFloat(result.lat),
-      lng: parseFloat(result.lon),
-      zoom,
-    });
-  }, []);
+  const buildZoneMenuItems = useCallback(
+    (zone) => {
+      if (!zone) return [];
+      const isSaved = savedIds.has(zone.id);
+      return [
+        {
+          label: 'View Zone Details',
+          onClick: () => {
+            handleSelectIncident(zone, { source: 'map' });
+            closeMapMenu();
+          },
+        },
+        {
+          label: isSaved ? 'Unsave Zone' : 'Save Zone',
+          onClick: () => {
+            if (!isAuthenticated) {
+              openSignInModal();
+            } else {
+              handleToggleSave(zone.id);
+            }
+            closeMapMenu();
+          },
+        },
+        { label: 'Share Zone', onClick: () => copyLink('zone', zone.id) },
+      ];
+    },
+    [savedIds, isAuthenticated, handleSelectIncident, handleToggleSave, copyLink, closeMapMenu, openSignInModal]
+  );
 
   const handleMarkAllRead = useCallback(() => {
     const nowTs = Date.now();
@@ -867,25 +1117,10 @@ export default function MapPage() {
   }, [handleMarkAllRead]);
 
   const handleJumpToNew = useCallback(() => {
-    setFeedCollapsed(false);
+    setActiveDrawer('activity');
     handleMarkAllRead();
     setShowAwayBanner(false);
   }, [handleMarkAllRead]);
-
-  const handleToggleCollapse = useCallback(() => {
-    setFeedCollapsed((prev) => !prev);
-  }, []);
-
-  const handleToggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      // Resize map once the sidebar width has changed
-      requestAnimationFrame(() => {
-        mapRef.current?.getMap()?.resize();
-      });
-      return next;
-    });
-  }, []);
 
   const handleSwitchToIncidentDate = (incident) => {
     const incidentDate = incident.start_date
@@ -897,63 +1132,234 @@ export default function MapPage() {
     setDateRange({ from: incidentDate, to: incidentDate });
   };
 
-  // Filter point incidents by verification status (domain filter already applied in pointIncidents)
-  const visibleIncidents = useMemo(() => {
-    if (!filters.verifiedOnly) return pointIncidents;
-    return pointIncidents.filter((i) => i.verification_status === 'verified');
-  }, [pointIncidents, filters.verifiedOnly]);
+  // ─── Power Search API integration ───
+  const runPowerSearch = useCallback(
+    async (replace = true) => {
+      if (!powerSearchMode) return;
+      setPsLoading(true);
+      setPsError('');
+      try {
+        const params = {
+          q: psQuery.trim(),
+          domainSlugs: psFilters.domainSlugs,
+          categorySlugs: psFilters.categorySlugs,
+          statuses: psFilters.statuses,
+          verificationStatuses: psFilters.verificationStatuses,
+          sourceTypes: psFilters.sourceTypes,
+          severities: psFilters.severities,
+          geometryTypes: psFilters.geometryTypes,
+          savedOnly: psFilters.savedOnly,
+          dateFrom: psFilters.dateFrom || undefined,
+          dateTo: psFilters.dateTo || undefined,
+          sort: psSort,
+          limit: PS_PAGE_SIZE,
+          offset: replace ? 0 : psResults.length,
+        };
+        const res = await api.searchIncidentsAdvanced(params);
+        const fetched = res.data?.incidents || [];
+        const count = res.data?.count || 0;
+        setPsResults(replace ? fetched : [...psResults, ...fetched]);
+        setPsTotal(count);
+      } catch (err) {
+        console.error('Power search failed:', err);
+        setPsError(err.message || 'Search failed');
+        if (replace) {
+          setPsResults([]);
+          setPsTotal(0);
+        }
+      } finally {
+        setPsLoading(false);
+      }
+    },
+    [powerSearchMode, psQuery, psFilters, psSort, psResults.length]
+  );
 
-  // Filter saved incidents with same rules
-  const visibleSavedIncidents = useMemo(() => {
-    let result = savedIncidents;
-    if (filters.verifiedOnly) {
-      result = result.filter((i) => i.verification_status === 'verified');
-    }
-    if (activeDomainFilters.size > 0) {
-      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
-    }
-    return result;
-  }, [savedIncidents, filters.verifiedOnly, activeDomainFilters]);
+  useEffect(() => {
+    if (!powerSearchMode) return;
+    const timer = setTimeout(() => runPowerSearch(true), 250);
+    return () => clearTimeout(timer);
+  }, [powerSearchMode, psQuery, psFilters, psSort, runPowerSearch]);
 
-  // Determine if selected incident is a "ghost" (outside current date range).
-  // Points only — polygon ghosts are rendered via the zone SVG overlay.
-  const ghostIncident = selectedIncident &&
-    selectedIncident.geometry_type !== 'polygon' &&
-    !incidents.find((i) => i.id === selectedIncident.id)
-    ? selectedIncident
-    : null;
-  const ghostZone = selectedIncident?.geometry_type === 'polygon' &&
-    !polygonIncidents.find((z) => z.id === selectedIncident.id)
-    ? selectedIncident
-    : null;
+  const handlePowerSearchSelect = useCallback(
+    (incident) => {
+      setPowerSearchMode(false);
+      handleSelectIncident(incident, { source: 'power-search' });
+    },
+    [handleSelectIncident]
+  );
+
+  const handleToggleSavedPowerSearch = useCallback(
+    async (incidentId) => {
+      if (!isAuthenticated) {
+        openSignInModal();
+        return;
+      }
+      const isSaved = savedIds.has(incidentId);
+      await handleSaveChange(incidentId, !isSaved);
+    },
+    [isAuthenticated, savedIds, handleSaveChange, openSignInModal]
+  );
+
+  const handlePowerSearchLoadMore = useCallback(() => {
+    runPowerSearch(false);
+  }, [runPowerSearch]);
+
+  const handleResetPowerSearchFilters = useCallback(() => {
+    setPsFilters(DEFAULT_PS_FILTERS);
+    setPsQuery('');
+    setPsSort('newest');
+  }, []);
+
+  // ─── Keyboard shortcuts ───
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (powerSearchMode || commandPaletteOpen) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+      }
+      if (e.key === 'Escape' && activeDrawer) {
+        setActiveDrawer(null);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [powerSearchMode, commandPaletteOpen, activeDrawer]);
+
+  // ─── Command palette selection ───
+  const handleCommandPaletteSelectIncident = useCallback(
+    (incident) => {
+      handleSelectIncident(incident, { source: 'command-palette' });
+    },
+    [handleSelectIncident]
+  );
+
+  const handleCommandPaletteSelectLocation = useCallback(
+    ({ lat, lng, zoom }) => {
+      setFlyToCoords({ lat, lng, zoom: zoom || 11, type: 'location', source: 'command-palette' });
+    },
+    []
+  );
+
+  // ─── Rail items ───
+  const railItems = useMemo(
+    () => [
+      { id: 'layers', label: 'Layers', icon: Layers },
+      { id: 'incidents', label: 'Incidents', icon: AlertCircle },
+      { id: 'active', label: 'Active', icon: Zap, badge: activeIncidents.length, overdue: overdueCount > 0 },
+      { id: 'activity', label: 'Activity', icon: ActivityIcon, badge: unreadCount },
+      ...(isAuthenticated
+        ? [{ id: 'saved', label: 'Saved', icon: Bookmark, badge: savedIncidents.length }]
+        : []),
+      { id: 'settings', label: 'Settings', icon: Settings },
+    ],
+    [activeIncidents.length, overdueCount, unreadCount, isAuthenticated, savedIncidents.length]
+  );
+
+  // ─── Ghost detection ───
+  const ghostIncident =
+    selectedIncident && selectedIncident.geometry_type !== 'polygon' && !incidents.find((i) => i.id === selectedIncident.id)
+      ? selectedIncident
+      : null;
+  const ghostZone =
+    selectedIncident?.geometry_type === 'polygon' && !polygonIncidents.find((z) => z.id === selectedIncident.id)
+      ? selectedIncident
+      : null;
+
+  const bannerPadding = getBannerPadding();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
-      {/* Main content row */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Left — Live Activity Feed */}
-        <LiveActivityFeed
-          activities={activities}
-          onSelectEvent={handleSelectEventFromActivity}
-          isCollapsed={feedCollapsed}
-          onToggleCollapse={handleToggleCollapse}
-          unreadCount={unreadCount}
-          onMarkAllRead={handleMarkAllRead}
-        />
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        background: 'var(--bg-deep)',
+      }}
+    >
+      <WorkspaceTopBar
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        onResetToToday={handleResetToToday}
+        onOpenSearch={() => setCommandPaletteOpen(true)}
+        onOpenAdvancedSearch={() => setPowerSearchMode(true)}
+        onToggleFocusMode={() => setFocusMode((p) => !p)}
+        isFocusMode={focusMode}
+        onOpenZones={() => setActiveDrawer((p) => (p === 'layers' ? null : 'layers'))}
+        compactMode={compactMode}
+        onToggleCompactMode={() => setCompactMode((p) => !p)}
+        verifiedOnly={filters.verifiedOnly}
+        onToggleVerifiedOnly={() => setFilters((p) => ({ ...p, verifiedOnly: !p.verifiedOnly }))}
+      />
 
-        {/* Center — Map */}
-        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+        {!focusMode && !powerSearchMode && (
+          <WorkspaceRail
+            items={railItems}
+            activeId={activeDrawer}
+            onSelect={(id) => setActiveDrawer((p) => (p === id ? null : id))}
+            compactMode={compactMode}
+          />
+        )}
+
+        {activeDrawer && !focusMode && !powerSearchMode && (
+          <WorkspaceDrawer
+            activeDrawer={activeDrawer}
+            onClose={() => setActiveDrawer(null)}
+            domains={domains}
+            zoneCategories={zoneCategories}
+            activeDomainSlugs={visibleDomainSlugs}
+            activeZoneSlugs={activeZoneSlugs}
+            onToggleDomain={handleToggleDomain}
+            onToggleZone={handleToggleZoneCategory}
+            onShowAllDomains={handleShowAllDomains}
+            onHideAllDomains={handleHideAllDomains}
+            onShowAllZones={handleShowAllZones}
+            onHideAllZones={handleHideAllZones}
+            visibleIncidents={visibleIncidents}
+            onSelectIncident={handleSelectIncident}
+            activeIncidents={activeIncidents}
+            overdueCount={overdueCount}
+            activities={activities}
+            activityLastSeenAt={lastSeenTimestamp}
+            onMarkAllActivitySeen={handleMarkAllRead}
+            onSelectActivityIncident={handleSelectEventFromActivity}
+            savedIncidents={visibleSavedIncidents}
+            onSelectSavedIncident={handleSelectIncident}
+            onUnsaveIncident={(id) => handleSaveChange(id, false)}
+            autoZoomEnabled={autoZoomEnabled}
+            onToggleAutoZoom={() => setAutoZoomEnabled((p) => !p)}
+          />
+        )}
+
+        <div
+          style={{
+            flex: 1,
+            position: 'relative',
+            minWidth: 0,
+            background: 'var(--bg-deep)',
+          }}
+        >
           <UserMap
             ref={mapRef}
-            incidents={visibleIncidents}
-            zones={polygonIncidents}
-            selectedEventId={selectedIncident?.geometry_type !== 'polygon' ? selectedIncident?.id : null}
-            selectedZoneId={selectedIncident?.geometry_type === 'polygon' ? selectedIncident?.id : null}
-            onEventClick={handleSelectIncident}
-            onZoneClick={handleSelectIncident}
+            incidents={powerSearchMode ? psResults.filter((i) => i.geometry_type !== 'polygon') : visibleIncidents}
+            zones={powerSearchMode ? psResults.filter((i) => i.geometry_type === 'polygon') : polygonIncidents}
+            selectedEventId={
+              powerSearchMode && selectedIncident?.geometry_type === 'polygon' ? null : selectedIncident?.id
+            }
+            selectedZoneId={
+              powerSearchMode && selectedIncident?.geometry_type === 'polygon'
+                ? selectedIncident.id
+                : selectedIncident?.geometry_type === 'polygon'
+                ? selectedIncident.id
+                : null
+            }
+            onEventClick={(incident) => handleSelectIncident(incident, { source: 'map' })}
+            onZoneClick={(zone) => handleSelectIncident(zone, { source: 'map' })}
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
-            fitBounds={fitBounds}
             initialViewport={
               hasViewportParams
                 ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
@@ -961,10 +1367,11 @@ export default function MapPage() {
             }
             ghostIncident={ghostIncident}
             ghostZone={ghostZone}
-            showZones={showZones}
+            showZones={powerSearchMode ? true : showZones}
             onMarkerContextMenu={handleMarkerContextMenu}
             onZoneContextMenu={handleZoneContextMenu}
             onMapContextMenu={handleMapContextMenu}
+            autoZoomEnabled={autoZoomEnabled}
           />
 
           {mapMenuOpen && (
@@ -981,97 +1388,65 @@ export default function MapPage() {
             />
           )}
 
-          <MapLegend
-            domains={domains}
-            activeDomainFilters={activeDomainFilters}
-            onToggleDomain={handleToggleDomain}
-            onShowAll={handleShowAllDomains}
-            onHideAll={handleHideAllDomains}
-            showZones={showZones}
-            onToggleZones={handleToggleZones}
-          />
-
-          {/* Map controls overlay — top center */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 20,
-            }}
-          >
-            <MapControls
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-              onResetToToday={handleResetToToday}
+          {!powerSearchMode && (
+            <MapLegend
+              domains={domains}
+              activeDomainFilters={activeDomainFilters}
+              onToggleDomain={handleToggleDomain}
+              onShowAll={handleShowAllDomains}
+              onHideAll={handleHideAllDomains}
+              showZones={showZones}
+              onToggleZones={handleToggleZones}
             />
-          </div>
-
-          {/* Location search overlay — top left */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '12px',
-              width: '320px',
-              zIndex: 15,
-            }}
-          >
-            <LocationSearch
-              onSelect={handleLocationSelect}
-              viewbox={(() => {
-                if (!viewportBoundsRef.current) return null;
-                const [minLng, minLat, maxLng, maxLat] = viewportBoundsRef.current.split(',').map(Number);
-                return `${minLng},${maxLat},${maxLng},${minLat}`;
-              })()}
-            />
-          </div>
+          )}
 
           {/* Incident counter overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '72px',
-              left: '12px',
-              background: 'var(--bg-surface)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '8px 14px',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              zIndex: 10,
-              maxWidth: '340px',
-            }}
-          >
-            <div>
-              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{visibleIncidents.length}</span>
-              {' incidents visible'}
-              {showZones && (
-                <>
-                  {' · '}
-                  <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{polygonIncidents.length}</span>
-                  {' zones'}
-                </>
-              )}
-              {viewportFiltering === true && ' in current map area'}
-            </div>
-            {viewportFiltering === true && totalEventCount > 100 && (
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                {totalEventCount} total incidents match this date range — zoom or pan to explore
+          {!powerSearchMode && !focusMode && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '12px',
+                left: `calc(12px + ${bannerPadding.left}px)`,
+                background: 'var(--bg-surface)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '8px 14px',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                zIndex: 10,
+                maxWidth: '340px',
+              }}
+            >
+              <div>
+                <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{visibleIncidents.length}</span>
+                {' incidents visible'}
+                {showZones && (
+                  <>
+                    {' · '}
+                    <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{polygonIncidents.length}</span>
+                    {' zones'}
+                  </>
+                )}
+                {viewportFiltering === true && ' in current map area'}
               </div>
-            )}
-          </div>
+              {viewportFiltering === true && totalEventCount > 100 && (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  {totalEventCount} total incidents match this date range — zoom or pan to explore
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Ghost incident banner — outside current date range */}
+          {/* Ghost incident banner */}
           {ghostIncident && (
             <div
               style={{
                 position: 'absolute',
                 bottom: '16px',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                left: `calc(${bannerPadding.left}px + 16px)`,
+                right: `calc(${bannerPadding.right}px + 16px)`,
+                transform: 'none',
                 zIndex: 20,
                 background: 'var(--bg-surface)',
                 backdropFilter: 'blur(12px)',
@@ -1082,7 +1457,6 @@ export default function MapPage() {
                 alignItems: 'center',
                 gap: '14px',
                 boxShadow: 'var(--shadow-md)',
-                maxWidth: '90%',
               }}
             >
               <div
@@ -1097,9 +1471,7 @@ export default function MapPage() {
               />
               <div style={{ minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4 }}>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                    {ghostIncident.title}
-                  </span>{' '}
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{ghostIncident.title}</span>{' '}
                   occurred on{' '}
                   <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
                     {ghostIncident.start_date
@@ -1153,70 +1525,114 @@ export default function MapPage() {
           )}
         </div>
 
-        {/* Right — Incident sidebar */}
-        <div
-          style={{
-            width: sidebarCollapsed ? '44px' : '630px',
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            transition: 'width 0.2s ease',
-          }}
-        >
-          <IncidentSidebar
-            incidents={
-              isAuthenticated && sidebarTab === 'saved'
-                ? visibleSavedIncidents
-                : uniqueById([...visibleIncidents, ...(showZones ? polygonIncidents : [])])
-            }
-            selectedIncident={selectedIncident}
-            onSelectEvent={handleSelectIncident}
-            onBack={handleBack}
-            onNavigateToFullPage={handleNavigateToFullPage}
-            loading={loading}
-            filters={filters}
-            onFilterChange={setFilters}
-            detailRefreshKey={detailRefreshKey}
-            tab={isAuthenticated ? sidebarTab : 'events'}
-            onTabChange={isAuthenticated ? setSidebarTab : undefined}
+        {/* Right detail panel — absolute overlay */}
+        {rightPanelRendered && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 'var(--admin-right-panel-width)',
+              background: 'var(--bg-surface)',
+              borderLeft: '1px solid var(--border-default)',
+              boxShadow: 'var(--shadow-lg)',
+              zIndex: 45,
+              transform: `translateX(${rightPanelVisible && !rightPanelCollapsed ? '0%' : '100%'})`,
+              transition: `transform ${RIGHT_PANEL_TRANSITION_MS}ms ease`,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {panelMode === 'incident' && (
+              <IncidentDetailSidebar
+                incident={detail?.incident}
+                timeline={detail?.timeline}
+                mode="user"
+                onNavigateToFullPage={handleNavigateToFullPage}
+                onCopyIncidentLink={async (id) => {
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/incident/${id}`);
+                  } catch {}
+                }}
+                onSave={async (id) => {
+                  if (!isAuthenticated) {
+                    openSignInModal();
+                    return;
+                  }
+                  await handleToggleSave(id);
+                }}
+                isSaved={savedIds.has(selectedIncident?.id)}
+                onCollapse={() => setRightPanelCollapsed((p) => !p)}
+              />
+            )}
+            {panelMode === 'zone' && (
+              <ZoneDetailSidebar
+                incident={detail?.incident}
+                timeline={detail?.timeline}
+                mode="user"
+                onBack={handleBack}
+                onFullDetails={handleNavigateToFullPage}
+                onShare={async () => {
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/zone/${selectedIncident?.id}`);
+                  } catch {}
+                }}
+                onSave={async () => {
+                  if (!isAuthenticated) {
+                    openSignInModal();
+                    return;
+                  }
+                  await handleToggleSave(selectedIncident?.id);
+                }}
+                isSaved={savedIds.has(selectedIncident?.id)}
+                onCollapse={() => setRightPanelCollapsed((p) => !p)}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Power Search full-viewport overlay */}
+        {powerSearchMode && (
+          <PowerSearchPanel
+            isOpen={powerSearchMode}
+            onClose={() => setPowerSearchMode(false)}
+            query={psQuery}
+            onQueryChange={setPsQuery}
+            filters={psFilters}
+            onFiltersChange={setPsFilters}
+            sortBy={psSort}
+            onSortChange={setPsSort}
+            results={psResults}
+            total={psTotal}
+            loading={psLoading}
+            error={psError}
+            hasMore={psResults.length < psTotal}
+            onLoadMore={handlePowerSearchLoadMore}
             savedIds={savedIds}
-            onSaveChange={handleSaveChange}
-            savedCount={savedIncidents.length}
-            isCollapsed={sidebarCollapsed}
-            onToggleCollapse={handleToggleSidebar}
+            domains={domains}
+            categories={[]}
+            onSelectIncident={handlePowerSearchSelect}
+            onToggleSaved={handleToggleSavedPowerSearch}
+            onResetFilters={handleResetPowerSearchFilters}
+            compactMode={compactMode}
+            filterCollapsed={psFilterCollapsed}
+            onFilterCollapsedChange={setPsFilterCollapsed}
+            resultsCollapsed={psResultsCollapsed}
+            onResultsCollapsedChange={setPsResultsCollapsed}
           />
-        </div>
+        )}
       </div>
 
-      {/* Bottom — Ticker bar */}
-      <TickerBar activities={activities} onSelectEvent={handleSelectEventFromActivity} />
-
+      <UserCommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        incidents={incidents}
+        savedIds={savedIds}
+        onSelectIncident={handleCommandPaletteSelectIncident}
+        onSelectLocation={handleCommandPaletteSelectLocation}
+      />
     </div>
   );
-}
-
-function getZoomForLocation(type, cls) {
-  const t = (type || '').toLowerCase();
-  const c = (cls || '').toLowerCase();
-
-  if (t === 'coordinates') return 16;
-  if (t === 'continent') return 3;
-  if (t === 'country') return 5;
-  if (['state', 'province', 'region'].includes(t)) return 7;
-  if (['county', 'district'].includes(t)) return 9;
-  if (t === 'city') return 11;
-  if (t === 'town') return 13;
-  if (t === 'village') return 14;
-  if (['suburb', 'neighbourhood', 'neighborhood', 'quarter'].includes(t)) return 15;
-  if (['street', 'road', 'square', 'farm', 'allotments'].includes(t)) return 16;
-  if (['house', 'building', 'place_of_worship', 'museum', 'hospital', 'school', 'university', 'college'].includes(t)) return 17;
-  if (['river', 'lake', 'water', 'reservoir', 'pond'].includes(t)) return 12;
-  if (['mountain', 'peak', 'volcano', 'ridge'].includes(t)) return 13;
-  if (['airport', 'station', 'bus_station', 'railway_station'].includes(t)) return 14;
-
-  if (c === 'boundary') return 9;
-  if (c === 'place') return 12;
-  if (c === 'highway') return 16;
-
-  return 11;
 }

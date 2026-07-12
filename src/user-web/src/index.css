@@ -51,6 +51,44 @@ body,
 }
 
 /* ═══════════════════════════════════════════════
+   Map Layout Variables (mirrors admin-web)
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --admin-ui-scale: 1;
+
+  /* Layout chrome */
+  --admin-topbar-height: calc(54px * var(--admin-ui-scale));
+  --admin-rail-width: calc(64px * var(--admin-ui-scale));
+  --admin-drawer-width: calc(360px * var(--admin-ui-scale));
+  --admin-right-panel-width: calc(630px * var(--admin-ui-scale));
+
+  /* Power Search chrome */
+  --admin-ps-topbar-height: calc(52px * var(--admin-ui-scale));
+  --admin-ps-chips-height: calc(38px * var(--admin-ui-scale));
+  --admin-ps-filter-width: calc(260px * var(--admin-ui-scale));
+  --admin-ps-filter-collapsed: calc(44px * var(--admin-ui-scale));
+  --admin-ps-results-width: calc(300px * var(--admin-ui-scale));
+  --admin-ps-header-height: calc(46px * var(--admin-ui-scale));
+
+  /* Shared component density */
+  --admin-summary-padding-x: calc(20px * var(--admin-ui-scale));
+  --admin-summary-padding-y: calc(24px * var(--admin-ui-scale));
+  --admin-summary-margin: calc(20px * var(--admin-ui-scale));
+  --admin-section-title-margin-y: calc(22px * var(--admin-ui-scale));
+  --admin-card-padding: calc(20px * var(--admin-ui-scale));
+  --admin-update-padding: calc(18px * var(--admin-ui-scale));
+  --admin-input-padding-y: calc(10px * var(--admin-ui-scale));
+  --admin-input-padding-x: calc(12px * var(--admin-ui-scale));
+  --admin-form-gap: calc(16px * var(--admin-ui-scale));
+  --admin-form-section-padding: calc(16px * var(--admin-ui-scale));
+}
+
+.admin-compact {
+  --admin-ui-scale: 0.9;
+}
+
+/* ═══════════════════════════════════════════════
    Interface Style Overrides
    ═══════════════════════════════════════════════ */
 

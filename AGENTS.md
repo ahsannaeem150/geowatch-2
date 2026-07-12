@@ -447,10 +447,10 @@ Read these files in order when starting on a task:
 
 ### Active Work (as of the latest `handoff.md`)
 
-- Finalizing polygon/zone detail UI in isolated `/trial/zone*` pages inside `user-web`.
-- Chosen visual direction: "neon fade" polygon style (thin colored stroke + soft glow + transparent radial fill).
-- Shared component for this is `ZoneNeonMap` in `src/user-web/src/pages/ZoneTrialCommon.jsx` and related shared zone components in `src/shared/components/zone/`.
-- Zone neon style has been integrated into `admin-web` map rendering.
+- **user-web `/map` layout port is complete.** The public map now uses the finalized admin-web dashboard chrome: top bar with public nav + Google auth, left rail/drawer, absolute-overlay right detail panel, Power Search full-viewport overlay, compact/focus modes, and Settings-drawer auto-zoom toggle.
+- Key files: `src/user-web/src/pages/MapPage.jsx`, `src/user-web/src/components/Map/UserMap.jsx`, `src/user-web/src/components/Layout/UserCommandPalette.jsx`, and the reused `WorkspaceTopBar` / `WorkspaceRail` / `WorkspaceDrawer` / `PowerSearchPanel` components in `src/user-web/src/components/Layout/`.
+- The old `LiveActivityFeed`, `TickerBar`, `IncidentSidebar`, `MapControls`, and floating `LocationSearch` were removed from `/map`.
+- Next: port the same layout patterns to `superadmin-web` and run browser smoke tests on user-web.
 
 ### Active Trial Routes (user-web)
 

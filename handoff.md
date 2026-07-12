@@ -450,9 +450,9 @@ chore: description
 
 ---
 
-## 10. Current Focus — Admin-web Layout Finalized; Source-aware Selection Done
+## 10. Current Focus — user-web Dashboard Layout Port Complete
 
-> **What we are doing right now:** the admin-web dashboard layout is now considered final. The first-click black flash is eliminated by animating the right panel with `transform: translateX` while keeping the MapLibre canvas at a constant size; MapLibre padding now accounts for the overlay panel. Zone zoom behavior is unified: all zone selections use a comfort-fit with a 45% viewport margin, then clamp to zoom `[4, 14]`. Users can disable auto-zoom in the Settings drawer; selections then pan-only while preserving the current zoom. Deep-links always comfort-fit regardless of the toggle. The next phase is to port the finalized admin-web layout patterns into `user-web` and `superadmin-web`.
+> **What we are doing right now:** the public `/map` page in `user-web` has been rebuilt to mirror the finalized admin-web dashboard layout. The admin-style top bar, left rail/drawer, absolute-overlay right detail panel, Power Search full-viewport overlay, compact/focus modes, and Settings-drawer auto-zoom toggle are all wired and building. Live Activity Feed, Ticker Bar, the old incident-list sidebar search, and floating `LocationSearch` were removed; Saved incidents moved into the rail drawer and location search moved into the new `⌘K` Command Palette. All three frontend builds pass. The next phase is to port the same layout patterns into `superadmin-web` and to smoke-test the new user-web chrome in the browser.
 
 ### Chosen Direction
 
@@ -536,7 +536,7 @@ You are continuing work on GeoWatch, a map-based global conflict and major-event
 3. Explore the codebase to understand context: backend services, shared components, and especially the user-web zone trial files under `src/user-web/src/pages/ZoneTrial*.jsx`, `zoneTrialData.js`, and `src/user-web/src/App.jsx`.
 
 **CURRENT FOCUS:**
-The admin-web dashboard layout and map selection behavior are finalized. Completed: collapsible left rail/drawer and right detail panel with `transform: translateX` overlay animation that keeps the MapLibre canvas at a constant size, delayed `flyTo` scheduling, focus mode, in-dashboard Power Search with collapsible filter/results rails, visible-area map centering, universal zone comfort-fit with `[4, 14]` zoom clamps, and a Settings drawer toggle to disable auto-zoom. Verification scripts for right-panel animation, map centering, and map zoom behavior all pass reliably. Next phase is to port the finalized admin-web layout patterns into `user-web` and `superadmin-web` so all three frontends share consistent chrome, map centering, and selection behavior.
+The user-web `/map` page now uses the finalized admin-web dashboard layout: admin-style top bar with public nav + Google auth, collapsible left rail/drawer (Layers, Incidents, Active, Activity, Saved, Settings), absolute-overlay right detail panel with `transform: translateX` animation, Power Search full-viewport overlay, compact/focus modes, and a Settings-drawer auto-zoom toggle. The old Live Activity Feed, Ticker Bar, incident-list sidebar search, and floating LocationSearch were removed. All three frontend builds pass. Next: port the same chrome patterns to `superadmin-web` and run browser smoke tests on user-web.
 
 **BEFORE MAKING CHANGES:**
 - Run `npm run build:admin-web` and ensure it passes.

@@ -30,7 +30,6 @@ const UserMap = forwardRef(function UserMap({
   onZoneClick,
   onViewportChange,
   flyToCoords,
-  fitBounds,
   initialViewport,
   ghostIncident,
   ghostZone,
@@ -38,6 +37,7 @@ const UserMap = forwardRef(function UserMap({
   onMarkerContextMenu,
   onZoneContextMenu,
   onMapContextMenu,
+  autoZoomEnabled = true,
 }, ref) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -283,34 +283,99 @@ const UserMap = forwardRef(function UserMap({
     };
   }, []);
 
-  // Fly to coordinates
+  // Fly to coordinates / bounds with layout padding and auto-zoom behavior.
   useEffect(() => {
     if (
-      !map.current ||
       !flyToCoords ||
+      !map.current ||
       !Number.isFinite(flyToCoords.lng) ||
       !Number.isFinite(flyToCoords.lat)
     ) {
       return;
     }
-    isProgrammaticMove.current = true;
-    map.current.flyTo({
-      center: [flyToCoords.lng, flyToCoords.lat],
-      zoom: flyToCoords.zoom || 10,
-      essential: true,
-    });
-  }, [flyToCoords]);
 
-  // Fit to bounds (for zone selection)
-  useEffect(() => {
-    if (!map.current || !fitBounds) return;
     isProgrammaticMove.current = true;
-    map.current.fitBounds(fitBounds.bounds, {
-      padding: fitBounds.padding ?? 40,
-      duration: fitBounds.duration ?? 800,
-      essential: true,
+    const currentZoom = map.current.getZoom();
+    const maxZoom = getMaxZoomForCenter(flyToCoords.lng, flyToCoords.lat);
+    const { type, source, bounds, padding } = flyToCoords;
+    const mapInstance = map.current;
+
+    // Comfort-fit constants for polygon selections.
+    const ZONE_COMFORT_FACTOR = 0.55;
+    const MIN_ZONE_ZOOM = 4;
+    const MAX_ZONE_ZOOM = 14;
+
+    // Compute visible area after layout padding (sidebars / panels).
+    const container = mapInstance.getContainer();
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const padLeft = padding?.left || 0;
+    const padRight = padding?.right || 0;
+    const padTop = padding?.top || 0;
+    const padBottom = padding?.bottom || 0;
+    const visibleWidth = Math.max(1, containerWidth - padLeft - padRight);
+    const visibleHeight = Math.max(1, containerHeight - padTop - padBottom);
+
+    const doesFitAtZoom = (bbox, zoom) => {
+      const camera = mapInstance.cameraForBounds(bbox, { padding, maxZoom: 22 });
+      return camera ? zoom >= camera.zoom : true;
+    };
+
+    const computeFittingZoom = (bbox, comfortFactor = 1.0) => {
+      const extraHoriz = visibleWidth * (1 - comfortFactor) / 2;
+      const extraVert = visibleHeight * (1 - comfortFactor) / 2;
+      const fittedPadding = {
+        top: padTop + extraVert,
+        bottom: padBottom + extraVert,
+        left: padLeft + extraHoriz,
+        right: padRight + extraHoriz,
+      };
+      const minVisible = 300;
+      const usePadding = visibleWidth >= minVisible && visibleHeight >= minVisible;
+      let camera = usePadding
+        ? mapInstance.cameraForBounds(bbox, { padding: fittedPadding, maxZoom: 22 })
+        : null;
+      if (!camera) {
+        camera = mapInstance.cameraForBounds(bbox, { padding: 0, maxZoom: 22 });
+      }
+      return camera ? camera.zoom : currentZoom;
+    };
+
+    let targetZoom;
+    const panOnly = !autoZoomEnabled && source !== 'deep-link';
+
+    if (panOnly) {
+      targetZoom = currentZoom;
+    } else if (type === 'incident') {
+      if (source === 'map') {
+        targetZoom = currentZoom + 0.05;
+      } else {
+        targetZoom = 7;
+      }
+    } else if (type === 'zone' && bounds) {
+      if (source === 'map' && doesFitAtZoom(bounds, currentZoom + 0.02)) {
+        targetZoom = currentZoom + 0.02;
+      } else {
+        const fittingZoom = computeFittingZoom(bounds, ZONE_COMFORT_FACTOR);
+        targetZoom = Math.max(MIN_ZONE_ZOOM, Math.min(MAX_ZONE_ZOOM, fittingZoom));
+      }
+    } else {
+      targetZoom = Number.isFinite(flyToCoords.zoom) ? flyToCoords.zoom : currentZoom;
+    }
+
+    targetZoom = Math.min(targetZoom, maxZoom);
+
+    mapInstance.resize();
+    requestAnimationFrame(() => {
+      if (!map.current) return;
+      map.current.flyTo({
+        center: [flyToCoords.lng, flyToCoords.lat],
+        zoom: targetZoom,
+        padding,
+        duration: 800,
+      });
     });
-  }, [fitBounds]);
+  }, [flyToCoords, autoZoomEnabled]);
 
   // Update zone source data when zones prop changes
   // Only the invisible hit layer reads from this source; visuals are handled

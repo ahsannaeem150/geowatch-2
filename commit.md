@@ -11747,3 +11747,56 @@ feat(admin-web): tune zone comfort-fit and incident nudge
 ```
 
 ---
+
+## 📅 2026-06-27 — Module: Port Admin Dashboard Layout to user-web
+
+### Summary
+Rewrote the public `/map` page to use the finalized admin-web dashboard layout: admin-style top bar with public nav + Google auth, left rail/drawer, absolute-overlay right detail panel, Power Search full-viewport overlay, compact/focus modes, and auto-zoom toggle. Removed the old Live Activity Feed, Ticker Bar, and incident-list sidebar search.
+
+### Behavior Changes
+
+- **Admin-style top bar**: GeoWatch brand, public nav (Home/Map/About), search trigger (`⌘K`), Advanced/Power Search, Live Mode tag, date pickers, Today, Focus, Zones, Compact mode, Verified-only filter, and Google sign-in / profile menu.
+- **Left rail + drawer**: Layers, Incidents, Active, Activity, Saved (authenticated), Settings. Theme toggle and auto-zoom toggle moved into the Settings drawer.
+- **Right detail panel**: Absolute overlay with `transform: translateX` animation; uses shared `IncidentDetailSidebar` and `ZoneDetailSidebar`. Map canvas never shrinks.
+- **Power Search**: Full-viewport overlay with filter/results rails, wired to the public `/incidents/search` advanced endpoint.
+- **Command palette**: New lightweight palette for incident title search + Nominatim location search + recent searches.
+- **Removed**: Live Activity Feed sidebar, Ticker Bar, `IncidentSidebar`, `MapControls`, and floating `LocationSearch` (replaced by command palette).
+- **Auto-zoom**: Persisted in `localStorage`; pan-only when disabled; deep-links always comfort-fit.
+- **Compact mode**: Persisted in `localStorage`; applies `--admin-ui-scale: 0.9` to html.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/MapPage.jsx` | Complete rewrite with admin-style layout state, rail/drawer, right panel animation, Power Search integration, detail fetching, and map padding. |
+| `src/user-web/src/components/Map/UserMap.jsx` | Removed `fitBounds` prop; added `autoZoomEnabled` prop; unified flyTo with layout padding and comfort-fit logic. |
+| `src/user-web/src/components/Layout/UserCommandPalette.jsx` | New command-palette overlay for incidents + Nominatim places + coordinates. |
+| `src/user-web/src/components/Layout/WorkspaceTopBar.jsx` | Existing admin-style top bar reused as-is. |
+| `src/user-web/src/components/Layout/WorkspaceRail.jsx` | Existing generic rail reused. |
+| `src/user-web/src/components/Layout/WorkspaceDrawer.jsx` | Existing drawer reused; Saved and Settings drawers wired. |
+| `src/user-web/src/components/Layout/PowerSearchPanel.jsx` | Existing Power Search panel reused. |
+| `src/user-web/src/services/api.js` | Added `searchIncidentsAdvanced` helper mirroring admin-web. |
+| `src/user-web/src/App.jsx` | Hide global `Header` and `Footer` on `/map` so the page controls the chrome. |
+| `src/user-web/src/index.css` | Already contained admin layout variables; unchanged. |
+| `src/user-web/src/utils/mapPadding.js` | Already contained `computeMapPadding` / `computeOuterContainerPadding`; unchanged. |
+
+### Verification
+
+- `npm run build:user-web` ✅
+- `npm run build:admin-web` ✅
+- `npm run build:superadmin-web` ✅
+- Dev server smoke test (`curl http://localhost:5173/`) returned HTTP 200 ✅
+
+### Git Commit
+
+```
+feat(user-web): port admin dashboard layout to public map
+- Replace old /map chrome with admin-style top bar, left rail/drawer, and absolute right detail panel.
+- Add Power Search full-viewport overlay and lightweight Command Palette (⌘K).
+- Move Saved incidents, theme toggle, and auto-zoom toggle into drawer.
+- Remove Live Activity Feed, Ticker Bar, IncidentSidebar, MapControls, and floating LocationSearch.
+- Wire shared IncidentDetailSidebar / ZoneDetailSidebar with animation and map padding.
+- Add compact/focus modes and localStorage persistence for compact + auto-zoom.
+- All frontend builds pass; dev server smoke test returns 200.
+```
+
