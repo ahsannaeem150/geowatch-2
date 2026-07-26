@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Command,
@@ -9,10 +10,22 @@ import {
   Navigation,
   Layers,
   Zap,
-  Bookmark,
   AlertCircle,
   ChevronRight,
   ArrowRight,
+  Plus,
+  Hexagon,
+  LayoutDashboard,
+  Users,
+  Globe,
+  Map as MapIcon,
+  ClipboardList,
+  Eye,
+  Trash2,
+  Tags,
+  Activity,
+  Download,
+  Archive,
 } from 'lucide-react';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
@@ -28,14 +41,30 @@ const SCOPES = [
 ];
 
 const QUICK_ACTIONS = [
+  { id: 'add-incident', label: 'Add new incident', icon: Plus, shortcut: 'I', action: 'add-incident' },
+  { id: 'add-zone', label: 'Add new zone', icon: Hexagon, shortcut: 'Z', action: 'add-zone' },
   { id: 'open-layers', label: 'Open layers panel', icon: Layers, shortcut: 'L', action: 'open-layers' },
-  { id: 'open-saved', label: 'Open saved incidents', icon: Bookmark, shortcut: 'S', action: 'open-saved' },
   { id: 'toggle-focus', label: 'Toggle focus mode', icon: Zap, shortcut: 'F', action: 'toggle-focus' },
-  { id: 'open-advanced', label: 'Open advanced search', icon: Search, shortcut: 'A', action: 'open-advanced' },
+  { id: 'open-power-search', label: 'Open power search', icon: Search, shortcut: 'P', action: 'open-power-search' },
 ];
 
-const RECENT_KEY = 'geowatch_user_command_palette_recents_v2';
-const LEGACY_RECENT_KEY = 'geowatch_user_command_palette_recents';
+const NAV_ACTIONS = [
+  { id: 'nav-dashboard', label: 'Dashboard', path: '/superadmin', icon: LayoutDashboard, action: 'nav' },
+  { id: 'nav-users', label: 'Staff Users', path: '/superadmin/users', icon: Users, action: 'nav' },
+  { id: 'nav-public-users', label: 'Public Users', path: '/superadmin/public-users', icon: Globe, action: 'nav' },
+  { id: 'nav-map', label: 'Map', path: '/superadmin/map', icon: MapIcon, action: 'nav' },
+  { id: 'nav-audit', label: 'System Activity', path: '/superadmin/audit', icon: ClipboardList, action: 'nav' },
+  { id: 'nav-public-activity', label: 'Public Activity', path: '/superadmin/public-activity', icon: Eye, action: 'nav' },
+  { id: 'nav-recycle-bin', label: 'Recycle Bin', path: '/superadmin/recycle-bin', icon: Trash2, action: 'nav' },
+  { id: 'nav-domains', label: 'Domains', path: '/superadmin/domains', icon: Tags, action: 'nav' },
+  { id: 'nav-zone-categories', label: 'Zone Categories', path: '/superadmin/zone-categories', icon: Hexagon, action: 'nav' },
+  { id: 'nav-system', label: 'System', path: '/superadmin/system', icon: Activity, action: 'nav' },
+  { id: 'nav-export', label: 'Export', path: '/superadmin/export', icon: Download, action: 'nav' },
+  { id: 'nav-x-archive-debug', label: 'X Archive Debug', path: '/superadmin/x-archive-debug', icon: Archive, action: 'nav' },
+];
+
+const RECENT_KEY = 'geowatch_superadmin_command_palette_recents_v2';
+const LEGACY_RECENT_KEY = 'geowatch_superadmin_command_palette_recents';
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 
 function escapeRegExp(string) {
@@ -136,18 +165,20 @@ function formatLocationDetail(loc) {
   return type || cls || '';
 }
 
-export default function UserCommandPalette({
+export default function CommandPalette({
   isOpen,
   onClose,
   incidents = [],
   savedIds = new Set(),
   onSelectIncident,
   onSelectLocation,
+  onAddIncident,
+  onAddZone,
   onOpenLayers,
-  onOpenSaved,
-  onToggleFocusMode,
-  onOpenAdvancedSearch,
+  onToggleFocus,
+  onOpenPowerSearch,
 }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState('all');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -236,9 +267,19 @@ export default function UserCommandPalette({
     [incidents]
   );
 
-  const filteredActions = useMemo(
+  const filteredQuickActions = useMemo(
     () => QUICK_ACTIONS.filter((a) => a.label.toLowerCase().includes(q)),
     [q]
+  );
+
+  const filteredNavActions = useMemo(
+    () => NAV_ACTIONS.filter((a) => `${a.label} ${a.path}`.toLowerCase().includes(q)),
+    [q]
+  );
+
+  const filteredActions = useMemo(
+    () => [...filteredQuickActions, ...filteredNavActions],
+    [filteredQuickActions, filteredNavActions]
   );
 
   const filteredIncidents = useMemo(() => {
@@ -366,10 +407,12 @@ export default function UserCommandPalette({
     } else if (item.type === 'action') {
       if (q) pushRecentSearch(query);
       const a = item.data;
+      if (a.action === 'nav') navigate(a.path);
+      if (a.action === 'add-incident') onAddIncident?.();
+      if (a.action === 'add-zone') onAddZone?.();
       if (a.action === 'open-layers') onOpenLayers?.();
-      if (a.action === 'open-saved') onOpenSaved?.();
-      if (a.action === 'toggle-focus') onToggleFocusMode?.();
-      if (a.action === 'open-advanced') onOpenAdvancedSearch?.();
+      if (a.action === 'toggle-focus') onToggleFocus?.();
+      if (a.action === 'open-power-search') onOpenPowerSearch?.();
       close();
     } else if (item.type === 'location') {
       const loc = item.data;
@@ -396,9 +439,9 @@ export default function UserCommandPalette({
     }
   }
 
-  function openAdvanced() {
+  function openPowerSearch() {
     close();
-    onOpenAdvancedSearch?.();
+    onOpenPowerSearch?.();
   }
 
   const placeholderByScope = {
@@ -567,19 +610,37 @@ export default function UserCommandPalette({
           }}
         >
           {flatResults.length === 0 ? (
-            <EmptyState query={query} onAdvanced={openAdvanced} locationLoading={locationLoading && scope === 'locations'} />
+            <EmptyState query={query} onPowerSearch={openPowerSearch} locationLoading={locationLoading && scope === 'locations'} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {scope === 'actions' &&
-                filteredActions.map((action, idx) => (
-                  <ActionItem
-                    key={action.id}
-                    action={action}
-                    active={highlightedIndex === idx}
-                    onClick={() => handleSelect({ type: 'action', data: action })}
-                    query={query}
-                  />
-                ))}
+              {scope === 'actions' && (
+                <>
+                  {filteredQuickActions.length > 0 && (
+                    <ResultGroup label="Actions" icon={Command} />
+                  )}
+                  {filteredQuickActions.map((action, idx) => (
+                    <ActionItem
+                      key={action.id}
+                      action={action}
+                      active={highlightedIndex === idx}
+                      onClick={() => handleSelect({ type: 'action', data: action })}
+                      query={query}
+                    />
+                  ))}
+                  {filteredNavActions.length > 0 && (
+                    <ResultGroup label="Go to page" icon={ArrowRight} style={{ marginTop: '6px' }} />
+                  )}
+                  {filteredNavActions.map((action, idx) => (
+                    <ActionItem
+                      key={action.id}
+                      action={action}
+                      active={highlightedIndex === filteredQuickActions.length + idx}
+                      onClick={() => handleSelect({ type: 'action', data: action })}
+                      query={query}
+                    />
+                  ))}
+                </>
+              )}
 
               {scope === 'incidents' &&
                 incidentResults.map((inc, idx) => (
@@ -668,7 +729,7 @@ export default function UserCommandPalette({
           </div>
 
           <button
-            onClick={openAdvanced}
+            onClick={openPowerSearch}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -692,7 +753,7 @@ export default function UserCommandPalette({
               e.currentTarget.style.borderColor = 'transparent';
             }}
           >
-            Open advanced search
+            Open power search
             <ArrowRight size={14} />
           </button>
         </div>
@@ -719,7 +780,7 @@ export default function UserCommandPalette({
   );
 }
 
-function EmptyState({ query, onAdvanced, locationLoading }) {
+function EmptyState({ query, onPowerSearch, locationLoading }) {
   return (
     <div
       style={{
@@ -746,11 +807,11 @@ function EmptyState({ query, onAdvanced, locationLoading }) {
         }}
       >
         {query
-          ? 'Try a different query, or use advanced filters for deeper searches.'
+          ? 'Try a different query, or use power search for deeper filters.'
           : 'Find incidents, locations, or commands. Press ⌘K anytime.'}
       </div>
       <button
-        onClick={onAdvanced}
+        onClick={onPowerSearch}
         style={{
           marginTop: '18px',
           display: 'flex',
@@ -766,7 +827,7 @@ function EmptyState({ query, onAdvanced, locationLoading }) {
           cursor: 'pointer',
         }}
       >
-        Open advanced search
+        Open power search
         <ArrowRight size={14} />
       </button>
     </div>
@@ -841,7 +902,12 @@ function ActionItem({ action, active, onClick, query }) {
       <div style={{ flex: 1, fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
         {highlight(action.label, query)}
       </div>
-      <kbd style={kbdStyle}>{action.shortcut}</kbd>
+      {action.path && (
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+          {action.path}
+        </span>
+      )}
+      {action.shortcut && <kbd style={kbdStyle}>{action.shortcut}</kbd>}
     </button>
   );
 }

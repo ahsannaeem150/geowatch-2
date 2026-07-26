@@ -617,3 +617,145 @@ export function archiveXArchiveSource(sourceId, body) {
     body: JSON.stringify(body),
   });
 }
+
+// ─── Map Workspace (ported from admin-web) ───
+
+function parseGeometry(geometry) {
+  if (!geometry) return null;
+  if (typeof geometry === 'string') {
+    try {
+      const parsed = JSON.parse(geometry);
+      return parsed && parsed.coordinates ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  if (geometry.coordinates) return geometry;
+  if (Array.isArray(geometry)) {
+    return { type: 'Polygon', coordinates: geometry };
+  }
+  return null;
+}
+
+export function getCategories() {
+  return request('/categories');
+}
+
+export function searchIncidentsAdvanced(params = {}) {
+  const qs = new URLSearchParams();
+  if (params.q) qs.append('q', params.q);
+  if (params.dateFrom) qs.append('dateFrom', params.dateFrom);
+  if (params.dateTo) qs.append('dateTo', params.dateTo);
+  if (params.categoryId) qs.append('categoryId', params.categoryId);
+  if (Array.isArray(params.categorySlugs)) {
+    params.categorySlugs.forEach((s) => qs.append('categorySlugs', s));
+  }
+  if (Array.isArray(params.domainSlugs)) {
+    params.domainSlugs.forEach((s) => qs.append('domainSlugs', s));
+  }
+  if (params.zoneCategoryId) qs.append('zoneCategoryId', params.zoneCategoryId);
+  if (params.severity !== undefined) qs.append('severity', params.severity);
+  if (Array.isArray(params.severities)) {
+    params.severities.forEach((s) => qs.append('severities', s));
+  }
+  if (params.status) qs.append('status', params.status);
+  if (Array.isArray(params.statuses)) {
+    params.statuses.forEach((s) => qs.append('statuses', s));
+  }
+  if (params.geometryType) qs.append('geometryType', params.geometryType);
+  if (Array.isArray(params.geometryTypes)) {
+    params.geometryTypes.forEach((s) => qs.append('geometryTypes', s));
+  }
+  if (params.verificationStatus) qs.append('verificationStatus', params.verificationStatus);
+  if (Array.isArray(params.verificationStatuses)) {
+    params.verificationStatuses.forEach((s) => qs.append('verificationStatuses', s));
+  }
+  if (Array.isArray(params.sourceTypes)) {
+    params.sourceTypes.forEach((s) => qs.append('sourceTypes', s));
+  }
+  if (params.savedOnly) qs.append('savedOnly', 'true');
+  if (params.viewport) qs.append('viewport', params.viewport);
+  if (params.sort) qs.append('sort', params.sort);
+  if (params.limit) qs.append('limit', params.limit);
+  if (params.offset !== undefined) qs.append('offset', params.offset);
+  const query = qs.toString();
+  return request(`/incidents/search${query ? `?${query}` : ''}`).then((data) => {
+    if (data?.incidents) {
+      data.incidents = data.incidents.map((incident) => ({
+        ...incident,
+        geometry: parseGeometry(incident.geometry),
+      }));
+    }
+    return data;
+  });
+}
+
+// ─── Notifications (staff) ───
+
+export function getNotifications(params = {}) {
+  const qs = new URLSearchParams();
+  if (params.limit) qs.append('limit', params.limit);
+  if (params.offset !== undefined) qs.append('offset', params.offset);
+  if (params.unreadOnly) qs.append('unreadOnly', 'true');
+  const query = qs.toString();
+  return request(`/notifications${query ? `?${query}` : ''}`);
+}
+
+export function markNotificationRead(id) {
+  return request(`/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+export function markAllNotificationsRead() {
+  return request('/notifications/mark-all-read', { method: 'POST' });
+}
+
+export function deleteNotification(id) {
+  return request(`/notifications/${id}`, { method: 'DELETE' });
+}
+
+// ─── Staff Saved Incidents ───
+
+export function getStaffSavedIncidents() {
+  return request('/incidents/staff/saved').then((data) => {
+    if (data?.incidents) {
+      data.incidents = data.incidents.map((incident) => ({
+        ...incident,
+        geometry: parseGeometry(incident.geometry),
+      }));
+    }
+    return data;
+  });
+}
+
+export function saveIncidentForStaff(id, notes) {
+  return request(`/incidents/staff/${id}/save`, {
+    method: 'POST',
+    body: JSON.stringify({ notes }),
+  });
+}
+
+export function unsaveIncidentForStaff(id) {
+  return request(`/incidents/staff/${id}/save`, { method: 'DELETE' });
+}
+
+// ─── Staff Recents ───
+
+export function getStaffRecents(type, limit) {
+  const qs = new URLSearchParams();
+  qs.append('type', type);
+  if (limit) qs.append('limit', limit);
+  return request(`/staff/recents?${qs.toString()}`);
+}
+
+export function recordStaffRecent(type, payload) {
+  return request('/staff/recents', {
+    method: 'POST',
+    body: JSON.stringify({ type, payload }),
+  });
+}
+
+export function clearStaffRecents(type) {
+  const qs = new URLSearchParams();
+  if (type) qs.append('type', type);
+  return request(`/staff/recents?${qs.toString()}`, { method: 'DELETE' });
+}

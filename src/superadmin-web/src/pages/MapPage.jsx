@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { PanelLeftOpen } from 'lucide-react';
+import {
+  PanelLeftOpen,
+  Layers,
+  List,
+  Radio,
+  Activity as ActivityIcon,
+  Bell,
+  Bookmark,
+  Clock,
+  Settings,
+  ChevronLeft,
+} from 'lucide-react';
 import {
   getIncidents,
   getIncident,
@@ -13,6 +24,8 @@ import {
   purgeIncident,
   getDomains,
   listAllCategories,
+  listZoneCategories,
+  searchIncidentsAdvanced,
   mapIncidentForShared,
   addTimeline,
   updateTimeline,
@@ -33,12 +46,14 @@ import {
 import { API_BASE_URL } from '@shared/constants.js';
 import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
-import MapControls from '../components/Map/MapControls.jsx';
 import DrawingToolbar from '../components/Map/DrawingToolbar.jsx';
 import ZoneForm from '../components/ZoneForm/ZoneForm.jsx';
-import LocationSearch from '../components/LocationSearch/LocationSearch.jsx';
 import IncidentDetailPanel from '../components/Map/IncidentDetailPanel.jsx';
-import MapLegend from '@shared/components/MapLegend.jsx';
+import WorkspaceTopBar from '../components/MapWorkspace/WorkspaceTopBar.jsx';
+import WorkspaceRail from '../components/MapWorkspace/WorkspaceRail.jsx';
+import WorkspaceDrawer from '../components/MapWorkspace/WorkspaceDrawer.jsx';
+import PowerSearchPanel from '../components/PowerSearchPanel/PowerSearchPanel.jsx';
+import CommandPalette from '../components/CommandPalette/CommandPalette.jsx';
 import MapContextMenu from '@shared/components/MapContextMenu.jsx';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
@@ -48,30 +63,49 @@ import RecycleBinSidebar from '../components/Map/RecycleBinSidebar.jsx';
 import UserDetailDrawer from '../components/Users/UserDetailDrawer.jsx';
 import PublicUserDrawer from '../components/PublicUsers/PublicUserDrawer.jsx';
 import AuditTable from '../components/Audit/AuditTable.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
+import { useStaffNotifications } from '../hooks/useStaffNotifications.js';
+import { useStaffSavedIncidents } from '../hooks/useStaffSavedIncidents.js';
+import { useStaffRecents } from '../hooks/useStaffRecents.js';
+import { useSearchCategories } from '../hooks/useSearchCategories.js';
+import { computeMapPadding } from '../utils/mapPadding.js';
 
-function pointToSegmentDistance(p, a, b) {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  if (dx === 0 && dy === 0) return Math.sqrt((p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2);
-  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)));
-  const projX = a[0] + t * dx;
-  const projY = a[1] + t * dy;
-  return Math.sqrt((p[0] - projX) ** 2 + (p[1] - projY) ** 2);
+const LS_KEY = 'geowatch_superadmin_last_seen';
+const LS_COMPACT = 'geowatch_superadmin_compact_mode';
+const LS_AUTO_ZOOM = 'geowatch_superadmin_auto_zoom';
+const MAX_ACTIVITIES = 50;
+const RIGHT_PANEL_TRANSITION_MS = 250;
+const PS_PAGE_SIZE = 25;
+
+const DEFAULT_PS_FILTERS = {
+  dateFrom: '',
+  dateTo: '',
+  domainSlugs: [],
+  categorySlugs: [],
+  severities: [],
+  statuses: [],
+  verificationStatuses: [],
+  sourceTypes: [],
+  geometryTypes: [],
+  savedOnly: false,
+};
+
+const SORT_OPTIONS_PS = [
+  { key: 'relevance', api: 'relevance' },
+  { key: 'newest', api: 'newest' },
+  { key: 'oldest', api: 'oldest' },
+  { key: 'severity-desc', api: 'severity_desc' },
+  { key: 'severity-asc', api: 'severity_asc' },
+  { key: 'name', api: 'name_asc' },
+];
+
+function getLastSeen() {
+  const raw = localStorage.getItem(LS_KEY);
+  return raw ? parseInt(raw, 10) : Date.now();
 }
 
-function findNearestSegmentIndex(point, vertices) {
-  let minIdx = -1;
-  let minDist = Infinity;
-  for (let i = 0; i < vertices.length; i++) {
-    const a = vertices[i];
-    const b = vertices[(i + 1) % vertices.length];
-    const dist = pointToSegmentDistance(point, a, b);
-    if (dist < minDist) {
-      minDist = dist;
-      minIdx = i;
-    }
-  }
-  return minIdx;
+function setLastSeen(ts) {
+  localStorage.setItem(LS_KEY, String(ts));
 }
 
 export default function MapPage() {
@@ -125,14 +159,12 @@ export default function MapPage() {
   const [filters, setFilters] = useState({
     categoryId: searchParams.get('categoryId') || '',
     severity: '',
-    verifiedOnly: false,
-    status: searchParams.get('status') || 'active',
+    status: searchParams.get('status') || '',
   });
 
   // ─── Zones (polygon incidents) ───
   const [selectedZoneId, setSelectedZoneId] = useState(null);
   const [fitBounds, setFitBounds] = useState(null);
-  const [showZones, setShowZones] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // ─── Zone Drawing ───
@@ -185,12 +217,78 @@ export default function MapPage() {
   // Show contextual banner when coming from activity timeline with an incident
   const showContextBanner = (refParam === 'activity' && incidentIdFromUrl) || (refParam === 'recyclebin' && incidentIdFromUrl);
 
-  // ─── Domain Filter / Legend ───
+  // ─── Domain Filter / Layers ───
   const [domains, setDomains] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
+  const [zoneCategories, setZoneCategories] = useState([]);
+  const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
+
+  // Zones are visible when at least one zone category is active. If the
+  // category list failed to load, fall back to showing every zone.
+  const showZones = zoneCategories.length > 0 ? activeZoneSlugs.size > 0 : true;
 
   // ─── Categories for edit form ───
   const [categories, setCategories] = useState([]);
+
+  // ─── Workspace layout state ───
+  const [activeDrawer, setActiveDrawer] = useState(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const [compactMode, setCompactMode] = useState(() => {
+    try {
+      return localStorage.getItem(LS_COMPACT) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [autoZoomEnabled, setAutoZoomEnabled] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LS_AUTO_ZOOM);
+      return raw === null ? true : raw === 'true';
+    } catch {
+      return true;
+    }
+  });
+  const [toast, setToast] = useState(null);
+
+  // ─── Right panel animation lifecycle ───
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const preFocusRightCollapsedRef = useRef(false);
+  const [rightPanelRendered, setRightPanelRendered] = useState(false);
+  const [rightPanelVisible, setRightPanelVisible] = useState(false);
+  const rightPanelRef = useRef(null);
+
+  const isPanelOpen = !!(selectedIncident || showZoneCreatePanel || pointFormMode);
+
+  // ─── Power Search state ───
+  const [powerSearchMode, setPowerSearchMode] = useState(false);
+  const [psQuery, setPsQuery] = useState('');
+  const [psFilters, setPsFilters] = useState(DEFAULT_PS_FILTERS);
+  const [psSort, setPsSort] = useState('relevance');
+  const [psResults, setPsResults] = useState([]);
+  const [psTotal, setPsTotal] = useState(0);
+  const [psLoading, setPsLoading] = useState(false);
+  const [psError, setPsError] = useState(null);
+  const [psOffset, setPsOffset] = useState(0);
+  const [psFilterCollapsed, setPsFilterCollapsed] = useState(false);
+  const [psResultsCollapsed, setPsResultsCollapsed] = useState(false);
+  const psTimerRef = useRef(null);
+
+  // ─── Staff workspace data ───
+  const { user, logout } = useAuth();
+  const {
+    notifications,
+    unreadCount: notificationUnreadCount,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
+  } = useStaffNotifications();
+  const { savedIncidents, savedIds, unsaveIncident, toggleSaved } = useStaffSavedIncidents();
+  const { recents, recordRecent, clearRecents } = useStaffRecents('incident');
+  const { domains: psDomains, categories: psCategories } = useSearchCategories();
+
+  // ─── Live Activity Feed ───
+  const [activities, setActivities] = useState([]);
+  const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
 
   // ─── Activity inspector sidebar ───
   const [activitySidebarOpen, setActivitySidebarOpen] = useState(true);
@@ -206,6 +304,15 @@ export default function MapPage() {
   // Activity sidebar re-jumps/scrolls even if the incident id is unchanged.
   const [activitySelectionKey, setActivitySelectionKey] = useState(0);
   const isRecycleBinMode = refParam === 'recyclebin';
+
+  // ─── Smart Viewport Filtering ───
+  const [viewportFiltering, setViewportFiltering] = useState(null);
+  const [totalEventCount, setTotalEventCount] = useState(0);
+  const viewportBoundsRef = useRef(null);
+  const viewportFilteringRef = useRef(null);
+
+  // ─── SSE Connection ───
+  const esRef = useRef(null);
 
   // Close the creator drawer when the user selects a different incident
   // (e.g. from the drawer's own Activity tab) so the incident detail panel
@@ -224,20 +331,57 @@ export default function MapPage() {
   const ghostFetchAttempted = useRef(false);
   const lastIncidentIdRef = useRef(null);
 
+  // ─── Apply compact-mode class to html ───
+  useEffect(() => {
+    const root = document.documentElement;
+    if (compactMode) root.classList.add('admin-compact');
+    else root.classList.remove('admin-compact');
+    try {
+      localStorage.setItem(LS_COMPACT, String(compactMode));
+    } catch {}
+    return () => root.classList.remove('admin-compact');
+  }, [compactMode]);
+
+  // ─── Persist auto-zoom preference ───
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_AUTO_ZOOM, String(autoZoomEnabled));
+    } catch {}
+  }, [autoZoomEnabled]);
+
+  // ─── Auto-dismiss toast ───
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   // Sync categoryId filter from URL params
   useEffect(() => {
     const cid = searchParams.get('categoryId');
     setFilters((prev) => ({ ...prev, categoryId: cid || '' }));
   }, [searchParams]);
 
-  // ─── Smart Viewport Filtering ───
-  const [viewportFiltering, setViewportFiltering] = useState(null);
-  const [totalEventCount, setTotalEventCount] = useState(0);
-  const viewportBoundsRef = useRef(null);
-  const viewportFilteringRef = useRef(null);
-
-  // ─── SSE Connection ───
-  const esRef = useRef(null);
+  // ─── Right panel open/close animation ───
+  useEffect(() => {
+    const shouldShow = isPanelOpen && !rightPanelCollapsed;
+    if (shouldShow) {
+      setRightPanelRendered(true);
+      // Double rAF + forced reflow so the transform transition always runs
+      // from the collapsed (off-screen) state.
+      const raf1 = requestAnimationFrame(() => {
+        const raf2 = requestAnimationFrame(() => {
+          rightPanelRef.current?.offsetWidth;
+          setRightPanelVisible(true);
+        });
+        return () => cancelAnimationFrame(raf2);
+      });
+      return () => cancelAnimationFrame(raf1);
+    }
+    setRightPanelVisible(false);
+    const timer = setTimeout(() => setRightPanelRendered(false), RIGHT_PANEL_TRANSITION_MS);
+    return () => clearTimeout(timer);
+  }, [isPanelOpen, rightPanelCollapsed]);
 
   // ─── Fetch incidents with smart viewport filtering ───
   useEffect(() => {
@@ -297,23 +441,68 @@ export default function MapPage() {
   // Filtered incidents (must be declared before any effect/callback that depends on polygonIncidents)
   const filteredIncidents = useMemo(() => {
     let result = incidents;
-    if (filters.verifiedOnly) {
-      result = result.filter((i) => i.verification_status === 'verified');
-    }
     if (activeDomainFilters.size > 0) {
       result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
     }
     return result;
-  }, [incidents, filters.verifiedOnly, activeDomainFilters]);
+  }, [incidents, activeDomainFilters]);
 
   // Point incidents are rendered as markers; polygons are rendered via the zones source
   const polygonIncidents = useMemo(
     () => filteredIncidents.filter((i) => i.geometry_type === 'polygon'),
     [filteredIncidents]
   );
-  const pointIncidents = useMemo(
-    () => filteredIncidents.filter((i) => i.geometry_type !== 'polygon'),
-    [filteredIncidents]
+
+  // Zone-category visibility filter (layers drawer). Applies only to what the
+  // map renders; lookups (deep-links, ghosts) keep using polygonIncidents.
+  const activeZoneIds = useMemo(
+    () => new Set(zoneCategories.filter((z) => activeZoneSlugs.has(z.slug)).map((z) => String(z.id))),
+    [zoneCategories, activeZoneSlugs]
+  );
+  const visiblePolygonIncidents = useMemo(() => {
+    if (zoneCategories.length === 0) return polygonIncidents;
+    return polygonIncidents.filter((i) => activeZoneIds.has(String(i.zone_category_id)));
+  }, [polygonIncidents, zoneCategories.length, activeZoneIds]);
+
+  const visibleDomainSlugs = useMemo(
+    () => new Set(domains.map((d) => d.slug).filter((slug) => !activeDomainFilters.has(slug))),
+    [domains, activeDomainFilters]
+  );
+
+  const activeIncidents = useMemo(
+    () => incidents.filter((i) => i.status === 'active'),
+    [incidents]
+  );
+  const activeIncidentCount = activeIncidents.length;
+  const overdueIncidentCount = useMemo(() => {
+    const nowTs = Date.now();
+    return activeIncidents.filter((i) => {
+      const created = new Date(i.created_at || i.createdAt).getTime();
+      return Number.isFinite(created) && nowTs - created > 24 * 60 * 60 * 1000;
+    }).length;
+  }, [activeIncidents]);
+
+  const unreadCount = useMemo(
+    () => activities.filter((a) => a.timestamp > lastSeenTimestamp).length,
+    [activities, lastSeenTimestamp]
+  );
+
+  // Padding for floating overlays inside the map container (ghost banner)
+  // that must avoid the absolutely-positioned chrome (drawer, right panel,
+  // power-search rails).
+  const getBannerPadding = useCallback(
+    (overrides = {}) =>
+      computeMapPadding({
+        scale: compactMode ? 0.9 : 1,
+        powerSearchMode: overrides.powerSearchMode ?? powerSearchMode,
+        psFilterCollapsed: overrides.psFilterCollapsed ?? psFilterCollapsed,
+        psResultsCollapsed: overrides.psResultsCollapsed ?? psResultsCollapsed,
+        activeDrawer: overrides.activeDrawer ?? activeDrawer,
+        focusMode: overrides.focusMode ?? focusMode,
+        isPanelOpen: overrides.isPanelOpen ?? isPanelOpen,
+        rightPanelCollapsed: overrides.rightPanelCollapsed ?? rightPanelCollapsed,
+      }),
+    [compactMode, powerSearchMode, psFilterCollapsed, psResultsCollapsed, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed]
   );
 
   // ─── Handle zone ID from URL — deep-linking ───
@@ -360,13 +549,27 @@ export default function MapPage() {
     }
   }, [zoneIdFromUrl, polygonIncidents, hasViewportParams, setSearchParams]);
 
-  // Fetch domains for legend
+  // Fetch domains for layers drawer
   useEffect(() => {
     getDomains()
       .then((res) => {
         setDomains(res.domains || []);
       })
       .catch(() => setDomains([]));
+  }, []);
+
+  // Fetch zone categories for layers drawer (default: all visible)
+  useEffect(() => {
+    listZoneCategories()
+      .then((cats) => {
+        const list = cats || [];
+        setZoneCategories(list);
+        setActiveZoneSlugs(new Set(list.map((z) => z.slug).filter(Boolean)));
+      })
+      .catch(() => {
+        setZoneCategories([]);
+        setActiveZoneSlugs(new Set());
+      });
   }, []);
 
   // Fetch categories for edit form
@@ -414,6 +617,31 @@ export default function MapPage() {
           return;
         }
 
+        // Live activity feed (dedupe rapid repeats of the same event)
+        setActivities((prev) => {
+          const last = prev[0];
+          const ts = Date.now();
+          if (
+            last &&
+            last.type === payload.type &&
+            last.incidentId === (payload.incidentId || payload.incident?.id) &&
+            ts - last.timestamp < 2000
+          ) {
+            return prev;
+          }
+
+          const activity = {
+            type: payload.type,
+            incidentId: payload.incidentId || payload.incident?.id,
+            incident: payload.incident || null,
+            update: payload.update || null,
+            updateId: payload.updateId || null,
+            timestamp: ts,
+          };
+
+          return [activity, ...prev].slice(0, MAX_ACTIVITIES);
+        });
+
         if (payload.incident) {
           setIncidents((prev) => {
             const exists = prev.find((ev) => ev.id === payload.incident.id);
@@ -443,7 +671,7 @@ export default function MapPage() {
     };
   }, [selectedIncident?.id]);
 
-  // Legend handlers
+  // Legend / layer handlers
   const handleToggleDomain = useCallback((slug) => {
     setActiveDomainFilters((prev) => {
       const next = new Set(prev);
@@ -463,6 +691,23 @@ export default function MapPage() {
   const handleHideAllDomains = useCallback(() => {
     setActiveDomainFilters(new Set(domains.map((d) => d.slug)));
   }, [domains]);
+
+  const handleToggleZone = useCallback((slug) => {
+    setActiveZoneSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }, []);
+
+  const handleShowAllZones = useCallback(() => {
+    setActiveZoneSlugs(new Set(zoneCategories.map((z) => z.slug).filter(Boolean)));
+  }, [zoneCategories]);
+
+  const handleHideAllZones = useCallback(() => {
+    setActiveZoneSlugs(new Set());
+  }, []);
 
   // Viewport change handler
   const handleViewportChange = useCallback(({ bounds, center, zoom }) => {
@@ -511,6 +756,11 @@ export default function MapPage() {
 
   // Select incident
   const handleSelectIncident = useCallback((incident, opts = {}) => {
+    if (focusMode) {
+      setFocusMode(false);
+      setActiveDrawer(null);
+    }
+    setRightPanelCollapsed(false);
     setSelectedIncident(incident);
     setEditingZoneId(null);
     setEditingZoneVertices([]);
@@ -560,7 +810,13 @@ export default function MapPage() {
       next.delete('zone');
       return next;
     });
-  }, [setSearchParams]);
+
+    try {
+      recordRecent({ incidentId: incident.id, title: incident.title });
+    } catch {
+      // ignore
+    }
+  }, [setSearchParams, focusMode, recordRecent]);
 
   const handleBack = useCallback(() => {
     setSelectedIncident(null);
@@ -1200,8 +1456,14 @@ export default function MapPage() {
 
   // ─── Zone selection ───
   const handleZoneClick = useCallback((zoneId) => {
-    const zone = polygonIncidents.find((z) => z.id === zoneId);
+    const zone = polygonIncidents.find((z) => z.id === zoneId)
+      || (powerSearchMode ? psResults.find((z) => z.id === zoneId) : null);
     if (!zone) return;
+    if (focusMode) {
+      setFocusMode(false);
+      setActiveDrawer(null);
+    }
+    setRightPanelCollapsed(false);
     setSelectedZoneId(zoneId);
     setSelectedIncident(zone);
     // Clear editing state when selecting a different zone
@@ -1227,7 +1489,13 @@ export default function MapPage() {
       next.delete('incident');
       return next;
     });
-  }, [polygonIncidents, setSearchParams]);
+
+    try {
+      recordRecent({ incidentId: zone.id, title: zone.title });
+    } catch {
+      // ignore
+    }
+  }, [polygonIncidents, powerSearchMode, psResults, focusMode, recordRecent, setSearchParams]);
 
   // ─── Drawing history helpers ───
   const pushToHistory = useCallback((vertices, isClosed) => {
@@ -1322,6 +1590,7 @@ export default function MapPage() {
   const handleDrawClose = useCallback(() => {
     setIsPolygonClosed(true);
     setShowZoneCreatePanel(true);
+    setRightPanelCollapsed(false);
     setSelectedDrawVertexIndex(null);
     pushToHistory(drawVerticesRef.current, true);
   }, [pushToHistory]);
@@ -1560,6 +1829,7 @@ export default function MapPage() {
     setSelectedIncident(zone);
     setSelectedZoneId(zone.id);
     setZoneInfoEditMode(true);
+    setRightPanelCollapsed(false);
   }, [selectedIncident]);
 
   const handleZoneInfoSubmit = useCallback(
@@ -1673,6 +1943,7 @@ export default function MapPage() {
     setSelectedIncident(null);
     setSelectedZoneId(null);
     setGhostZone(null);
+    setRightPanelCollapsed(false);
     setPointFormCoords({ lat, lng });
     setPointFormMode('create');
     closeMapMenu();
@@ -1704,7 +1975,7 @@ export default function MapPage() {
     if (!incident) return [];
     return [
       { label: 'View Details', onClick: () => { handleSelectIncident(incident); closeMapMenu(); } },
-      { label: 'Edit Incident', onClick: () => { setSelectedIncident(incident); setPointFormMode('edit'); closeMapMenu(); } },
+      { label: 'Edit Incident', onClick: () => { setSelectedIncident(incident); setPointFormMode('edit'); setRightPanelCollapsed(false); closeMapMenu(); } },
       { label: 'Resolve', onClick: () => setConfirmDialog({ type: 'resolve', id: incident.id, title: 'Resolve incident?', message: 'Mark this incident as resolved.', confirmText: 'Resolve', onConfirm: () => handleResolveIncident(incident.id) }) },
       { label: 'Delete', danger: true, onClick: () => setConfirmDialog({ type: 'delete', id: incident.id, title: 'Delete incident?', message: 'This action cannot be undone.', confirmText: 'Delete', danger: true, onConfirm: () => handleDeleteIncident(incident.id) }) },
       { label: 'Copy Link', onClick: () => copyLink('incident', incident.id) },
@@ -1757,17 +2028,116 @@ export default function MapPage() {
     setPointFormCoords(null);
   }, []);
 
+  // ─── Workspace chrome handlers ───
+  const exitFocusMode = useCallback(() => {
+    if (!focusMode) return;
+    setFocusMode(false);
+    setActiveDrawer(null);
+  }, [focusMode]);
+
+  const handleDrawerSelect = useCallback(
+    (id) => {
+      exitFocusMode();
+      setActiveDrawer(id);
+    },
+    [exitFocusMode]
+  );
+
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode((prev) => {
+      if (!prev) {
+        preFocusRightCollapsedRef.current = rightPanelCollapsed;
+        setRightPanelCollapsed(true);
+      } else {
+        setRightPanelCollapsed(preFocusRightCollapsedRef.current);
+      }
+      return !prev;
+    });
+  }, [rightPanelCollapsed]);
+
+  const toggleCompactMode = useCallback(() => {
+    setCompactMode((prev) => !prev);
+  }, []);
+
+  const toggleAutoZoom = useCallback(() => {
+    setAutoZoomEnabled((prev) => !prev);
+  }, []);
+
+  // Add Incident: same creation flow as the context menu, opened without
+  // pre-set coordinates (type them in or double-click the map to place).
+  const handleAddIncident = useCallback(() => {
+    exitFocusMode();
+    setMapMode('pan');
+    setShowZoneCreatePanel(false);
+    setZoneInfoEditMode(false);
+    setSelectedIncident(null);
+    setSelectedZoneId(null);
+    setGhostZone(null);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    setPointFormCoords(null);
+    setPointFormMode('create');
+    setRightPanelCollapsed(false);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('incident');
+      next.delete('zone');
+      return next;
+    });
+  }, [exitFocusMode, setSearchParams]);
+
+  // Add Zone: same polygon-drawing flow as "Create Zone Here".
+  const handleAddZone = useCallback(() => {
+    exitFocusMode();
+    setPointFormMode(null);
+    setPointFormCoords(null);
+    setSelectedIncident(null);
+    setSelectedZoneId(null);
+    setGhostZone(null);
+    setEditingZoneId(null);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
+    handleSetMode('polygon');
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('incident');
+      next.delete('zone');
+      return next;
+    });
+  }, [exitFocusMode, handleSetMode, setSearchParams]);
+
+  // Double-click on the map places a new incident marker and opens the form.
+  const handleMapDblClick = useCallback(
+    ({ lat, lng }) => {
+      exitFocusMode();
+      setSelectedIncident(null);
+      setSelectedZoneId(null);
+      setGhostZone(null);
+      setShowZoneCreatePanel(false);
+      setZoneInfoEditMode(false);
+      setPointFormCoords({ lat, lng });
+      setPointFormMode('create');
+      setRightPanelCollapsed(false);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('incident');
+        next.delete('zone');
+        return next;
+      });
+    },
+    [exitFocusMode, setSearchParams]
+  );
+
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });
   }, [today]);
 
-  const handleLocationSelect = useCallback((result) => {
-    const zoom = getZoomForLocation(result.type, result.class);
-    setFlyToCoords({
-      lat: parseFloat(result.lat),
-      lng: parseFloat(result.lon),
-      zoom,
-    });
+  const handlePaletteSelectLocation = useCallback(({ lat, lng, zoom }) => {
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return;
+    setFlyToCoords({ lat: parsedLat, lng: parsedLng, zoom: zoom || getZoomForLocation() });
   }, []);
 
   const handleDismissContext = useCallback(() => {
@@ -1810,6 +2180,199 @@ export default function MapPage() {
     setDateRange({ from: incidentDate, to: incidentDate });
   };
 
+  // ─── Drawer data handlers ───
+  const selectIncidentById = useCallback(
+    (incidentId, incidentData) => {
+      // SSE payloads carry unparsed geometry — for polygons, fetch the full
+      // incident so fit-bounds and zone rendering get real coordinates.
+      const usable =
+        incidentData &&
+        (incidentData.geometry_type !== 'polygon' || incidentData.geometry?.coordinates);
+      if (usable) {
+        handleSelectIncident(incidentData);
+        return;
+      }
+      const found = incidents.find((i) => i.id === incidentId);
+      if (found) {
+        handleSelectIncident(found);
+        return;
+      }
+      getIncident(incidentId)
+        .then((res) => {
+          if (res?.incident) handleSelectIncident(res.incident);
+        })
+        .catch(() => {
+          console.warn('Could not fetch incident', incidentId);
+        });
+    },
+    [incidents, handleSelectIncident]
+  );
+
+  const handleSelectActivityIncident = useCallback(
+    (incidentId) => {
+      const activity = activities.find((a) => a.incidentId === incidentId);
+      selectIncidentById(incidentId, activity?.incident || null);
+    },
+    [activities, selectIncidentById]
+  );
+
+  const handleSelectNotificationIncident = useCallback(
+    (incidentId) => {
+      if (!incidentId) return;
+      selectIncidentById(incidentId, null);
+    },
+    [selectIncidentById]
+  );
+
+  const handleSelectRecent = useCallback(
+    (recent) => {
+      if (recent?.id) selectIncidentById(recent.id, null);
+    },
+    [selectIncidentById]
+  );
+
+  const handleResolveFromDrawer = useCallback(async (id) => {
+    try {
+      await resolveIncident(id);
+      setToast({ message: 'Incident resolved', type: 'success' });
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to resolve incident', type: 'error' });
+    }
+  }, []);
+
+  const handleMarkAllRead = useCallback(() => {
+    const nowTs = Date.now();
+    setLastSeenTimestamp(nowTs);
+    setLastSeen(nowTs);
+  }, []);
+
+  // ─── Power Search data fetching ───
+  const fetchPowerSearchResults = useCallback(
+    async ({ replace = true, nextOffset = 0 } = {}) => {
+      setPsLoading(true);
+      setPsError(null);
+      try {
+        const sortApi = SORT_OPTIONS_PS.find((s) => s.key === psSort)?.api || 'relevance';
+        const params = {
+          q: psQuery.trim() || undefined,
+          dateFrom: psFilters.dateFrom || undefined,
+          dateTo: psFilters.dateTo || undefined,
+          domainSlugs: psFilters.domainSlugs.length ? psFilters.domainSlugs : undefined,
+          categorySlugs: psFilters.categorySlugs.length ? psFilters.categorySlugs : undefined,
+          severities: psFilters.severities.length ? psFilters.severities : undefined,
+          statuses: psFilters.statuses.length ? psFilters.statuses : undefined,
+          verificationStatuses: psFilters.verificationStatuses.length ? psFilters.verificationStatuses : undefined,
+          sourceTypes: psFilters.sourceTypes.length ? psFilters.sourceTypes : undefined,
+          geometryTypes: psFilters.geometryTypes.length ? psFilters.geometryTypes : undefined,
+          savedOnly: psFilters.savedOnly ? true : undefined,
+          sort: sortApi,
+          limit: PS_PAGE_SIZE,
+          offset: nextOffset,
+        };
+        const res = await searchIncidentsAdvanced(params);
+        const fetched = res?.incidents || [];
+        const count = res?.count || 0;
+        if (replace) {
+          setPsResults(fetched);
+        } else {
+          setPsResults((prev) => {
+            const existing = new Set(prev.map((i) => i.id));
+            return [...prev, ...fetched.filter((i) => !existing.has(i.id))];
+          });
+        }
+        setPsTotal(count);
+      } catch (err) {
+        setPsError(err.message || 'Search failed');
+        if (replace) {
+          setPsResults([]);
+          setPsTotal(0);
+        }
+      } finally {
+        setPsLoading(false);
+      }
+    },
+    [psQuery, psFilters, psSort]
+  );
+
+  useEffect(() => {
+    if (!powerSearchMode) return;
+    setPsOffset(0);
+    if (psTimerRef.current) clearTimeout(psTimerRef.current);
+    psTimerRef.current = setTimeout(() => {
+      fetchPowerSearchResults({ replace: true, nextOffset: 0 });
+    }, 300);
+    return () => {
+      if (psTimerRef.current) clearTimeout(psTimerRef.current);
+    };
+  }, [powerSearchMode, fetchPowerSearchResults]);
+
+  const handlePowerSearchSelect = useCallback(
+    (incident) => {
+      if (!incident) return;
+      handleSelectIncident(incident);
+    },
+    [handleSelectIncident]
+  );
+
+  const handleToggleSavedPowerSearch = useCallback(
+    async (e, id) => {
+      e?.stopPropagation?.();
+      await toggleSaved(id);
+    },
+    [toggleSaved]
+  );
+
+  const handlePowerSearchLoadMore = useCallback(() => {
+    const nextOffset = psOffset + PS_PAGE_SIZE;
+    fetchPowerSearchResults({ replace: false, nextOffset });
+    setPsOffset(nextOffset);
+  }, [psOffset, fetchPowerSearchResults]);
+
+  const handleResetPowerSearchFilters = useCallback(() => {
+    setPsFilters(DEFAULT_PS_FILTERS);
+    setPsQuery('');
+    setPsSort('relevance');
+  }, []);
+
+  // ─── Keyboard shortcuts: ⌘K palette, ESC layers ───
+  useEffect(() => {
+    function onKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (powerSearchMode) return;
+        setCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+      if (e.key === 'Escape') {
+        // The command palette and confirm dialog handle their own ESC.
+        if (commandPaletteOpen || confirmDialog) return;
+        if (powerSearchMode) {
+          setPowerSearchMode(false);
+          return;
+        }
+        if (activeDrawer) setActiveDrawer(null);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [powerSearchMode, commandPaletteOpen, confirmDialog, activeDrawer]);
+
+  // ─── Rail items ───
+  const railItems = useMemo(
+    () => [
+      { id: 'layers', label: 'Layers', icon: Layers },
+      { id: 'incidents', label: 'Incidents', icon: List },
+      { id: 'active', label: 'Active', icon: Radio, badge: activeIncidentCount, overdue: overdueIncidentCount > 0 },
+      { id: 'activity', label: 'Activity', icon: ActivityIcon, badge: unreadCount },
+      { id: 'notifications', label: 'Notifications', icon: Bell, badge: notificationUnreadCount },
+      { id: 'saved', label: 'Saved', icon: Bookmark },
+      { id: 'recents', label: 'Recents', icon: Clock },
+      { id: 'settings', label: 'Settings', icon: Settings },
+    ],
+    [activeIncidentCount, overdueIncidentCount, unreadCount, notificationUnreadCount]
+  );
+
   // Ghost incident / zone (selected item outside current date range)
   const ghostIncident = selectedIncident && !incidents.find((i) => i.id === selectedIncident.id)
     ? selectedIncident
@@ -1819,712 +2382,881 @@ export default function MapPage() {
     ? selectedIncident
     : null;
 
+  const bannerPadding = getBannerPadding();
+
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--topbar-height))', overflow: 'hidden' }}>
-      {/* Contextual banner */}
-      {showContextBanner && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 20px',
-            background: 'var(--bg-surface)',
-            borderBottom: '1px solid var(--border-subtle)',
-            flexShrink: 0,
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: 'var(--navy-400)',
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
-              {refParam === 'recyclebin'
-                ? 'Showing incident from '
-                : 'Showing incident from '}
-              <span style={{ fontWeight: 700 }}>
-                {refParam === 'recyclebin'
-                  ? 'Recycle Bin'
-                  : actorParam
-                  ? `${actorParam}'s activity`
-                  : 'activity timeline'}
-              </span>
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <button
-              onClick={refParam === 'recyclebin' ? handleBackToRecycleBin : handleBackToProfile}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                border: '1px solid var(--navy-500)',
-                background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
-                color: '#fff',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              ← {refParam === 'recyclebin' ? 'Back to Recycle Bin' : 'Back to profile'}
-            </button>
-            <button
-              onClick={handleDismissContext}
-              style={{
-                padding: '5px 10px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                border: '1px solid var(--border-subtle)',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-      <div style={{ display: 'flex', flex: 1, alignItems: 'stretch', minHeight: 0, overflow: 'hidden' }}>
-        {isActivityMode && activitySidebarOpen && (
-          <ActivityInspectorSidebar
-            actorName={actorParam}
-            staffUserId={staffUserId}
-            publicUserId={publicUserId}
-            selectedIncidentId={incidentIdFromUrl}
-            selectionKey={activitySelectionKey}
-            onIncidentClick={handleActivityIncidentClick}
-            onToggleCollapse={handleToggleActivitySidebar}
-            onClose={handleCloseActivitySidebar}
-            onBackToProfile={handleBackToProfile}
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'var(--bg-deep)',
+        }}
+      >
+        {!powerSearchMode && (
+          <WorkspaceTopBar
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            onResetToToday={handleResetToToday}
+            onOpenSearch={() => setCommandPaletteOpen(true)}
+            onOpenAdvancedSearch={() => setPowerSearchMode(true)}
+            activeCount={activeIncidentCount}
+            overdueCount={overdueIncidentCount}
+            onOpenActiveDrawer={() => handleDrawerSelect('active')}
+            onToggleFocusMode={toggleFocusMode}
+            isFocusMode={focusMode}
+            onAddIncident={handleAddIncident}
+            onAddZone={handleAddZone}
+            user={user}
+            onLogout={logout}
+            compactMode={compactMode}
+            onToggleCompactMode={toggleCompactMode}
           />
         )}
-        {isRecycleBinMode && recycleBinSidebarOpen && (
-          <RecycleBinSidebar
-            selectedIncidentId={incidentIdFromUrl}
-            onIncidentClick={handleRecycleBinIncidentClick}
-            onToggleCollapse={handleToggleRecycleBinSidebar}
-            onClose={handleCloseRecycleBinSidebar}
-            onBackToRecycleBin={handleBackToRecycleBin}
-          />
-        )}
-        {isActivityMode && !activitySidebarOpen && (
+
+        {/* Contextual banner (activity timeline / recycle-bin deep links) */}
+        {showContextBanner && (
           <div
             style={{
-              width: '44px',
-              minWidth: '44px',
-              flexShrink: 0,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              paddingTop: '12px',
+              justifyContent: 'space-between',
+              padding: '10px 20px',
               background: 'var(--bg-surface)',
-              borderRight: '1px solid var(--border-subtle)',
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleToggleActivitySidebar}
-              title="Show activity sidebar"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              <PanelLeftOpen size={16} />
-            </button>
-          </div>
-        )}
-        {isRecycleBinMode && !recycleBinSidebarOpen && (
-          <div
-            style={{
-              width: '44px',
-              minWidth: '44px',
+              borderBottom: '1px solid var(--border-subtle)',
               flexShrink: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              paddingTop: '12px',
-              background: 'var(--bg-surface)',
-              borderRight: '1px solid var(--border-subtle)',
+              gap: '12px',
             }}
           >
-            <button
-              type="button"
-              onClick={handleToggleRecycleBinSidebar}
-              title="Show recycle bin sidebar"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              <PanelLeftOpen size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* Center — Map */}
-        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-          <SuperadminMap
-            ref={mapRef}
-            incidents={filteredIncidents}
-            zones={polygonIncidents}
-            showZones={showZones}
-            onZoneClick={handleZoneClick}
-            selectedEventId={selectedIncident?.id}
-            selectedZoneId={selectedZoneId}
-            onEventClick={handleSelectIncident}
-            onViewportChange={handleViewportChange}
-            flyToCoords={flyToCoords}
-            fitBounds={fitBounds}
-            initialViewport={
-              hasViewportParams
-                ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
-                : null
-            }
-            ghostIncident={ghostIncident}
-            ghostZone={ghostZone || dateGhostZone}
-            adminMode={true}
-            mapMode={mapMode}
-            drawVertices={drawVertices}
-            isPolygonClosed={isPolygonClosed}
-            onDrawVertexAdd={handleDrawVertexAdd}
-            onDrawClose={handleDrawClose}
-            onDrawCancel={handleDrawCancel}
-            onDrawUndo={handleDrawUndo}
-            onDrawRedo={handleDrawRedo}
-            onDrawVertexSelect={handleDrawVertexSelect}
-            onDrawVertexMove={handleDrawVertexMove}
-            onDrawVertexDragEnd={handleDrawVertexDragEnd}
-            onDrawVertexDelete={handleDrawVertexDelete}
-            selectedDrawVertexIndex={selectedDrawVertexIndex}
-            editingZoneId={editingZoneId}
-            editingZoneVertices={editingZoneVertices}
-            selectedEditVertexIndex={selectedEditVertexIndex}
-            onVertexDrag={handleVertexDrag}
-            onVertexDragEnd={handleVertexDragEnd}
-            onMidpointClick={handleMidpointClick}
-            onVertexDoubleClick={handleVertexDoubleClick}
-            onEditVertexSelect={handleEditVertexSelect}
-            onEditVertexDelete={handleEditVertexDelete}
-            onEditUndo={handleEditUndo}
-            onEditCancel={handleZoneEditCancel}
-            onMarkerContextMenu={handleMarkerContextMenu}
-            onZoneContextMenu={handleZoneContextMenu}
-            onMapContextMenu={handleMapContextMenu}
-          />
-
-          {mapMenuOpen && (
-            <MapContextMenu
-              position={mapMenuPosition}
-              items={
-                mapMenuFeature?.type === 'incident'
-                  ? buildIncidentMenuItems(mapMenuFeature.incident)
-                  : mapMenuFeature?.type === 'zone'
-                  ? buildZoneMenuItems(mapMenuFeature.zone)
-                  : buildEmptyMenuItems(mapMenuFeature?.latLng)
-              }
-              onClose={closeMapMenu}
-            />
-          )}
-
-          <ConfirmDialog
-            isOpen={!!confirmDialog}
-            title={confirmDialog?.title || ''}
-            message={confirmDialog?.message || ''}
-            confirmText={confirmDialog?.confirmText || 'Confirm'}
-            danger={confirmDialog?.danger || false}
-            onConfirm={() => confirmDialog?.onConfirm?.()}
-            onCancel={() => setConfirmDialog(null)}
-          />
-
-          <MapLegend
-            domains={domains}
-            activeDomainFilters={activeDomainFilters}
-            onToggleDomain={handleToggleDomain}
-            onShowAll={handleShowAllDomains}
-            onHideAll={handleHideAllDomains}
-          />
-
-          {/* Drawing / edit toolbar overlay — below the top-center controls to avoid overlap */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '80px',
-              right: '12px',
-              zIndex: 20,
-            }}
-          >
-            {editingZoneId ? (
-              <div
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+              <span
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px',
-                  background: 'var(--bg-surface)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  boxShadow: 'var(--shadow-lg)',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleZoneGeometrySave}
-                  disabled={submitting}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    letterSpacing: '0.3px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--success, #22c55e)',
-                    background: 'var(--success-bg, rgba(34,197,94,0.15))',
-                    color: 'var(--success, #22c55e)',
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.6 : 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <span>✓</span>
-                  <span>{submitting ? 'Saving…' : 'Save Changes'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleZoneEditCancel}
-                  disabled={submitting}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    letterSpacing: '0.3px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(239,68,68,0.4)',
-                    background: 'transparent',
-                    color: 'var(--danger, #ef4444)',
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.6 : 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <span>✕</span>
-                  <span>Cancel</span>
-                </button>
-              </div>
-            ) : (
-              <DrawingToolbar
-                mode={mapMode}
-                hasClosedPolygon={isPolygonClosed && drawVertices.length >= 3}
-                selectedZoneId={selectedZoneId}
-                onSetMode={handleSetMode}
-                onSave={handleDrawClose}
-                onCancel={handleDrawCancel}
-                onEditZone={handleEditZone}
-              />
-            )}
-          </div>
-
-          {/* Map controls overlay — top center */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 20,
-            }}
-          >
-            <MapControls
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-              onResetToToday={handleResetToToday}
-              verifiedOnly={filters.verifiedOnly}
-              onVerifiedOnlyChange={(v) => setFilters((f) => ({ ...f, verifiedOnly: v }))}
-              status={filters.status}
-              onStatusChange={(s) => setFilters((f) => ({ ...f, status: s }))}
-            />
-          </div>
-
-          {/* Location search overlay — top left */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '12px',
-              width: '320px',
-              zIndex: 15,
-            }}
-          >
-            <LocationSearch
-              onSelect={handleLocationSelect}
-              viewbox={(() => {
-                if (!viewportBoundsRef.current) return null;
-                const [minLng, minLat, maxLng, maxLat] = viewportBoundsRef.current.split(',').map(Number);
-                return `${minLng},${maxLat},${maxLng},${minLat}`;
-              })()}
-            />
-          </div>
-
-          {/* Incident counter overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '72px',
-              left: '12px',
-              background: 'var(--bg-surface)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '8px 14px',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              zIndex: 10,
-              maxWidth: '340px',
-            }}
-          >
-            <div>
-              <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{filteredIncidents.length}</span>
-              {' incidents visible'}
-              {viewportFiltering === true && ' in current map area'}
-            </div>
-            {viewportFiltering === true && totalEventCount > 100 && (
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                {totalEventCount} total incidents match this date range — zoom or pan to explore
-              </div>
-            )}
-          </div>
-
-          {/* Ghost incident banner */}
-          {ghostIncident && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '16px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 20,
-                background: 'var(--bg-surface)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 18px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                boxShadow: 'var(--shadow-md)',
-                maxWidth: '90%',
-              }}
-            >
-              <div
-                style={{
-                  width: '10px',
-                  height: '10px',
+                  width: '8px',
+                  height: '8px',
                   borderRadius: '50%',
-                  background: ghostIncident.isDeleted || ghostIncident.isPurged ? 'var(--danger)' : 'var(--text-muted)',
-                  border: ghostIncident.isDeleted || ghostIncident.isPurged ? '2px solid var(--danger)' : '2px dashed var(--text-muted)',
+                  background: 'var(--navy-400)',
                   flexShrink: 0,
                 }}
               />
-              <div style={{ minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4 }}>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                    {ghostIncident.title}
-                  </span>
-                  {ghostIncident.isDeleted || ghostIncident.isPurged ? (
-                    <span style={{ color: 'var(--danger)', fontWeight: 500 }}>
-                      {' — deleted incident (read-only)'}
-                    </span>
-                  ) : (
-                    <>
-                      {' occurred on '}
-                      <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
-                        {ghostIncident.start_date
-                          ? new Date(ghostIncident.start_date).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })
-                          : 'unknown date'}
-                      </span>
-                      {' — outside your current date range'}
-                    </>
-                  )}
-                </p>
-              </div>
-              {ghostIncident.isDeleted || ghostIncident.isPurged ? (
-                <button
-                  onClick={() => navigate('/superadmin/recycle-bin')}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--danger)',
-                    background: 'var(--alert-error-bg)',
-                    color: 'var(--danger)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
-                >
-                  Open Recycle Bin
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleSwitchToIncidentDate(ghostIncident)}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--accent-light)',
-                    background: 'var(--alert-error-bg)',
-                    color: 'var(--accent-light)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
-                >
-                  Switch to this date
-                </button>
-              )}
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                {'Showing incident from '}
+                <span style={{ fontWeight: 700 }}>
+                  {refParam === 'recyclebin'
+                    ? 'Recycle Bin'
+                    : actorParam
+                    ? `${actorParam}'s activity`
+                    : 'activity timeline'}
+                </span>
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <button
+                onClick={refParam === 'recyclebin' ? handleBackToRecycleBin : handleBackToProfile}
+                style={{
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: '1px solid var(--navy-500)',
+                  background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                ← {refParam === 'recyclebin' ? 'Back to Recycle Bin' : 'Back to profile'}
+              </button>
+              <button
+                onClick={handleDismissContext}
+                style={{
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ flex: 1, display: 'flex', alignItems: 'stretch', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+          {!powerSearchMode && (
+            <WorkspaceRail
+              items={railItems}
+              activeId={activeDrawer}
+              onSelect={handleDrawerSelect}
+              compactMode={compactMode}
+            />
+          )}
+
+          {/* Workspace drawer — replaced by inspector sidebars in deep-link modes */}
+          {activeDrawer && !focusMode && !powerSearchMode && !isActivityMode && !isRecycleBinMode && (
+            <WorkspaceDrawer
+              activeDrawer={activeDrawer}
+              onClose={() => setActiveDrawer(null)}
+              domains={domains}
+              zoneCategories={zoneCategories}
+              activeDomainSlugs={visibleDomainSlugs}
+              activeZoneSlugs={activeZoneSlugs}
+              onToggleDomain={handleToggleDomain}
+              onToggleZone={handleToggleZone}
+              onShowAllDomains={handleShowAllDomains}
+              onHideAllDomains={handleHideAllDomains}
+              onShowAllZones={handleShowAllZones}
+              onHideAllZones={handleHideAllZones}
+              visibleIncidents={filteredIncidents}
+              onSelectIncident={handleSelectIncident}
+              activeIncidents={activeIncidents}
+              overdueCount={overdueIncidentCount}
+              onResolveIncident={handleResolveFromDrawer}
+              activities={activities}
+              activityLastSeenAt={lastSeenTimestamp}
+              onMarkAllActivitySeen={handleMarkAllRead}
+              onSelectActivityIncident={handleSelectActivityIncident}
+              notifications={notifications}
+              notificationUnreadCount={notificationUnreadCount}
+              onMarkNotificationRead={markNotificationRead}
+              onMarkAllNotificationsRead={markAllNotificationsRead}
+              onSelectNotificationIncident={handleSelectNotificationIncident}
+              savedIncidents={savedIncidents}
+              onSelectSavedIncident={handleSelectIncident}
+              onUnsaveIncident={unsaveIncident}
+              recents={recents}
+              onClearRecents={clearRecents}
+              onSelectRecentIncident={handleSelectRecent}
+              autoZoomEnabled={autoZoomEnabled}
+              onToggleAutoZoom={toggleAutoZoom}
+            />
+          )}
+
+          {/* Deep-link inspector sidebars (rendered in place of the workspace drawer) */}
+          {isActivityMode && activitySidebarOpen && (
+            <ActivityInspectorSidebar
+              actorName={actorParam}
+              staffUserId={staffUserId}
+              publicUserId={publicUserId}
+              selectedIncidentId={incidentIdFromUrl}
+              selectionKey={activitySelectionKey}
+              onIncidentClick={handleActivityIncidentClick}
+              onToggleCollapse={handleToggleActivitySidebar}
+              onClose={handleCloseActivitySidebar}
+              onBackToProfile={handleBackToProfile}
+            />
+          )}
+          {isRecycleBinMode && recycleBinSidebarOpen && (
+            <RecycleBinSidebar
+              selectedIncidentId={incidentIdFromUrl}
+              onIncidentClick={handleRecycleBinIncidentClick}
+              onToggleCollapse={handleToggleRecycleBinSidebar}
+              onClose={handleCloseRecycleBinSidebar}
+              onBackToRecycleBin={handleBackToRecycleBin}
+            />
+          )}
+          {isActivityMode && !activitySidebarOpen && (
+            <div
+              style={{
+                width: '44px',
+                minWidth: '44px',
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingTop: '12px',
+                background: 'var(--bg-surface)',
+                borderRight: '1px solid var(--border-subtle)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleToggleActivitySidebar}
+                title="Show activity sidebar"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <PanelLeftOpen size={16} />
+              </button>
             </div>
           )}
-        </div>
+          {isRecycleBinMode && !recycleBinSidebarOpen && (
+            <div
+              style={{
+                width: '44px',
+                minWidth: '44px',
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingTop: '12px',
+                background: 'var(--bg-surface)',
+                borderRight: '1px solid var(--border-subtle)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleToggleRecycleBinSidebar}
+                title="Show recycle bin sidebar"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <PanelLeftOpen size={16} />
+              </button>
+            </div>
+          )}
 
-        {/* Right — Incident detail or zone creation panel */}
-        {(selectedIncident || showZoneCreatePanel || pointFormMode) && (
-          <div style={{ width: '630px', flexShrink: 0, minHeight: 0, background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-            {pointFormMode ? (
-              <IncidentForm
-                initialData={pointFormMode === 'edit' ? selectedIncident : null}
-                initialCoords={pointFormMode === 'create' ? pointFormCoords : null}
-                categories={categories}
-                onSubmit={handlePointFormSubmit}
-                onCancel={handlePointFormCancel}
-                submitting={submitting}
+          {/* Center — Map */}
+          <div style={{ flex: 1, position: 'relative', minWidth: 0, background: 'var(--bg-deep)' }}>
+            <SuperadminMap
+              ref={mapRef}
+              incidents={powerSearchMode ? psResults : filteredIncidents}
+              zones={powerSearchMode ? psResults.filter((i) => i.geometry_type === 'polygon') : visiblePolygonIncidents}
+              showZones={powerSearchMode ? true : showZones}
+              onZoneClick={handleZoneClick}
+              selectedEventId={
+                powerSearchMode && selectedIncident?.geometry_type === 'polygon' ? null : selectedIncident?.id
+              }
+              selectedZoneId={selectedZoneId}
+              onEventClick={handleSelectIncident}
+              onViewportChange={handleViewportChange}
+              flyToCoords={flyToCoords}
+              fitBounds={fitBounds}
+              initialViewport={
+                hasViewportParams
+                  ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
+                  : null
+              }
+              ghostIncident={ghostIncident}
+              ghostZone={ghostZone || (!powerSearchMode ? dateGhostZone : null)}
+              adminMode={true}
+              mapMode={mapMode}
+              drawVertices={drawVertices}
+              isPolygonClosed={isPolygonClosed}
+              onDrawVertexAdd={handleDrawVertexAdd}
+              onDrawClose={handleDrawClose}
+              onDrawCancel={handleDrawCancel}
+              onDrawUndo={handleDrawUndo}
+              onDrawRedo={handleDrawRedo}
+              onDrawVertexSelect={handleDrawVertexSelect}
+              onDrawVertexMove={handleDrawVertexMove}
+              onDrawVertexDragEnd={handleDrawVertexDragEnd}
+              onDrawVertexDelete={handleDrawVertexDelete}
+              selectedDrawVertexIndex={selectedDrawVertexIndex}
+              editingZoneId={editingZoneId}
+              editingZoneVertices={editingZoneVertices}
+              selectedEditVertexIndex={selectedEditVertexIndex}
+              onVertexDrag={handleVertexDrag}
+              onVertexDragEnd={handleVertexDragEnd}
+              onMidpointClick={handleMidpointClick}
+              onVertexDoubleClick={handleVertexDoubleClick}
+              onEditVertexSelect={handleEditVertexSelect}
+              onEditVertexDelete={handleEditVertexDelete}
+              onEditUndo={handleEditUndo}
+              onEditCancel={handleZoneEditCancel}
+              onMarkerContextMenu={handleMarkerContextMenu}
+              onZoneContextMenu={handleZoneContextMenu}
+              onMapContextMenu={handleMapContextMenu}
+              markerCoords={pointFormMode === 'create' ? pointFormCoords : null}
+              onMapDblClick={handleMapDblClick}
+              autoZoomEnabled={autoZoomEnabled}
+            />
+
+            {mapMenuOpen && (
+              <MapContextMenu
+                position={mapMenuPosition}
+                items={
+                  mapMenuFeature?.type === 'incident'
+                    ? buildIncidentMenuItems(mapMenuFeature.incident)
+                    : mapMenuFeature?.type === 'zone'
+                    ? buildZoneMenuItems(mapMenuFeature.zone)
+                    : buildEmptyMenuItems(mapMenuFeature?.latLng)
+                }
+                onClose={closeMapMenu}
               />
-            ) : zoneInfoEditMode && selectedIncident ? (
-              <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
-                <ZoneForm
-                  geometry={selectedIncident.geometry}
-                  initialData={selectedIncident}
-                  onSubmit={handleZoneInfoSubmit}
-                  onCancel={() => setZoneInfoEditMode(false)}
-                  submitting={submitting}
-                />
-              </div>
-            ) : selectedIncident && !(selectedIncident.isDeleted || selectedIncident.isPurged || selectedIncident.status === 'hidden') ? (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {selectedIncident.geometry_type === 'polygon' && !selectedIncidentDetail && (
-                  <div
+            )}
+
+            <ConfirmDialog
+              isOpen={!!confirmDialog}
+              title={confirmDialog?.title || ''}
+              message={confirmDialog?.message || ''}
+              confirmText={confirmDialog?.confirmText || 'Confirm'}
+              danger={confirmDialog?.danger || false}
+              onConfirm={() => confirmDialog?.onConfirm?.()}
+              onCancel={() => setConfirmDialog(null)}
+            />
+
+            {/* Drawing / edit toolbar overlay */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '80px',
+                right: '12px',
+                zIndex: 20,
+              }}
+            >
+              {editingZoneId ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px',
+                    background: 'var(--bg-surface)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: 'var(--shadow-lg)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleZoneGeometrySave}
+                    disabled={submitting}
                     style={{
-                      padding: '12px 16px',
-                      borderBottom: '1px solid var(--border-subtle)',
                       display: 'flex',
-                      gap: 10,
-                      background: 'var(--bg-elevated)',
-                      flexShrink: 0,
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      letterSpacing: '0.3px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--success, #22c55e)',
+                      background: 'var(--success-bg, rgba(34,197,94,0.15))',
+                      color: 'var(--success, #22c55e)',
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      opacity: submitting ? 0.6 : 1,
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    <button
-                      onClick={() => handleEditZone()}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-surface)',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Edit geometry
-                    </button>
-                    <button
-                      onClick={() => handleZoneInfoEdit()}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-surface)',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Edit zone info
-                    </button>
+                    <span>✓</span>
+                    <span>{submitting ? 'Saving…' : 'Save Changes'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleZoneEditCancel}
+                    disabled={submitting}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      letterSpacing: '0.3px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(239,68,68,0.4)',
+                      background: 'transparent',
+                      color: 'var(--danger, #ef4444)',
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      opacity: submitting ? 0.6 : 1,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span>✕</span>
+                    <span>Cancel</span>
+                  </button>
+                </div>
+              ) : (
+                <DrawingToolbar
+                  mode={mapMode}
+                  hasClosedPolygon={isPolygonClosed && drawVertices.length >= 3}
+                  selectedZoneId={selectedZoneId}
+                  onSetMode={handleSetMode}
+                  onSave={handleDrawClose}
+                  onCancel={handleDrawCancel}
+                  onEditZone={handleEditZone}
+                />
+              )}
+            </div>
+
+            {/* Incident counter overlay — top left */}
+            {!powerSearchMode && !focusMode && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '12px',
+                  background: 'var(--bg-surface)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  zIndex: 10,
+                  maxWidth: '340px',
+                  lineHeight: 1.5,
+                }}
+              >
+                <div>
+                  <span style={{ color: 'var(--accent-light)', fontWeight: 700 }}>{filteredIncidents.length}</span>
+                  {' incidents visible'}
+                  {viewportFiltering === true && ' in current map area'}
+                </div>
+                {viewportFiltering === true && totalEventCount > 100 && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    {totalEventCount} total incidents match this date range — zoom or pan to explore
                   </div>
                 )}
-                {detailLoading ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                    Loading incident details…
-                  </div>
-                ) : detailError ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--danger)', fontSize: 13 }}>
-                    {detailError}
-                  </div>
-                ) : selectedIncidentDetail ? (
-                  <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {(
-                      selectedIncidentDetail.incident.geometryType === 'polygon' ||
-                      selectedIncidentDetail.incident.geometry_type === 'polygon' ||
-                      selectedIncidentDetail.incident.geometry?.type === 'Polygon'
-                    ) ? (
-                      <ZoneDetailSidebar
-                        mode="superadmin"
-                        incident={selectedIncidentDetail.incident}
-                        timeline={selectedIncidentDetail.timeline}
-                        onBack={handleBack}
-                        onFullDetails={() => navigate(`/superadmin/zone/${selectedIncidentDetail.incident.id}`)}
-                        onShare={() => {
-                          const url = `${window.location.origin}/zone/${selectedIncidentDetail.incident.id}`;
-                          navigator.clipboard.writeText(url).catch(() => {});
-                        }}
-                        onEditZoneInfo={() => handleZoneInfoEdit()}
-                        onEditZoneShape={() => handleEditZone()}
-                        onResolve={() => {
-                          if (window.confirm('Resolve zone? This will mark the zone as resolved.')) {
-                            handleResolveSelectedIncident();
-                          }
-                        }}
-                        onDelete={() => {
-                          if (window.confirm('Delete zone? This will move the zone to the Recycle Bin.')) {
-                            handleDeleteSelectedIncident();
-                          }
-                        }}
-                        onRestore={() => {
-                          if (window.confirm('Restore zone? This will return it to the live map.')) {
-                            handleRestoreIncident();
-                          }
-                        }}
-                        onPurge={() => {
-                          if (window.confirm('Purge zone permanently? This cannot be undone.')) {
-                            handlePurgeIncident();
-                          }
-                        }}
-                        onAddUpdate={handleAddUpdate}
-                        onEditUpdate={handleEditUpdate}
-                        onDeleteUpdate={handleDeleteUpdate}
-                        onAddEvidence={handleAddEvidence}
-                        onEditEvidence={handleEditEvidence}
-                        onDeleteEvidence={handleDeleteEvidence}
-                        onPinEvidence={handlePinEvidence}
-                        onFeatureEvidence={handleFeatureEvidence}
-                        onClearFeatureEvidence={handleClearFeatureEvidence}
-                        onCheckSource={handleCheckSource}
-                        onArchiveSource={handleArchiveSource}
-                        onOpenAudit={handleOpenAudit}
-                        onViewCreator={handleViewCreator}
-                        auditLogs={auditLogs}
-                      />
-                    ) : (
-                      <IncidentDetailSidebar
-                        mode="superadmin"
-                        incident={selectedIncidentDetail.incident}
-                        timeline={selectedIncidentDetail.timeline}
-                        onNavigateToFullPage={handleNavigateToFullPage}
-                        onCopyIncidentLink={handleCopyIncidentLink}
-                        onUpdateIncident={handleUpdateIncident}
-                        onResolveIncident={handleResolveSelectedIncident}
-                        onDeleteIncident={handleDeleteSelectedIncident}
-                        onRestoreIncident={handleRestoreIncident}
-                        onPurgeIncident={handlePurgeIncident}
-                        onAddUpdate={handleAddUpdate}
-                        onEditUpdate={handleEditUpdate}
-                        onDeleteUpdate={handleDeleteUpdate}
-                        onAddEvidence={handleAddEvidence}
-                        onEditEvidence={handleEditEvidence}
-                        onDeleteEvidence={handleDeleteEvidence}
-                        onPinEvidence={handlePinEvidence}
-                        onFeatureEvidence={handleFeatureEvidence}
-                        onClearFeatureEvidence={handleClearFeatureEvidence}
-                        onArchiveSource={handleArchiveSource}
-                        onCheckSource={handleCheckSource}
-                        onAutoCheck={handleCheckSource}
-                        onOpenAudit={handleOpenAudit}
-                        onViewCreator={handleViewCreator}
-                        auditLogs={auditLogs}
-                      />
-                    )}
-                  </div>
-                ) : null}
               </div>
-            ) : selectedIncident ? (
-              <IncidentDetailPanel
-                incident={selectedIncident}
-                onBack={handleBack}
-                adminMode={true}
-                onRefresh={() => {
-                  setRefreshKey((k) => k + 1);
-                  setGhostZone(null);
+            )}
+
+            {/* Ghost incident banner — centered on the visible map area */}
+            {ghostIncident && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '16px',
+                  left: `${bannerPadding.left + 16}px`,
+                  right: `${bannerPadding.right + 16}px`,
+                  zIndex: 20,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
                 }}
-                categories={categories}
-                onEditZone={handleEditZone}
-                onEditZoneInfo={handleZoneInfoEdit}
-                onViewCreator={(userId, role) => setCreatorDrawer({ userId, role })}
-              />
-            ) : (
-              <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
-                <ZoneForm
-                  geometry={{
-                    type: 'Polygon',
-                    coordinates: [drawVertices.length >= 3 ? [...drawVertices, drawVertices[0]] : drawVertices],
+              >
+                <div
+                  style={{
+                    background: 'var(--bg-surface)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '14px',
+                    boxShadow: 'var(--shadow-md)',
+                    maxWidth: '100%',
+                    pointerEvents: 'auto',
                   }}
-                  onSubmit={handleZoneCreateSubmit}
-                  onCancel={handleDrawCancel}
-                  submitting={submitting}
-                />
+                >
+                  <div
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: ghostIncident.isDeleted || ghostIncident.isPurged ? 'var(--danger)' : 'var(--text-muted)',
+                      border: ghostIncident.isDeleted || ghostIncident.isPurged ? '2px solid var(--danger)' : '2px dashed var(--text-muted)',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4 }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+                        {ghostIncident.title}
+                      </span>
+                      {ghostIncident.isDeleted || ghostIncident.isPurged ? (
+                        <span style={{ color: 'var(--danger)', fontWeight: 500 }}>
+                          {' — deleted incident (read-only)'}
+                        </span>
+                      ) : (
+                        <>
+                          {' occurred on '}
+                          <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
+                            {ghostIncident.start_date
+                              ? new Date(ghostIncident.start_date).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })
+                              : 'unknown date'}
+                          </span>
+                          {' — outside your current date range'}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  {ghostIncident.isDeleted || ghostIncident.isPurged ? (
+                    <button
+                      onClick={() => navigate('/superadmin/recycle-bin')}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--danger)',
+                        background: 'var(--alert-error-bg)',
+                        color: 'var(--danger)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Open Recycle Bin
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleSwitchToIncidentDate(ghostIncident)}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--accent-light)',
+                        background: 'var(--alert-error-bg)',
+                        color: 'var(--accent-light)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Switch to this date
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
+
+          {/* Right Panel — 630px absolute overlay that slides in with transform */}
+          {rightPanelRendered && (
+            <div
+              ref={rightPanelRef}
+              style={{
+                position: 'absolute',
+                top: powerSearchMode ? 'calc(var(--admin-ps-topbar-height) + var(--admin-ps-chips-height))' : 0,
+                right: 0,
+                bottom: 0,
+                width: 'var(--admin-right-panel-width)',
+                background: 'var(--bg-surface)',
+                borderLeft: '1px solid var(--border-default)',
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 70,
+                transform: rightPanelVisible ? 'translateX(0)' : 'translateX(100%)',
+                transition: `transform ${RIGHT_PANEL_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                pointerEvents: rightPanelVisible ? 'auto' : 'none',
+                willChange: 'transform',
+              }}
+            >
+              {pointFormMode ? (
+                <IncidentForm
+                  initialData={pointFormMode === 'edit' ? selectedIncident : null}
+                  initialCoords={pointFormMode === 'create' ? pointFormCoords : null}
+                  categories={categories}
+                  onSubmit={handlePointFormSubmit}
+                  onCancel={handlePointFormCancel}
+                  submitting={submitting}
+                />
+              ) : zoneInfoEditMode && selectedIncident ? (
+                <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
+                  <ZoneForm
+                    geometry={selectedIncident.geometry}
+                    initialData={selectedIncident}
+                    onSubmit={handleZoneInfoSubmit}
+                    onCancel={() => setZoneInfoEditMode(false)}
+                    submitting={submitting}
+                  />
+                </div>
+              ) : selectedIncident && !(selectedIncident.isDeleted || selectedIncident.isPurged || selectedIncident.status === 'hidden') ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {selectedIncident.geometry_type === 'polygon' && !selectedIncidentDetail && (
+                    <div
+                      style={{
+                        padding: '12px 16px',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        gap: 10,
+                        background: 'var(--bg-elevated)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <button
+                        onClick={() => handleEditZone()}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border-subtle)',
+                          background: 'var(--bg-surface)',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Edit geometry
+                      </button>
+                      <button
+                        onClick={() => handleZoneInfoEdit()}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border-subtle)',
+                          background: 'var(--bg-surface)',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Edit zone info
+                      </button>
+                    </div>
+                  )}
+                  {detailLoading ? (
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                      Loading incident details…
+                    </div>
+                  ) : detailError ? (
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--danger)', fontSize: 13 }}>
+                      {detailError}
+                    </div>
+                  ) : selectedIncidentDetail ? (
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
+                      {(
+                        selectedIncidentDetail.incident.geometryType === 'polygon' ||
+                        selectedIncidentDetail.incident.geometry_type === 'polygon' ||
+                        selectedIncidentDetail.incident.geometry?.type === 'Polygon'
+                      ) ? (
+                        <ZoneDetailSidebar
+                          mode="superadmin"
+                          incident={selectedIncidentDetail.incident}
+                          timeline={selectedIncidentDetail.timeline}
+                          onBack={handleBack}
+                          onFullDetails={() => navigate(`/superadmin/zone/${selectedIncidentDetail.incident.id}`)}
+                          onShare={() => {
+                            const url = `${window.location.origin}/zone/${selectedIncidentDetail.incident.id}`;
+                            navigator.clipboard.writeText(url).catch(() => {});
+                          }}
+                          onEditZoneInfo={() => handleZoneInfoEdit()}
+                          onEditZoneShape={() => handleEditZone()}
+                          onResolve={() => {
+                            if (window.confirm('Resolve zone? This will mark the zone as resolved.')) {
+                              handleResolveSelectedIncident();
+                            }
+                          }}
+                          onDelete={() => {
+                            if (window.confirm('Delete zone? This will move the zone to the Recycle Bin.')) {
+                              handleDeleteSelectedIncident();
+                            }
+                          }}
+                          onRestore={() => {
+                            if (window.confirm('Restore zone? This will return it to the live map.')) {
+                              handleRestoreIncident();
+                            }
+                          }}
+                          onPurge={() => {
+                            if (window.confirm('Purge zone permanently? This cannot be undone.')) {
+                              handlePurgeIncident();
+                            }
+                          }}
+                          onAddUpdate={handleAddUpdate}
+                          onEditUpdate={handleEditUpdate}
+                          onDeleteUpdate={handleDeleteUpdate}
+                          onAddEvidence={handleAddEvidence}
+                          onEditEvidence={handleEditEvidence}
+                          onDeleteEvidence={handleDeleteEvidence}
+                          onPinEvidence={handlePinEvidence}
+                          onFeatureEvidence={handleFeatureEvidence}
+                          onClearFeatureEvidence={handleClearFeatureEvidence}
+                          onCheckSource={handleCheckSource}
+                          onArchiveSource={handleArchiveSource}
+                          onOpenAudit={handleOpenAudit}
+                          onViewCreator={handleViewCreator}
+                          auditLogs={auditLogs}
+                          onCollapse={() => setRightPanelCollapsed(true)}
+                        />
+                      ) : (
+                        <IncidentDetailSidebar
+                          mode="superadmin"
+                          incident={selectedIncidentDetail.incident}
+                          timeline={selectedIncidentDetail.timeline}
+                          onNavigateToFullPage={handleNavigateToFullPage}
+                          onCopyIncidentLink={handleCopyIncidentLink}
+                          onUpdateIncident={handleUpdateIncident}
+                          onResolveIncident={handleResolveSelectedIncident}
+                          onDeleteIncident={handleDeleteSelectedIncident}
+                          onRestoreIncident={handleRestoreIncident}
+                          onPurgeIncident={handlePurgeIncident}
+                          onAddUpdate={handleAddUpdate}
+                          onEditUpdate={handleEditUpdate}
+                          onDeleteUpdate={handleDeleteUpdate}
+                          onAddEvidence={handleAddEvidence}
+                          onEditEvidence={handleEditEvidence}
+                          onDeleteEvidence={handleDeleteEvidence}
+                          onPinEvidence={handlePinEvidence}
+                          onFeatureEvidence={handleFeatureEvidence}
+                          onClearFeatureEvidence={handleClearFeatureEvidence}
+                          onArchiveSource={handleArchiveSource}
+                          onCheckSource={handleCheckSource}
+                          onAutoCheck={handleCheckSource}
+                          onOpenAudit={handleOpenAudit}
+                          onViewCreator={handleViewCreator}
+                          auditLogs={auditLogs}
+                          onCollapse={() => setRightPanelCollapsed(true)}
+                        />
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : selectedIncident ? (
+                <IncidentDetailPanel
+                  incident={selectedIncident}
+                  onBack={handleBack}
+                  adminMode={true}
+                  onRefresh={() => {
+                    setRefreshKey((k) => k + 1);
+                    setGhostZone(null);
+                  }}
+                  categories={categories}
+                  onEditZone={handleEditZone}
+                  onEditZoneInfo={handleZoneInfoEdit}
+                  onViewCreator={(userId, role) => setCreatorDrawer({ userId, role })}
+                />
+              ) : (
+                <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
+                  <ZoneForm
+                    geometry={{
+                      type: 'Polygon',
+                      coordinates: [drawVertices.length >= 3 ? [...drawVertices, drawVertices[0]] : drawVertices],
+                    }}
+                    onSubmit={handleZoneCreateSubmit}
+                    onCancel={handleDrawCancel}
+                    submitting={submitting}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Collapsed right-panel handle — show only after the panel has fully closed */}
+          {isPanelOpen && rightPanelCollapsed && !rightPanelRendered && (
+            <button
+              type="button"
+              onClick={() => setRightPanelCollapsed(false)}
+              title="Expand sidebar"
+              style={{
+                position: 'absolute',
+                top: '50%',
+                right: 0,
+                transform: 'translateY(-50%)',
+                zIndex: 100,
+                width: 'calc(32px * var(--admin-ui-scale))',
+                height: 'calc(96px * var(--admin-ui-scale))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-subtle)',
+                borderRight: 'none',
+                borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-md)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-light)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                e.currentTarget.style.color = 'var(--text-muted)';
+              }}
+            >
+              <ChevronLeft size={compactMode ? 16 : 18} />
+            </button>
+          )}
+
+          {/* Power Search full-viewport overlay (center stays transparent to the map) */}
+          {powerSearchMode && (
+            <PowerSearchPanel
+              isOpen={powerSearchMode}
+              onClose={() => setPowerSearchMode(false)}
+              query={psQuery}
+              onQueryChange={setPsQuery}
+              filters={psFilters}
+              onFiltersChange={setPsFilters}
+              sortBy={psSort}
+              onSortChange={setPsSort}
+              results={psResults}
+              total={psTotal}
+              loading={psLoading}
+              error={psError}
+              hasMore={psResults.length < psTotal}
+              onLoadMore={handlePowerSearchLoadMore}
+              savedIds={savedIds}
+              domains={psDomains}
+              categories={psCategories}
+              onSelectIncident={handlePowerSearchSelect}
+              onToggleSaved={handleToggleSavedPowerSearch}
+              onResetFilters={handleResetPowerSearchFilters}
+              compactMode={compactMode}
+              filterCollapsed={psFilterCollapsed}
+              onFilterCollapsedChange={setPsFilterCollapsed}
+              resultsCollapsed={psResultsCollapsed}
+              onResultsCollapsedChange={setPsResultsCollapsed}
+            />
+          )}
+        </div>
+
+        {/* Toast notification */}
+        {toast && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 2000,
+              background: 'var(--bg-surface)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '14px 24px',
+              boxShadow: 'var(--shadow-lg)',
+              color: toast.type === 'error' ? 'var(--danger)' : 'var(--text-primary)',
+              fontSize: '13px',
+              fontWeight: 500,
+              maxWidth: '480px',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}
+            onClick={() => setToast(null)}
+          >
+            {toast.message}
+          </div>
         )}
       </div>
-    </div>
 
       {/* Inline creator profile drawer */}
       {creatorDrawer.userId && creatorDrawer.role === 'public_user' && (
@@ -2616,6 +3348,21 @@ export default function MapPage() {
           </div>
         </div>
       )}
+
+      {/* Command palette */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        incidents={incidents}
+        savedIds={savedIds}
+        onSelectIncident={(incident) => handleSelectIncident(incident)}
+        onSelectLocation={handlePaletteSelectLocation}
+        onAddIncident={handleAddIncident}
+        onAddZone={handleAddZone}
+        onOpenLayers={() => handleDrawerSelect('layers')}
+        onToggleFocus={toggleFocusMode}
+        onOpenPowerSearch={() => setPowerSearchMode(true)}
+      />
     </>
   );
 }

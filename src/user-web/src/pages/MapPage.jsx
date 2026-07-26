@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Layers,
-  AlertCircle,
+  AlertTriangle,
   Activity as ActivityIcon,
   Bookmark,
+  ChevronLeft,
   Settings,
   Zap,
 } from 'lucide-react';
@@ -17,7 +18,6 @@ import WorkspaceDrawer from '../components/Layout/WorkspaceDrawer.jsx';
 import PowerSearchPanel from '../components/Layout/PowerSearchPanel.jsx';
 import UserCommandPalette from '../components/Layout/UserCommandPalette.jsx';
 import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
-import MapLegend from '@shared/components/MapLegend.jsx';
 import MapContextMenu from '@shared/components/MapContextMenu.jsx';
 import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
@@ -68,6 +68,37 @@ function getToday() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+function getZoneCentroid(zone) {
+  const coords = zone?.geometry?.coordinates?.[0];
+  if (!coords || coords.length === 0) return null;
+  let sumLng = 0;
+  let sumLat = 0;
+  coords.forEach(([lng, lat]) => {
+    sumLng += lng;
+    sumLat += lat;
+  });
+  return { lng: sumLng / coords.length, lat: sumLat / coords.length };
+}
+
+function getZoneBounds(zone) {
+  const coords = zone?.geometry?.coordinates?.[0];
+  if (!coords || coords.length === 0) return null;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  coords.forEach(([lng, lat]) => {
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+  });
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+}
+
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -103,11 +134,11 @@ export default function MapPage() {
   const [filters, setFilters] = useState({
     categoryId: searchParams.get('categoryId') || '',
     severity: '',
-    verifiedOnly: false,
   });
 
   // ─── Domain / Zone legend ───
   const [domains, setDomains] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [zoneCategories, setZoneCategories] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
   const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
@@ -124,6 +155,7 @@ export default function MapPage() {
     }
   });
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const preFocusRightCollapsedRef = useRef(false);
   const [rightPanelRendered, setRightPanelRendered] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(false);
   const [powerSearchMode, setPowerSearchMode] = useState(false);
@@ -279,11 +311,14 @@ export default function MapPage() {
     };
   }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu]);
 
-  // Fetch domains and zone categories
+  // Fetch domains, categories, and zone categories
   useEffect(() => {
     api.getDomains()
       .then((res) => setDomains(res.data.domains || []))
       .catch(() => setDomains([]));
+    api.getCategories()
+      .then((res) => setCategories(res.data.categories || []))
+      .catch(() => setCategories([]));
     api.getZoneCategories()
       .then((res) => setZoneCategories(res.data.categories || res.data.zoneCategories || []))
       .catch(() => setZoneCategories([]));
@@ -316,6 +351,18 @@ export default function MapPage() {
     [domains, activeDomainFilters]
   );
 
+  // Power Search needs domains enriched with their categories.
+  const psDomains = useMemo(() => {
+    const catsByDomain = {};
+    categories.forEach((c) => {
+      const key = c.domain_slug || c.domainSlug;
+      if (!key) return;
+      if (!catsByDomain[key]) catsByDomain[key] = [];
+      catsByDomain[key].push(c);
+    });
+    return domains.map((d) => ({ ...d, categories: catsByDomain[d.slug] || [] }));
+  }, [domains, categories]);
+
   const activeZoneIds = useMemo(
     () => new Set(zoneCategories.filter((z) => activeZoneSlugs.has(z.slug)).map((z) => String(z.id))),
     [zoneCategories, activeZoneSlugs]
@@ -332,34 +379,18 @@ export default function MapPage() {
     );
   }, [incidents, showZones, activeZoneSlugs, activeZoneIds]);
 
-  const visibleIncidents = useMemo(() => {
-    if (!filters.verifiedOnly) return pointIncidents;
-    return pointIncidents.filter((i) => i.verification_status === 'verified');
-  }, [pointIncidents, filters.verifiedOnly]);
+  const visibleIncidents = pointIncidents;
 
   const activeIncidents = useMemo(() => {
     return pointIncidents.filter((i) => i.status === 'active');
   }, [pointIncidents]);
 
-  const overdueCount = useMemo(() => {
-    const nowMs = Date.now();
-    return activeIncidents.filter((i) => {
-      const t = i.created_at || i.createdAt;
-      if (!t) return false;
-      return nowMs - new Date(t).getTime() > 24 * 60 * 60 * 1000;
-    }).length;
-  }, [activeIncidents]);
+
 
   const visibleSavedIncidents = useMemo(() => {
-    let result = savedIncidents;
-    if (filters.verifiedOnly) {
-      result = result.filter((i) => i.verification_status === 'verified');
-    }
-    if (activeDomainFilters.size > 0) {
-      result = result.filter((i) => !activeDomainFilters.has(i.domain_slug));
-    }
-    return result;
-  }, [savedIncidents, filters.verifiedOnly, activeDomainFilters]);
+    if (activeDomainFilters.size === 0) return savedIncidents;
+    return savedIncidents.filter((i) => !activeDomainFilters.has(i.domain_slug));
+  }, [savedIncidents, activeDomainFilters]);
 
   useEffect(() => {
     setShowZones(activeZoneSlugs.size > 0);
@@ -627,6 +658,8 @@ export default function MapPage() {
   // ─── Selection handlers ───
   const handleSelectIncident = useCallback(
     (incident, opts = {}) => {
+      if (focusMode) setFocusMode(false);
+      setRightPanelCollapsed(false);
       setSelectedIncident(incident);
 
       const isPolygon = incident.geometry_type === 'polygon';
@@ -692,7 +725,7 @@ export default function MapPage() {
         return next;
       });
     },
-    [getNextMapPadding, setSearchParams]
+    [focusMode, getNextMapPadding, setSearchParams]
   );
 
   const handleSelectEventFromActivity = useCallback(
@@ -1182,10 +1215,56 @@ export default function MapPage() {
 
   const handlePowerSearchSelect = useCallback(
     (incident) => {
-      setPowerSearchMode(false);
-      handleSelectIncident(incident, { source: 'power-search' });
+      if (!incident) return;
+      if (focusMode) setFocusMode(false);
+      setRightPanelCollapsed(false);
+      const isPolygon = incident.geometry_type === 'polygon';
+      const padding = getNextMapPadding({
+        powerSearchMode: true,
+        focusMode: false,
+        activeDrawer: null,
+        isPanelOpen: true,
+        rightPanelCollapsed: false,
+      });
+
+      if (isPolygon) {
+        const centroid = getZoneCentroid(incident);
+        const bounds = getZoneBounds(incident);
+        if (centroid && bounds) {
+          setSelectedIncident(incident);
+          setFlyToCoords({
+            type: 'zone',
+            source: 'power-search',
+            lat: centroid.lat,
+            lng: centroid.lng,
+            bounds,
+            padding,
+          });
+        }
+      } else {
+        setSelectedIncident(incident);
+        setFlyToCoords({
+          lat: parseFloat(incident.latitude),
+          lng: parseFloat(incident.longitude),
+          type: 'incident',
+          source: 'power-search',
+          padding,
+        });
+      }
+
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (isPolygon) {
+          next.set('zone', incident.id);
+          next.delete('incident');
+        } else {
+          next.set('incident', incident.id);
+          next.delete('zone');
+        }
+        return next;
+      });
     },
-    [handleSelectIncident]
+    [focusMode, getNextMapPadding, setSearchParams]
   );
 
   const handleToggleSavedPowerSearch = useCallback(
@@ -1241,19 +1320,37 @@ export default function MapPage() {
     []
   );
 
+  const handleCommandPaletteOpenLayers = useCallback(() => {
+    if (focusMode) setFocusMode(false);
+    setActiveDrawer('layers');
+  }, [focusMode]);
+
+  const handleCommandPaletteOpenSaved = useCallback(() => {
+    if (focusMode) setFocusMode(false);
+    setActiveDrawer('saved');
+  }, [focusMode]);
+
+  const handleCommandPaletteToggleFocus = useCallback(() => {
+    setFocusMode((prev) => !prev);
+  }, []);
+
+  const handleCommandPaletteOpenAdvanced = useCallback(() => {
+    setPowerSearchMode(true);
+  }, []);
+
   // ─── Rail items ───
   const railItems = useMemo(
     () => [
       { id: 'layers', label: 'Layers', icon: Layers },
-      { id: 'incidents', label: 'Incidents', icon: AlertCircle },
-      { id: 'active', label: 'Active', icon: Zap, badge: activeIncidents.length, overdue: overdueCount > 0 },
+      { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
+      { id: 'active', label: 'Active', icon: Zap, badge: activeIncidents.length },
       { id: 'activity', label: 'Activity', icon: ActivityIcon, badge: unreadCount },
       ...(isAuthenticated
         ? [{ id: 'saved', label: 'Saved', icon: Bookmark, badge: savedIncidents.length }]
         : []),
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
-    [activeIncidents.length, overdueCount, unreadCount, isAuthenticated, savedIncidents.length]
+    [activeIncidents.length, unreadCount, isAuthenticated, savedIncidents.length]
   );
 
   // ─── Ghost detection ───
@@ -1279,27 +1376,40 @@ export default function MapPage() {
         background: 'var(--bg-deep)',
       }}
     >
-      <WorkspaceTopBar
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        onResetToToday={handleResetToToday}
-        onOpenSearch={() => setCommandPaletteOpen(true)}
-        onOpenAdvancedSearch={() => setPowerSearchMode(true)}
-        onToggleFocusMode={() => setFocusMode((p) => !p)}
-        isFocusMode={focusMode}
-        onOpenZones={() => setActiveDrawer((p) => (p === 'layers' ? null : 'layers'))}
-        compactMode={compactMode}
-        onToggleCompactMode={() => setCompactMode((p) => !p)}
-        verifiedOnly={filters.verifiedOnly}
-        onToggleVerifiedOnly={() => setFilters((p) => ({ ...p, verifiedOnly: !p.verifiedOnly }))}
-      />
+      {!powerSearchMode && (
+        <WorkspaceTopBar
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          onResetToToday={handleResetToToday}
+          onOpenSearch={() => setCommandPaletteOpen(true)}
+          onOpenAdvancedSearch={() => setPowerSearchMode(true)}
+          onToggleFocusMode={() => {
+            setFocusMode((prev) => {
+              if (!prev) {
+                preFocusRightCollapsedRef.current = rightPanelCollapsed;
+                setRightPanelCollapsed(true);
+              } else {
+                setRightPanelCollapsed(preFocusRightCollapsedRef.current);
+              }
+              return !prev;
+            });
+          }}
+          isFocusMode={focusMode}
+          onOpenZones={() => setActiveDrawer((p) => (p === 'layers' ? null : 'layers'))}
+          compactMode={compactMode}
+          onToggleCompactMode={() => setCompactMode((p) => !p)}
+        />
+      )}
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        {!focusMode && !powerSearchMode && (
+        {!powerSearchMode && (
           <WorkspaceRail
             items={railItems}
             activeId={activeDrawer}
-            onSelect={(id) => setActiveDrawer((p) => (p === id ? null : id))}
+            onSelect={(id) => {
+              if (focusMode) setFocusMode(false);
+              setActiveDrawer((p) => (p === id ? null : id));
+            }}
             compactMode={compactMode}
           />
         )}
@@ -1321,7 +1431,7 @@ export default function MapPage() {
             visibleIncidents={visibleIncidents}
             onSelectIncident={handleSelectIncident}
             activeIncidents={activeIncidents}
-            overdueCount={overdueCount}
+
             activities={activities}
             activityLastSeenAt={lastSeenTimestamp}
             onMarkAllActivitySeen={handleMarkAllRead}
@@ -1388,25 +1498,15 @@ export default function MapPage() {
             />
           )}
 
-          {!powerSearchMode && (
-            <MapLegend
-              domains={domains}
-              activeDomainFilters={activeDomainFilters}
-              onToggleDomain={handleToggleDomain}
-              onShowAll={handleShowAllDomains}
-              onHideAll={handleHideAllDomains}
-              showZones={showZones}
-              onToggleZones={handleToggleZones}
-            />
-          )}
 
-          {/* Incident counter overlay */}
+
+          {/* Incident counter + viewport filtering indicator overlay */}
           {!powerSearchMode && !focusMode && (
             <div
               style={{
                 position: 'absolute',
                 top: '12px',
-                left: `calc(12px + ${bannerPadding.left}px)`,
+                left: '12px',
                 background: 'var(--bg-surface)',
                 backdropFilter: 'blur(8px)',
                 border: '1px solid var(--border-subtle)',
@@ -1415,7 +1515,8 @@ export default function MapPage() {
                 fontSize: '12px',
                 color: 'var(--text-secondary)',
                 zIndex: 10,
-                maxWidth: '340px',
+                maxWidth: '320px',
+                lineHeight: 1.5,
               }}
             >
               <div>
@@ -1428,11 +1529,15 @@ export default function MapPage() {
                     {' zones'}
                   </>
                 )}
-                {viewportFiltering === true && ' in current map area'}
+                {viewportFiltering === true && (
+                  <span style={{ color: 'var(--text-muted)' }}> in current map area</span>
+                )}
               </div>
               {viewportFiltering === true && totalEventCount > 100 && (
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  {totalEventCount} total incidents match this date range — zoom or pan to explore
+                <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '4px' }}>
+                  {totalEventCount > 300
+                    ? `${totalEventCount}+ total incidents match this date range — zoom or pan to explore`
+                    : `${totalEventCount} total incidents match this date range — zoom or pan to explore`}
                 </div>
               )}
             </div>
@@ -1530,14 +1635,14 @@ export default function MapPage() {
           <div
             style={{
               position: 'absolute',
-              top: 0,
+              top: powerSearchMode ? 'calc(var(--admin-ps-topbar-height) + var(--admin-ps-chips-height))' : 0,
               right: 0,
               bottom: 0,
               width: 'var(--admin-right-panel-width)',
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--border-default)',
               boxShadow: 'var(--shadow-lg)',
-              zIndex: 45,
+              zIndex: 70,
               transform: `translateX(${rightPanelVisible && !rightPanelCollapsed ? '0%' : '100%'})`,
               transition: `transform ${RIGHT_PANEL_TRANSITION_MS}ms ease`,
               display: 'flex',
@@ -1545,52 +1650,120 @@ export default function MapPage() {
               overflow: 'hidden',
             }}
           >
-            {panelMode === 'incident' && (
-              <IncidentDetailSidebar
-                incident={detail?.incident}
-                timeline={detail?.timeline}
-                mode="user"
-                onNavigateToFullPage={handleNavigateToFullPage}
-                onCopyIncidentLink={async (id) => {
-                  try {
-                    await navigator.clipboard.writeText(`${window.location.origin}/incident/${id}`);
-                  } catch {}
+            {detailLoading || !detail?.incident ? (
+              <div
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 'calc(12px * var(--admin-ui-scale))',
+                  color: 'var(--text-muted)',
+                  fontSize: 'calc(13px * var(--admin-ui-scale))',
                 }}
-                onSave={async (id) => {
-                  if (!isAuthenticated) {
-                    openSignInModal();
-                    return;
-                  }
-                  await handleToggleSave(id);
-                }}
-                isSaved={savedIds.has(selectedIncident?.id)}
-                onCollapse={() => setRightPanelCollapsed((p) => !p)}
-              />
-            )}
-            {panelMode === 'zone' && (
-              <ZoneDetailSidebar
-                incident={detail?.incident}
-                timeline={detail?.timeline}
-                mode="user"
-                onBack={handleBack}
-                onFullDetails={handleNavigateToFullPage}
-                onShare={async () => {
-                  try {
-                    await navigator.clipboard.writeText(`${window.location.origin}/zone/${selectedIncident?.id}`);
-                  } catch {}
-                }}
-                onSave={async () => {
-                  if (!isAuthenticated) {
-                    openSignInModal();
-                    return;
-                  }
-                  await handleToggleSave(selectedIncident?.id);
-                }}
-                isSaved={savedIds.has(selectedIncident?.id)}
-                onCollapse={() => setRightPanelCollapsed((p) => !p)}
-              />
+              >
+                <div
+                  style={{
+                    width: 'calc(24px * var(--admin-ui-scale))',
+                    height: 'calc(24px * var(--admin-ui-scale))',
+                    borderRadius: '50%',
+                    border: '2px solid var(--border-subtle)',
+                    borderTopColor: 'var(--accent-light)',
+                    animation: 'spin 1s linear infinite',
+                  }}
+                />
+                Loading details…
+              </div>
+            ) : (
+              <>
+                {panelMode === 'incident' && (
+                  <IncidentDetailSidebar
+                    incident={detail.incident}
+                    timeline={detail.timeline}
+                    mode="user"
+                    onNavigateToFullPage={handleNavigateToFullPage}
+                    onCopyIncidentLink={async (id) => {
+                      try {
+                        await navigator.clipboard.writeText(`${window.location.origin}/incident/${id}`);
+                      } catch {}
+                    }}
+                    onSave={async (id) => {
+                      if (!isAuthenticated) {
+                        openSignInModal();
+                        return;
+                      }
+                      await handleToggleSave(id);
+                    }}
+                    isSaved={savedIds.has(selectedIncident?.id)}
+                    onCollapse={() => setRightPanelCollapsed((p) => !p)}
+                  />
+                )}
+                {panelMode === 'zone' && (
+                  <ZoneDetailSidebar
+                    incident={detail.incident}
+                    timeline={detail.timeline}
+                    mode="user"
+                    onBack={handleBack}
+                    onFullDetails={handleNavigateToFullPage}
+                    onShare={async () => {
+                      try {
+                        await navigator.clipboard.writeText(`${window.location.origin}/zone/${selectedIncident?.id}`);
+                      } catch {}
+                    }}
+                    onSave={async () => {
+                      if (!isAuthenticated) {
+                        openSignInModal();
+                        return;
+                      }
+                      await handleToggleSave(selectedIncident?.id);
+                    }}
+                    isSaved={savedIds.has(selectedIncident?.id)}
+                    onCollapse={() => setRightPanelCollapsed((p) => !p)}
+                  />
+                )}
+              </>
             )}
           </div>
+        )}
+
+        {/* Collapsed right-panel expand handle */}
+        {isPanelOpen && rightPanelCollapsed && !rightPanelRendered && (
+          <button
+            type="button"
+            onClick={() => setRightPanelCollapsed(false)}
+            title="Expand sidebar"
+            style={{
+              position: 'absolute',
+              top: '50%',
+              right: 0,
+              transform: 'translateY(-50%)',
+              zIndex: 100,
+              width: 'calc(32px * var(--admin-ui-scale))',
+              height: 'calc(96px * var(--admin-ui-scale))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              borderRight: 'none',
+              borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-md)',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent-light)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
+          >
+            <ChevronLeft size={compactMode ? 16 : 18} />
+          </button>
         )}
 
         {/* Power Search full-viewport overlay */}
@@ -1611,8 +1784,8 @@ export default function MapPage() {
             hasMore={psResults.length < psTotal}
             onLoadMore={handlePowerSearchLoadMore}
             savedIds={savedIds}
-            domains={domains}
-            categories={[]}
+            domains={psDomains}
+            categories={categories}
             onSelectIncident={handlePowerSearchSelect}
             onToggleSaved={handleToggleSavedPowerSearch}
             onResetFilters={handleResetPowerSearchFilters}
@@ -1632,6 +1805,10 @@ export default function MapPage() {
         savedIds={savedIds}
         onSelectIncident={handleCommandPaletteSelectIncident}
         onSelectLocation={handleCommandPaletteSelectLocation}
+        onOpenLayers={handleCommandPaletteOpenLayers}
+        onOpenSaved={handleCommandPaletteOpenSaved}
+        onToggleFocusMode={handleCommandPaletteToggleFocus}
+        onOpenAdvancedSearch={handleCommandPaletteOpenAdvanced}
       />
     </div>
   );

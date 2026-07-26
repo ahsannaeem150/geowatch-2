@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   Eye,
   EyeOff,
   MapPin,
+  Bell,
   Bookmark,
   Clock,
   Check,
@@ -13,9 +15,11 @@ import {
   Info,
   Monitor,
   Palette,
+  Plus,
   Crosshair,
   RefreshCw,
   Trash2,
+  FileText,
   Activity as ActivityIcon,
   Hexagon,
 } from 'lucide-react';
@@ -87,6 +91,8 @@ const layerActionBtnStyle = {
 
 function LayerIcon({ icon }) {
   if (!icon) return <Hexagon size={12} strokeWidth={2} />;
+  // Map a few common icon names to Lucide components if needed.
+  // For now render the supplied icon component directly.
   if (typeof icon === 'function') {
     const Icon = icon;
     return <Icon size={12} strokeWidth={2} />;
@@ -253,12 +259,13 @@ function IncidentCard({ incident, onClick }) {
   );
 }
 
-function ActiveRow({ incident, now, onOpen }) {
+function ActiveRow({ incident, now, onOpen, onResolve }) {
   const { theme } = useTheme();
   const categoryColor = getIncidentDomainColor(incident, theme);
   const categoryName = incident.domain_name || incident.category_name || incident.category || 'Unknown';
   const location = incident.location_context || incident.location || 'Unknown location';
   const createdAt = incident.created_at || incident.createdAt;
+  const overdue = now - (typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime()) > 24 * 60 * 60 * 1000;
 
   return (
     <div
@@ -303,6 +310,27 @@ function ActiveRow({ incident, now, onOpen }) {
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{location}</span>
           <span>·</span>
           <span>{timeAgo(createdAt, now)}</span>
+          {overdue && (
+            <>
+              <span>·</span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 'calc(3px * var(--admin-ui-scale))',
+                  fontSize: 'calc(9px * var(--admin-ui-scale))',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  color: 'var(--badge-red-text)',
+                }}
+                title="Active for more than 24 hours"
+              >
+                <AlertCircle size={9} />
+                Overdue
+              </span>
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
@@ -311,6 +339,35 @@ function ActiveRow({ incident, now, onOpen }) {
           </span>
           <SeverityBadge level={incident.severity} style={{ transform: 'scale(0.78)', transformOrigin: 'right center', flexShrink: 0 }} />
         </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onResolve(incident.id);
+          }}
+          style={{
+            alignSelf: 'flex-start',
+            marginTop: 'calc(2px * var(--admin-ui-scale))',
+            padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            fontSize: 'calc(10px * var(--admin-ui-scale))',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--danger)';
+            e.currentTarget.style.color = 'var(--danger)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-default)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
+        >
+          Resolve
+        </button>
       </div>
     </div>
   );
@@ -319,7 +376,7 @@ function ActiveRow({ incident, now, onOpen }) {
 function ActivityMeta(type) {
   switch (type) {
     case 'incident_created':
-      return { icon: PlusIcon, color: 'var(--success)', bg: 'var(--success-bg, rgba(34,197,94,0.15))', label: 'New incident' };
+      return { icon: Plus, color: 'var(--success)', bg: 'var(--success-bg, rgba(34,197,94,0.15))', label: 'New incident' };
     case 'incident_updated':
     case 'timeline_added':
     case 'timeline_updated':
@@ -330,25 +387,6 @@ function ActivityMeta(type) {
     default:
       return { icon: ActivityIcon, color: 'var(--accent-light)', bg: 'var(--accent-subtle-bg)', label: 'Activity' };
   }
-}
-
-function PlusIcon(props) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={props.size || 14}
-      height={props.size || 14}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  );
 }
 
 function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
@@ -442,6 +480,75 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
   );
 }
 
+function NotificationRow({ notification, onOpen, onMarkRead }) {
+  const isUnread = !(notification.is_read || notification.read);
+  const createdAt = notification.created_at || notification.createdAt;
+  return (
+    <div
+      onClick={() => {
+        onMarkRead(notification.id);
+        if (notification.incident_id || notification.incidentId) {
+          onOpen(notification.incident_id || notification.incidentId);
+        }
+      }}
+      style={{
+        padding: 'calc(12px * var(--admin-ui-scale))',
+        background: isUnread ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
+        border: `1px solid ${isUnread ? 'var(--accent-subtle-border)' : 'var(--border-default)'}`,
+        borderRadius: 'var(--radius-sm)',
+        boxShadow: 'var(--shadow-sm)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+      }}
+    >
+      <Bell
+        size={16}
+        color={isUnread ? 'var(--danger-light)' : 'var(--text-secondary)'}
+        style={{ flexShrink: 0, marginTop: 'calc(2px * var(--admin-ui-scale))' }}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
+            fontWeight: isUnread ? 700 : 500,
+            color: isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
+          }}
+        >
+          {notification.title}
+        </div>
+        <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>{notification.message}</div>
+        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>{timeAgo(createdAt)}</div>
+      </div>
+      {isUnread && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onMarkRead(notification.id);
+          }}
+          style={{
+            flexShrink: 0,
+            width: 'calc(24px * var(--admin-ui-scale))',
+            height: 'calc(24px * var(--admin-ui-scale))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'transparent',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+          }}
+          title="Mark read"
+        >
+          <Check size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SavedRow({ incident, onOpen, onUnsave }) {
   const { theme } = useTheme();
   const categoryColor = getIncidentDomainColor(incident, theme);
@@ -507,6 +614,43 @@ function SavedRow({ incident, onOpen, onUnsave }) {
       >
         <Bookmark size={14} />
       </button>
+    </div>
+  );
+}
+
+function RecentRow({ recent, onOpen }) {
+  const payload = recent.payload || {};
+  const title = payload.title || 'Untitled incident';
+  const openedAt = recent.created_at || recent.createdAt;
+
+  return (
+    <div
+      onClick={() => onOpen({ id: payload.incidentId || recent.id, title })}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
+        background: 'var(--bg-input)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-md)',
+        boxShadow: 'var(--shadow-sm)',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--accent-light)';
+        e.currentTarget.style.background = 'var(--bg-hover)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border-default)';
+        e.currentTarget.style.background = 'var(--bg-input)';
+      }}
+    >
+      <Clock size={16} color="var(--text-secondary)" />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
+        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>viewed {timeAgo(openedAt)}</div>
+      </div>
     </div>
   );
 }
@@ -602,7 +746,7 @@ function IncidentsDrawer({ visibleIncidents, onSelectIncident }) {
   );
 }
 
-function ActiveDrawer({ activeIncidents, now, onSelectIncident }) {
+function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, onResolveIncident }) {
   const sorted = [...activeIncidents].sort((a, b) => {
     const aT = a.created_at || a.createdAt;
     const bT = b.created_at || b.createdAt;
@@ -630,7 +774,27 @@ function ActiveDrawer({ activeIncidents, now, onSelectIncident }) {
         >
           Active Incidents
         </span>
-        <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
+          {overdueCount > 0 && (
+            <span
+              style={{
+                height: 'calc(18px * var(--admin-ui-scale))',
+                padding: '0 calc(7px * var(--admin-ui-scale))',
+                borderRadius: '999px',
+                background: 'var(--badge-red-bg)',
+                border: '1px solid var(--badge-red-bg)',
+                color: 'var(--badge-red-text)',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              {overdueCount} overdue
+            </span>
+          )}
+          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>
+        </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {sorted.length === 0 ? (
@@ -642,6 +806,7 @@ function ActiveDrawer({ activeIncidents, now, onSelectIncident }) {
               incident={incident}
               now={now}
               onOpen={onSelectIncident}
+              onResolve={onResolveIncident}
             />
           ))
         )}
@@ -651,6 +816,7 @@ function ActiveDrawer({ activeIncidents, now, onSelectIncident }) {
 }
 
 function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen, onSelectActivityIncident }) {
+  const navigate = useNavigate();
   const unreadCount = activities.filter((a) => a.timestamp > activityLastSeenAt).length;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -707,6 +873,87 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
           ))
         )}
       </div>
+      <div
+        style={{
+          padding: 'calc(10px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
+          borderTop: '1px solid var(--border-default)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <button
+          onClick={() => navigate('/superadmin/audit')}
+          style={{
+            fontSize: 'calc(11px * var(--admin-ui-scale))',
+            fontWeight: 700,
+            color: 'var(--accent-light)',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          View full audit log →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNotificationRead, onMarkAllNotificationsRead, onSelectNotificationIncident }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div
+        style={{
+          padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
+          borderBottom: '1px solid var(--border-default)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Notifications
+        </span>
+        {notificationUnreadCount > 0 && (
+          <button
+            onClick={onMarkAllNotificationsRead}
+            style={{
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
+              fontWeight: 700,
+              color: 'var(--accent-light)',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Mark all read
+          </button>
+        )}
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+        {notifications.length === 0 ? (
+          <EmptyState icon={Bell} title="No notifications." />
+        ) : (
+          notifications.map((n) => (
+            <NotificationRow
+              key={n.id}
+              notification={n}
+              onOpen={onSelectNotificationIncident}
+              onMarkRead={onMarkNotificationRead}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -729,13 +976,63 @@ function SavedDrawer({ savedIncidents, onSelectSavedIncident, onUnsaveIncident }
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {savedIncidents.length === 0 ? (
-          <EmptyState icon={Bookmark} title="No saved incidents yet.">
-            Save incidents from the map or list to see them here.
-          </EmptyState>
+          <EmptyState icon={Bookmark} title="No saved incidents yet." />
         ) : (
           savedIncidents.map((incident) => (
             <SavedRow key={incident.id} incident={incident} onOpen={onSelectSavedIncident} onUnsave={onUnsaveIncident} />
           ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div
+        style={{
+          padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))',
+          borderBottom: '1px solid var(--border-default)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Recently Viewed
+        </span>
+        {recents.length > 0 && (
+          <button
+            onClick={onClearRecents}
+            style={{
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
+              fontWeight: 700,
+              color: 'var(--accent-light)',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+        {recents.length === 0 ? (
+          <EmptyState icon={Clock} title="No recently viewed incidents.">
+            Open an incident from the map or list to see it here.
+          </EmptyState>
+        ) : (
+          recents.map((recent) => <RecentRow key={recent.id} recent={recent} onOpen={onSelectRecentIncident} />)
         )}
       </div>
     </div>
@@ -923,7 +1220,9 @@ const drawerTitles = {
   incidents: 'Incidents in Viewport',
   active: 'Active Incidents',
   activity: 'Live Activity',
+  notifications: 'Notifications',
   saved: 'Saved',
+  recents: 'Recents',
   settings: 'Settings',
 };
 
@@ -944,8 +1243,10 @@ export default function WorkspaceDrawer(props) {
         return (
           <ActiveDrawer
             activeIncidents={props.activeIncidents}
+            overdueCount={props.overdueCount}
             now={now}
             onSelectIncident={props.onSelectIncident}
+            onResolveIncident={props.onResolveIncident}
           />
         );
       case 'activity':
@@ -957,12 +1258,30 @@ export default function WorkspaceDrawer(props) {
             onSelectActivityIncident={props.onSelectActivityIncident}
           />
         );
+      case 'notifications':
+        return (
+          <NotificationsDrawer
+            notifications={props.notifications}
+            notificationUnreadCount={props.notificationUnreadCount}
+            onMarkNotificationRead={props.onMarkNotificationRead}
+            onMarkAllNotificationsRead={props.onMarkAllNotificationsRead}
+            onSelectNotificationIncident={props.onSelectNotificationIncident}
+          />
+        );
       case 'saved':
         return (
           <SavedDrawer
             savedIncidents={props.savedIncidents}
             onSelectSavedIncident={props.onSelectSavedIncident}
             onUnsaveIncident={props.onUnsaveIncident}
+          />
+        );
+      case 'recents':
+        return (
+          <RecentsDrawer
+            recents={props.recents}
+            onClearRecents={props.onClearRecents}
+            onSelectRecentIncident={props.onSelectRecentIncident}
           />
         );
       case 'settings':

@@ -1,12 +1,9 @@
 import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar.jsx';
 import TopBar from './TopBar.jsx';
 
 export default function Layout() {
-  const location = useLocation();
-  const isMapPage = location.pathname === '/superadmin/map';
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-gradient)' }}>
       <Sidebar />
@@ -24,8 +21,8 @@ export default function Layout() {
         <main
           style={{
             flex: 1,
-            padding: isMapPage ? 0 : '24px 28px',
-            overflowY: isMapPage ? 'hidden' : 'auto',
+            padding: '24px 28px',
+            overflowY: 'auto',
           }}
         >
           <Outlet />

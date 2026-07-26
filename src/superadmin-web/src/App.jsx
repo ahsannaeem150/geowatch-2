@@ -120,11 +120,12 @@ function AppRoutes() {
       <Route path="/login" element={<RedirectIfAuthenticated />} />
 
       <Route element={<RequireSuperAdmin />}>
+        {/* Map workspace renders bare (no sidebar layout) */}
+        <Route path="/superadmin/map" element={<MapPage />} />
         <Route element={<Layout />}>
           <Route path="/superadmin" element={<DashboardPage />} />
           <Route path="/superadmin/users" element={<UsersPage />} />
           <Route path="/superadmin/public-users" element={<PublicUsersPage />} />
-          <Route path="/superadmin/map" element={<MapPage />} />
           <Route path="/superadmin/audit" element={<SystemActivityPage />} />
           <Route path="/superadmin/public-activity" element={<PublicActivityPage />} />
           <Route path="/superadmin/domains" element={<DomainsPage />} />

@@ -317,7 +317,7 @@ const UserMap = forwardRef(function UserMap({
     const visibleHeight = Math.max(1, containerHeight - padTop - padBottom);
 
     const doesFitAtZoom = (bbox, zoom) => {
-      const camera = mapInstance.cameraForBounds(bbox, { padding, maxZoom: 22 });
+      const camera = mapInstance.cameraForBounds(bbox, { padding: padding || 0, maxZoom: 22 });
       return camera ? zoom >= camera.zoom : true;
     };
 
@@ -342,7 +342,7 @@ const UserMap = forwardRef(function UserMap({
     };
 
     let targetZoom;
-    const panOnly = !autoZoomEnabled && source !== 'deep-link';
+    const panOnly = !autoZoomEnabled && source !== 'deep-link' && type !== 'location';
 
     if (panOnly) {
       targetZoom = currentZoom;
@@ -371,7 +371,7 @@ const UserMap = forwardRef(function UserMap({
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],
         zoom: targetZoom,
-        padding,
+        ...(padding ? { padding } : {}),
         duration: 800,
       });
     });

@@ -11800,3 +11800,333 @@ feat(user-web): port admin dashboard layout to public map
 - All frontend builds pass; dev server smoke test returns 200.
 ```
 
+
+## 📅 2026-06-27 — Module: user-web /map Layout Polish & Bug Fixes
+
+### Summary
+Polished the newly ported user-web dashboard layout based on testing feedback: removed the verified top-bar filter, switched the profile menu to the Google avatar, cleaned admin-only overdue UI out of the Active drawer, removed the redundant map legend, aligned the incident counter with admin-web, and fixed a crash when opening the right detail panel before its data loaded.
+
+### Behavior Changes
+
+- **Removed Verified top-bar filter** from `WorkspaceTopBar` and `MapPage`; the map now shows all verification statuses by default.
+- **Profile avatar**: `WorkspaceTopBar` now displays the user's Google `avatar_url` in the top bar and dropdown; initials remain as a fallback.
+- **Active drawer cleanup**: removed overdue count badge, overdue tags, and the `AlertCircle` overdue indicator. Overdue tracking is admin-only.
+- **Removed map legend overlay**: layer toggling now lives exclusively in the left drawer.
+- **Incident/zones counter**: repositioned to `top: 12px; left: 12px` and restyled to match admin-web, including the viewport-filtering helper message.
+- **Detail panel crash fix**: the right overlay now renders a loading spinner until `detail.incident` is available, preventing `IncidentDetailSidebar` from receiving `undefined`.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/components/Layout/WorkspaceTopBar.jsx` | Removed Verified button; added Google avatar image with initials fallback. |
+| `src/user-web/src/components/Layout/WorkspaceDrawer.jsx` | Removed overdue count/header and overdue tags from Active drawer/row. |
+| `src/user-web/src/pages/MapPage.jsx` | Dropped verified filter, legend, and overdue wiring; updated counter position/style; added detail-loading guard in right panel. |
+| `src/user-web/src/index.css` | Added `@keyframes spin` for the detail-panel loading spinner. |
+
+### Verification
+
+- `npm run build:user-web` ✅
+- `npm run build:admin-web` ✅
+- `npm run build:superadmin-web` ✅
+
+### Git Commit
+
+```
+fix(user-web): polish admin-layout port and fix detail panel crash
+- Remove Verified top-bar filter and verified-only client-side filtering.
+- Show Google profile picture in top bar / dropdown; initials fallback.
+- Remove overdue tags/count from Active drawer (admin-only concept).
+- Remove redundant map legend overlay (layers are in the drawer).
+- Match admin-web incident/zones counter position and style.
+- Guard right detail panel with loading state until detail loads.
+- All frontend builds pass.
+```
+
+
+## 📅 2026-06-27 — Hotfix: user-web rail icon import
+
+### Summary
+Fixed a blank-map crash caused by the Incidents rail item referencing `AlertCircle` after it was removed from imports. Replaced with `AlertTriangle`.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/MapPage.jsx` | Import `AlertTriangle`; use it for the Incidents rail item. |
+
+### Verification
+
+- `npm run build:user-web` ✅
+- Dev server smoke test returned HTTP 200 ✅
+
+### Git Commit
+
+```
+fix(user-web): replace missing AlertCircle rail icon with AlertTriangle
+- Resolves blank-map ReferenceError after removing Verified filter.
+- Build and dev smoke test pass.
+```
+
+
+## 📅 2026-06-27 — Hotfix: user-web Zone Hide All + Power Search Domains
+
+### Summary
+Fixed two user-web layout bugs: the **Hide all** button in the drawer Zones section did nothing because the prop was misspelled, and opening Power Search crashed because public domains were missing the `categories` array the filter rail expected.
+
+### Behavior Changes
+
+- **Zone Hide All**: the drawer now correctly wires `onHideAll` to clear the active zone set and hide all zone overlays.
+- **Power Search stability**: `MapPage` now fetches the full category list, merges categories into domains by `domain_slug`, and passes the enriched domains to `PowerSearchPanel` so the filter rail can render without crashing.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/components/Layout/WorkspaceDrawer.jsx` | Fixed `onHideAllZones` prop typo → `onHideAll`. |
+| `src/user-web/src/pages/MapPage.jsx` | Fetch `categories`; build `psDomains` with attached `categories`; pass to Power Search. |
+
+### Verification
+
+- `npm run build:user-web` ✅
+- `npm run build:admin-web` ✅
+- `npm run build:superadmin-web` ✅
+
+### Git Commit
+
+```
+fix(user-web): zone Hide All and Power Search domain categories
+- Correct WorkspaceDrawer prop typo so Hide All hides all zone overlays.
+- Fetch categories and enrich domains before passing to PowerSearchPanel.
+- All frontend builds pass.
+```
+
+
+## 📅 2026-06-27 — Module: Power Search Behavior Matches Admin-web
+
+### Summary
+Aligned user-web Power Search with admin-web behavior: the main top bar is hidden while Power Search is open, clicking an incident keeps Power Search open and opens the right detail panel inside it, and the panel positions itself below the Power Search top bar/chips bar with the correct z-index.
+
+### Behavior Changes
+
+- **Power Search replaces the main top bar**: `WorkspaceTopBar` is now hidden when `powerSearchMode` is true, so only the Power Search chrome is visible.
+- **Selections stay in Power Search**: `handlePowerSearchSelect` no longer closes Power Search; it sets the selected incident/zone, updates the URL, and flies the map with Power Search rail padding.
+- **Detail panel inside Power Search**: the right overlay now drops below the Power Search top bar + chips bar (`top: calc(var(--admin-ps-topbar-height) + var(--admin-ps-chips-height))`) and uses `z-index: 70` so it renders above the Power Search rails.
+- Added `getZoneCentroid` / `getZoneBounds` helpers for Power Search zone selections.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/MapPage.jsx` | Hide main top bar in Power Search; rewrite `handlePowerSearchSelect` to stay in Power Search; adjust right panel `top`/`zIndex`; add zone centroid/bounds helpers. |
+
+### Verification
+
+- `npm run build:user-web` ✅
+- `npm run build:admin-web` ✅
+- `npm run build:superadmin-web` ✅
+
+### Git Commit
+
+```
+feat(user-web): make Power Search behave like admin-web
+- Hide main top bar while Power Search is open.
+- Keep Power Search open when an incident/zone is selected and show the detail panel inside it.
+- Position the detail panel below the Power Search top bar/chips bar with z-index 70.
+- Add zone centroid/bounds helpers for Power Search zone fly-to.
+- All frontend builds pass.
+```
+
+
+## 📅 2026-06-27 — Module: user-web Right Panel Collapse & Focus Mode Parity
+
+### Summary
+Brought user-web right-panel collapse and focus-mode behavior in line with admin-web: selecting an incident auto-expands a collapsed panel, a Chevron-left handle reopens a collapsed panel, focus mode hides the left drawer while keeping the rail visible, and focus mode auto-exits when the user selects an incident or opens a drawer.
+
+### Behavior Changes
+
+- **Collapsed panel handle**: when the right detail panel is collapsed, a vertical handle appears at the right edge; clicking it expands the panel.
+- **Selection expands panel**: clicking any incident/zone (map, drawer, activity, command palette, or Power Search) now forces `rightPanelCollapsed` to `false` and exits focus mode.
+- **Focus mode parity**:
+  - Entering focus mode collapses the right panel and saves its previous state.
+  - Exiting focus mode restores the previous collapsed state.
+  - The left rail stays visible in focus mode; only the drawer is hidden.
+  - Opening a drawer or selecting an incident auto-exits focus mode.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/pages/MapPage.jsx` | Added `preFocusRightCollapsedRef`; updated focus toggle, rail/drawer visibility, selection handlers; added collapsed panel expand handle. |
+
+### Verification
+
+- `npm run build:user-web` ✅
+- `npm run build:admin-web` ✅
+- `npm run build:superadmin-web` ✅
+
+### Git Commit
+
+```
+feat(user-web): match admin-web right-panel collapse and focus mode behavior
+- Add collapsed right-panel expand handle (ChevronLeft) at screen right edge.
+- Auto-expand right panel when any incident/zone is selected.
+- Keep rail visible and hide drawer in focus mode; auto-exit focus on select/drawer open.
+- Save/restore right-panel collapse state when toggling focus mode.
+- All frontend builds pass.
+```
+
+
+## 📅 2026-06-27 — Module: user-web Command Palette admin-web parity
+
+### Summary
+Rebuilt the user-web ⌘K command palette to match the admin-web omnibox: scope tabs (All / Incidents / Locations / Actions) with live counts, Recent incidents section, keyboard-navigated result rows, footer ↑/↓/↵ hints, and an "Open advanced search" link. Replaced the old flat mixed list and separate "Recent searches" UI.
+
+### Behavior Changes
+
+- Tabs now filter results by **All**, **Incidents**, **Locations**, or **Actions**, with per-tab counts.
+- Empty query shows the most recently selected incidents plus the newest incidents, matching admin-web.
+- **Locations** still geocode via Nominatim and also surface parsed coordinate hits (`lat, lng`).
+- **Actions** are public-only: Open layers panel, Open saved incidents, Toggle focus mode, Open advanced search.
+- Footer now shows keyboard shortcut hints and an "Open advanced search" button.
+- Recent selections are persisted under a new `localStorage` key; legacy recent-search arrays are migrated automatically.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/components/Layout/UserCommandPalette.jsx` | Reimplemented as admin-style omnibox with tabs, counts, recent incidents, action rows, footer, and Nominatim location support. |
+| `src/user-web/src/pages/MapPage.jsx` | Wired new palette callbacks (`onOpenLayers`, `onOpenSaved`, `onToggleFocusMode`, `onOpenAdvancedSearch`). |
+
+### Verification
+
+- `npm run build:user-web` ✅
+- `npm run build:admin-web` ✅
+- `npm run build:superadmin-web` ✅
+
+### Git Commit
+
+```
+feat(user-web): match admin-web command palette UX
+- Replace flat command palette with tabbed omnibox (All/Incidents/Locations/Actions).
+- Add recent-incident rows, live tab counts, action shortcuts, and footer ↑/↓/↵ hints.
+- Keep Nominatim geocoding and coordinate parsing in Locations scope.
+- Add public actions: open layers/saved, toggle focus, open advanced search.
+- Persist recent incident selections and migrate legacy recent-searches storage.
+- All frontend builds pass.
+```
+
+
+## 📅 2026-07-12 — Module: user-web Command Palette location fixes
+
+### Summary
+Fixed two issues in the user-web command palette location search: Nominatim results were displayed with overly long `display_name` strings, and clicking a location result threw a MapLibre error and did not fly the map.
+
+### Behavior Changes
+
+- **Short location labels**: Nominatim results are now formatted from `address` components into a concise `Name, Region, Country` label (e.g. "Lahore, Punjab, Pakistan"). The verbose `display_name` is used only as a fallback.
+- **Detail label cleaned**: type/class labels are capitalized and deduplicated (e.g. "City · Place").
+- **Fly-to fixed**: passing an undefined `padding` option to `map.flyTo` was causing `Cannot read properties of undefined (reading 'top')`. `UserMap` now omits `padding` when it is undefined and falls back to `0` for `cameraForBounds`.
+- **Location searches always fly**: even when the auto-zoom toggle is off, a location selected from the command palette now flies to the computed zoom so the place is visible.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/user-web/src/components/Layout/UserCommandPalette.jsx` | Added `formatLocationName` / `formatLocationDetail`; applied them to Nominatim results. |
+| `src/user-web/src/components/Map/UserMap.jsx` | Guarded `flyTo` and `cameraForBounds` against undefined padding; excluded `type === 'location'` from pan-only mode. |
+
+### Verification
+
+- Browser smoke test via Playwright: searched "Lahore", saw "Lahore, Punjab, Pakistan", clicked it, map flew to Lahore at city zoom.
+- `npm run build:user-web` ✅
+- `npm run build:admin-web` ✅
+- `npm run build:superadmin-web` ✅
+
+### Git Commit
+
+```
+fix(user-web): shorten command palette location names and fix fly-to
+- Format Nominatim display_name into concise Name, Region, Country labels.
+- Capitalize/dedupe location type/class detail text.
+- Guard map.flyTo / cameraForBounds against undefined padding to prevent crash.
+- Always fly (not just pan) when a location is selected from the command palette.
+- All frontend builds pass; Playwright smoke test confirms Lahore fly-to works.
+```
+
+
+## 📅 2026-07-26 — Module: superadmin-web Map Workspace (phase 2)
+
+### Summary
+
+- **MapPage rebuilt as a full-viewport workspace orchestrator** (`src/superadmin-web/src/pages/MapPage.jsx`, 2647 → ~3390 lines). The page now owns 100vw×100vh and composes the phase-1 chrome: `WorkspaceTopBar` (date range, search triggers, active/overdue pill, focus/compact toggles, Add Incident / Add Zone, user menu), `WorkspaceRail` (8 items: layers, incidents, active, activity, notifications, saved, recents, settings), `WorkspaceDrawer` (absolute overlay at the rail edge), `PowerSearchPanel` (full-viewport overlay with live search via `searchIncidentsAdvanced`), and the `CommandPalette` (⌘K) with Nominatim locations and console nav actions.
+- **Right detail panel is now an absolute 630px overlay** with the admin-style render/visible/collapsed animation trio, `onCollapse` wiring on the shared sidebars, and a collapsed reopen handle. All existing content modes preserved: shared `IncidentDetailSidebar` / `ZoneDetailSidebar` (mode="superadmin") with every superadmin callback, deleted/purged `IncidentDetailPanel` fallback, `IncidentForm`, `ZoneForm` create/info-edit, zone geometry editing with `DrawingToolbar` + vertex editing + save/cancel bar.
+- **Old chrome removed**: `MapControls` overlay (date pickers move to the topbar; status/verification filtering now lives in Power Search), floating `LocationSearch` (replaced by the palette Locations tab), and the `MapLegend` overlay (replaced by the layers drawer, which also gained zone-category visibility filtering — default all visible, preserving prior behavior).
+- **Preserved exactly**: `SuperadminMap` with all marker/zone rendering, hover popups, ghost incidents/zones, smart viewport filtering (>100 → viewport-bounded), SSE stream with `superadmin_token` (now also feeds the Live Activity drawer), all deep-link params, `?ref=activity|recyclebin` context banner + `ActivityInspectorSidebar` / `RecycleBinSidebar` (rendered in place of the workspace drawer), creator-profile drawers, audit-log modal, context menus, ConfirmDialog, ghost banner (now offset around chrome via `computeMapPadding`), and staff-recents recording on incident/zone selection.
+- **Routing**: `/superadmin/map` moved out of the `<Layout />` nest in `App.jsx` (still under `RequireSuperAdmin`); the map padding special-case was removed from `Layout.jsx`.
+- **SuperadminMap** gained an `autoZoomEnabled` prop (default `true`): when off, selection pans at the current zoom instead of flying/fitting. Wired to the settings-drawer toggle (persisted `geowatch_superadmin_auto_zoom`).
+- **Deleted files** (unused after the rebuild): `components/Map/MapControls.jsx`, `components/LocationSearch/LocationSearch.jsx`, `components/DatePicker/DatePicker.jsx`.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | Rebuilt as full-viewport workspace orchestrator (see Summary). |
+| `src/superadmin-web/src/App.jsx` | `/superadmin/map` route moved out of the `<Layout />` nest. |
+| `src/superadmin-web/src/components/Layout/Layout.jsx` | Removed the `/superadmin/map` padding/overflow special-case. |
+| `src/superadmin-web/src/components/Map/SuperadminMap.jsx` | Added `autoZoomEnabled` prop gating flyTo/fitBounds. |
+| `src/superadmin-web/src/components/Map/MapControls.jsx` | Deleted (superseded by WorkspaceTopBar + Power Search). |
+| `src/superadmin-web/src/components/LocationSearch/LocationSearch.jsx` | Deleted (superseded by CommandPalette locations). |
+| `src/superadmin-web/src/components/DatePicker/DatePicker.jsx` | Deleted (only consumer was MapControls). |
+
+### Verification
+
+- `npm run build:superadmin-web` ✅ (only the pre-existing >500 kB chunk-size warning remains).
+
+### Git Commit
+
+```
+feat(superadmin-web): rebuild map page as full-viewport workspace orchestrator
+- Compose phase-1 chrome: WorkspaceTopBar, rail + 8 drawer panes, Power Search
+  overlay, ⌘K command palette, absolute animated right detail panel.
+- Wire layers/incidents/active/activity/notifications/saved/recents/settings
+  drawers to staff hooks and existing page data; record staff recents.
+- Move date range to topbar; status/verification filtering moves to Power
+  Search; location search moves to the palette; legend moves to layers drawer.
+- Preserve all superadmin map features: SSE, ghosts, smart viewport filtering,
+  deep links, activity/recycle-bin inspectors, zone drawing/editing, forms.
+- Render /superadmin/map outside the sidebar Layout; auto-zoom pref gates
+  SuperadminMap flyTo/fitBounds; remove MapControls/LocationSearch/DatePicker.
+```
+
+
+
+## 📅 2026-07-26 — Module: superadmin-web Map Workspace (phase 3 — smoke test + docs)
+
+### Summary
+
+- **Playwright smoke test** (`scripts/verify-superadmin-workspace.mjs`, new): logs into superadmin-web, loads `/superadmin/map`, and asserts the workspace chrome end-to-end — no console sidebar/old TopBar; WorkspaceTopBar (Super Admin pill, Dashboard, Add Incident / Add Zone); 8-item rail; layers drawer (Incident Domains + Zone Overlays) with ESC close; ⌘K palette (Actions tab → "recycle" finds the Recycle Bin nav action, ESC closes); Advanced → Power Search overlay (filter rail + results rail, ESC closes); marker click slides in the absolute right panel; Dashboard button returns to `/superadmin` with the console sidebar, then back to the map. Screenshots land in `temp_screenshots/superadmin-workspace/`.
+- **Result: 13/13 checks pass with zero console/page errors.** Two script-level findings during the run: the map page can't use `networkidle` (SSE keeps a connection open → use `domcontentloaded`), and the map syncs `?lat/lng/zoom` into the URL on viewport change, so the back-navigation assertion is a prefix match.
+- **Dev DB gap fixed:** the first run exposed HTTP 500s from `/api/v1/notifications`, `/api/v1/incidents/staff/saved`, `/api/v1/staff/recents` — migration `012_admin_workspace_support.sql` had never been applied to `geowatch_dev`. `geowatch_user` can't run it as-is (core tables are owned by `postgres`; it lacks REFERENCES on `users`/`incidents`, and the postgres superuser requires an interactive password), so the three tables (`staff_saved_incidents`, `staff_recents`, `notifications`) were created as `geowatch_user` with identical columns/indexes but **without the FK constraints** — same stopgap precedent as the existing `user_saved_incidents` table. Re-run the official migration as superuser (`sudo -u postgres psql -d geowatch_dev -f docs/migrations/012_admin_workspace_support.sql`) when convenient to enforce FKs.
+- Docs updated: `handoff.md` current-focus section (port marked done; console TopBar cleanup noted as planned follow-up) and `AGENTS.md` (section 12 bullet marked done; section 5 route list notes the map page lives outside the sidebar Layout).
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `scripts/verify-superadmin-workspace.mjs` | New Playwright smoke test for the superadmin map workspace (13 checks + 2 screenshots). |
+| `handoff.md` | Section 10 focus rewritten: superadmin-web workspace port done; console TopBar cleanup is the planned follow-up. |
+| `AGENTS.md` | Section 12 "Next: port to superadmin-web" bullet marked done; section 5 route note that `/superadmin/map` renders outside the sidebar `Layout`. |
+| DB `geowatch_dev` | Created `staff_saved_incidents`, `staff_recents`, `notifications` (migration-012 schema, FK-less stopgap — see Summary). |
+
+### Verification
+
+- `node scripts/verify-superadmin-workspace.mjs` ✅ 13/13 checks, zero console errors (first run had 33, all traced to the missing migration-012 tables).
+- Screenshots visually confirmed: `temp_screenshots/superadmin-workspace/workspace-idle.png`, `temp_screenshots/superadmin-workspace/power-search-open.png`.
+- `npm run build:superadmin-web` ✅ (only the pre-existing >500 kB chunk-size warning).
+
+### Git Commit
+
+```
+feat: port map workspace layout to superadmin-web — /superadmin/map is now a full-viewport workspace page (WorkspaceTopBar with Dashboard button + Super Admin pill + Add Incident/Add Zone, 8-item rail with drawers, Power Search overlay, ⌘K palette with Nominatim locations + console page-jump actions, absolute-overlay right panel); removed MapControls/LocationSearch/DatePicker; map route moved out of sidebar Layout
+```

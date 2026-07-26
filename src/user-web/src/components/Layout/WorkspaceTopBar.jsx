@@ -8,7 +8,6 @@ import {
   Zap,
   Command,
   Minimize2,
-  ShieldCheck,
 } from 'lucide-react';
 import GoogleSignInButton from '../GoogleSignInButton/GoogleSignInButton.jsx';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
@@ -40,8 +39,6 @@ export default function WorkspaceTopBar({
   onOpenZones,
   compactMode,
   onToggleCompactMode,
-  verifiedOnly,
-  onToggleVerifiedOnly,
 }) {
   const location = useLocation();
   const { user, login, logout, isAuthenticated, loading: authLoading } = usePublicAuth();
@@ -308,18 +305,6 @@ export default function WorkspaceTopBar({
           </button>
         </div>
 
-        <button
-          onClick={onToggleVerifiedOnly}
-          title="Show only verified incidents"
-          style={{
-            ...actionBtn,
-            color: verifiedOnly ? 'var(--accent-light)' : 'var(--text-secondary)',
-            borderColor: verifiedOnly ? 'var(--accent-light)' : 'var(--border-subtle)',
-          }}
-        >
-          <ShieldCheck size={iconSize(13)} />
-          <span>Verified{verifiedOnly ? ' only' : ''}</span>
-        </button>
       </div>
 
       {/* Right: actions + auth */}
@@ -411,24 +396,39 @@ export default function WorkspaceTopBar({
                     transform: userMenuOpen ? 'rotate(180deg)' : 'none',
                   }}
                 />
-                <div
-                  style={{
-                    width: 'calc(24px * var(--admin-ui-scale))',
-                    height: 'calc(24px * var(--admin-ui-scale))',
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 'calc(9px * var(--admin-ui-scale))',
-                    fontWeight: 700,
-                    color: 'var(--text-on-accent)',
-                    border: '2px solid var(--border-subtle)',
-                    flexShrink: 0,
-                  }}
-                >
-                  {initials}
-                </div>
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    style={{
+                      width: 'calc(24px * var(--admin-ui-scale))',
+                      height: 'calc(24px * var(--admin-ui-scale))',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '2px solid var(--border-subtle)',
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 'calc(24px * var(--admin-ui-scale))',
+                      height: 'calc(24px * var(--admin-ui-scale))',
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 'calc(9px * var(--admin-ui-scale))',
+                      fontWeight: 700,
+                      color: 'var(--text-on-accent)',
+                      border: '2px solid var(--border-subtle)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {initials}
+                  </div>
+                )}
               </button>
 
               {userMenuOpen && (
@@ -447,24 +447,39 @@ export default function WorkspaceTopBar({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))', marginBottom: 'calc(14px * var(--admin-ui-scale))' }}>
-                    <div
-                      style={{
-                        width: 'calc(34px * var(--admin-ui-scale))',
-                        height: 'calc(34px * var(--admin-ui-scale))',
-                        borderRadius: '50%',
-                        background: 'var(--accent)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 'calc(11px * var(--admin-ui-scale))',
-                        fontWeight: 700,
-                        color: 'var(--text-on-accent)',
-                        border: '2px solid var(--border-subtle)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {initials}
-                    </div>
+                    {user?.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt=""
+                        style={{
+                          width: 'calc(34px * var(--admin-ui-scale))',
+                          height: 'calc(34px * var(--admin-ui-scale))',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          border: '2px solid var(--border-subtle)',
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 'calc(34px * var(--admin-ui-scale))',
+                          height: 'calc(34px * var(--admin-ui-scale))',
+                          borderRadius: '50%',
+                          background: 'var(--accent)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 'calc(11px * var(--admin-ui-scale))',
+                          fontWeight: 700,
+                          color: 'var(--text-on-accent)',
+                          border: '2px solid var(--border-subtle)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {initials}
+                      </div>
+                    )}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {displayName}

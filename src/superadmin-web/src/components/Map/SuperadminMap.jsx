@@ -109,6 +109,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   onEditCancel,
   showZones = true,
   adminMode = false,
+  autoZoomEnabled = true,
 }, ref) {
   const { theme } = useTheme();
   const [showDebug, setShowDebug] = useState(false);
@@ -596,21 +597,35 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       isProgrammaticMove.current = true;
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],
-        zoom: flyToCoords.zoom ?? 10,
+        // When auto-zoom is off, keep the user's current zoom and just pan.
+        zoom: autoZoomEnabled ? (flyToCoords.zoom ?? 10) : map.current.getZoom(),
         duration: 800,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyToCoords]);
 
   // Fit to bounds (for zone selection)
   useEffect(() => {
     if (fitBounds && map.current) {
       isProgrammaticMove.current = true;
+      if (!autoZoomEnabled) {
+        // Auto-zoom off: pan to the bounds center at the current zoom instead
+        // of reframing the viewport.
+        const [[minLng, minLat], [maxLng, maxLat]] = fitBounds.bounds;
+        map.current.flyTo({
+          center: [(minLng + maxLng) / 2, (minLat + maxLat) / 2],
+          zoom: map.current.getZoom(),
+          duration: 800,
+        });
+        return;
+      }
       map.current.fitBounds(fitBounds.bounds, {
         padding: fitBounds.padding ?? 40,
         duration: fitBounds.duration ?? 800,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitBounds]);
 
   // Switch map style when theme changes

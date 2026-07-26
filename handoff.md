@@ -450,9 +450,9 @@ chore: description
 
 ---
 
-## 10. Current Focus — user-web Dashboard Layout Port Complete
+## 10. Current Focus — Map Workspace Layout Port Complete Across All Three Frontends
 
-> **What we are doing right now:** the public `/map` page in `user-web` has been rebuilt to mirror the finalized admin-web dashboard layout. The admin-style top bar, left rail/drawer, absolute-overlay right detail panel, Power Search full-viewport overlay, compact/focus modes, and Settings-drawer auto-zoom toggle are all wired and building. Live Activity Feed, Ticker Bar, the old incident-list sidebar search, and floating `LocationSearch` were removed; Saved incidents moved into the rail drawer and location search moved into the new `⌘K` Command Palette. All three frontend builds pass. The next phase is to port the same layout patterns into `superadmin-web` and to smoke-test the new user-web chrome in the browser.
+> **Status:** the map workspace layout family is now ported to all three frontends. `superadmin-web` `/superadmin/map` was rebuilt as a full-viewport workspace page (WorkspaceTopBar with Dashboard button + Super Admin pill + Add Incident/Add Zone, 8-item rail with drawers, Power Search overlay, ⌘K palette with Nominatim locations + console page-jump actions, absolute-overlay right panel) rendered outside the sidebar `Layout` — same layout family as admin-web/user-web. Old superadmin map chrome (`MapControls`, floating `LocationSearch`, `DatePicker`, `MapLegend` overlay) was removed; console pages keep the sidebar shell and are unchanged. Smoke test `scripts/verify-superadmin-workspace.mjs` passes 13/13 with zero console errors; all frontend builds pass. Planned follow-up: console TopBar cleanup (dead search box/bell) on the non-map console pages.
 
 ### Chosen Direction
 
@@ -536,7 +536,7 @@ You are continuing work on GeoWatch, a map-based global conflict and major-event
 3. Explore the codebase to understand context: backend services, shared components, and especially the user-web zone trial files under `src/user-web/src/pages/ZoneTrial*.jsx`, `zoneTrialData.js`, and `src/user-web/src/App.jsx`.
 
 **CURRENT FOCUS:**
-The user-web `/map` page now uses the finalized admin-web dashboard layout: admin-style top bar with public nav + Google auth, collapsible left rail/drawer (Layers, Incidents, Active, Activity, Saved, Settings), absolute-overlay right detail panel with `transform: translateX` animation, Power Search full-viewport overlay, compact/focus modes, and a Settings-drawer auto-zoom toggle. The old Live Activity Feed, Ticker Bar, incident-list sidebar search, and floating LocationSearch were removed. All three frontend builds pass. Next: port the same chrome patterns to `superadmin-web` and run browser smoke tests on user-web.
+The user-web `/map` page now uses the finalized admin-web dashboard layout with complete right-panel collapse and focus-mode parity, and the public ⌘K command palette mirrors the admin-web omnibox: scope tabs (All / Incidents / Locations / Actions) with live counts, recent-incident rows, public quick actions, keyboard navigation, and an "Open advanced search" footer. Location results show concise Nominatim labels (e.g. "Lahore, Punjab, Pakistan") and correctly fly the map when selected. The superadmin-web `/superadmin/map` port is also DONE — same workspace chrome (WorkspaceTopBar, 8-item rail + drawers, Power Search overlay, ⌘K palette, absolute-overlay right panel) outside the sidebar Layout; console pages keep the sidebar shell. Smoke test `scripts/verify-superadmin-workspace.mjs` passes 13/13. All three frontend builds pass. Next: browser smoke tests on user-web, then console TopBar cleanup (dead search box/bell).
 
 **BEFORE MAKING CHANGES:**
 - Run `npm run build:admin-web` and ensure it passes.
@@ -555,4 +555,4 @@ Tell me what you find and what you recommend doing next.
 
 ---
 
-*Last updated: 2026-06-27 (Tuned comfort-fit margin, incident nudge, verified zone auto-zoom toggle; all builds/verifications pass)*
+*Last updated: 2026-07-12 (Fixed command palette location labels and fly-to; all builds pass)*
