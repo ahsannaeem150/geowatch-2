@@ -12130,3 +12130,59 @@ feat(superadmin-web): rebuild map page as full-viewport workspace orchestrator
 ```
 feat: port map workspace layout to superadmin-web — /superadmin/map is now a full-viewport workspace page (WorkspaceTopBar with Dashboard button + Super Admin pill + Add Incident/Add Zone, 8-item rail with drawers, Power Search overlay, ⌘K palette with Nominatim locations + console page-jump actions, absolute-overlay right panel); removed MapControls/LocationSearch/DatePicker; map route moved out of sidebar Layout
 ```
+
+## 📅 2026-07-26 — Module: superadmin-web Map Workspace (phase 4 — remove old-layout floaters)
+
+### Summary
+
+- **DrawingToolbar now renders only during zone draw/edit** (`src/superadmin-web/src/pages/MapPage.jsx`): the toolbar overlay wrapper is gated on `(editingZoneId || mapMode === 'polygon')`, with the existing `editingZoneId ? save/cancel bar : <DrawingToolbar>` ternary inside — exactly mirroring admin-web's two conditions (`editingZoneId && bar`, `mapMode === 'polygon' && !editingZoneId && <DrawingToolbar>`). Previously the toolbar floated top-right in idle state.
+- **Floating "+ New Incident" button removed** (`src/superadmin-web/src/components/Map/SuperadminMap.jsx`): it was an `<a>` to the admin-web origin (`:5174`) in a new tab; the topbar "Add Incident" button and map double-click already cover incident creation. The now-unused `adminUrl` const went with it.
+- **"Debug Off/On" chip removed** (same file): the `showDebug` state only gated the marker hover-popup variant (`buildPopupHTML(data, showDebug && adminMode)` — admin "Click to edit →" vs public "Click for details →"). Not load-bearing. Chip + state deleted; the popup now passes `adminMode` directly, matching AdminMap which always passes `true`. Side effect: superadmin hover popups now show the admin variant ("Click to edit →") like admin-web, instead of the old Debug-Off default.
+- **MapLibre NavigationControl kept** in SuperadminMap — AdminMap (top-right) and UserMap (bottom-right) both render one.
+- No other old-layout floaters found: idle map chrome is now identical in kind to admin/user-web (topbar, rail, counter chip, ghost banner, nav control).
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/pages/MapPage.jsx` | Drawing/edit toolbar overlay gated on `(editingZoneId || mapMode === 'polygon')`; save/cancel bar behavior unchanged. |
+| `src/superadmin-web/src/components/Map/SuperadminMap.jsx` | Removed debug chip + `showDebug` state, removed "+ New Incident" floater + `adminUrl` const; popup call now `buildPopupHTML(data, adminMode)`. |
+
+### Verification
+
+- `npm run build:superadmin-web` ✅ (only the pre-existing >500 kB chunk-size warning).
+- `node scripts/verify-superadmin-workspace.mjs` ✅ 13/13 checks, zero console errors; `workspace-idle.png` re-confirmed clean (no toolbar / no floaters / no debug chip).
+- Throwaway Playwright check (deleted after run): toolbar hidden at idle → appears on topbar "Add Zone" → disappears on Cancel → re-appears on re-entry. 4/4 passed.
+
+### Git Commit
+
+```
+fix: remove old-layout floaters from superadmin map — DrawingToolbar only during zone draw/edit (mirrors admin-web), drop floating "+ New Incident" button and Debug chip, keep NavigationControl for parity with admin/user maps
+```
+
+## 📅 2026-07-27 — Module: superadmin-web Console TopBar Rebuild + Sidebar Map Removal
+
+### Summary
+
+- **Console TopBar rebuilt** (`src/superadmin-web/src/components/Layout/TopBar.jsx`, still inline styles / 56px / same visual language). Left: route-derived breadcrumb "Console › ‹Label›" (sidebar label set + "Incident Detail"/"Zone Detail" for detail routes). Right: prominent primary-accent **Map button** (canonical map doorway → `/superadmin/map`), **system-health dot** (polls `GET /api/v1/system/health` every 60s — green `healthy` / amber `degraded` / red `unhealthy`, gray on network error, click → `/superadmin/system`), then unchanged style picker, ThemeToggle, and user dropdown. The dead search input is removed.
+- **Real notifications bell replaces the static red dot**: unread-count badge (hidden at 0, capped "99+"; polled every 60s via a lightweight `limit=1` list call — there is no dedicated unread-count endpoint, the list response carries `unreadCount`). Dropdown panel (360px, right-aligned): header "Notifications" + "Mark all read", scrollable list (max-height 420px) of the latest 10 with "Load more" footer while `hasMore`; rows show a per-type lucide icon (AlertTriangle/RefreshCw/CheckCircle/Clock), title, one-line body, `formatDistanceToNow` relative time, unread dot + tinted bg; row click marks read and navigates (`/incident/*` and `/zone/*` link_paths get the `/superadmin` prefix); hover × deletes (stopPropagation). Closes on outside click and Escape; empty state "No notifications yet".
+- **Sidebar** (`src/superadmin-web/src/components/Layout/Sidebar.jsx`): "Map" nav item removed (11 items remain); map access now lives only in the topbar Map button and the workspace's Dashboard button for the return trip.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/superadmin-web/src/components/Layout/TopBar.jsx` | Rebuilt: breadcrumb, Map button, health dot (60s poll), real notifications bell with paged dropdown; dead search removed; style picker / ThemeToggle / user dropdown kept. |
+| `src/superadmin-web/src/components/Layout/Sidebar.jsx` | Removed "Map" nav item + unused `Map` lucide import (11 items). |
+
+### Verification
+
+- `npm run build:superadmin-web` ✅ (only the pre-existing >500 kB chunk-size warning).
+- `node scripts/verify-superadmin-workspace.mjs` ✅ 13/13 checks, zero console errors.
+- Throwaway Playwright check (deleted after run): breadcrumb "Console › Dashboard" ✓, Map button visible ✓, health dot present ✓, Map click → `/superadmin/map` ✓, bell present ✓, bell opens dropdown ✓ — 7/7 passed. Screenshot kept: `temp_screenshots/superadmin-workspace/console-topbar.png`.
+
+### Git Commit
+
+```
+feat: rebuild superadmin console topbar — route breadcrumb, prominent Map button, live system-health dot, and real notifications bell (unread badge, paged dropdown, mark read/all, delete); move map access from sidebar to topbar
+```

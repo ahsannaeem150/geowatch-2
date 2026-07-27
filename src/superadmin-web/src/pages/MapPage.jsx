@@ -2715,7 +2715,9 @@ export default function MapPage() {
               onCancel={() => setConfirmDialog(null)}
             />
 
-            {/* Drawing / edit toolbar overlay */}
+            {/* Drawing / edit toolbar overlay — only while drawing a zone polygon
+                or editing zone geometry (mirrors admin-web's render conditions) */}
+            {(editingZoneId || mapMode === 'polygon') && (
             <div
               style={{
                 position: 'absolute',
@@ -2799,6 +2801,7 @@ export default function MapPage() {
                 />
               )}
             </div>
+            )}
 
             {/* Incident counter overlay — top left */}
             {!powerSearchMode && !focusMode && (

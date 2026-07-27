@@ -112,7 +112,6 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   autoZoomEnabled = true,
 }, ref) {
   const { theme } = useTheme();
-  const [showDebug, setShowDebug] = useState(false);
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef(new Map());
@@ -717,7 +716,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
           className: 'geowatch-popup',
         })
           .setLngLat([parseFloat(data.longitude), parseFloat(data.latitude)])
-          .setHTML(buildPopupHTML(data, showDebug && adminMode))
+          .setHTML(buildPopupHTML(data, adminMode))
           .addTo(map.current);
       };
 
@@ -1550,10 +1549,6 @@ const SuperadminMap = forwardRef(function SuperadminMap({
 
   const drawAreaKm2 = mapMode === 'polygon' ? calculateDrawArea() : 0;
 
-  const adminUrl = typeof window !== 'undefined'
-    ? window.location.origin.replace(':5175', ':5174')
-    : 'http://localhost:5174';
-
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
@@ -1604,61 +1599,6 @@ const SuperadminMap = forwardRef(function SuperadminMap({
             {isPolygonClosed ? 'Polygon closed — click Save' : 'Double-click or click first vertex to close'}
           </span>
         </div>
-      )}
-
-      {/* Admin Mode Debug Toggle */}
-      {adminMode && (
-        <button
-          onClick={() => setShowDebug((s) => !s)}
-          style={{
-            position: 'absolute',
-            bottom: '80px',
-            left: '12px',
-            zIndex: 50,
-            padding: '6px 12px',
-            fontSize: '11px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            borderRadius: '6px',
-            border: `1px solid ${showDebug ? '#f59e0b' : 'var(--border-subtle)'}`,
-            background: showDebug ? 'var(--hover-strong)' : 'var(--bg-surface)',
-            color: showDebug ? '#f59e0b' : 'var(--text-muted)',
-            cursor: 'pointer',
-            backdropFilter: 'blur(8px)',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          {showDebug ? '🔍 Debug On' : '🔍 Debug Off'}
-        </button>
-      )}
-
-      {/* New Incident button (adminMode only) */}
-      {adminMode && (
-        <a
-          href={adminUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            position: 'absolute',
-            bottom: '80px',
-            right: '12px',
-            zIndex: 50,
-            padding: '8px 14px',
-            fontSize: '12px',
-            fontWeight: 700,
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--navy-500)',
-            background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
-            color: '#fff',
-            textDecoration: 'none',
-            cursor: 'pointer',
-            boxShadow: 'var(--alert-info-border)',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          + New Incident
-        </a>
       )}
 
       <style>{`
