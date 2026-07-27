@@ -1584,7 +1584,6 @@ export default function MapWorkspaceTrialA() {
               {[
                 { key: 'tactical', label: 'Tactical', short: 'T' },
                 { key: 'saas', label: 'SaaS', short: 'S' },
-                { key: 'glass', label: 'Glass', short: 'G' },
               ].map((opt) => {
                 const active = style === opt.key;
                 return (

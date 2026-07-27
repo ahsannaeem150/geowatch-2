@@ -61,15 +61,14 @@ The finalized design system uses a **deep maroon** accent on near-black backgrou
   - Caption: 12px regular, muted color
   - Data/Coords: 13px monospace
 
-## Three Interface Styles
+## Two Interface Styles
 
-All three frontends support three switchable interface styles via `ThemeContext`:
+All three frontends support two switchable interface styles via `ThemeContext`:
 
 | Style | Font | Background | Radius | Key Traits |
 |-------|------|------------|--------|------------|
 | **Tactical** (default) | Space Grotesk | Radial crimson gradient, `#050505` | Sharp (2-6px) | Film grain overlay, uppercase labels, heavy shadows |
 | **SaaS** | Inter | Subtle radial gradient | Medium (6-10px) | Clean, more spacing, softer shadows |
-| **Glass** | Inter | Mesh gradient | Large (14-20px) | Glassmorphism cards (`backdrop-filter: blur`), glow hover, no shadows |
 
 Switch via TopBar/Header dropdown. Persisted in `localStorage` under `geowatch-style`.
 

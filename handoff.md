@@ -43,7 +43,7 @@
 | Admin dashboard (map-first HUD) | ✅ | `src/admin-web/` |
 | Public website (hero map + explorer) | ✅ | `src/user-web/` |
 | Superadmin console (navy theme) | ✅ | `src/superadmin-web/` |
-| Three interface styles (Tactical/SaaS/Glass) | ✅ | All 3 frontends |
+| Two interface styles (Tactical/SaaS) | ✅ | All 3 frontends |
 | Light + dark themes | ✅ | All 3 frontends |
 | Smart viewport filtering (100-event threshold) | ✅ | `DashboardLayout.jsx`, `MapPage.jsx` |
 | Location search (Nominatim) | ✅ | `LocationSearch.jsx` |
@@ -386,8 +386,8 @@ There is no per-source verification and no auto-compute cascade. New incidents a
 | 4 | Severe | `#f87171` |
 | 5 | Critical | `#dc2626` |
 
-### Three Interface Styles
-All frontends support `tactical` (default), `saas`, and `glass` styles via `ThemeContext` + `data-style` HTML attribute. Styles are persisted in `localStorage`.
+### Two Interface Styles
+All frontends support `tactical` (default) and `saas` styles via `ThemeContext` + `data-style` HTML attribute. Styles are persisted in `localStorage`; any unsupported stored value falls back to `tactical`.
 
 ---
 

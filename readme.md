@@ -260,7 +260,7 @@ GeoWatch is **not** a generic maps clone. It is a tactical intelligence dashboar
 
 - **Dark mode first** (deep charcoal `#050505`)
 - **Crimson Seal accent** (`#5a011c` / `#9f1239`)
-- **Three interface styles**: Tactical (default), SaaS, Glassmorphism
+- **Two interface styles**: Tactical (default), SaaS
 - **Sharp, serious UI** — no rounded bubbly components
 - **Data-first layout** — the map is king
 

@@ -15,7 +15,6 @@ function StyleToggle() {
   const options = [
     { key: 'tactical', label: 'Tac' },
     { key: 'saas', label: 'SaaS' },
-    { key: 'glass', label: 'Glass' },
   ];
   return (
     <div style={{ position: 'relative' }}>

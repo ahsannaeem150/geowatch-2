@@ -9,7 +9,6 @@ import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
 const STYLES = [
   { key: 'tactical', label: 'Tac', short: 'T' },
   { key: 'saas', label: 'SaaS', short: 'S' },
-  { key: 'glass', label: 'Glass', short: 'G' },
 ];
 
 export default function Header() {

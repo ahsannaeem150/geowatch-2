@@ -96,7 +96,7 @@ Each frontend imports shared code through the `@shared` Vite alias (`resolve.ali
 
 - `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`.
 - `constants.js` — Severity scale, event statuses, source types, user roles, verification statuses, API base URL, Martin URL.
-- `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas`, `glass` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
+- `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
 - `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`.
 - `components/incident-detail/` — Shared incident detail package (sidebar + full page + evidence rail + timeline items + X-post list + source cards). Reused across all three frontends.
 - `components/zone/` — Shared zone/polygon detail components (`ZoneDetailSidebar`, `ZoneDetailPage`, `ZoneEditorSidebar`) plus trial-only styles/components.
@@ -339,7 +339,7 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
 - Pure React + CSS; no external UI component libraries.
 - Use the `@shared` alias for shared components, hooks, and constants.
 - Dark theme first; light theme is driven by CSS variables and `[data-theme="light"]`.
-- Three interface styles are supported via the `data-style` HTML attribute: `tactical` (default), `saas`, `glass`.
+- Two interface styles are supported via the `data-style` HTML attribute: `tactical` (default), `saas`.
 - Import shared styles in each app's `main.jsx`:
   ```js
   import '@shared/media-components.css';

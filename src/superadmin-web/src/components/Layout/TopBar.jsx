@@ -27,7 +27,6 @@ import {
 const STYLES = [
   { key: 'tactical', label: 'Tac', short: 'T' },
   { key: 'saas', label: 'SaaS', short: 'S' },
-  { key: 'glass', label: 'Glass', short: 'G' },
 ];
 
 const ROUTE_LABELS = [

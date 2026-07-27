@@ -2,6 +2,8 @@ import React, { createContext, useState, useEffect, useCallback } from 'react';
 
 const THEME_KEY = 'geowatch-theme';
 const STYLE_KEY = 'geowatch-style';
+const SUPPORTED_STYLES = ['tactical', 'saas'];
+const DEFAULT_STYLE = 'tactical';
 
 export const ThemeContext = createContext({
   theme: 'dark',
@@ -23,9 +25,9 @@ export function ThemeProvider({ children }) {
   const [style, setStyleState] = useState(() => {
     try {
       const saved = localStorage.getItem(STYLE_KEY);
-      if (['tactical', 'saas', 'glass'].includes(saved)) return saved;
+      if (SUPPORTED_STYLES.includes(saved)) return saved;
     } catch {}
-    return 'tactical';
+    return DEFAULT_STYLE;
   });
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function ThemeProvider({ children }) {
   }, []);
 
   const setStyle = useCallback((newStyle) => {
-    if (['tactical', 'saas', 'glass'].includes(newStyle)) {
+    if (SUPPORTED_STYLES.includes(newStyle)) {
       setStyleState(newStyle);
     }
   }, []);

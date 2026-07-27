@@ -12186,3 +12186,43 @@ fix: remove old-layout floaters from superadmin map — DrawingToolbar only duri
 ```
 feat: rebuild superadmin console topbar — route breadcrumb, prominent Map button, live system-health dot, and real notifications bell (unread badge, paged dropdown, mark read/all, delete); move map access from sidebar to topbar
 ```
+
+
+## 📅 2026-07-27 — Module: shared/all-frontends — Glass Interface Style Removal
+
+### Summary
+
+- **The `glass` interface style is removed from all three frontends.** Supported styles are now `tactical` (default) and `saas` only.
+- **Pickers**: glass option removed from all 7 style pickers — the settings drawers in the three WorkspaceDrawers, superadmin TopBar dropdown, user-web Header picker, admin-web legacy TopBar, and the admin `/trial/map-workspace-a` trial picker (it drives the live `setStyle`).
+- **Persistence guard** (`src/shared/theme-context.jsx`): new `SUPPORTED_STYLES = ['tactical', 'saas']` + `DEFAULT_STYLE = 'tactical'` constants; both the localStorage initializer and `setStyle` validate against the list, so a stored `glass` (or any unknown) value falls back to `tactical` on next load and can no longer be set.
+- **CSS**: every `[data-style="glass"]` rule block deleted from the three app `index.css` files (token overrides, light variants, header/aside/card/input/right-panel/hero rules) plus the unused `.glass-card` utility (no JSX references anywhere). `--bg-glass` is untouched — it's a generic variable used by tactical too.
+- **Left intact**: decorative glassmorphism artifacts in self-contained trial designs (`DesignTrial.jsx` token lab, `ZoneStylesTrialPage` "Glass overlay" zone treatment, `--zone-glass*` variables, hourglass meter, `--bg-glass` consumers) — not part of the interface-style feature.
+- **Docs**: AGENTS.md, handoff.md, readme.md, and docs/design-brief.md updated to the two-style system. `interfacePlan.md` left as the historical implementation record.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/theme-context.jsx` | `SUPPORTED_STYLES`/`DEFAULT_STYLE` constants; init + `setStyle` validate against list (glass/unknown → `tactical`). |
+| `src/admin-web/src/components/MapWorkspace/WorkspaceDrawer.jsx` | Glass option removed from settings-drawer style picker. |
+| `src/user-web/src/components/Layout/WorkspaceDrawer.jsx` | Glass option removed from settings-drawer style picker. |
+| `src/superadmin-web/src/components/MapWorkspace/WorkspaceDrawer.jsx` | Glass option removed from settings-drawer style picker. |
+| `src/superadmin-web/src/components/Layout/TopBar.jsx` | Glass option removed from style dropdown. |
+| `src/user-web/src/components/Layout/Header.jsx` | Glass option removed from style picker. |
+| `src/admin-web/src/components/Layout/TopBar.jsx` | Glass option removed from legacy style picker. |
+| `src/admin-web/src/pages/trial/MapWorkspaceTrialA.jsx` | Glass option removed from trial style picker (wired to live `setStyle`). |
+| `src/admin-web/src/index.css` | All `[data-style="glass"]` blocks + `.glass-card` utility deleted. |
+| `src/user-web/src/index.css` | All `[data-style="glass"]` blocks + `.glass-card` utility deleted. |
+| `src/superadmin-web/src/index.css` | All `[data-style="glass"]` blocks + `.glass-card` utility deleted. |
+| `AGENTS.md`, `handoff.md`, `readme.md`, `docs/design-brief.md` | Three-style system → two styles (tactical default, saas). |
+
+### Verification
+
+- `npm run build:user-web` / `npm run build:admin-web` / `npm run build:superadmin-web` ✅ all green.
+- `grep -ri "glass" src/ --include="*.{js,jsx,css}"` — remaining hits are decorative trial classes, `--bg-glass`/`--zone-glass*` variables, and "hourglass"; no `data-style="glass"` selectors or picker entries remain.
+
+### Git Commit
+
+```
+feat: remove glass interface style — two styles remain (tactical default, saas); drop glass from all style pickers, delete glass CSS blocks, and guard localStorage/setStyle against unsupported values (fallback to tactical)
+```
