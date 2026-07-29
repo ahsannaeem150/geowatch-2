@@ -12226,3 +12226,35 @@ feat: rebuild superadmin console topbar — route breadcrumb, prominent Map butt
 ```
 feat: remove glass interface style — two styles remain (tactical default, saas); drop glass from all style pickers, delete glass CSS blocks, and guard localStorage/setStyle against unsupported values (fallback to tactical)
 ```
+
+
+## 📅 2026-07-28 — Module: admin-web/shared — Smart Selection Camera
+
+### Summary
+
+- **New shared pure policy** `src/shared/utils/selectionCamera.js`: `getSelectionCamera({ type, source, bounds, currentZoom, isVisibleInViewport, fitsAtCurrentZoom, autoZoomEnabled, fitZoom })` → `{ zoom, duration, panOnly, skip }`. No MapLibre imports; callers precompute the map-dependent inputs (`fitZoom` via padded `cameraForBounds`, viewport visibility via `map.project`, bbox fit check). Exported constants: incident floors (`INCIDENT_MAP_CLICK_MIN_ZOOM` 5.5 → target 6.0, `INCIDENT_LIST_MIN_ZOOM` 7, `INCIDENT_POWER_SEARCH_ZOOM` 7, `DEEP_LINK_ZOOM` 7), durations (map 400 / list 600 / power-search 300 visible-pan & 400 off-screen / deep-link 800 / zone fit 800 / zone centroid pan 300), zone fitting (`ZONE_COMFORT_FACTOR` 0.55, `ZONE_MIN_ZOOM` 4, `ZONE_SIZE_CAPS` <2 km→11, 2–15 km→12, else 14 via haversine bbox diagonal, `ZONE_FIT_TOLERANCE` 0.75), plus `haversineKm`, `zoneSizeCap`, and `selectionSignature` helpers.
+- **admin-web flyTo effect** (`AdminMap.jsx`) now delegates all zoom/duration decisions to the policy: incident map-clicks floor at 6 instead of a +0.05 nudge; list selections (drawers/palette/notifications/recents/toasts) floor at 7 and never zoom out; power-search pans only when already ≥7 (300 ms on-screen, 400 ms off-screen) and floors at 7 below; zones comfort-fit in both directions clamped to `[4, sizeCap]` with a ±0.75 tolerance that skips the flight (300 ms centroid pan) when the bbox already fits; deep-links always comfort-fit; auto-zoom-off stays pan-only except deep-links. Padding/resize/rAF plumbing and the `getMaxZoomForCenter` clamp are unchanged.
+- **Repeat-click guard**: `selectionSignature(type, source, lng, lat)` stored in a ref — identical consecutive selections are ignored entirely (no re-flight).
+- **Power Search incident selection now passes `source: 'power-search'`** (`DashboardLayout.jsx` `handlePowerSearchSelect` → `handleSearchSelect(incident, { source })`); previously it went through as `'search'`. Zone results already passed `'power-search'`. All other sources unchanged (they fall into the 'list' bucket).
+- Zone size caps mean a <2 km zone never zooms past 11 and a country-scale zone never zooms out past 4, fixing both the street-level dive on tiny zones and the disorienting zoom-out on huge ones.
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/shared/utils/selectionCamera.js` | **New** — pure selection-camera policy + exported constants/helpers; portable to user-web/superadmin-web. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | FlyTo effect delegates to `getSelectionCamera`; repeat-click guard via `selectionSignature` ref; policy inputs precomputed from the map instance. |
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | `handleSearchSelect` accepts `{ source }` (default `'search'`); `handlePowerSearchSelect` passes `'power-search'`. |
+| `scripts/verify-smart-zoom.mjs` | **New** — Playwright verification (API-token login, zone fixtures created/soft-deleted via API). |
+| `handoff.md` | Selection-behavior bullets updated to the smart camera policy. |
+
+### Verification
+
+- `npm run build:admin-web` ✅ green.
+- `node scripts/verify-smart-zoom.mjs` ✅ 13/13, zero console errors — z3 drawer click → 7.00; z9 drawer click → 9.00 (no zoom-out); repeat click → zoom/center unchanged (drift 0.00000°); z9 ×3 power-search results → 9.00 each; z4 power-search → 7.00; tiny zone (~1 km) → 10.00 (≤ cap 11); large zone (~2000 km) → 4.17 with bbox fully inside map bounds; z3 marker click → 6.00.
+
+### Git Commit
+
+```
+feat: smart selection camera in admin-web — shared pure policy (src/shared/utils/selectionCamera.js) with per-source zoom floors, power-search pan-only rule, zone size caps + fit tolerance, and a repeat-click guard; power-search selections now pass a distinct source
+```

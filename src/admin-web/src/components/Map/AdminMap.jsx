@@ -6,6 +6,7 @@ import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builde
 import { useTheme } from '@shared/useTheme.js';
 import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
 import { ringArea, smallestZoneFeature } from '@shared/utils/zoneGeometry.js';
+import { getSelectionCamera, selectionSignature, ZONE_COMFORT_FACTOR } from '@shared/utils/selectionCamera.js';
 import { format } from 'date-fns';
 
 // Tile coverage: z0-14 tiles exist inside HOT_BBOX, only z0-10 outside it.
@@ -119,6 +120,7 @@ const AdminMap = forwardRef(function AdminMap({
   const popupTimeoutRef = useRef(null);
   const isProgrammaticMove = useRef(false);
   const isClamping = useRef(false);
+  const lastSelectionSignatureRef = useRef(null);
   const onViewportChangeRef = useRef(onViewportChange);
   const onEventClickRef = useRef(onEventClick);
   const onZoneClickRef = useRef(onZoneClick);
@@ -600,7 +602,7 @@ const AdminMap = forwardRef(function AdminMap({
     };
   }, []);
 
-  // Fly to coordinates
+  // Fly to coordinates — smart selection camera (shared policy decides zoom/duration)
   useEffect(() => {
     if (
       !flyToCoords ||
@@ -611,19 +613,18 @@ const AdminMap = forwardRef(function AdminMap({
       return;
     }
 
+    const { type, source, bounds, padding } = flyToCoords;
+
+    // Repeat-click guard: an identical (type, source, lng, lat) selection is
+    // ignored entirely so re-clicking the same result never re-flies.
+    const signature = selectionSignature({ type, source, lng: flyToCoords.lng, lat: flyToCoords.lat });
+    if (signature === lastSelectionSignatureRef.current) return;
+    lastSelectionSignatureRef.current = signature;
+
     isProgrammaticMove.current = true;
     const currentZoom = map.current.getZoom();
     const maxZoom = getMaxZoomForCenter(flyToCoords.lng, flyToCoords.lat);
-    const { type, source, bounds, padding } = flyToCoords;
     const mapInstance = map.current;
-
-    // Comfort-fit constants for polygon selections.
-    // COMFORT_FACTOR = 0.55 means the zone occupies ~55% of the visible viewport
-    // (45% margin on each side). MIN/MAX clamps prevent tiny zones from zooming
-    // to street level and huge zones from zooming to world view.
-    const ZONE_COMFORT_FACTOR = 0.55;
-    const MIN_ZONE_ZOOM = 4;
-    const MAX_ZONE_ZOOM = 14;
 
     // Compute visible area after layout padding (sidebars / panels).
     const container = mapInstance.getContainer();
@@ -667,42 +668,41 @@ const AdminMap = forwardRef(function AdminMap({
       return camera ? camera.zoom : currentZoom;
     };
 
-    let targetZoom;
-
-    // When auto-zoom is disabled we still pan to the feature so the user can
-    // see what was selected, but we preserve their manually-set zoom level.
-    // Deep-links are the exception: opening a shared URL is an explicit
-    // navigation intent and should always comfort-fit the target.
-    const panOnly = !autoZoomEnabled && source !== 'deep-link';
-
-    if (panOnly) {
-      targetZoom = currentZoom;
-    } else if (type === 'incident') {
-      if (source === 'map') {
-        // Map click: small nudge to keep the transition feeling alive.
-        targetZoom = currentZoom + 0.05;
-      } else {
-        // Non-map selection (search, drawer, notification, deep-link, etc.):
-        // fly to a fixed, readable zoom level.
-        targetZoom = 7;
-      }
-    } else if (type === 'zone' && bounds) {
-      if (source === 'map' && doesFitAtZoom(bounds, currentZoom + 0.02)) {
-        // Map click: if the zone already fits, nudge slightly and pan to the
-        // centroid so repeated clicks don't feel like nothing happened.
-        targetZoom = currentZoom + 0.02;
-      } else {
-        // Comfort-fit the zone bounding box with a 30% margin, then clamp to
-        // sane limits so small zones keep context and large zones stay usable.
-        const fittingZoom = computeFittingZoom(bounds, ZONE_COMFORT_FACTOR);
-        targetZoom = Math.max(MIN_ZONE_ZOOM, Math.min(MAX_ZONE_ZOOM, fittingZoom));
-      }
-    } else {
-      // Location search or legacy requests: preserve current zoom and just pan.
-      targetZoom = Number.isFinite(flyToCoords.zoom) ? flyToCoords.zoom : currentZoom;
+    // Precompute the map-dependent inputs the shared policy needs.
+    const isZone = type === 'zone' && bounds;
+    const fitZoom = isZone ? computeFittingZoom(bounds, ZONE_COMFORT_FACTOR) : undefined;
+    const fitsAtCurrentZoom = isZone ? doesFitAtZoom(bounds, currentZoom) : false;
+    let isVisibleInViewport = false;
+    if (type === 'incident' && source === 'power-search') {
+      const pt = mapInstance.project([flyToCoords.lng, flyToCoords.lat]);
+      isVisibleInViewport =
+        pt.x >= padLeft && pt.x <= containerWidth - padRight &&
+        pt.y >= padTop && pt.y <= containerHeight - padBottom;
     }
 
-    targetZoom = Math.min(targetZoom, maxZoom);
+    let decision;
+    if (type === 'incident' || isZone) {
+      decision = getSelectionCamera({
+        type,
+        source,
+        bounds,
+        currentZoom,
+        isVisibleInViewport,
+        fitsAtCurrentZoom,
+        autoZoomEnabled,
+        fitZoom,
+      });
+    } else {
+      // Location search or legacy requests: preserve current zoom and just pan.
+      decision = {
+        zoom: Number.isFinite(flyToCoords.zoom) ? flyToCoords.zoom : currentZoom,
+        duration: 800,
+        panOnly: true,
+        skip: false,
+      };
+    }
+
+    const targetZoom = Math.min(decision.zoom, maxZoom);
 
     // Force a resize so flyTo uses the current container size after layout
     // changes (e.g. right panel opening) instead of the previous size.
@@ -715,7 +715,7 @@ const AdminMap = forwardRef(function AdminMap({
         center: [flyToCoords.lng, flyToCoords.lat],
         zoom: targetZoom,
         padding,
-        duration: 800,
+        duration: decision.duration,
       });
     });
   }, [flyToCoords]);

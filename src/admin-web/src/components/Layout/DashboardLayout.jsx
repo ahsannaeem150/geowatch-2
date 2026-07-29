@@ -1788,7 +1788,7 @@ export default function DashboardLayout() {
     }
   }, [editingZoneId, editingZoneVertices]);
 
-  const handleSearchSelect = useCallback((incident) => {
+  const handleSearchSelect = useCallback((incident, { source = 'search' } = {}) => {
     const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
     exitFocusMode();
     setSelectedIncident(incident);
@@ -1804,7 +1804,7 @@ export default function DashboardLayout() {
     scheduleFlyTo(
       {
         type: 'incident',
-        source: 'search',
+        source,
         lat: parseFloat(incident.latitude),
         lng: parseFloat(incident.longitude),
         padding,
@@ -1855,7 +1855,7 @@ export default function DashboardLayout() {
       }
       return;
     }
-    handleSearchSelect(incident);
+    handleSearchSelect(incident, { source: 'power-search' });
   }, [handleSearchSelect, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const handlePowerSearchZoneClick = useCallback((zoneId) => {
