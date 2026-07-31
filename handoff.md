@@ -462,10 +462,11 @@ chore: description
   - Focus mode hides both sidebars while keeping the rail visible.
   - Power Search is an in-dashboard mode with collapsible filter/results rails.
   - Map centering always targets the visible map rectangle after any layout change.
-- **Map selection behavior (smart selection camera, 2026-07-28):** shared pure policy in `src/shared/utils/selectionCamera.js` (`getSelectionCamera` + constants), implemented in admin-web; user-web/superadmin-web ports pending.
-  - Point incidents: map click floors to 6 below z5.5 (else untouched, 400 ms); list sources (drawers/palette/notifications/recents) floor at 7 and never zoom out (600 ms); power-search pans only when ≥ z7 (300 ms on-screen / 400 ms off-screen), floors at 7 below; deep-links fixed 7 (800 ms).
+- **Map selection behavior (smart selection camera, 2026-07-28; zone-fit fixes 2026-07-31):** shared pure policy in `src/shared/utils/selectionCamera.js` (`getSelectionCamera` + constants), implemented in admin-web; user-web/superadmin-web ports pending.
+  - Point incidents: map click floors to 6 below z5.5 (else untouched); list sources (drawers/palette/notifications/recents) floor at 6 and never zoom out; power-search pans only when ≥ z6, floors at 6 below; deep-links fixed 7. All incident flights 800 ms (user-tuned).
   - Zones: comfort-fit (55% of padded viewport) clamped to `[4, sizeCap]` in both directions — sizeCap by bbox diagonal (<2 km→11, 2–15 km→12, else 14); within ±0.75 zoom and already-fitting → skip flight, 300 ms centroid pan. Deep-links always comfort-fit.
-  - Repeat-click guard: identical (type, source, lng, lat) selections are ignored entirely. Auto-zoom-off in Settings still pans only, except deep-links.
+  - **Fit always matches live chrome (2026-07-31):** AdminMap reads layout padding via a `getMapPadding()` getter at flight time (drawer 360 / PS rails 260+300 + topbar-chips 90 top / right panel 630), not a click-time snapshot; MapLibre persistent padding is reset before `cameraForBounds` (double-count fix); fit fallback is layout-padded (never unpadded) with one rAF retry; zone map clicks keep `source:'map'` (deep-link re-fire guarded).
+  - Repeat-click guard: skips only when signature AND camera AND padding are unchanged — re-clicking after a camera move or drawer/panel toggle re-fits. Auto-zoom-off in Settings still pans only, except deep-links.
 
 ### Production Search Routes
 

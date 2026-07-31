@@ -13,7 +13,7 @@ GeoWatch is a tactical intelligence dashboard that displays real-world incidents
 | Public Website | ✅ MVP | React 18 + Vite + MapLibre GL JS | http://localhost:5173 |
 | Admin Dashboard | ✅ MVP | React 18 + Vite + MapLibre GL JS | http://localhost:5174 |
 | Superadmin Console | ✅ MVP | React 18 + Vite + MapLibre GL JS | http://localhost:5175 |
-| Backend API | ✅ Complete | Express 4 + PostGIS + JWT | http://localhost:3000 |
+| Backend API | ✅ Complete | Express 4 + PostGIS + JWT | http://localhost:3100 |
 | Native Android | 🔮 Future | React Native | — |
 
 ---
@@ -126,7 +126,7 @@ This launches all five services in the background, opens the admin dashboard in 
 
 | Service | URL |
 |---------|-----|
-| Backend API | http://localhost:3000/api/v1 |
+| Backend API | http://localhost:3100/api/v1 |
 | Admin Dashboard | http://localhost:5174 |
 | Public Website | http://localhost:5173 |
 | Superadmin Console | http://localhost:5175 |

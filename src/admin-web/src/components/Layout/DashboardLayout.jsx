@@ -489,6 +489,35 @@ export default function DashboardLayout() {
     ]
   );
 
+  // Live layout state mirror for the map padding getter. AdminMap calls
+  // getCurrentMapPadding at flight time (after panel/drawer transitions and
+  // the scheduleFlyTo delay), so the padding always matches the chrome that is
+  // actually on screen — a snapshot taken at click time would go stale.
+  const layoutStateRef = useRef({});
+  layoutStateRef.current = {
+    compactMode,
+    powerSearchMode,
+    psFilterCollapsed,
+    psResultsCollapsed,
+    activeDrawer,
+    focusMode,
+    isPanelOpen,
+    rightPanelCollapsed,
+  };
+  const getCurrentMapPadding = useCallback(() => {
+    const s = layoutStateRef.current;
+    return computeMapPadding({
+      scale: s.compactMode ? 0.9 : 1,
+      powerSearchMode: s.powerSearchMode,
+      psFilterCollapsed: s.psFilterCollapsed,
+      psResultsCollapsed: s.psResultsCollapsed,
+      activeDrawer: s.activeDrawer,
+      focusMode: s.focusMode,
+      isPanelOpen: s.isPanelOpen,
+      rightPanelCollapsed: s.rightPanelCollapsed,
+    });
+  }, []);
+
   // Padding for floating overlays (ghost banner) that live at the dashboard
   // root and must avoid both flex-layout chrome and absolute overlays.
   const getBannerPadding = useCallback(
@@ -738,6 +767,18 @@ export default function DashboardLayout() {
     }
 
     if (!zoneIdFromUrl) {
+      return;
+    }
+
+    // Already-selected guard (mirrors the incident deep-link guard): when the
+    // URL param was written by an in-app zone selection (map click, zones page,
+    // power search), the selection's own flight already ran — do not re-fire a
+    // deep-link flight that would hijack the source and bypass the map-click
+    // tolerance rule.
+    const currentZoneSelection = selectedIncidentRef.current;
+    const currentIsPolygonZone = currentZoneSelection?.geometry_type === 'polygon' || currentZoneSelection?.geometryType === 'polygon';
+    if (currentZoneSelection?.id === zoneIdFromUrl && currentIsPolygonZone) {
+      zoneDeepLinkProcessed.current = true;
       return;
     }
 
@@ -2891,6 +2932,7 @@ export default function DashboardLayout() {
             onEditUndo={handleEditUndo}
             onEditCancel={handleZoneEditCancel}
             autoZoomEnabled={autoZoomEnabled}
+            getMapPadding={getCurrentMapPadding}
           />
 
           {editingZoneId && (

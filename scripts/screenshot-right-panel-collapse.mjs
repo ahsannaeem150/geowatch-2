@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 const ADMIN_URL = 'http://localhost:5174';
-const API_URL = 'http://localhost:3000/api/v1';
+const API_URL = 'http://localhost:3100/api/v1';
 const OUT_DIR = path.resolve(process.cwd(), 'temp_screenshots', 'right-panel-collapse-verify');
 
 async function login() {

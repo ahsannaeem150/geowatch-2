@@ -22,17 +22,17 @@ export const INCIDENT_MAP_CLICK_MIN_ZOOM = 5.5;
 /** Target zoom for a map click made below INCIDENT_MAP_CLICK_MIN_ZOOM. */
 export const INCIDENT_MAP_CLICK_TARGET_ZOOM = 6.0;
 /** Floor for list selections — never zooms out, only up to this level. */
-export const INCIDENT_LIST_MIN_ZOOM = 7;
+export const INCIDENT_LIST_MIN_ZOOM = 6;
 /** Floor for power-search selections. */
-export const INCIDENT_POWER_SEARCH_ZOOM = 7;
+export const INCIDENT_POWER_SEARCH_ZOOM = 6;
 /** Fixed zoom for deep-links (explicit navigation intent). */
 export const DEEP_LINK_ZOOM = 7;
 
-// ─── Durations (ms) ───
-export const DURATION_INCIDENT_MAP_CLICK = 400;
-export const DURATION_INCIDENT_LIST = 600;
-export const DURATION_POWER_SEARCH_VISIBLE_PAN = 300;
-export const DURATION_POWER_SEARCH_OFFSCREEN = 400;
+// ─── Durations (ms) — all incident flights share the original smooth 800ms feel ───
+export const DURATION_INCIDENT_MAP_CLICK = 800;
+export const DURATION_INCIDENT_LIST = 800;
+export const DURATION_POWER_SEARCH_VISIBLE_PAN = 800;
+export const DURATION_POWER_SEARCH_OFFSCREEN = 800;
 export const DURATION_DEEP_LINK = 800;
 /** Pan-only duration when auto-zoom is disabled (legacy behavior). */
 export const DURATION_PAN_ONLY = 800;

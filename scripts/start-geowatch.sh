@@ -138,7 +138,7 @@ if should_start backend; then
   echo -e "${CYAN}🔌 Starting backend API...${NC}"
   if start_service backend "cd src/backend && npx nodemon server.js"; then
     sleep 3
-    echo -e "${GREEN}   ✓ Backend running on http://localhost:3000${NC}"
+    echo -e "${GREEN}   ✓ Backend running on http://localhost:3100${NC}"
   else
     echo -e "${RED}   ✗ Backend failed to start${NC}"
   fi
@@ -193,7 +193,7 @@ echo ""
 echo -e "  ${CYAN}User Website:${NC}       http://localhost:5173"
 echo -e "  ${CYAN}Admin Dashboard:${NC}    http://localhost:5174"
 echo -e "  ${CYAN}Superadmin Console:${NC} http://localhost:5175"
-echo -e "  ${CYAN}Backend API:${NC}        http://localhost:3000"
+echo -e "  ${CYAN}Backend API:${NC}        http://localhost:3100"
 echo -e "  ${CYAN}Martin Tiles:${NC}       http://localhost:8080"
 echo ""
 echo -e "  ${YELLOW}Logs:${NC}    ./logs/"

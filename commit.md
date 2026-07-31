@@ -12258,3 +12258,63 @@ feat: remove glass interface style — two styles remain (tactical default, saas
 ```
 feat: smart selection camera in admin-web — shared pure policy (src/shared/utils/selectionCamera.js) with per-source zoom floors, power-search pan-only rule, zone size caps + fit tolerance, and a repeat-click guard; power-search selections now pass a distinct source
 ```
+
+
+## 📅 2026-07-31 — Module: admin-web — Zone Camera-Fit Fixes (live padding, MapLibre double-padding, re-click guard)
+
+### Summary
+
+- **Zone fits now always use the layout chrome that is actually on screen at flight time.** Padding is no longer captured as a click-time snapshot in `flyToCoords`; AdminMap calls a live `getMapPadding()` getter when the flyTo effect executes (after the scheduleFlyTo delay and panel/drawer transitions). Fixes the zone rendering half-hidden under the left drawer and the stale-padding fits in both directions.
+- **Root cause of the "no fit / dead re-click" cases found: MapLibre persistent-padding double-count.** `cameraForBounds` adds the transform's persisted padding (left over from the previous padded `flyTo`) to the padding passed in, so every second fit double-counted the chrome — producing too-low zooms or `undefined` (negative scale) and silently falling back to an unpadded fit. AdminMap now resets the map padding to 0 before measuring and re-applies the correct padding in the same frame.
+- **`computeFittingZoom` hardened:** `minVisible` 300→160; the `padding: 0` fallback is gone — fallback is the exact layout-padded camera (`doesFitAtZoom` shape) minus a 0.5 zoom margin; a null camera retries the whole effect once on the next rAF; `doesFitAtZoom` treats a null camera as "doesn't fit" (never skips a needed flight).
+- **Power Search top chrome accounted:** `computeMapPadding` returns `top = (52 + 38) × scale` in power-search mode (PS topbar + active-chips bar, mirroring `--admin-ps-topbar-height`/`--admin-ps-chips-height`).
+- **Zone map clicks keep `source: 'map'`:** the zone deep-link effect gained the already-selected guard the incident effect always had — selecting a zone (which writes `?zone=<id>` to the URL) no longer re-fires a deep-link flight that canceled the original map-click flight and bypassed the tolerance rule.
+- **Repeat-click guard refined:** skips only when signature, camera (|Δzoom| ≤ 0.3, drift < 5% of viewport), AND padding all match — re-clicking a zone after closing the drawer or moving the camera re-fits instead of going dead.
+- `src/shared/utils/selectionCamera.js` policy constants untouched (user-tuned).
+
+### Changed Files
+
+| File | Change |
+|:--|:--|
+| `src/admin-web/src/components/Layout/DashboardLayout.jsx` | `layoutStateRef` mirror + `getCurrentMapPadding()` getter passed to AdminMap as `getMapPadding`; already-selected guard in the zone deep-link effect. |
+| `src/admin-web/src/components/Map/AdminMap.jsx` | FlyTo effect uses live padding everywhere (fit, doesFitAtZoom, visibility check, flyTo); `setPadding(0)` before `cameraForBounds` (double-count fix); hardened `computeFittingZoom` (160px floor, layout-padded fallback −0.5, rAF retry); repeat guard stores `{signature, zoom, center, padding}`. |
+| `src/admin-web/src/utils/mapPadding.js` | PS topbar (52) + chips (38) returned as `top` in power-search mode. |
+| `scripts/verify-smart-zoom.mjs` | Floor expectations updated to 6 (user tweak); 4 new zone-fit checks (1440 drawer-open, PS mode, 1280 drawer-open, drawer-close re-click re-fit) with rect containment + selection confirmation; zone fixtures created/deleted via API; `API_BASE` env override. |
+| `handoff.md` | Selection-behavior bullets updated. |
+
+### Verification
+
+- `npm run build:admin-web` ✅ green.
+- `API_BASE=http://localhost:3001/api/v1 node scripts/verify-smart-zoom.mjs` ✅ **17/17**, zero console errors — z3 drawer → 6.00; z9 drawer → 9.00; repeat click unchanged; z9 ×3 PS → 9.00; z4 PS → 6.00; tiny zone → 10.00 (cap 11); large zone → 4.17 (min 4) with bbox inside bounds; marker click z3 → 6.00; **1440 drawer-open zone → 7.22, zone x[532,744] inside [424,810]**; **PS zone → 6.60, zone x[630,767] y[398,559] inside [560,810]×[90,900]**; **1280 drawer-open zone → 6.45, zone x[487,612] inside [424,650]**; **drawer-close re-click → new flight, zoom 6.45→7.82, zone x[228,550] inside [64,650]**.
+- Note: run used `PORT=3001` for the backend because port 3000 was held by an unrelated local process at verify time; the script gained an `API_BASE` override for this.
+
+### Git Commit
+
+```
+fix: zone camera-fit matches live chrome — AdminMap reads padding via a live getter at flight time, reset MapLibre persistent padding before cameraForBounds (double-count fix), harden fit fallback + retry, account for power-search top chrome, stop zone deep-link re-fire from hijacking map clicks, and let repeat-guard re-fly when camera or chrome changed
+```
+
+
+## 📅 2026-07-31 — Module: backend/infra — Backend port moved 3000 → 3100 (permanent)
+
+### Summary
+
+- **Backend dev port permanently moved from 3000 to 3100** because a local WhatsApp bridge now permanently occupies port 3000. Every layer updated: env files, code fallbacks, launcher/status/verification scripts, and living docs.
+- `src/backend/.env.development`: `PORT=3100`, `API_URL=http://localhost:3100`. Frontend `.env` files (user-web, admin-web, superadmin-web): `VITE_API_URL` → `http://localhost:3100/api/v1`. `src/backend/.env.example` and `docs/env-template.md` updated to match.
+- Code fallbacks updated to 3100: `server.js` (`process.env.PORT || '3100'`), `local.storage.js` `BASE_URL`, `src/shared/constants.js`, `useCategories.js`, `useZoneCategories.js`, and each frontend's API/SSE base (`user-web` api.js + sse.js, `admin-web` api.js, `superadmin-web` api.js + useEventSource.js).
+- Scripts updated: `start-geowatch.sh` banner URLs, `status-geowatch.sh` health URL, and hardcoded API bases in `check-powersearch.mjs`, `check-compact.mjs`, `screenshot-admin-compact.mjs`, `screenshot-right-panel-collapse.mjs`, `verify-map-zoom-behavior.mjs`, `verify-smart-zoom.mjs` (env-var overrides kept).
+- Living docs updated: `AGENTS.md` (§1 + §5 service table), `readme.md` (2 spots), `docs/api-spec.md`, `docs/handoff.md`, `docs/dev-credentials.md`, `SUPERADMIN_GUIDE.md`. Historical records (`commit.md` history, `storagePlan.md`, `superAdminPlan.md`) intentionally left as-is.
+
+### Verification
+
+- Full restart via `stop-geowatch.sh` + `start-geowatch.sh --no-browser` ✅ all 5 services running; `status-geowatch.sh` reports backend `running (HTTP 401)` — 401 is expected because `/api/v1/system/health` sits behind `authenticate` (pre-existing behavior).
+- `curl http://localhost:3100/api/v1/health` ✅ `{"success":true,"data":{"status":"ok",...}}`.
+- Login smoke `POST /api/v1/auth/login` (superadmin) ✅ JWT returned; audit log insert visible in `logs/backend.log`.
+- `ss -tlnp` confirms WhatsApp bridge still listening on 127.0.0.1:3000 (untouched) and GeoWatch backend on :3100.
+- Repo sweep for `localhost:3000` / `PORT=3000`: only historical hits remain in `commit.md`, `storagePlan.md`, `superAdminPlan.md`.
+
+### Git Commit
+
+```
+chore: move backend dev port 3000 → 3100 — env files, code fallbacks, launcher/status/verify scripts, and living docs updated; WhatsApp bridge retains port 3000
+```

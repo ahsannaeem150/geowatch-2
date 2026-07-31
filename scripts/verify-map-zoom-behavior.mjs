@@ -3,7 +3,7 @@ import { mkdir } from 'fs/promises';
 import path from 'path';
 
 const BASE = process.env.BASE_URL || 'http://localhost:5174';
-const API_BASE = process.env.API_BASE_URL || 'http://localhost:3000/api/v1';
+const API_BASE = process.env.API_BASE_URL || 'http://localhost:3100/api/v1';
 const VIEWPORT = { width: 1600, height: 900 };
 const OUT_DIR = 'temp_screenshots/map-zoom-verify';
 

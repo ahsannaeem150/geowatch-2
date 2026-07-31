@@ -11,7 +11,7 @@
 - **user-web** (`:5173`) — Public website: home page, interactive `/map` explorer, incident/zone detail pages, about page. Read-only plus Google sign-in for saving/bookmarking incidents.
 - **admin-web** (`:5174`) — Internal staff dashboard for creating and curating incidents, timeline updates, sources, media, and polygon zones.
 - **superadmin-web** (`:5175`) — System console for super admins (staff + public user management, audit/activity logs, taxonomy, recycle bin, system health, data export, X-archive debug).
-- **backend** (`:3000`) — Express REST API with JWT auth, PostGIS queries, SSE broadcasting, audit logging, notifications, and media upload processing.
+- **backend** (`:3100`) — Express REST API with JWT auth, PostGIS queries, SSE broadcasting, audit logging, notifications, and media upload processing.
 
 The code lives in a single npm-workspace monorepo. The database is PostgreSQL 16 with PostGIS 3. Map tiles are served by a self-hosted Martin binary reading a local `.mbtiles` file; map styles and font glyphs are self-hosted from `assets/`.
 
@@ -251,7 +251,7 @@ Besides the service launcher/stopper/status/logs helpers, `scripts/` contains Pl
 | User website | http://localhost:5173 | Public read-only + Google sign-in bookmarks |
 | Admin dashboard | http://localhost:5174 | Staff-only, protected by login |
 | Superadmin console | http://localhost:5175 | `super_admin` only |
-| Backend API | http://localhost:3000/api/v1 | Base path is `/api/v1` |
+| Backend API | http://localhost:3100/api/v1 | Base path is `/api/v1` |
 | Martin tiles | http://localhost:8080 | Self-hosted `.mbtiles` |
 
 All three frontends talk to the backend over HTTP and SSE; only the backend talks to PostgreSQL. Martin serves tiles directly to the frontends.

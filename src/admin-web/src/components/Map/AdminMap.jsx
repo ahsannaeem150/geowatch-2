@@ -64,6 +64,18 @@ function getMaxZoomForCenter(lng, lat) {
   return inside ? 22 : 10;
 }
 
+function paddingEquals(a, b) {
+  if (!a || !b) return false;
+  return a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
+}
+
+// Zone fitting guards: below this padded visible size the comfort-padded
+// cameraForBounds call is skipped in favor of the layout-padded exact fit.
+const MIN_FIT_VISIBLE_PX = 160;
+// Zoom-out bias applied when only the exact layout-padded fit is available, so
+// the zone isn't flush against the chrome.
+const ZONE_FALLBACK_ZOOM_MARGIN = 0.5;
+
 const AdminMap = forwardRef(function AdminMap({
   incidents = [],
   zones = [],
@@ -109,6 +121,7 @@ const AdminMap = forwardRef(function AdminMap({
   onEditCancel,
   showZones = true,
   autoZoomEnabled = true,
+  getMapPadding,
 }, ref) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -120,7 +133,9 @@ const AdminMap = forwardRef(function AdminMap({
   const popupTimeoutRef = useRef(null);
   const isProgrammaticMove = useRef(false);
   const isClamping = useRef(false);
-  const lastSelectionSignatureRef = useRef(null);
+  const lastSelectionFlightRef = useRef(null);
+  const fitRetryRef = useRef(false);
+  const [fitRetryTick, setFitRetryTick] = useState(0);
   const onViewportChangeRef = useRef(onViewportChange);
   const onEventClickRef = useRef(onEventClick);
   const onZoneClickRef = useRef(onZoneClick);
@@ -613,18 +628,49 @@ const AdminMap = forwardRef(function AdminMap({
       return;
     }
 
-    const { type, source, bounds, padding } = flyToCoords;
-
-    // Repeat-click guard: an identical (type, source, lng, lat) selection is
-    // ignored entirely so re-clicking the same result never re-flies.
-    const signature = selectionSignature({ type, source, lng: flyToCoords.lng, lat: flyToCoords.lat });
-    if (signature === lastSelectionSignatureRef.current) return;
-    lastSelectionSignatureRef.current = signature;
-
-    isProgrammaticMove.current = true;
-    const currentZoom = map.current.getZoom();
-    const maxZoom = getMaxZoomForCenter(flyToCoords.lng, flyToCoords.lat);
+    const { type, source, bounds } = flyToCoords;
     const mapInstance = map.current;
+
+    // Padding is measured LIVE at flight time (after the scheduleFlyTo delay
+    // and any panel/drawer transitions) so the fit always matches the chrome
+    // actually on screen. flyToCoords.padding is only a legacy fallback.
+    const padding = getMapPadding
+      ? getMapPadding()
+      : (flyToCoords.padding || { top: 0, right: 0, bottom: 0, left: 0 });
+
+    const currentZoom = mapInstance.getZoom();
+    const currentCenter = mapInstance.getCenter();
+    const maxZoom = getMaxZoomForCenter(flyToCoords.lng, flyToCoords.lat);
+
+    // Repeat-click guard: skip only when an identical (type, source, lng, lat)
+    // selection would repeat the last flight AND neither the camera nor the
+    // layout chrome has meaningfully changed since. Re-clicking after the user
+    // pans/zooms or toggles the drawer/panel re-flies and re-fits.
+    const signature = selectionSignature({ type, source, lng: flyToCoords.lng, lat: flyToCoords.lat });
+    const lastFlight = lastSelectionFlightRef.current;
+    if (lastFlight && lastFlight.signature === signature) {
+      const mapBounds = mapInstance.getBounds();
+      const viewportSpan = Math.hypot(
+        mapBounds.getEast() - mapBounds.getWest(),
+        mapBounds.getNorth() - mapBounds.getSouth()
+      );
+      const centerDrift = Math.hypot(
+        currentCenter.lng - lastFlight.center.lng,
+        currentCenter.lat - lastFlight.center.lat
+      );
+      const sameCamera =
+        Math.abs(currentZoom - lastFlight.zoom) <= 0.3 && centerDrift <= viewportSpan * 0.05;
+      if (sameCamera && paddingEquals(padding, lastFlight.padding)) return;
+    }
+
+    // MapLibre persists the previous flyTo's padding on the transform, and
+    // cameraForBounds ADDS it to the padding we pass (see
+    // _cameraForBoxAndBearing: `edgePadding = tr.padding`). After any padded
+    // flight, a second fit would double-count the chrome — producing a
+    // too-low zoom or even undefined (negative scale). Neutralize the
+    // persistent padding before measuring; the flyTo below re-applies the
+    // correct one, all within the same frame (no visible jump).
+    mapInstance.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
 
     // Compute visible area after layout padding (sidebars / panels).
     const container = mapInstance.getContainer();
@@ -637,12 +683,18 @@ const AdminMap = forwardRef(function AdminMap({
     const visibleWidth = Math.max(1, containerWidth - padLeft - padRight);
     const visibleHeight = Math.max(1, containerHeight - padTop - padBottom);
 
+    // Exact fit against the real layout padding (never unpadded).
+    const layoutPaddedCamera = (bbox) => mapInstance.cameraForBounds(bbox, { padding, maxZoom: 22 });
+
     // Helpers for fitting a polygon bounding box into the visible map area.
     const doesFitAtZoom = (bbox, zoom) => {
-      const camera = mapInstance.cameraForBounds(bbox, { padding, maxZoom: 22 });
-      return camera ? zoom >= camera.zoom : true;
+      const camera = layoutPaddedCamera(bbox);
+      // Unknown (null camera) → assume it does NOT fit so the flight isn't skipped.
+      return camera ? zoom >= camera.zoom : false;
     };
 
+    // Returns { zoom } or { deferred: true } when MapLibre can't produce a
+    // camera this frame (flaky null) — the caller retries once on the next rAF.
     const computeFittingZoom = (bbox, comfortFactor = 1.0) => {
       // Add extra padding so the zone occupies only `comfortFactor` of the
       // visible rectangle. 1.0 means an exact fit; 0.55 means 45% total margin.
@@ -654,23 +706,37 @@ const AdminMap = forwardRef(function AdminMap({
         left: padLeft + extraHoriz,
         right: padRight + extraHoriz,
       };
-      // MapLibre warns/returns null when the padded visible area is extremely
-      // small relative to a wide bbox. Skip the padded call in that case.
-      const minVisible = 300;
-      const usePadding = visibleWidth >= minVisible && visibleHeight >= minVisible;
+      const usePadding = visibleWidth >= MIN_FIT_VISIBLE_PX && visibleHeight >= MIN_FIT_VISIBLE_PX;
       let camera = usePadding
         ? mapInstance.cameraForBounds(bbox, { padding: fittedPadding, maxZoom: 22 })
         : null;
-      // Fallback: fit without padding (or retry if the padded call failed).
-      if (!camera) {
-        camera = mapInstance.cameraForBounds(bbox, { padding: 0, maxZoom: 22 });
-      }
-      return camera ? camera.zoom : currentZoom;
+      if (camera) return { zoom: camera.zoom, deferred: false };
+      // Fallback: exact fit against the layout padding (never padding: 0),
+      // biased slightly out so the zone isn't flush with the chrome.
+      camera = layoutPaddedCamera(bbox);
+      if (camera) return { zoom: camera.zoom - ZONE_FALLBACK_ZOOM_MARGIN, deferred: false };
+      return { zoom: null, deferred: true };
     };
 
     // Precompute the map-dependent inputs the shared policy needs.
     const isZone = type === 'zone' && bounds;
-    const fitZoom = isZone ? computeFittingZoom(bounds, ZONE_COMFORT_FACTOR) : undefined;
+    let fitZoom;
+    if (isZone) {
+      const fit = computeFittingZoom(bounds, ZONE_COMFORT_FACTOR);
+      if (fit.deferred) {
+        if (!fitRetryRef.current) {
+          // MapLibre returned no camera this frame — retry once on the next
+          // frame (re-runs this effect via fitRetryTick).
+          fitRetryRef.current = true;
+          requestAnimationFrame(() => setFitRetryTick((t) => t + 1));
+        } else {
+          fitRetryRef.current = false;
+        }
+        return;
+      }
+      fitRetryRef.current = false;
+      fitZoom = fit.zoom;
+    }
     const fitsAtCurrentZoom = isZone ? doesFitAtZoom(bounds, currentZoom) : false;
     let isVisibleInViewport = false;
     if (type === 'incident' && source === 'power-search') {
@@ -711,6 +777,13 @@ const AdminMap = forwardRef(function AdminMap({
     // very first selection (which also opens the right panel) smooth.
     requestAnimationFrame(() => {
       if (!map.current) return;
+      isProgrammaticMove.current = true;
+      lastSelectionFlightRef.current = {
+        signature,
+        zoom: targetZoom,
+        center: { lng: flyToCoords.lng, lat: flyToCoords.lat },
+        padding,
+      };
       map.current.flyTo({
         center: [flyToCoords.lng, flyToCoords.lat],
         zoom: targetZoom,
@@ -718,7 +791,7 @@ const AdminMap = forwardRef(function AdminMap({
         duration: decision.duration,
       });
     });
-  }, [flyToCoords]);
+  }, [flyToCoords, fitRetryTick]);
 
   // Switch map style when theme changes
   useEffect(() => {

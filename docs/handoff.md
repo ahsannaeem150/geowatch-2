@@ -365,7 +365,7 @@ event_updates (id UUID PK, event_id FK, summary, update_date,
 ./scripts/start-martin.sh
 
 # 2. Backend
-npm run dev:backend        # localhost:3000
+npm run dev:backend        # localhost:3100
 
 # 3. Admin dashboard
 npm run dev:admin-web      # localhost:5174

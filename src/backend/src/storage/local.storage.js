@@ -9,7 +9,7 @@ let UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../../../uploads'
 if (!isAbsolute(UPLOAD_DIR)) {
   UPLOAD_DIR = join(__dirname, '../../../../', UPLOAD_DIR);
 }
-const BASE_URL = process.env.API_URL || 'http://localhost:3000';
+const BASE_URL = process.env.API_URL || 'http://localhost:3100';
 
 export class LocalStorage {
   constructor() {

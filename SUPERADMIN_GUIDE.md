@@ -294,5 +294,5 @@ From the project root:
 | Superadmin Console | http://localhost:5175 | This panel |
 | Admin Dashboard | http://localhost:5174 | Create/edit incidents |
 | User Website | http://localhost:5173 | Public read-only map |
-| Backend API | http://localhost:3000 | REST API |
+| Backend API | http://localhost:3100 | REST API |
 | Martin Tiles | http://localhost:8080 | Map tile server |

@@ -10,14 +10,16 @@ const OUT = join(ROOT, 'temp_screenshots', 'smart-zoom');
 if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true });
 
 const ADMIN_BASE = 'http://localhost:5174';
-const API_BASE = 'http://localhost:3000/api/v1';
+// Overridable for runs where the default port is occupied (e.g. start the
+// backend with PORT=3101 and pass API_BASE).
+const API_BASE = process.env.API_BASE || 'http://localhost:3100/api/v1';
 const VIEWPORT = { width: 1440, height: 900 };
 
 // Test fixtures: no non-deleted zones exist in the dev DB's default today-only
-// date range, so the script creates two polygon zones via the API (tiny <2 km
-// diagonal → size cap 11; large ~2000 km → min-zoom 4 clamp) and soft-deletes
-// them at the end. Centered inside HOT_BBOX so the maxZoom clamp doesn't
-// confound the tiny-zone cap assertion.
+// date range, so the script creates polygon zones via the API (tiny <2 km
+// diagonal → size cap 11; large ~2000 km → min-zoom 4 clamp; medium ~95 km →
+// chrome-fit checks) and soft-deletes them at the end. Centered inside
+// HOT_BBOX so the maxZoom clamp doesn't confound the tiny-zone cap assertion.
 function squareRing(cx, cy, half) {
   return [
     [cx - half, cy - half],
@@ -41,6 +43,16 @@ const LARGE_ZONE_BODY = {
   severity: 2,
   startDate: new Date().toISOString(),
 };
+const MEDIUM_ZONE_BODY = {
+  title: 'SmartZoom Test Fit Zone',
+  geometryType: 'polygon',
+  geometry: { type: 'Polygon', coordinates: [squareRing(67.7, 31.2, 0.5)] }, // ~95 km diag
+  severity: 2,
+  startDate: new Date().toISOString(),
+};
+// Medium zone geometry constants for map-click + rect assertions.
+const MED_CENTER = [67.7, 31.2];
+const MED_BBOX = { minLng: 67.2, minLat: 30.7, maxLng: 68.2, maxLat: 31.7 };
 
 const ZOOM_TOL = 0.3;
 
@@ -120,10 +132,14 @@ async function main() {
   const largeZoneData = (await apiFetch(token, '/incidents', {
     method: 'POST', body: JSON.stringify(LARGE_ZONE_BODY),
   })).incident;
+  const mediumZoneData = (await apiFetch(token, '/incidents', {
+    method: 'POST', body: JSON.stringify(MEDIUM_ZONE_BODY),
+  })).incident;
   const TINY_ZONE_ID = tinyZoneData.id;
   const LARGE_ZONE_ID = largeZoneData.id;
-  check('zone fixtures created via API', !!(TINY_ZONE_ID && LARGE_ZONE_ID),
-    `tiny=${TINY_ZONE_ID} large=${LARGE_ZONE_ID}`);
+  const MEDIUM_ZONE_ID = mediumZoneData.id;
+  check('zone fixtures created via API', !!(TINY_ZONE_ID && LARGE_ZONE_ID && MEDIUM_ZONE_ID),
+    `tiny=${TINY_ZONE_ID} large=${LARGE_ZONE_ID} medium=${MEDIUM_ZONE_ID}`);
   const largeBbox = zoneBbox(LARGE_ZONE_BODY.geometry);
 
   const browser = await chromium.launch();
@@ -159,7 +175,7 @@ async function main() {
     [zoom, center]
   );
 
-  // ─── 1. z3 + drawer incident → zoom ≈ 7 ───
+  // ─── 1. z3 + drawer incident → zoom ≈ 6 (user-tuned floor) ───
   await jumpTo(3, [parseFloat(incA.longitude), parseFloat(incA.latitude)]);
   await page.waitForTimeout(400);
   await page.click('button[title="Incidents"]');
@@ -177,7 +193,7 @@ async function main() {
   await drawerCards.nth(0).click();
   await page.waitForTimeout(2500);
   let zoom = await getZoom();
-  check('z3 + drawer incident → zoom ≈ 7', Math.abs(zoom - 7) <= ZOOM_TOL, `zoom=${zoom.toFixed(2)}`);
+  check('z3 + drawer incident → zoom ≈ 6', Math.abs(zoom - 6) <= ZOOM_TOL, `zoom=${zoom.toFixed(2)}`);
 
   // ─── 2. z9 + another drawer incident → zoom stays ≈ 9 ───
   await jumpTo(9);
@@ -233,7 +249,7 @@ async function main() {
     await railCards.nth(3).click();
     await page.waitForTimeout(1800);
     zoom = await getZoom();
-    check('z4 + power-search result → zoom ≈ 7 (floor)', Math.abs(zoom - 7) <= ZOOM_TOL, `zoom=${zoom.toFixed(2)}`);
+    check('z4 + power-search result → zoom ≈ 6 (floor)', Math.abs(zoom - 6) <= ZOOM_TOL, `zoom=${zoom.toFixed(2)}`);
   }
   await page.keyboard.press('Escape'); // close power search
   await page.waitForTimeout(600);
@@ -295,6 +311,159 @@ async function main() {
   }
   await page.screenshot({ path: join(OUT, 'final-state.png') });
 
+  // ─── Zone-fit chrome checks (medium ~95 km zone) ───
+  // Each group starts from a FRESH page load so no stale flight/popup/camera
+  // state can poison the projected click point (diagnosed: after a marker
+  // flight, projections landed on drawer cards and the click selected a drawer
+  // incident instead of the zone).
+  const freshMapPage = async (pg) => {
+    await pg.goto(`${ADMIN_BASE}/`, { waitUntil: 'domcontentloaded' });
+    await pg.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
+    await pg.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+    await pg.waitForTimeout(3000);
+  };
+  // Click the zone fill at a marker-free NW offset; verify the click point is
+  // actually on the map canvas (not a drawer card / panel) before clicking.
+  const clickZoneFill = async (pg) => {
+    const pt = await pg.evaluate(([cx, cy]) => {
+      const p = window.__geowatchAdminMap.project([cx, cy]);
+      const canvas = window.__geowatchAdminMap.getCanvas().getBoundingClientRect();
+      return { x: canvas.x + p.x, y: canvas.y + p.y };
+    }, [MED_CENTER[0] - 0.25, MED_CENTER[1] + 0.25]);
+    const target = await pg.evaluate(([x, y]) => {
+      const el = document.elementFromPoint(x, y);
+      return { isCanvas: !!el && el.tagName === 'CANVAS', tag: el?.tagName, text: (el?.textContent || '').slice(0, 30) };
+    }, [pt.x, pt.y]);
+    if (!target.isCanvas) {
+      return { clicked: false, reason: `click point covered by ${target.tag} "${target.text}"` };
+    }
+    await pg.mouse.click(pt.x, pt.y);
+    return { clicked: true };
+  };
+  const zoneRect = (pg) => pg.evaluate((bb) => {
+    const m = window.__geowatchAdminMap;
+    const sw = m.project([bb.minLng, bb.minLat]);
+    const ne = m.project([bb.maxLng, bb.maxLat]);
+    const canvas = m.getCanvas().getBoundingClientRect();
+    return {
+      x0: canvas.x + sw.x, y0: canvas.y + ne.y, x1: canvas.x + ne.x, y1: canvas.y + sw.y,
+      canvasX: canvas.x, canvasY: canvas.y, canvasW: canvas.width, canvasH: canvas.height,
+      zoom: m.getZoom(),
+    };
+  }, MED_BBOX);
+  const RECT_TOL = 8;
+  const rectInside = (r, left, top, right, bottom) =>
+    r.x0 >= left - RECT_TOL && r.x1 <= right + RECT_TOL && r.y0 >= top - RECT_TOL && r.y1 <= bottom + RECT_TOL;
+
+  // ─── 8. 1440: drawer OPEN + zone map click → fits inside padded rect ───
+  await freshMapPage(page);
+  await jumpTo(7, MED_CENTER);
+  await page.waitForTimeout(500);
+  await page.click('button[title="Incidents"]');
+  await page.waitForSelector('text=Incidents in Viewport', { timeout: 5000 });
+  await page.waitForTimeout(600);
+  const clickRes8 = await clickZoneFill(page);
+  await page.waitForTimeout(2500);
+  const urlHasZone8 = page.url().includes('zone=');
+  let rect = await zoneRect(page);
+  {
+    const left = rect.canvasX + 360;
+    const right = rect.canvasX + rect.canvasW - 630;
+    const ok = clickRes8.clicked && urlHasZone8 &&
+      rectInside(rect, left, rect.canvasY, right, rect.canvasY + rect.canvasH) && rect.zoom <= 14.3;
+    check('1440 drawer OPEN + zone click → fits inside drawer/panel-padded rect', ok,
+      `clicked=${clickRes8.clicked}${clickRes8.reason ? ` (${clickRes8.reason})` : ''} urlZone=${urlHasZone8} zoom=${rect.zoom.toFixed(2)} zone x[${Math.round(rect.x0)},${Math.round(rect.x1)}] y[${Math.round(rect.y0)},${Math.round(rect.y1)}] visible x[${Math.round(left)},${Math.round(right)}]`);
+  }
+  await page.screenshot({ path: join(OUT, 'zone-fit-drawer-open-1440.png') });
+
+  // ─── 9. Power Search + zone result → fits inside PS rails + topbar/chips rect ───
+  await freshMapPage(page);
+  await page.click('button[title="Open advanced search page"]');
+  await page.waitForSelector('input[placeholder="Search incidents…"]', { timeout: 8000 });
+  await page.fill('input[placeholder="Search incidents…"]', 'SmartZoom Test Fit Zone');
+  await page.waitForTimeout(1800);
+  const psZoneRail = page.locator('button[title="Hide results"]').locator('xpath=../../..');
+  const psZoneCards = psZoneRail.locator('div[style*="overflow-y: auto"] div[style*="cursor: pointer"]');
+  const psZoneCount = await psZoneCards.count();
+  await jumpTo(7, MED_CENTER);
+  await page.waitForTimeout(500);
+  if (psZoneCount > 0) await psZoneCards.nth(0).click();
+  await page.waitForTimeout(2500);
+  const psPanelTitle = await page.locator('.dashboard-right-panel h1, .dashboard-right-panel h2').first().textContent().catch(() => '');
+  rect = await zoneRect(page);
+  {
+    const ok = psZoneCount > 0 && (psPanelTitle || '').includes('SmartZoom Test Fit Zone') &&
+      rectInside(rect, 560, 90, 1440 - 630, 900) && rect.zoom <= 14.3;
+    check('power search + zone result → fits inside rails/topbar/panel-padded rect', ok,
+      `cards=${psZoneCount} panel="${(psPanelTitle || '').trim().slice(0, 30)}" zoom=${rect.zoom.toFixed(2)} zone x[${Math.round(rect.x0)},${Math.round(rect.x1)}] y[${Math.round(rect.y0)},${Math.round(rect.y1)}] visible x[560,810] y[90,900]`);
+  }
+  await page.screenshot({ path: join(OUT, 'zone-fit-power-search.png') });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+
+  // ─── 10/11. 1280×800 page: drawer-open fit + re-click re-fit after drawer close ───
+  const page2 = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  page2.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      consoleErrors.push(msg.text());
+      console.log('[console error]', msg.text());
+    }
+  });
+  page2.on('pageerror', (err) => {
+    consoleErrors.push(`pageerror: ${err.message}`);
+    console.error('[page error]', err.message);
+  });
+  await page2.addInitScript((t) => localStorage.setItem('geowatch_token', t), token);
+  await freshMapPage(page2);
+  await page2.evaluate(() => {
+    const m = window.__geowatchAdminMap;
+    window.__flyCount = 0;
+    const ofly = m.flyTo.bind(m);
+    m.flyTo = (opts) => { window.__flyCount += 1; return ofly(opts); };
+  });
+  await page2.evaluate(([z, c]) => window.__geowatchAdminMap.jumpTo({ zoom: z, center: c }), [7, MED_CENTER]);
+  await page2.waitForTimeout(500);
+  await page2.click('button[title="Incidents"]');
+  await page2.waitForSelector('text=Incidents in Viewport', { timeout: 5000 });
+  await page2.waitForTimeout(600);
+  const clickRes10 = await clickZoneFill(page2);
+  await page2.waitForTimeout(2500);
+  const urlHasZone10 = page2.url().includes('zone=');
+  rect = await zoneRect(page2);
+  const zoom1280a = rect.zoom;
+  {
+    const ok = clickRes10.clicked && urlHasZone10 &&
+      rectInside(rect, 64 + 360, rect.canvasY, 1280 - 630, rect.canvasY + rect.canvasH) && rect.zoom <= 14.3;
+    check('1280 drawer OPEN + zone click → fits inside padded rect (unpadded fallback fixed)', ok,
+      `clicked=${clickRes10.clicked} urlZone=${urlHasZone10} zoom=${rect.zoom.toFixed(2)} zone x[${Math.round(rect.x0)},${Math.round(rect.x1)}] visible x[424,650]`);
+  }
+  await page2.screenshot({ path: join(OUT, 'zone-fit-drawer-open-1280.png') });
+
+  // Close the drawer and re-click the SAME zone → a NEW flight must happen
+  // (repeat guard sees the padding changed) and the zone re-fits bigger.
+  // Click the NW-quadrant point of the RENDERED zone rect (guaranteed on the
+  // fill after the fit made it small), verifying it lands on the canvas.
+  await page2.click('button[title="Incidents"]');
+  await page2.waitForTimeout(600);
+  await page2.evaluate(() => { window.__flyCount = 0; });
+  const reClickPt = { x: rect.x0 + (rect.x1 - rect.x0) * 0.3, y: rect.y0 + (rect.y1 - rect.y0) * 0.3 };
+  const reTarget = await page2.evaluate(([x, y]) => {
+    const el = document.elementFromPoint(x, y);
+    return { isCanvas: !!el && el.tagName === 'CANVAS', tag: el?.tagName, text: (el?.textContent || '').slice(0, 30) };
+  }, [reClickPt.x, reClickPt.y]);
+  if (reTarget.isCanvas) await page2.mouse.click(reClickPt.x, reClickPt.y);
+  await page2.waitForTimeout(2200);
+  const flyCount = await page2.evaluate(() => window.__flyCount);
+  rect = await zoneRect(page2);
+  {
+    const refit = reTarget.isCanvas && flyCount >= 1 && rect.zoom > zoom1280a + 0.5;
+    const inside = rectInside(rect, 64, rect.canvasY, 1280 - 630, rect.canvasY + rect.canvasH);
+    check('drawer closed + re-click SAME zone → new flight + re-fit to new chrome', refit && inside,
+      `canvas=${reTarget.isCanvas}${reTarget.isCanvas ? '' : ` (${reTarget.tag} "${reTarget.text}")`} flights=${flyCount} zoom ${zoom1280a.toFixed(2)}→${rect.zoom.toFixed(2)} zone x[${Math.round(rect.x0)},${Math.round(rect.x1)}] visible x[64,650]`);
+  }
+  await page2.screenshot({ path: join(OUT, 'zone-fit-refit-1280.png') });
+  await page2.close();
+
   // ─── Summary ───
   console.log('\n================ SUMMARY ================');
   const failed = results.filter((r) => !r.ok);
@@ -307,7 +476,7 @@ async function main() {
   }
 
   // ─── Cleanup: soft-delete the zone fixtures ───
-  for (const id of [TINY_ZONE_ID, LARGE_ZONE_ID]) {
+  for (const id of [TINY_ZONE_ID, LARGE_ZONE_ID, MEDIUM_ZONE_ID]) {
     try {
       await apiFetch(token, `/incidents/${id}`, { method: 'DELETE' });
       console.log(`Cleaned up zone fixture ${id}`);

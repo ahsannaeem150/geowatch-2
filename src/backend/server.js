@@ -33,7 +33,7 @@ import { authenticate } from './src/middleware/auth.middleware.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '3100', 10);
 
 // ─── CORS ───
 const allowedOrigins = [

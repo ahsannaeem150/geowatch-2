@@ -1,7 +1,7 @@
 # GeoWatch API Specification
 
 ## Base URL
-- Development: http://localhost:3000/api/v1
+- Development: http://localhost:3100/api/v1
 - Production: https://api.geowatch.app/api/v1
 
 ## Response Format

@@ -23,7 +23,7 @@ is_running() {
 service_url() {
   case "$1" in
     martin) echo "http://localhost:8080" ;;
-    backend) echo "http://localhost:3000/api/v1/system/health" ;;
+    backend) echo "http://localhost:3100/api/v1/system/health" ;;
     admin-web) echo "http://localhost:5174" ;;
     user-web) echo "http://localhost:5173" ;;
     superadmin-web) echo "http://localhost:5175" ;;
