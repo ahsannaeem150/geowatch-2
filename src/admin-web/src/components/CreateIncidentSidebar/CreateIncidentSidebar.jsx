@@ -305,7 +305,7 @@ function SourceListItem({ item, onEdit, onDelete }) {
   );
 }
 
-export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCancel, onCollapse }) {
+export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCancel, onCollapse, onCoordsChange }) {
   const { categories, domains, loading: catsLoading } = useCategories();
   const [submitting, setSubmitting] = useState(false);
 
@@ -442,9 +442,29 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
     [sources]
   );
 
+  const coordsValid =
+    latitude.trim() !== '' && longitude.trim() !== '' &&
+    Number.isFinite(parseFloat(latitude)) && Number.isFinite(parseFloat(longitude));
+
+  // Two-way sync: valid typed coords move/drop the map marker.
+  const handleLatChange = (e) => {
+    const v = e.target.value;
+    setLatitude(v);
+    const la = parseFloat(v);
+    const lo = parseFloat(longitude);
+    if (Number.isFinite(la) && Number.isFinite(lo)) onCoordsChange?.(la, lo);
+  };
+  const handleLngChange = (e) => {
+    const v = e.target.value;
+    setLongitude(v);
+    const la = parseFloat(latitude);
+    const lo = parseFloat(v);
+    if (Number.isFinite(la) && Number.isFinite(lo)) onCoordsChange?.(la, lo);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !categoryId || !domainId) return;
+    if (!title.trim() || !categoryId || !domainId || !coordsValid) return;
 
     setSubmitting(true);
     try {
@@ -596,7 +616,7 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
                 type="number"
                 step="any"
                 value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
+                onChange={handleLatChange}
                 required
                 disabled={submitting}
                 placeholder="Latitude"
@@ -609,7 +629,7 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
                 type="number"
                 step="any"
                 value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
+                onChange={handleLngChange}
                 required
                 disabled={submitting}
                 placeholder="Longitude"
@@ -618,6 +638,11 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
               />
             </Field>
           </div>
+          {!coordsValid && (
+            <p style={{ margin: '0 0 12px', fontSize: 11, color: 'var(--warning)', lineHeight: 1.4 }}>
+              Place the marker on the map or enter coordinates
+            </p>
+          )}
           <Field label="Location context">
             <Input
               value={locationContext}
@@ -865,7 +890,7 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
             paddingBottom: 30,
           }}
         >
-          <button type="submit" className="id-btn-primary" style={{ flex: 1 }} disabled={submitting}>
+          <button type="submit" className="id-btn-primary" style={{ flex: 1 }} disabled={submitting || !coordsValid}>
             {submitting ? 'Creating…' : 'Create incident'}
           </button>
           <button

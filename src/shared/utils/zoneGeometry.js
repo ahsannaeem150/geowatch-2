@@ -212,3 +212,39 @@ export function buildZoneScreenPath(mapInstance, geometry) {
   });
   return `M ${points.map((p) => p.join(' ')).join(' L ')} Z`;
 }
+
+/**
+ * Great-circle distance in meters between two [lng, lat] points (haversine).
+ */
+export function haversineMeters([lng1, lat1], [lng2, lat2]) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Approximate a circle on the sphere as a polygon ring of `points` vertices
+ * around [centerLng, centerLat] at `radiusMeters`. Returns the vertices in the
+ * draw-flow convention: `points` unique [lng, lat] pairs, NOT closed (append
+ * ring[0] to build a GeoJSON ring). Default 64 points.
+ */
+export function circleRing(centerLng, centerLat, radiusMeters, points = 64) {
+  const R = 6371000;
+  const latRad = (centerLat * Math.PI) / 180;
+  const ring = [];
+  for (let i = 0; i < points; i++) {
+    const bearing = (i / points) * 2 * Math.PI;
+    const dLat = (radiusMeters * Math.cos(bearing)) / R;
+    const dLng = (radiusMeters * Math.sin(bearing)) / (R * Math.cos(latRad));
+    ring.push([
+      centerLng + (dLng * 180) / Math.PI,
+      centerLat + (dLat * 180) / Math.PI,
+    ]);
+  }
+  return ring;
+}

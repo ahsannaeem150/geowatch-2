@@ -34,6 +34,7 @@ import GhostIncidentBanner from '@shared/components/GhostIncidentBanner.jsx';
 import { computeMapPadding, computeOuterContainerPadding } from '../../utils/mapPadding.js';
 
 import { reverseGeocode } from '../../utils/reverseGeocode.js';
+import { estimatePolygonAreaSqM, formatArea } from '@shared/utils/zoneGeometry.js';
 import { api, mapIncidentForShared } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 
@@ -360,6 +361,7 @@ export default function DashboardLayout() {
       drawHistoryRef.current.shift();
       historyIndexRef.current -= 1;
     }
+    setDrawHistState({ canUndo: historyIndexRef.current > 0, canRedo: false });
   }, []);
 
   const handleDrawUndo = useCallback(() => {
@@ -369,6 +371,10 @@ export default function DashboardLayout() {
     setDrawVertices(prev.vertices.map((v) => [...v]));
     setIsPolygonClosed(prev.isClosed);
     setSelectedDrawVertexIndex(null);
+    setDrawHistState({
+      canUndo: historyIndexRef.current > 0,
+      canRedo: historyIndexRef.current < drawHistoryRef.current.length - 1,
+    });
   }, []);
 
   const handleDrawRedo = useCallback(() => {
@@ -378,6 +384,95 @@ export default function DashboardLayout() {
     setDrawVertices(next.vertices.map((v) => [...v]));
     setIsPolygonClosed(next.isClosed);
     setSelectedDrawVertexIndex(null);
+    setDrawHistState({
+      canUndo: historyIndexRef.current > 0,
+      canRedo: historyIndexRef.current < drawHistoryRef.current.length - 1,
+    });
+  }, []);
+
+  // ─── Draw tool state (Pan / Polygon / Circle) ───
+  const [drawTool, setDrawTool] = useState('polygon');
+  const [drawHistState, setDrawHistState] = useState({ canUndo: false, canRedo: false });
+
+  const handleCircleComplete = useCallback(({ radiusMeters, vertices }) => {
+    if (!vertices || radiusMeters < 50) {
+      setToast({ message: 'Circle too small — drag a radius of at least 50 m.', type: 'error' });
+      return;
+    }
+    // Circle becomes a closed 64-vertex polygon; one undo step removes it.
+    setDrawVertices(vertices);
+    setIsPolygonClosed(true);
+    setSelectedDrawVertexIndex(null);
+    pushToHistory(vertices, true);
+  }, [pushToHistory]);
+
+  const handleDrawFinish = useCallback(() => {
+    if (isPolygonClosedRef.current) return;
+    if (drawVerticesRef.current.length >= 3) {
+      setIsPolygonClosed(true);
+      setSelectedDrawVertexIndex(null);
+      pushToHistory(drawVerticesRef.current, true);
+    }
+  }, [pushToHistory]);
+
+  const handleDrawSave = useCallback(() => {
+    if (!isPolygonClosedRef.current && drawVerticesRef.current.length >= 3) {
+      setIsPolygonClosed(true);
+      pushToHistory(drawVerticesRef.current, true);
+    }
+    exitFocusMode();
+    setShowZoneCreatePanel(true);
+    setRightPanelCollapsed(false);
+  }, [pushToHistory, exitFocusMode]);
+
+  // ─── Incident placement mode ───
+  // Armed while the create form is open without coords; dismissed by Esc
+  // (marker + typed coords stay). Edit mode only gets the draggable marker.
+  const placementMode = panelMode === 'form' && !isEditing;
+  const [placementDismissed, setPlacementDismissed] = useState(false);
+  const placementActive = placementMode && !placementDismissed;
+  useEffect(() => {
+    setPlacementDismissed(false);
+  }, [panelMode, isEditing, selectedIncident?.id]);
+
+  useEffect(() => {
+    if (!placementMode) return;
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (placementDismissed) {
+        handleClosePanel();
+      } else {
+        setPlacementDismissed(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placementMode, placementDismissed]);
+
+  const handlePlacementClick = useCallback(({ lat, lng }) => {
+    setMarkerCoords((prev) => ({ lat, lng, locationContext: prev?.locationContext }));
+    reverseGeocode(lat, lng).then((locationContext) => {
+      setMarkerCoords((prev) => (prev ? { ...prev, locationContext: locationContext || prev.locationContext || null } : prev));
+    });
+  }, []);
+
+  const handleMarkerDragEnd = useCallback(({ lat, lng }) => {
+    setMarkerCoords((prev) => ({ lat, lng, locationContext: prev?.locationContext }));
+  }, []);
+
+  // Form fields → map: typing valid coords moves/drops the marker, easing the
+  // map to it when it falls outside the current view.
+  const handleFormCoordsChange = useCallback((lat, lng) => {
+    const m = mapRef.current?.getMap?.();
+    if (m) {
+      const b = m.getBounds();
+      const visible = lng >= b.getWest() && lng <= b.getEast() && lat >= b.getSouth() && lat <= b.getNorth();
+      if (!visible) m.easeTo({ center: [lng, lat], duration: 600 });
+    }
+    setMarkerCoords((prev) => ({ lat, lng, locationContext: prev?.locationContext }));
   }, []);
 
   // ─── Edit Mode Undo History ───
@@ -661,6 +756,13 @@ export default function DashboardLayout() {
     () => filteredIncidents.filter((i) => i.geometry_type !== 'polygon'),
     [filteredIncidents]
   );
+
+  // Live area readout for the drawing toolbar.
+  const polygonAreaText = useMemo(() => {
+    if (drawVertices.length < 3) return null;
+    const area = estimatePolygonAreaSqM(drawVertices);
+    return area != null ? formatArea(area) : null;
+  }, [drawVertices]);
 
   // Fetch incidents: date-based with smart viewport only
   useEffect(() => {
@@ -1384,8 +1486,10 @@ export default function DashboardLayout() {
       setIsPolygonClosed(false);
       setShowZoneCreatePanel(false);
       setSelectedDrawVertexIndex(null);
+      setDrawTool('polygon');
       drawHistoryRef.current = [{ vertices: [], isClosed: false }];
       historyIndexRef.current = 0;
+      setDrawHistState({ canUndo: false, canRedo: false });
       // Clear editing state when entering drawing mode
       setEditingZoneId(null);
       setEditingZoneVertices([]);
@@ -1422,8 +1526,10 @@ export default function DashboardLayout() {
     setShowZoneCreatePanel(false);
     setSelectedDrawVertexIndex(null);
     setDrawContextMenu(null);
+    setDrawTool('polygon');
     drawHistoryRef.current = [{ vertices: [], isClosed: false }];
     historyIndexRef.current = 0;
+    setDrawHistState({ canUndo: false, canRedo: false });
   }, []);
 
   const handleDrawVertexSelect = useCallback((index) => {
@@ -2064,6 +2170,8 @@ export default function DashboardLayout() {
 
   const handleAddIncident = () => {
     exitFocusMode();
+    // Placement mode and zone drawing are mutually exclusive — cancel any draw.
+    if (mapMode === 'polygon') handleDrawCancel();
     setMarkerCoords(null);
     setSelectedIncident(null);
     setIsEditing(false);
@@ -2089,9 +2197,11 @@ export default function DashboardLayout() {
     setIsPolygonClosed(false);
     setShowZoneCreatePanel(false);
     setSelectedDrawVertexIndex(null);
+    setDrawTool('polygon');
     // Reset drawing history
     drawHistoryRef.current = [{ vertices: [], isClosed: false }];
     historyIndexRef.current = 0;
+    setDrawHistState({ canUndo: false, canRedo: false });
     // Clear any selected incident/zone from URL
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -2122,6 +2232,15 @@ export default function DashboardLayout() {
   }, []);
 
   const handleEditFromDetail = (incident) => {
+    // Edit-mode parity: show the incident's marker (draggable, two-way synced
+    // with the form's lat/lng fields).
+    if (incident && incident.geometry_type !== 'polygon') {
+      const lat = parseFloat(incident.latitude);
+      const lng = parseFloat(incident.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        setMarkerCoords({ lat, lng, locationContext: incident.location_context || null });
+      }
+    }
     setIsEditing(true);
     setPanelMode('form');
   };
@@ -2743,6 +2862,7 @@ export default function DashboardLayout() {
             onCancel={handleClosePanel}
             submitting={submitting}
             onCollapse={toggleRightPanel}
+            onCoordsChange={handleFormCoordsChange}
           />
         );
       }
@@ -2752,6 +2872,7 @@ export default function DashboardLayout() {
           onSuccess={finishCreateIncident}
           onCancel={handleClosePanel}
           onCollapse={toggleRightPanel}
+          onCoordsChange={handleFormCoordsChange}
         />
       );
     }
@@ -2991,6 +3112,14 @@ export default function DashboardLayout() {
             onEditCancel={handleZoneEditCancel}
             autoZoomEnabled={autoZoomEnabled}
             getMapPadding={getCurrentMapPadding}
+            placementMode={placementActive}
+            markerDraggable={placementMode}
+            onPlacementClick={handlePlacementClick}
+            onMarkerDragEnd={handleMarkerDragEnd}
+            drawTool={drawTool}
+            onDrawToolChange={setDrawTool}
+            onCircleComplete={handleCircleComplete}
+            onDrawFinish={handleDrawFinish}
           />
 
           {editingZoneId && (
@@ -3064,14 +3193,45 @@ export default function DashboardLayout() {
 
           {mapMode === 'polygon' && !editingZoneId && (
             <DrawingToolbar
-              hasClosedPolygon={isPolygonClosed}
-              onSave={() => {
-                exitFocusMode();
-                setShowZoneCreatePanel(true);
-                setRightPanelCollapsed(false);
-              }}
+              tool={drawTool}
+              onToolChange={setDrawTool}
+              canUndo={drawHistState.canUndo}
+              canRedo={drawHistState.canRedo}
+              onUndo={handleDrawUndo}
+              onRedo={handleDrawRedo}
               onCancel={handleDrawCancel}
+              onSave={handleDrawSave}
+              vertexCount={drawVertices.length}
+              areaText={polygonAreaText}
+              isClosed={isPolygonClosed}
             />
+          )}
+
+          {/* Incident placement hint chip */}
+          {placementActive && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '12px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 20,
+                padding: '8px 14px',
+                background: 'var(--bg-surface)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                boxShadow: 'var(--shadow-md)',
+                pointerEvents: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {markerCoords
+                ? 'Drag to adjust, or click elsewhere to move • Esc to cancel'
+                : 'Click on the map to place the incident • Esc to cancel'}
+            </div>
           )}
 
           {drawContextMenu && (

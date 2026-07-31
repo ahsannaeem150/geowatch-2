@@ -12383,3 +12383,8 @@ feat: read-only public table directories ported from admin — TableUI copied to
 ## 📅 2026-07-31 — Module: superadmin-web — Directory pages port + topbar rework
 
 feat: port admin directory batch to superadmin-web — TableUI (TableDropdown/TableDateFilter/table-ui.css + local spin/shimmer keyframes), /superadmin/zones + /superadmin/incidents pages (bare routes, superadmin api style, map deep links), zoneCategoryIds[] serialization in api.js. Topbar gains Incidents/Zones buttons + slim mode (<1860px; full trims so 1861–1920 fits), Compact toggle moved to Settings drawer. Build green; verify-superadmin-workspace 13/13; topbar fit 1280/1861/1920 ✓; API paths curl-verified (domain slug join fix was already on disk — restarted stale backend).
+
+
+## 📅 2026-07-31 — Module: admin-web/shared — Incident placement mode + drawing toolbar 2.0 with circle zones
+
+feat: Add Incident now arms a map placement mode — crosshair, hover preview marker, click-to-place/move, draggable marker, two-way sync with the form's lat/lng fields (typed coords move the marker + ease into view), Esc disarm, cancel cleanup, location-required validation, and edit-form parity (draggable marker). Drawing toolbar upgraded to segmented Pan(V)/Polygon(P)/Circle(C) tools with undo/redo buttons, shortcut hint line, live vertex-count + area readout (shared estimatePolygonAreaSqM/formatArea), Enter-to-finish; new circle tool (click center → drag/click to finish, live radius label, 64-pt ring via shared circleRing in zoneGeometry.js) that continues as a normal polygon zone. Also fixed a latent crash: Esc in draw mode referenced an undefined onDrawCancelRef. Verified 13/13 in new scripts/verify-draw-tools.mjs + 20/20 smart-zoom regression.

@@ -12,6 +12,7 @@ export default function IncidentForm({
   onCancel,
   submitting,
   onCollapse,
+  onCoordsChange,
 }) {
   const isEdit = !!initialData;
   const { categories, domains, loading: catsLoading, getCategoryById, getCategoriesByDomain } = useCategories();
@@ -105,8 +106,29 @@ export default function IncidentForm({
     setSources(sources.filter((_, i) => i !== index));
   };
 
+  const coordsValid =
+    latitude.trim() !== '' && longitude.trim() !== '' &&
+    Number.isFinite(parseFloat(latitude)) && Number.isFinite(parseFloat(longitude));
+
+  // Two-way sync: valid typed coords move/drop the map marker.
+  const handleLatChange = (e) => {
+    const v = e.target.value;
+    setLatitude(v);
+    const la = parseFloat(v);
+    const lo = parseFloat(longitude);
+    if (Number.isFinite(la) && Number.isFinite(lo)) onCoordsChange?.(la, lo);
+  };
+  const handleLngChange = (e) => {
+    const v = e.target.value;
+    setLongitude(v);
+    const la = parseFloat(latitude);
+    const lo = parseFloat(v);
+    if (Number.isFinite(la) && Number.isFinite(lo)) onCoordsChange?.(la, lo);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!coordsValid) return;
     const payload = {
       title,
       description: description || undefined,
@@ -229,7 +251,7 @@ export default function IncidentForm({
             type="number"
             step="any"
             value={latitude}
-            onChange={(e) => setLatitude(e.target.value)}
+            onChange={handleLatChange}
             required
             style={inputBase}
             placeholder="Latitude"
@@ -240,7 +262,7 @@ export default function IncidentForm({
             type="number"
             step="any"
             value={longitude}
-            onChange={(e) => setLongitude(e.target.value)}
+            onChange={handleLngChange}
             required
             style={inputBase}
             placeholder="Longitude"
@@ -248,6 +270,11 @@ export default function IncidentForm({
             onBlur={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
           />
         </div>
+        {!coordsValid && (
+          <p style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--warning)', marginTop: 'calc(6px * var(--admin-ui-scale))' }}>
+            Place the marker on the map or enter coordinates
+          </p>
+        )}
         {/* Location context badge */}
         <div
           style={{
@@ -286,7 +313,7 @@ export default function IncidentForm({
           )}
         </div>
         <p style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-muted)', marginTop: 'calc(6px * var(--admin-ui-scale))' }}>
-          Double-click the map to auto-fill coordinates
+          Click the map to place, or drag the marker to adjust
         </p>
       </div>
 
@@ -449,7 +476,7 @@ export default function IncidentForm({
       )}
 
       <div style={{ display: 'flex', gap: 'calc(10px * var(--admin-ui-scale))', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>
-        <Button type="submit" variant="primary" disabled={submitting || catsLoading}>
+        <Button type="submit" variant="primary" disabled={submitting || catsLoading || !coordsValid}>
           {submitting ? 'Saving...' : isEdit ? 'Update Incident' : 'Create Incident'}
         </Button>
         {onCancel && (
