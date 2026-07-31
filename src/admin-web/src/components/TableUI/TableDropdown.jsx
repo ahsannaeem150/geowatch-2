@@ -8,22 +8,37 @@ import './table-ui.css';
  * (arrows/Home/End/Enter/Escape/Tab), closes on outside click,
  * check mark on the active item. Options may carry a `color` dot.
  *
- * Props:
- *   value    — current option value
- *   options  — [{ value, label, color? }]
- *   onChange — called with the picked option's value
- *   icon     — optional leading icon node for the trigger
- *   title    — tooltip / accessible name fallback
- *   align    — panel alignment: 'left' (default) | 'right'
+ * Single-select (default):
+ *   value, options [{ value, label, color? }], onChange(value),
+ *   icon?, title?, align 'left' | 'right'
+ *
+ * Multi-select (`multi`):
+ *   label        — static trigger label (e.g. "Domains")
+ *   values       — array of active option values
+ *   onChange     — called with the next values array (toggle-any)
+ *   allLabel     — reset-row label (default "All"), clears the selection
+ *   The panel stays open while toggling; active count shows as a badge.
  */
-export default function TableDropdown({ value, options, onChange, icon = null, title, align = 'left' }) {
+export default function TableDropdown({
+  value,
+  values,
+  options,
+  onChange,
+  icon = null,
+  label,
+  allLabel = 'All',
+  title,
+  align = 'left',
+  multi = false,
+}) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const containerRef = useRef(null);
   const panelRef = useRef(null);
   const triggerRef = useRef(null);
 
-  const activeIndex = options.findIndex((o) => String(o.value) === String(value));
+  const activeValues = multi ? (values || []).map(String) : [];
+  const activeIndex = multi ? -1 : options.findIndex((o) => String(o.value) === String(value));
   const active = activeIndex >= 0 ? options[activeIndex] : null;
 
   // Close on outside click
@@ -56,6 +71,18 @@ export default function TableDropdown({ value, options, onChange, icon = null, t
     triggerRef.current?.focus();
   };
 
+  const toggleValue = (opt) => {
+    const v = String(opt.value);
+    const next = activeValues.includes(v)
+      ? activeValues.filter((x) => x !== v)
+      : [...activeValues, v];
+    onChange?.(next);
+  };
+
+  const resetMulti = () => {
+    onChange?.([]);
+  };
+
   const onKeyDown = (e) => {
     if (!open) {
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
@@ -83,7 +110,10 @@ export default function TableDropdown({ value, options, onChange, icon = null, t
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       const opt = options[highlight];
-      if (opt) select(opt);
+      if (opt) {
+        if (multi) toggleValue(opt);
+        else select(opt);
+      }
     } else if (e.key === 'Tab') {
       setOpen(false);
     }
@@ -101,8 +131,17 @@ export default function TableDropdown({ value, options, onChange, icon = null, t
         title={title}
       >
         {icon}
-        {active?.color && <span className="tui-dd-dot" style={{ background: active.color }} />}
-        <span className="tui-dd-label">{active?.label ?? 'Select…'}</span>
+        {multi ? (
+          <>
+            <span className="tui-dd-label">{label}</span>
+            {activeValues.length > 0 && <span className="tui-dd-count">{activeValues.length}</span>}
+          </>
+        ) : (
+          <>
+            {active?.color && <span className="tui-dd-dot" style={{ background: active.color }} />}
+            <span className="tui-dd-label">{active?.label ?? 'Select…'}</span>
+          </>
+        )}
         <ChevronDown size={12} className="tui-dd-caret" />
       </button>
 
@@ -110,11 +149,26 @@ export default function TableDropdown({ value, options, onChange, icon = null, t
         <div
           className={`tui-dd-panel${align === 'right' ? ' tui-dd-panel-right' : ''}`}
           role="listbox"
+          aria-multiselectable={multi || undefined}
           ref={panelRef}
           tabIndex={-1}
         >
+          {multi && (
+            <>
+              <button
+                type="button"
+                className={`tui-dd-option${activeValues.length === 0 ? ' active' : ''}`}
+                onMouseEnter={() => setHighlight(-1)}
+                onClick={resetMulti}
+              >
+                <span className="tui-dd-option-label">{allLabel}</span>
+                {activeValues.length === 0 && <Check size={12} className="tui-dd-check" />}
+              </button>
+              <div className="tui-dd-divider" />
+            </>
+          )}
           {options.map((opt, i) => {
-            const isActive = i === activeIndex;
+            const isActive = multi ? activeValues.includes(String(opt.value)) : i === activeIndex;
             const isHi = i === highlight;
             return (
               <button
@@ -124,7 +178,7 @@ export default function TableDropdown({ value, options, onChange, icon = null, t
                 aria-selected={isActive}
                 className={`tui-dd-option${isActive ? ' active' : ''}${isHi ? ' highlight' : ''}`}
                 onMouseEnter={() => setHighlight(i)}
-                onClick={() => select(opt)}
+                onClick={() => (multi ? toggleValue(opt) : select(opt))}
               >
                 {opt.color && <span className="tui-dd-dot" style={{ background: opt.color }} />}
                 <span className="tui-dd-option-label">{opt.label}</span>

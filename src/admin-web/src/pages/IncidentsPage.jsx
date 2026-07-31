@@ -200,12 +200,10 @@ export default function IncidentsPage() {
     severity
   );
 
-  const toggleDomain = (slug) => {
-    setDomainSlugs((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
-    );
-    setPage(0);
-  };
+  const domainOptions = useMemo(
+    () => domains.map((d) => ({ value: d.slug, label: d.name, color: d.color || '#6b7280' })),
+    [domains]
+  );
 
   const activeChips = useMemo(() => {
     const chips = [];
@@ -342,6 +340,16 @@ export default function IncidentsPage() {
             )}
           </div>
 
+          <TableDropdown
+            multi
+            label="Domains"
+            allLabel="All domains"
+            values={domainSlugs}
+            options={domainOptions}
+            onChange={(next) => { setDomainSlugs(next); setPage(0); }}
+            title="Filter by domain"
+          />
+
           <div className="tui-seg">
             {STATUS_OPTIONS.map((opt) => (
               <button
@@ -378,39 +386,6 @@ export default function IncidentsPage() {
               align="right"
             />
           </div>
-        </div>
-
-        <div className="tui-cat-row">
-          <button
-            className={`tui-cat-chip${domainSlugs.length === 0 ? ' active' : ''}`}
-            onClick={() => { setDomainSlugs([]); setPage(0); }}
-          >
-            All domains
-          </button>
-          {domains.map((dom) => {
-            const active = domainSlugs.includes(dom.slug);
-            const colors = active ? getBadgeColors(dom.color || '#6b7280', theme) : null;
-            return (
-              <button
-                key={dom.id}
-                className={`tui-cat-chip${active ? ' active' : ''}`}
-                style={
-                  active
-                    ? {
-                        background: colors.background,
-                        borderColor: colors.border.replace('1px solid ', ''),
-                        color: colors.color,
-                      }
-                    : undefined
-                }
-                onClick={() => toggleDomain(dom.slug)}
-                title={active ? 'Remove from filter' : 'Add to filter'}
-              >
-                <span className="tui-cat-dot" style={{ background: dom.color || '#6b7280' }} />
-                {dom.name}
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -480,10 +455,9 @@ export default function IncidentsPage() {
             <table className="tui-table">
               <colgroup>
                 <col />
-                <col style={{ width: '170px' }} />
+                <col style={{ width: '220px' }} />
                 <col style={{ width: '120px' }} />
                 <col style={{ width: '100px' }} />
-                <col style={{ width: '130px' }} />
                 <col style={{ width: '115px' }} />
                 <col style={{ width: '125px' }} />
                 <col style={{ width: '165px' }} />
@@ -494,7 +468,6 @@ export default function IncidentsPage() {
                   <th>Domain / Category</th>
                   <th>Severity</th>
                   <th>Status</th>
-                  <th>Verification</th>
                   <th>Created</th>
                   <th>Updated</th>
                   <th className="tui-th-actions">Actions</th>
@@ -513,10 +486,17 @@ export default function IncidentsPage() {
                           </div>
                         </div>
                       </td>
-                      <td><div className="tui-skel tui-skel-pill" style={{ width: '92px' }} /></td>
+                      <td>
+                        <div className="tui-skel-cell">
+                          <div className="tui-skel tui-skel-glyph" style={{ width: '7px', height: '7px' }} />
+                          <div className="tui-skel-lines">
+                            <div className="tui-skel tui-skel-line" style={{ width: '62%' }} />
+                            <div className="tui-skel tui-skel-line tui-skel-line-sub" style={{ width: '40%' }} />
+                          </div>
+                        </div>
+                      </td>
                       <td><div className="tui-skel tui-skel-pill" style={{ width: '88px' }} /></td>
                       <td><div className="tui-skel tui-skel-pill" style={{ width: '64px' }} /></td>
-                      <td><div className="tui-skel tui-skel-pill" style={{ width: '76px' }} /></td>
                       <td><div className="tui-skel tui-skel-line" style={{ width: '78px' }} /></td>
                       <td><div className="tui-skel tui-skel-line" style={{ width: '72px' }} /></td>
                       <td><div className="tui-skel tui-skel-line" style={{ width: '96px', marginLeft: 'auto' }} /></td>
@@ -524,7 +504,7 @@ export default function IncidentsPage() {
                   ))
                 ) : incidents.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="tui-cell-state">
+                    <td colSpan={7} className="tui-cell-state">
                       <div className="tui-state">
                         <MapPin size={26} className="tui-state-icon" />
                         <p className="tui-state-title">
@@ -546,7 +526,6 @@ export default function IncidentsPage() {
                   </tr>
                 ) : (
                   incidents.map((incident) => {
-                    const verificationCfg = VERIFICATION_CONFIG[incident.verification_status] || VERIFICATION_CONFIG.unverified;
                     const categoryLabel = incident.category_name || incident.domain_name || null;
                     const busy = busyId === incident.id;
                     return (
@@ -572,11 +551,25 @@ export default function IncidentsPage() {
                         </td>
                         <td>
                           {categoryLabel ? (
-                            <Badge
-                              color={incident.domain_color || '#6b7280'}
+                            <div
+                              className="ip-domcell"
+                              title={
+                                incident.domain_name && incident.category_name
+                                  ? `${incident.domain_name} › ${incident.category_name}`
+                                  : categoryLabel
+                              }
                             >
-                              {categoryLabel}
-                            </Badge>
+                              <span
+                                className="ip-domdot"
+                                style={{ background: incident.domain_color || '#6b7280' }}
+                              />
+                              <div className="ip-domcell-text">
+                                <span className="ip-domcat">{categoryLabel}</span>
+                                {incident.category_name && incident.domain_name && (
+                                  <span className="ip-domname">{incident.domain_name}</span>
+                                )}
+                              </div>
+                            </div>
                           ) : (
                             <span className="tui-dash">—</span>
                           )}
@@ -585,10 +578,7 @@ export default function IncidentsPage() {
                           <SeverityBadge level={incident.severity} size="sm" />
                         </td>
                         <td>
-                          <Badge status={incident.status}>{incident.status}</Badge>
-                        </td>
-                        <td>
-                          <Badge color={verificationCfg.color}>{verificationCfg.label}</Badge>
+                          <Badge status={incident.status} size="sm">{incident.status}</Badge>
                         </td>
                         <td className="tui-muted-nowrap" title={incident.created_at ? new Date(incident.created_at).toLocaleString() : ''}>
                           {formatDate(incident.created_at)}

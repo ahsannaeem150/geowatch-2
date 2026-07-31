@@ -12363,3 +12363,13 @@ feat: zones page — multi-select category chips backed by new zoneCategoryIds[]
 ## 📅 2026-07-31 — Module: admin-web — TableUI extraction + incidents directory + topbar rework
 
 feat: extract shared table UI to components/TableUI (TableDropdown, TableDateFilter, table-ui.css with tui-* classes; ZonesPage visually unchanged). New /incidents directory page (point incidents): Domain/Category chip, verification column, domain multi-select chips (domainSlugs ANY), severity sort options. Topbar: Compact toggle moved into Settings drawer switch, new Incidents button, slim mode below 1640px so the bar fits at 1280px (scripts/check-topbar-fit.mjs: 1280 ✓ 1920 ✓). Build green.
+
+
+## 📅 2026-07-31 — Module: admin-web/shared — Incidents directory toolbar + chip fixes
+
+fix: incidents page — domain toggle-chip row replaced by TableDropdown multi mode (count badge, All-domains reset row, toggle-any, no close on select; single-select unchanged) so the toolbar never scrolls; category chip now shared Badge size="sm" with full-name tooltip, column 170→150px. All three builds green.
+
+
+## 📅 2026-07-31 — Module: admin-web — Directory pages consistency pass
+
+style: incidents page drops the Verification column (filter kept) for a 220px two-line Domain/Category cell (dot + full category + domain caption, tooltip; longest 34-char category ellipsizes with tooltip, measured in DOM); Status chips now Badge size="sm" on both pages; zones Category chip also size="sm" with tooltip — identical chip scale across Severity/Status/Category. Build green.

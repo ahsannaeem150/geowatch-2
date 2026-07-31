@@ -581,7 +581,7 @@ export default function ZonesPage() {
                         </td>
                         <td>
                           {zone.zone_category_name ? (
-                            <Badge color={zone.zone_category_color || '#6366f1'}>
+                            <Badge color={zone.zone_category_color || '#6366f1'} size="sm" title={zone.zone_category_name}>
                               {zone.zone_category_name}
                             </Badge>
                           ) : (
@@ -602,7 +602,7 @@ export default function ZonesPage() {
                           )}
                         </td>
                         <td>
-                          <Badge status={zone.status}>{zone.status}</Badge>
+                          <Badge status={zone.status} size="sm">{zone.status}</Badge>
                         </td>
                         <td className="tui-muted-nowrap" title={zone.created_at ? new Date(zone.created_at).toLocaleString() : ''}>
                           {formatDate(zone.created_at)}

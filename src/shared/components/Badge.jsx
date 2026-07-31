@@ -8,8 +8,9 @@ const STATUS_COLORS = {
   hidden: '#dc2626',
 };
 
-export function Badge({ children, color, status, style = {} }) {
+export function Badge({ children, color, status, size = 'md', title, style = {} }) {
   const { theme } = useTheme();
+  const sm = size === 'sm';
 
   let preset;
   if (color) {
@@ -22,15 +23,16 @@ export function Badge({ children, color, status, style = {} }) {
 
   return (
     <span
+      title={title}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '6px',
-        padding: '3px 10px',
+        gap: sm ? '4px' : '6px',
+        padding: sm ? '2px 7px' : '3px 10px',
         borderRadius: 'var(--radius-pill)',
-        fontSize: '11px',
+        fontSize: sm ? '9px' : '11px',
         fontWeight: 700,
-        letterSpacing: '0.6px',
+        letterSpacing: sm ? '0.5px' : '0.6px',
         textTransform: 'uppercase',
         fontFamily: 'var(--font-sans)',
         maxWidth: '100%',
@@ -44,8 +46,8 @@ export function Badge({ children, color, status, style = {} }) {
       {color && (
         <span
           style={{
-            width: '5px',
-            height: '5px',
+            width: sm ? '4px' : '5px',
+            height: sm ? '4px' : '5px',
             borderRadius: '50%',
             background: preset.color,
             flexShrink: 0,

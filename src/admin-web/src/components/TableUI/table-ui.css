@@ -807,6 +807,8 @@
   min-width: 100%;
   width: max-content;
   max-width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -859,6 +861,29 @@
 .tui-dd-check {
   flex-shrink: 0;
   color: var(--accent-light);
+}
+
+/* Active-count badge on multi-select triggers */
+.tui-dd-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--text-on-accent);
+  font-size: 9px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tui-dd-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 3px 2px;
+  flex-shrink: 0;
 }
 
 /* ─── Date filter popover (TableDateFilter) ─── */
