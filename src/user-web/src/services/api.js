@@ -299,6 +299,9 @@ export const api = {
       params.domainSlugs.forEach((s) => qs.append('domainSlugs', s));
     }
     if (params.zoneCategoryId) qs.append('zoneCategoryId', params.zoneCategoryId);
+    if (Array.isArray(params.zoneCategoryIds)) {
+      params.zoneCategoryIds.forEach((id) => qs.append('zoneCategoryIds', id));
+    }
     if (params.severity !== undefined) qs.append('severity', params.severity);
     if (Array.isArray(params.severities)) {
       params.severities.forEach((s) => qs.append('severities', s));

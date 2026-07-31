@@ -54,6 +54,8 @@ export default function Header() {
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/map', label: 'Map' },
+    { path: '/incidents', label: 'Incidents' },
+    { path: '/zones', label: 'Zones' },
     { path: '/about', label: 'About' },
   ];
 

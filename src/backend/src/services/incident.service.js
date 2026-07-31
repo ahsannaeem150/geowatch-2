@@ -228,9 +228,14 @@ export async function searchIncidents(filters) {
 
   const countJoins = hasQuery ? 'LEFT JOIN incident_updates eu ON eu.incident_id = i.id' : '';
 
+  // Base joins (categories/domains/zone_categories/users) are required because
+  // the shared WHERE clause can reference their aliases (c.slug, d.slug, …).
+  const baseJoins = INCIDENT_FROM.replace('FROM incidents i', '');
+
   const countResult = await query(
     `SELECT COUNT(DISTINCT i.id) as total
      FROM incidents i
+     ${baseJoins}
      ${countJoins}
      WHERE ${searchWhere}`,
     [...params, ...textParams]
@@ -246,6 +251,7 @@ export async function searchIncidents(filters) {
         SELECT i.id,
           MAX(ts_rank(${tsVectorExpr}, plainto_tsquery('english', $${nextIndex}))) as rank
         FROM incidents i
+        ${baseJoins}
         LEFT JOIN incident_updates eu ON eu.incident_id = i.id
         WHERE ${searchWhere}
         GROUP BY i.id

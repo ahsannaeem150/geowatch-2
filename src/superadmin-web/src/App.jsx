@@ -17,6 +17,8 @@ import RecycleBinPage from './pages/RecycleBinPage.jsx';
 import XArchiveDebugPage from './pages/XArchiveDebugPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './components/ZoneDetail/ZoneDetailPage.jsx';
+import ZonesPage from './pages/ZonesPage.jsx';
+import IncidentsPage from './pages/IncidentsPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 function LoadingScreen() {
@@ -120,8 +122,10 @@ function AppRoutes() {
       <Route path="/login" element={<RedirectIfAuthenticated />} />
 
       <Route element={<RequireSuperAdmin />}>
-        {/* Map workspace renders bare (no sidebar layout) */}
+        {/* Map workspace + table directories render bare (no sidebar layout) */}
         <Route path="/superadmin/map" element={<MapPage />} />
+        <Route path="/superadmin/zones" element={<ZonesPage />} />
+        <Route path="/superadmin/incidents" element={<IncidentsPage />} />
         <Route element={<Layout />}>
           <Route path="/superadmin" element={<DashboardPage />} />
           <Route path="/superadmin/users" element={<UsersPage />} />

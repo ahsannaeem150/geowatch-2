@@ -265,7 +265,7 @@ Staff users (`users` table) and public users (`public_users` table) are separate
 
 ### Frontend Routing (production routes)
 
-- **user-web**: `/` (home), `/map`, `/incident/:id`, `/zone/:id`, `/about`, plus `/trial/zone*` design trials.
+- **user-web**: `/` (home), `/map`, `/incidents` + `/zones` (read-only table directories), `/incident/:id`, `/zone/:id`, `/about`, plus `/trial/zone*` design trials.
 - **admin-web**: `/login`, `/*` → `DashboardLayout` (map-first HUD, includes `/search` Power Search handled inside the layout), `/incident/:id`, `/zones`, `/zone/:id`, plus `/trial*` and `/sidebarTrial*` design trials.
 - **superadmin-web**: everything under `/superadmin/*` — dashboard, users, public-users, map (full-viewport workspace page rendered outside the sidebar `Layout`), audit, public-activity, domains, zone-categories, system, export, recycle-bin, x-archive-debug, `incident/:id`, `zone/:id`.
 

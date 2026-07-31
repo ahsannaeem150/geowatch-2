@@ -5,23 +5,17 @@ import {
   AlertTriangle,
   ArrowUpDown,
   ArrowUpRight,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Filter,
-  Loader2,
-  Map as MapIcon,
   MapPin,
   RotateCcw,
   Search,
-  Trash2,
   X,
 } from 'lucide-react';
 import { api } from '../services/api.js';
-import { useAuth } from '../contexts/AuthContext.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
-import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
 import { useCategories } from '@shared/hooks/useCategories.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getBadgeColors } from '@shared/utils/themeColors.js';
@@ -29,7 +23,7 @@ import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import TableDropdown from '../components/TableUI/TableDropdown.jsx';
 import TableDateFilter, { ALL_TIME_FILTER, getDateFilterLabel } from '../components/TableUI/TableDateFilter.jsx';
 import '../components/TableUI/table-ui.css';
-import './IncidentsPage.css';
+import './DirectoryPages.css';
 
 const PAGE_SIZE = 25;
 
@@ -65,22 +59,6 @@ const SEVERITY_OPTIONS = [
   })),
 ];
 
-function getInitials(user) {
-  const full = user?.fullName || user?.full_name || '';
-  if (full) {
-    const parts = full.trim().split(/\s+/);
-    const first = parts[0]?.[0] || '';
-    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-    return `${first}${last}`.toUpperCase() || 'U';
-  }
-  const email = user?.email || '';
-  return email ? email[0].toUpperCase() : 'U';
-}
-
-function getDisplayName(user) {
-  return user?.fullName || user?.full_name || user?.email || 'User';
-}
-
 function formatRelative(iso) {
   if (!iso) return '—';
   try {
@@ -99,9 +77,12 @@ function formatDate(iso) {
   }
 }
 
+/**
+ * Public read-only incident directory. Mirrors the admin table layout
+ * (toolbar + fixed-grid table + pagination) without any staff actions.
+ */
 export default function IncidentsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { theme } = useTheme();
   const { domains } = useCategories();
 
@@ -109,7 +90,6 @@ export default function IncidentsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [actionError, setActionError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [dateFilter, setDateFilter] = useState(ALL_TIME_FILTER);
@@ -121,9 +101,6 @@ export default function IncidentsPage() {
   const [severity, setSeverity] = useState('');
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(0);
-
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const [busyId, setBusyId] = useState(null);
 
   const requestSeq = useRef(0);
 
@@ -173,7 +150,7 @@ export default function IncidentsPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // Clamp the page when the result set shrinks (e.g. after deletes)
+  // Clamp the page when the result set shrinks
   useEffect(() => {
     if (!loading && page > totalPages - 1) {
       setPage(totalPages - 1);
@@ -257,64 +234,21 @@ export default function IncidentsPage() {
     return chips;
   }, [dateFilter, query, domainSlugs, status, verification, severity, domains]);
 
-  const handleResolve = async (incident) => {
-    setBusyId(incident.id);
-    setActionError('');
-    try {
-      await api.resolveIncident(incident.id, { resolvedAt: new Date().toISOString() });
-      setRefreshKey((k) => k + 1);
-    } catch (err) {
-      setActionError(err.message || 'Failed to resolve incident');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!pendingDelete) return;
-    setBusyId(pendingDelete.id);
-    setActionError('');
-    try {
-      await api.deleteIncident(pendingDelete.id);
-      setPendingDelete(null);
-      setRefreshKey((k) => k + 1);
-    } catch (err) {
-      setActionError(err.message || 'Failed to delete incident');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const initials = getInitials(user);
-  const displayName = getDisplayName(user);
-
   return (
-    <div className="tui-page">
-      {/* ─── Top bar ─── */}
-      <header className="tui-topbar">
-        <div className="tui-topbar-left">
-          <div className="tui-brand">
-            <div className="tui-brand-mark">G</div>
-            <span className="tui-brand-name">GeoWatch</span>
-            <span className="tui-brand-pill">Incidents</span>
-          </div>
-          <span className="tui-total">
-            <span className="tui-total-num">{loading && incidents.length === 0 ? '—' : total.toLocaleString()}</span>
-            {' '}incident{total === 1 ? '' : 's'}
-          </span>
+    <div className="tui-public-page">
+      {/* ─── Page heading ─── */}
+      <div className="tui-public-head">
+        <div>
+          <h1 className="tui-public-title">Incidents</h1>
+          <p className="tui-public-sub">
+            Browse every reported incident — filter, search, and open any entry on the live map.
+          </p>
         </div>
-
-        <div className="tui-topbar-right">
-          <button className="tui-btn" onClick={() => navigate('/')}>
-            <MapIcon size={13} />
-            View on map
-          </button>
-          <div className="tui-user" title={user?.email || ''}>
-            <span className="tui-user-name">{displayName}</span>
-            <div className="tui-avatar">{initials}</div>
-          </div>
-        </div>
-      </header>
+        <span className="tui-total">
+          <span className="tui-total-num">{loading && incidents.length === 0 ? '—' : total.toLocaleString()}</span>
+          {' '}incident{total === 1 ? '' : 's'}
+        </span>
+      </div>
 
       {/* ─── Toolbar ─── */}
       <div className="tui-toolbar">
@@ -427,17 +361,6 @@ export default function IncidentsPage() {
         </div>
       )}
 
-      {/* ─── Action error banner ─── */}
-      {actionError && (
-        <div className="tui-banner">
-          <AlertTriangle size={13} />
-          <span>{actionError}</span>
-          <button className="tui-banner-close" onClick={() => setActionError('')}>
-            <X size={12} />
-          </button>
-        </div>
-      )}
-
       {/* ─── Table ─── */}
       <div className="tui-content">
         <div className="tui-table-wrap">
@@ -460,7 +383,7 @@ export default function IncidentsPage() {
                 <col style={{ width: '100px' }} />
                 <col style={{ width: '115px' }} />
                 <col style={{ width: '125px' }} />
-                <col style={{ width: '165px' }} />
+                <col style={{ width: '110px' }} />
               </colgroup>
               <thead>
                 <tr>
@@ -499,7 +422,7 @@ export default function IncidentsPage() {
                       <td><div className="tui-skel tui-skel-pill" style={{ width: '64px' }} /></td>
                       <td><div className="tui-skel tui-skel-line" style={{ width: '78px' }} /></td>
                       <td><div className="tui-skel tui-skel-line" style={{ width: '72px' }} /></td>
-                      <td><div className="tui-skel tui-skel-line" style={{ width: '96px', marginLeft: 'auto' }} /></td>
+                      <td><div className="tui-skel tui-skel-line" style={{ width: '76px', marginLeft: 'auto' }} /></td>
                     </tr>
                   ))
                 ) : incidents.length === 0 ? (
@@ -513,7 +436,7 @@ export default function IncidentsPage() {
                         <p className="tui-state-sub">
                           {hasActiveFilters
                             ? 'Try widening the search or clearing some filters.'
-                            : 'Create an incident on the map to see it listed here.'}
+                            : 'Check back soon — new incidents are reported around the clock.'}
                         </p>
                         {hasActiveFilters && (
                           <button className="tui-btn" onClick={resetFilters}>
@@ -527,7 +450,6 @@ export default function IncidentsPage() {
                 ) : (
                   incidents.map((incident) => {
                     const categoryLabel = incident.category_name || incident.domain_name || null;
-                    const busy = busyId === incident.id;
                     return (
                       <tr
                         key={incident.id}
@@ -588,20 +510,10 @@ export default function IncidentsPage() {
                         </td>
                         <td className="tui-cell-actions" onClick={(e) => e.stopPropagation()}>
                           <div className="tui-actions">
-                            {incident.status === 'active' && (
-                              <button
-                                className="tui-icon-btn tui-icon-btn-resolve"
-                                title="Mark resolved"
-                                disabled={busy}
-                                onClick={() => handleResolve(incident)}
-                              >
-                                {busy ? <Loader2 size={14} className="tui-spin" /> : <CheckCircle2 size={14} />}
-                              </button>
-                            )}
                             <button
                               className="tui-icon-btn"
                               title="View on map"
-                              onClick={() => navigate(`/?incident=${incident.id}`)}
+                              onClick={() => navigate(`/map?incident=${incident.id}`)}
                             >
                               <MapPin size={14} />
                             </button>
@@ -611,14 +523,6 @@ export default function IncidentsPage() {
                               onClick={() => navigate(`/incident/${incident.id}`)}
                             >
                               <ArrowUpRight size={14} />
-                            </button>
-                            <button
-                              className="tui-icon-btn tui-icon-btn-danger"
-                              title="Delete incident"
-                              disabled={busy}
-                              onClick={() => setPendingDelete(incident)}
-                            >
-                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
@@ -663,16 +567,6 @@ export default function IncidentsPage() {
           </div>
         )}
       </div>
-
-      <ConfirmDialog
-        isOpen={!!pendingDelete}
-        title="Delete incident"
-        message={`Delete "${pendingDelete?.title || 'this incident'}"? It will be moved to the recycle bin.`}
-        confirmText="Delete"
-        danger
-        onConfirm={handleDelete}
-        onCancel={() => setPendingDelete(null)}
-      />
     </div>
   );
 }

@@ -2594,7 +2594,6 @@ export default function MapPage() {
             user={user}
             onLogout={logout}
             compactMode={compactMode}
-            onToggleCompactMode={toggleCompactMode}
           />
         )}
 
@@ -2719,6 +2718,8 @@ export default function MapPage() {
               onSelectRecentIncident={handleSelectRecent}
               autoZoomEnabled={autoZoomEnabled}
               onToggleAutoZoom={toggleAutoZoom}
+              compactMode={compactMode}
+              onToggleCompactMode={toggleCompactMode}
             />
           )}
 

@@ -17,7 +17,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { api } from '../services/api.js';
+import { searchIncidentsAdvanced, resolveIncident, deleteIncident } from '../services/api.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
@@ -140,24 +140,23 @@ export default function IncidentsPage() {
     const seq = ++requestSeq.current;
     setLoading(true);
     setError('');
-    api
-      .searchIncidentsAdvanced({
-        q: query || undefined,
-        geometryType: 'point',
-        dateFrom: dateFilter.from || undefined,
-        dateTo: dateFilter.to || undefined,
-        domainSlugs: domainSlugs.length > 0 ? domainSlugs : undefined,
-        status: status || undefined,
-        verificationStatus: verification || undefined,
-        severity: severity ? Number(severity) : undefined,
-        sort,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
-      })
-      .then((res) => {
+    searchIncidentsAdvanced({
+      q: query || undefined,
+      geometryType: 'point',
+      dateFrom: dateFilter.from || undefined,
+      dateTo: dateFilter.to || undefined,
+      domainSlugs: domainSlugs.length > 0 ? domainSlugs : undefined,
+      status: status || undefined,
+      verificationStatus: verification || undefined,
+      severity: severity ? Number(severity) : undefined,
+      sort,
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+    })
+      .then((data) => {
         if (seq !== requestSeq.current) return;
-        setIncidents(res.data?.incidents || []);
-        setTotal(res.data?.count ?? 0);
+        setIncidents(data?.incidents || []);
+        setTotal(data?.count ?? 0);
       })
       .catch((err) => {
         if (seq !== requestSeq.current) return;
@@ -261,7 +260,7 @@ export default function IncidentsPage() {
     setBusyId(incident.id);
     setActionError('');
     try {
-      await api.resolveIncident(incident.id, { resolvedAt: new Date().toISOString() });
+      await resolveIncident(incident.id, { resolvedAt: new Date().toISOString() });
       setRefreshKey((k) => k + 1);
     } catch (err) {
       setActionError(err.message || 'Failed to resolve incident');
@@ -275,7 +274,7 @@ export default function IncidentsPage() {
     setBusyId(pendingDelete.id);
     setActionError('');
     try {
-      await api.deleteIncident(pendingDelete.id);
+      await deleteIncident(pendingDelete.id);
       setPendingDelete(null);
       setRefreshKey((k) => k + 1);
     } catch (err) {
@@ -305,7 +304,7 @@ export default function IncidentsPage() {
         </div>
 
         <div className="tui-topbar-right">
-          <button className="tui-btn" onClick={() => navigate('/')}>
+          <button className="tui-btn" onClick={() => navigate('/superadmin/map')}>
             <MapIcon size={13} />
             View on map
           </button>
@@ -455,7 +454,7 @@ export default function IncidentsPage() {
             <table className="tui-table">
               <colgroup>
                 <col />
-                <col style={{ width: '245px' }} />
+                <col style={{ width: '220px' }} />
                 <col style={{ width: '120px' }} />
                 <col style={{ width: '100px' }} />
                 <col style={{ width: '115px' }} />
@@ -532,7 +531,7 @@ export default function IncidentsPage() {
                       <tr
                         key={incident.id}
                         className="tui-row"
-                        onClick={() => navigate(`/incident/${incident.id}`)}
+                        onClick={() => navigate(`/superadmin/incident/${incident.id}`)}
                       >
                         <td>
                           <div className="tui-tcell">
@@ -601,14 +600,14 @@ export default function IncidentsPage() {
                             <button
                               className="tui-icon-btn"
                               title="View on map"
-                              onClick={() => navigate(`/?incident=${incident.id}`)}
+                              onClick={() => navigate(`/superadmin/map?incident=${incident.id}`)}
                             >
                               <MapPin size={14} />
                             </button>
                             <button
                               className="tui-icon-btn"
                               title="Full details"
-                              onClick={() => navigate(`/incident/${incident.id}`)}
+                              onClick={() => navigate(`/superadmin/incident/${incident.id}`)}
                             >
                               <ArrowUpRight size={14} />
                             </button>

@@ -12373,3 +12373,13 @@ fix: incidents page — domain toggle-chip row replaced by TableDropdown multi m
 ## 📅 2026-07-31 — Module: admin-web — Directory pages consistency pass
 
 style: incidents page drops the Verification column (filter kept) for a 220px two-line Domain/Category cell (dot + full category + domain caption, tooltip; longest 34-char category ellipsizes with tooltip, measured in DOM); Status chips now Badge size="sm" on both pages; zones Category chip also size="sm" with tooltip — identical chip scale across Severity/Status/Category. Build green.
+
+
+## 📅 2026-08-01 — Module: user-web — Public directory pages (/incidents, /zones)
+
+feat: read-only public table directories ported from admin — TableUI copied to user-web, new IncidentsPage/ZonesPage (public chrome, no staff actions; View-on-map + Details only), nav links in Header + WorkspaceTopBar ("Zones Directory" vs the layers-drawer button), Compact toggle moved from topbar into the Settings drawer. fix(backend): /incidents/search count + ranked CTE missed the categories/domains joins — domainSlugs/categorySlugs filters 500'd (affected admin too). Build green.
+
+
+## 📅 2026-07-31 — Module: superadmin-web — Directory pages port + topbar rework
+
+feat: port admin directory batch to superadmin-web — TableUI (TableDropdown/TableDateFilter/table-ui.css + local spin/shimmer keyframes), /superadmin/zones + /superadmin/incidents pages (bare routes, superadmin api style, map deep links), zoneCategoryIds[] serialization in api.js. Topbar gains Incidents/Zones buttons + slim mode (<1860px; full trims so 1861–1920 fits), Compact toggle moved to Settings drawer. Build green; verify-superadmin-workspace 13/13; topbar fit 1280/1861/1920 ✓; API paths curl-verified (domain slug join fix was already on disk — restarted stale backend).

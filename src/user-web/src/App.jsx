@@ -6,6 +6,8 @@ import Footer from './components/Layout/Footer.jsx';
 import HomePage from './pages/HomePage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
+import IncidentsPage from './pages/IncidentsPage.jsx';
+import ZonesPage from './pages/ZonesPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
 import ZoneTrialSidebarPage from './pages/ZoneTrialSidebarPage.jsx';
@@ -52,6 +54,8 @@ function AnimatedRoutes() {
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
           <Route path="/map" element={<MapPage />} />
+          <Route path="/incidents" element={<IncidentsPage />} />
+          <Route path="/zones" element={<ZonesPage />} />
           <Route path="/incident/:id" element={<IncidentDetailPage />} />
           <Route path="/zone/:id" element={<ZoneDetailPage />} />
           <Route path="/about" element={<AboutPage />} />

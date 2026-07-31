@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Zap,
   Command,
-  Minimize2,
 } from 'lucide-react';
 import GoogleSignInButton from '../GoogleSignInButton/GoogleSignInButton.jsx';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
@@ -38,7 +37,6 @@ export default function WorkspaceTopBar({
   isFocusMode,
   onOpenZones,
   compactMode,
-  onToggleCompactMode,
 }) {
   const location = useLocation();
   const { user, login, logout, isAuthenticated, loading: authLoading } = usePublicAuth();
@@ -136,6 +134,10 @@ export default function WorkspaceTopBar({
         <nav style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', marginLeft: 'calc(4px * var(--admin-ui-scale))' }}>
           <Link to="/" style={navLinkStyle(location.pathname === '/')}>Home</Link>
           <Link to="/map" style={navLinkStyle(location.pathname === '/map')}>Map</Link>
+          <Link to="/incidents" style={navLinkStyle(location.pathname === '/incidents')}>Incidents</Link>
+          {/* "Zones Directory" to disambiguate from the right-side Zones button,
+              which opens the layers drawer instead of leaving the map. */}
+          <Link to="/zones" style={navLinkStyle(location.pathname === '/zones')}>Zones Directory</Link>
           <Link to="/about" style={navLinkStyle(location.pathname === '/about')}>About</Link>
         </nav>
 
@@ -309,19 +311,6 @@ export default function WorkspaceTopBar({
 
       {/* Right: actions + auth */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
-        <button
-          onClick={onToggleCompactMode}
-          title={compactMode ? 'Switch to default size' : 'Switch to compact mode'}
-          style={{
-            ...actionBtn,
-            color: compactMode ? 'var(--accent-light)' : 'var(--text-secondary)',
-            borderColor: compactMode ? 'var(--accent-light)' : 'var(--border-subtle)',
-          }}
-        >
-          <Minimize2 size={iconSize(13)} />
-          <span>{compactMode ? 'Normal' : 'Compact'}</span>
-        </button>
-
         <button
           onClick={onToggleFocusMode}
           title="Toggle focus mode"

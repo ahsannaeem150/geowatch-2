@@ -1,15 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Hexagon,
   Plus,
+  List,
   LogOut,
   ChevronDown,
   Zap,
   Search,
   Radio,
   Command,
-  Minimize2,
   LayoutDashboard,
 } from 'lucide-react';
 
@@ -45,12 +45,26 @@ export default function WorkspaceTopBar({
   user,
   onLogout,
   compactMode,
-  onToggleCompactMode,
 }) {
   const isLive = true;
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const iconSize = (n) => (compactMode ? Math.round(n * 0.9) : n);
+
+  // Slim mode: below ~1860px viewport the full bar would overflow (this bar
+  // carries a Dashboard button + Incidents/Zones links), so the search box
+  // narrows, Dashboard/Advanced go icon-only, the decorative LIVE pill, the
+  // Active label, the Today shortcut, and the user name hide, and the date
+  // inputs shrink.
+  const [slim, setSlim] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1860px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1860px)');
+    const onChange = (e) => setSlim(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   const displayName = useMemo(() => getDisplayName(user), [user]);
   const initials = useMemo(() => getInitials(user), [user]);
@@ -168,7 +182,7 @@ export default function WorkspaceTopBar({
           }}
         >
           <LayoutDashboard size={iconSize(13)} />
-          <span>Dashboard</span>
+          {!slim && <span>Dashboard</span>}
         </button>
 
         {/* Search trigger */}
@@ -186,7 +200,7 @@ export default function WorkspaceTopBar({
             color: 'var(--text-muted)',
             fontSize: 'calc(13px * var(--admin-ui-scale))',
             cursor: 'pointer',
-            minWidth: 'calc(220px * var(--admin-ui-scale))',
+            minWidth: slim ? 'calc(150px * var(--admin-ui-scale))' : 'calc(190px * var(--admin-ui-scale))',
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
@@ -246,7 +260,7 @@ export default function WorkspaceTopBar({
           }}
         >
           <Search size={iconSize(13)} />
-          <span>Advanced</span>
+          {!slim && <span>Advanced</span>}
         </button>
 
         {onOpenActiveDrawer && (
@@ -277,7 +291,7 @@ export default function WorkspaceTopBar({
             }}
           >
             <Radio size={iconSize(13)} />
-            <span>Active</span>
+            {!slim && <span>Active</span>}
             <span
               style={{
                 minWidth: 'calc(20px * var(--admin-ui-scale))',
@@ -302,33 +316,35 @@ export default function WorkspaceTopBar({
 
       {/* Center: mode + date */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'calc(8px * var(--admin-ui-scale))',
-            padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: 'calc(11px * var(--admin-ui-scale))',
-            fontWeight: 700,
-            letterSpacing: '1px',
-            background: 'var(--alert-error-bg)',
-            border: '1px solid var(--alert-error-border)',
-            color: 'var(--badge-red-text)',
-          }}
-        >
-          <span
+        {!slim && (
+          <div
             style={{
-              width: 'calc(6px * var(--admin-ui-scale))',
-              height: 'calc(6px * var(--admin-ui-scale))',
-              borderRadius: '50%',
-              background: 'currentColor',
-              boxShadow: '0 0 10px currentColor',
-              animation: 'pulse 2s ease-in-out infinite',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'calc(8px * var(--admin-ui-scale))',
+              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
+              fontWeight: 700,
+              letterSpacing: '1px',
+              background: 'var(--alert-error-bg)',
+              border: '1px solid var(--alert-error-border)',
+              color: 'var(--badge-red-text)',
             }}
-          />
-          LIVE MODE
-        </div>
+          >
+            <span
+              style={{
+                width: 'calc(6px * var(--admin-ui-scale))',
+                height: 'calc(6px * var(--admin-ui-scale))',
+                borderRadius: '50%',
+                background: 'currentColor',
+                boxShadow: '0 0 10px currentColor',
+                animation: 'pulse 2s ease-in-out infinite',
+              }}
+            />
+            LIVE MODE
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))' }}>
           <input
@@ -347,7 +363,7 @@ export default function WorkspaceTopBar({
               fontSize: 'calc(11px * var(--admin-ui-scale))',
               outline: 'none',
               cursor: 'pointer',
-              width: 'calc(124px * var(--admin-ui-scale))',
+              width: slim ? 'calc(96px * var(--admin-ui-scale))' : 'calc(124px * var(--admin-ui-scale))',
             }}
           />
           <span style={{ color: 'var(--text-muted)', fontSize: 'calc(11px * var(--admin-ui-scale))' }}>→</span>
@@ -367,44 +383,33 @@ export default function WorkspaceTopBar({
               fontSize: 'calc(11px * var(--admin-ui-scale))',
               outline: 'none',
               cursor: 'pointer',
-              width: 'calc(124px * var(--admin-ui-scale))',
+              width: slim ? 'calc(96px * var(--admin-ui-scale))' : 'calc(124px * var(--admin-ui-scale))',
             }}
           />
-          <button
-            onClick={onResetToToday}
-            style={{
-              padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
-              fontSize: 'calc(10px * var(--admin-ui-scale))',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-input)',
-              color: 'var(--accent-light)',
-              cursor: 'pointer',
-            }}
-          >
-            Today
-          </button>
+          {!slim && (
+            <button
+              onClick={onResetToToday}
+              style={{
+                padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-input)',
+                color: 'var(--accent-light)',
+                cursor: 'pointer',
+              }}
+            >
+              Today
+            </button>
+          )}
         </div>
       </div>
 
       {/* Right: actions + user */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
-        <button
-          onClick={onToggleCompactMode}
-          title={compactMode ? 'Switch to default size' : 'Switch to compact mode'}
-          style={{
-            ...actionBtn,
-            color: compactMode ? 'var(--accent-light)' : 'var(--text-secondary)',
-            borderColor: compactMode ? 'var(--accent-light)' : 'var(--border-subtle)',
-          }}
-        >
-          <Minimize2 size={iconSize(13)} />
-          <span>{compactMode ? 'Normal' : 'Compact'}</span>
-        </button>
-
         <button
           onClick={onToggleFocusMode}
           title="Toggle focus mode"
@@ -416,6 +421,15 @@ export default function WorkspaceTopBar({
         >
           <Zap size={iconSize(14)} />
           {isFocusMode ? 'Exit Focus' : 'Focus'}
+        </button>
+
+        <button style={actionBtn} onClick={() => navigate('/superadmin/incidents')} title="Incidents directory">
+          <List size={iconSize(13)} />
+          Incidents
+        </button>
+        <button style={actionBtn} onClick={() => navigate('/superadmin/zones')} title="Zones directory">
+          <Hexagon size={iconSize(13)} />
+          Zones
         </button>
 
         <button style={actionBtn} onClick={onAddZone}>
@@ -434,7 +448,9 @@ export default function WorkspaceTopBar({
               display: 'flex',
               alignItems: 'center',
               gap: 'calc(6px * var(--admin-ui-scale))',
-              padding: 'calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+              padding: slim
+                ? 'calc(2px * var(--admin-ui-scale))'
+                : 'calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
               background: 'var(--bg-input)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md)',
@@ -453,16 +469,18 @@ export default function WorkspaceTopBar({
               e.currentTarget.style.background = 'var(--bg-input)';
             }}
           >
-            <span
-              style={{
-                maxWidth: 'calc(160px * var(--admin-ui-scale))',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {displayName}
-            </span>
+            {!slim && (
+              <span
+                style={{
+                  maxWidth: 'calc(120px * var(--admin-ui-scale))',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {displayName}
+              </span>
+            )}
             <ChevronDown
               size={iconSize(12)}
               style={{

@@ -1478,7 +1478,6 @@ export default function MapPage() {
           isFocusMode={focusMode}
           onOpenZones={() => setActiveDrawer((p) => (p === 'layers' ? null : 'layers'))}
           compactMode={compactMode}
-          onToggleCompactMode={() => setCompactMode((p) => !p)}
         />
       )}
 
@@ -1522,6 +1521,8 @@ export default function MapPage() {
             onUnsaveIncident={(id) => handleSaveChange(id, false)}
             autoZoomEnabled={autoZoomEnabled}
             onToggleAutoZoom={() => setAutoZoomEnabled((p) => !p)}
+            compactMode={compactMode}
+            onToggleCompactMode={() => setCompactMode((p) => !p)}
           />
         )}
 

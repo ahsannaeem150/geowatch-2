@@ -5,31 +5,26 @@ import {
   AlertTriangle,
   ArrowUpDown,
   ArrowUpRight,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Filter,
-  Loader2,
-  Map as MapIcon,
+  Hexagon,
   MapPin,
   RotateCcw,
   Search,
-  Trash2,
   X,
 } from 'lucide-react';
 import { api } from '../services/api.js';
-import { useAuth } from '../contexts/AuthContext.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
-import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
-import { useCategories } from '@shared/hooks/useCategories.js';
+import { useZoneCategories } from '@shared/hooks/useZoneCategories.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getBadgeColors } from '@shared/utils/themeColors.js';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import TableDropdown from '../components/TableUI/TableDropdown.jsx';
 import TableDateFilter, { ALL_TIME_FILTER, getDateFilterLabel } from '../components/TableUI/TableDateFilter.jsx';
 import '../components/TableUI/table-ui.css';
-import './IncidentsPage.css';
+import './DirectoryPages.css';
 
 const PAGE_SIZE = 25;
 
@@ -37,8 +32,8 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
   { value: 'name_asc', label: 'Name A–Z' },
-  { value: 'severity_desc', label: 'Severity ↓' },
-  { value: 'severity_asc', label: 'Severity ↑' },
+  { value: 'area_desc', label: 'Area ↓' },
+  { value: 'area_asc', label: 'Area ↑' },
 ];
 
 const STATUS_OPTIONS = [
@@ -65,20 +60,13 @@ const SEVERITY_OPTIONS = [
   })),
 ];
 
-function getInitials(user) {
-  const full = user?.fullName || user?.full_name || '';
-  if (full) {
-    const parts = full.trim().split(/\s+/);
-    const first = parts[0]?.[0] || '';
-    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-    return `${first}${last}`.toUpperCase() || 'U';
-  }
-  const email = user?.email || '';
-  return email ? email[0].toUpperCase() : 'U';
-}
-
-function getDisplayName(user) {
-  return user?.fullName || user?.full_name || user?.email || 'User';
+function formatAreaKm2(areaSqM) {
+  const n = Number(areaSqM);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const km2 = n / 1e6;
+  if (km2 >= 1000) return km2.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (km2 >= 10) return km2.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  return km2.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function formatRelative(iso) {
@@ -99,31 +87,31 @@ function formatDate(iso) {
   }
 }
 
-export default function IncidentsPage() {
+/**
+ * Public read-only zone directory. Mirrors the admin table layout
+ * (toolbar + category chips + fixed-grid table + pagination) without any
+ * staff actions.
+ */
+export default function ZonesPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { theme } = useTheme();
-  const { domains } = useCategories();
+  const { categories } = useZoneCategories();
 
-  const [incidents, setIncidents] = useState([]);
+  const [zones, setZones] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [actionError, setActionError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [dateFilter, setDateFilter] = useState(ALL_TIME_FILTER);
   const [searchInput, setSearchInput] = useState('');
   const [query, setQuery] = useState('');
-  const [domainSlugs, setDomainSlugs] = useState([]);
+  const [categoryIds, setCategoryIds] = useState([]);
   const [status, setStatus] = useState('');
   const [verification, setVerification] = useState('');
   const [severity, setSeverity] = useState('');
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(0);
-
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const [busyId, setBusyId] = useState(null);
 
   const requestSeq = useRef(0);
 
@@ -143,10 +131,10 @@ export default function IncidentsPage() {
     api
       .searchIncidentsAdvanced({
         q: query || undefined,
-        geometryType: 'point',
+        geometryType: 'polygon',
         dateFrom: dateFilter.from || undefined,
         dateTo: dateFilter.to || undefined,
-        domainSlugs: domainSlugs.length > 0 ? domainSlugs : undefined,
+        zoneCategoryIds: categoryIds.length > 0 ? categoryIds : undefined,
         status: status || undefined,
         verificationStatus: verification || undefined,
         severity: severity ? Number(severity) : undefined,
@@ -156,24 +144,24 @@ export default function IncidentsPage() {
       })
       .then((res) => {
         if (seq !== requestSeq.current) return;
-        setIncidents(res.data?.incidents || []);
+        setZones(res.data?.incidents || []);
         setTotal(res.data?.count ?? 0);
       })
       .catch((err) => {
         if (seq !== requestSeq.current) return;
-        setError(err.message || 'Failed to load incidents');
-        setIncidents([]);
+        setError(err.message || 'Failed to load zones');
+        setZones([]);
         setTotal(0);
       })
       .finally(() => {
         if (seq !== requestSeq.current) return;
         setLoading(false);
       });
-  }, [query, dateFilter, domainSlugs, status, verification, severity, sort, page, refreshKey]);
+  }, [query, dateFilter, categoryIds, status, verification, severity, sort, page, refreshKey]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // Clamp the page when the result set shrinks (e.g. after deletes)
+  // Clamp the page when the result set shrinks
   useEffect(() => {
     if (!loading && page > totalPages - 1) {
       setPage(totalPages - 1);
@@ -184,7 +172,7 @@ export default function IncidentsPage() {
     setDateFilter(ALL_TIME_FILTER);
     setSearchInput('');
     setQuery('');
-    setDomainSlugs([]);
+    setCategoryIds([]);
     setStatus('');
     setVerification('');
     setSeverity('');
@@ -194,16 +182,18 @@ export default function IncidentsPage() {
   const hasActiveFilters = !!(
     dateFilter.preset !== 'all' ||
     query ||
-    domainSlugs.length > 0 ||
+    categoryIds.length > 0 ||
     status ||
     verification ||
     severity
   );
 
-  const domainOptions = useMemo(
-    () => domains.map((d) => ({ value: d.slug, label: d.name, color: d.color || '#6b7280' })),
-    [domains]
-  );
+  const toggleCategory = (id) => {
+    setCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+    setPage(0);
+  };
 
   const activeChips = useMemo(() => {
     const chips = [];
@@ -221,13 +211,13 @@ export default function IncidentsPage() {
         onRemove: () => { setSearchInput(''); setQuery(''); setPage(0); },
       });
     }
-    domainSlugs.forEach((slug) => {
-      const dom = domains.find((d) => d.slug === slug);
+    categoryIds.forEach((id) => {
+      const cat = categories.find((c) => String(c.id) === id);
       chips.push({
-        id: `domain-${slug}`,
-        label: dom?.name || slug,
-        color: dom?.color,
-        onRemove: () => { setDomainSlugs((prev) => prev.filter((s) => s !== slug)); setPage(0); },
+        id: `category-${id}`,
+        label: cat?.name || `Category ${id}`,
+        color: cat?.color,
+        onRemove: () => { setCategoryIds((prev) => prev.filter((x) => x !== id)); setPage(0); },
       });
     });
     if (status) {
@@ -255,66 +245,23 @@ export default function IncidentsPage() {
       });
     }
     return chips;
-  }, [dateFilter, query, domainSlugs, status, verification, severity, domains]);
-
-  const handleResolve = async (incident) => {
-    setBusyId(incident.id);
-    setActionError('');
-    try {
-      await api.resolveIncident(incident.id, { resolvedAt: new Date().toISOString() });
-      setRefreshKey((k) => k + 1);
-    } catch (err) {
-      setActionError(err.message || 'Failed to resolve incident');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!pendingDelete) return;
-    setBusyId(pendingDelete.id);
-    setActionError('');
-    try {
-      await api.deleteIncident(pendingDelete.id);
-      setPendingDelete(null);
-      setRefreshKey((k) => k + 1);
-    } catch (err) {
-      setActionError(err.message || 'Failed to delete incident');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const initials = getInitials(user);
-  const displayName = getDisplayName(user);
+  }, [dateFilter, query, categoryIds, status, verification, severity, categories]);
 
   return (
-    <div className="tui-page">
-      {/* ─── Top bar ─── */}
-      <header className="tui-topbar">
-        <div className="tui-topbar-left">
-          <div className="tui-brand">
-            <div className="tui-brand-mark">G</div>
-            <span className="tui-brand-name">GeoWatch</span>
-            <span className="tui-brand-pill">Incidents</span>
-          </div>
-          <span className="tui-total">
-            <span className="tui-total-num">{loading && incidents.length === 0 ? '—' : total.toLocaleString()}</span>
-            {' '}incident{total === 1 ? '' : 's'}
-          </span>
+    <div className="tui-public-page">
+      {/* ─── Page heading ─── */}
+      <div className="tui-public-head">
+        <div>
+          <h1 className="tui-public-title">Zones</h1>
+          <p className="tui-public-sub">
+            Every monitored polygon zone — conflict regions, watch areas, and no-go perimeters.
+          </p>
         </div>
-
-        <div className="tui-topbar-right">
-          <button className="tui-btn" onClick={() => navigate('/')}>
-            <MapIcon size={13} />
-            View on map
-          </button>
-          <div className="tui-user" title={user?.email || ''}>
-            <span className="tui-user-name">{displayName}</span>
-            <div className="tui-avatar">{initials}</div>
-          </div>
-        </div>
-      </header>
+        <span className="tui-total">
+          <span className="tui-total-num">{loading && zones.length === 0 ? '—' : total.toLocaleString()}</span>
+          {' '}zone{total === 1 ? '' : 's'}
+        </span>
+      </div>
 
       {/* ─── Toolbar ─── */}
       <div className="tui-toolbar">
@@ -330,7 +277,7 @@ export default function IncidentsPage() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search incidents by title or location…"
+              placeholder="Search zones by title or location…"
               className="tui-search-input"
             />
             {searchInput && (
@@ -339,16 +286,6 @@ export default function IncidentsPage() {
               </button>
             )}
           </div>
-
-          <TableDropdown
-            multi
-            label="Domains"
-            allLabel="All domains"
-            values={domainSlugs}
-            options={domainOptions}
-            onChange={(next) => { setDomainSlugs(next); setPage(0); }}
-            title="Filter by domain"
-          />
 
           <div className="tui-seg">
             {STATUS_OPTIONS.map((opt) => (
@@ -382,10 +319,44 @@ export default function IncidentsPage() {
               options={SORT_OPTIONS}
               onChange={(v) => { setSort(v); setPage(0); }}
               icon={<ArrowUpDown size={12} className="tui-sort-icon" />}
-              title="Sort incidents"
+              title="Sort zones"
               align="right"
             />
           </div>
+        </div>
+
+        <div className="tui-cat-row">
+          <button
+            className={`tui-cat-chip${categoryIds.length === 0 ? ' active' : ''}`}
+            onClick={() => { setCategoryIds([]); setPage(0); }}
+          >
+            All categories
+          </button>
+          {categories.map((cat) => {
+            const id = String(cat.id);
+            const active = categoryIds.includes(id);
+            const colors = active ? getBadgeColors(cat.color || '#6b7280', theme) : null;
+            return (
+              <button
+                key={cat.id}
+                className={`tui-cat-chip${active ? ' active' : ''}`}
+                style={
+                  active
+                    ? {
+                        background: colors.background,
+                        borderColor: colors.border.replace('1px solid ', ''),
+                        color: colors.color,
+                      }
+                    : undefined
+                }
+                onClick={() => toggleCategory(id)}
+                title={active ? 'Remove from filter' : 'Add to filter'}
+              >
+                <span className="tui-cat-dot" style={{ background: cat.color || '#6b7280' }} />
+                {cat.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -427,24 +398,13 @@ export default function IncidentsPage() {
         </div>
       )}
 
-      {/* ─── Action error banner ─── */}
-      {actionError && (
-        <div className="tui-banner">
-          <AlertTriangle size={13} />
-          <span>{actionError}</span>
-          <button className="tui-banner-close" onClick={() => setActionError('')}>
-            <X size={12} />
-          </button>
-        </div>
-      )}
-
       {/* ─── Table ─── */}
       <div className="tui-content">
         <div className="tui-table-wrap">
           {error ? (
             <div className="tui-state">
               <AlertTriangle size={26} className="tui-state-icon tui-state-icon-error" />
-              <p className="tui-state-title">Failed to load incidents</p>
+              <p className="tui-state-title">Failed to load zones</p>
               <p className="tui-state-sub">{error}</p>
               <button className="tui-btn" onClick={() => setRefreshKey((k) => k + 1)}>
                 <RotateCcw size={12} />
@@ -455,18 +415,20 @@ export default function IncidentsPage() {
             <table className="tui-table">
               <colgroup>
                 <col />
-                <col style={{ width: '245px' }} />
+                <col style={{ width: '150px' }} />
                 <col style={{ width: '120px' }} />
+                <col style={{ width: '110px' }} />
                 <col style={{ width: '100px' }} />
                 <col style={{ width: '115px' }} />
                 <col style={{ width: '125px' }} />
-                <col style={{ width: '165px' }} />
+                <col style={{ width: '110px' }} />
               </colgroup>
               <thead>
                 <tr>
-                  <th>Incident</th>
-                  <th>Domain / Category</th>
+                  <th>Zone</th>
+                  <th>Category</th>
                   <th>Severity</th>
+                  <th className="tui-th-num">Area</th>
                   <th>Status</th>
                   <th>Created</th>
                   <th>Updated</th>
@@ -486,34 +448,27 @@ export default function IncidentsPage() {
                           </div>
                         </div>
                       </td>
-                      <td>
-                        <div className="tui-skel-cell">
-                          <div className="tui-skel tui-skel-glyph" style={{ width: '7px', height: '7px' }} />
-                          <div className="tui-skel-lines">
-                            <div className="tui-skel tui-skel-line" style={{ width: '62%' }} />
-                            <div className="tui-skel tui-skel-line tui-skel-line-sub" style={{ width: '40%' }} />
-                          </div>
-                        </div>
-                      </td>
+                      <td><div className="tui-skel tui-skel-pill" /></td>
                       <td><div className="tui-skel tui-skel-pill" style={{ width: '88px' }} /></td>
+                      <td><div className="tui-skel tui-skel-line" style={{ width: '64px', marginLeft: 'auto' }} /></td>
                       <td><div className="tui-skel tui-skel-pill" style={{ width: '64px' }} /></td>
                       <td><div className="tui-skel tui-skel-line" style={{ width: '78px' }} /></td>
                       <td><div className="tui-skel tui-skel-line" style={{ width: '72px' }} /></td>
-                      <td><div className="tui-skel tui-skel-line" style={{ width: '96px', marginLeft: 'auto' }} /></td>
+                      <td><div className="tui-skel tui-skel-line" style={{ width: '76px', marginLeft: 'auto' }} /></td>
                     </tr>
                   ))
-                ) : incidents.length === 0 ? (
+                ) : zones.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="tui-cell-state">
+                    <td colSpan={8} className="tui-cell-state">
                       <div className="tui-state">
-                        <MapPin size={26} className="tui-state-icon" />
+                        <Hexagon size={26} className="tui-state-icon" />
                         <p className="tui-state-title">
-                          {hasActiveFilters ? 'No incidents match these filters' : 'No incidents yet'}
+                          {hasActiveFilters ? 'No zones match these filters' : 'No zones yet'}
                         </p>
                         <p className="tui-state-sub">
                           {hasActiveFilters
                             ? 'Try widening the search or clearing some filters.'
-                            : 'Create an incident on the map to see it listed here.'}
+                            : 'Check back soon — new zones are published as situations evolve.'}
                         </p>
                         {hasActiveFilters && (
                           <button className="tui-btn" onClick={resetFilters}>
@@ -525,100 +480,75 @@ export default function IncidentsPage() {
                     </td>
                   </tr>
                 ) : (
-                  incidents.map((incident) => {
-                    const categoryLabel = incident.category_name || incident.domain_name || null;
-                    const busy = busyId === incident.id;
+                  zones.map((zone) => {
+                    const area = formatAreaKm2(zone.area_sq_m);
                     return (
                       <tr
-                        key={incident.id}
+                        key={zone.id}
                         className="tui-row"
-                        onClick={() => navigate(`/incident/${incident.id}`)}
+                        onClick={() => navigate(`/zone/${zone.id}`)}
                       >
                         <td>
                           <div className="tui-tcell">
-                            <MapPin
+                            <Hexagon
                               size={15}
                               className="tui-tcell-glyph"
-                              style={{ color: incident.domain_color || 'var(--text-muted)' }}
+                              style={{ color: zone.zone_category_color || 'var(--text-muted)' }}
                             />
                             <div className="tui-tcell-text">
-                              <span className="tui-tcell-title">{incident.title}</span>
-                              {incident.location_context && (
-                                <span className="tui-tcell-sub">{incident.location_context}</span>
+                              <span className="tui-tcell-title">{zone.title}</span>
+                              {zone.location_context && (
+                                <span className="tui-tcell-sub">{zone.location_context}</span>
                               )}
                             </div>
                           </div>
                         </td>
                         <td>
-                          {categoryLabel ? (
-                            <div
-                              className="ip-domcell"
-                              title={
-                                incident.domain_name && incident.category_name
-                                  ? `${incident.domain_name} › ${incident.category_name}`
-                                  : categoryLabel
-                              }
-                            >
-                              <span
-                                className="ip-domdot"
-                                style={{ background: incident.domain_color || '#6b7280' }}
-                              />
-                              <div className="ip-domcell-text">
-                                <span className="ip-domcat">{categoryLabel}</span>
-                                {incident.category_name && incident.domain_name && (
-                                  <span className="ip-domname">{incident.domain_name}</span>
-                                )}
-                              </div>
-                            </div>
+                          {zone.zone_category_name ? (
+                            <Badge color={zone.zone_category_color || '#6366f1'} size="sm" title={zone.zone_category_name}>
+                              {zone.zone_category_name}
+                            </Badge>
                           ) : (
                             <span className="tui-dash">—</span>
                           )}
                         </td>
                         <td>
-                          <SeverityBadge level={incident.severity} size="sm" />
+                          <SeverityBadge level={zone.severity} size="sm" />
+                        </td>
+                        <td className="tui-num tui-mono">
+                          {area ? (
+                            <>
+                              {area}
+                              <span className="tui-unit"> km²</span>
+                            </>
+                          ) : (
+                            <span className="tui-dash">—</span>
+                          )}
                         </td>
                         <td>
-                          <Badge status={incident.status} size="sm">{incident.status}</Badge>
+                          <Badge status={zone.status} size="sm">{zone.status}</Badge>
                         </td>
-                        <td className="tui-muted-nowrap" title={incident.created_at ? new Date(incident.created_at).toLocaleString() : ''}>
-                          {formatDate(incident.created_at)}
+                        <td className="tui-muted-nowrap" title={zone.created_at ? new Date(zone.created_at).toLocaleString() : ''}>
+                          {formatDate(zone.created_at)}
                         </td>
-                        <td className="tui-muted-nowrap" title={incident.updated_at ? new Date(incident.updated_at).toLocaleString() : ''}>
-                          {formatRelative(incident.updated_at || incident.created_at)}
+                        <td className="tui-muted-nowrap" title={zone.updated_at ? new Date(zone.updated_at).toLocaleString() : ''}>
+                          {formatRelative(zone.updated_at || zone.created_at)}
                         </td>
                         <td className="tui-cell-actions" onClick={(e) => e.stopPropagation()}>
                           <div className="tui-actions">
-                            {incident.status === 'active' && (
-                              <button
-                                className="tui-icon-btn tui-icon-btn-resolve"
-                                title="Mark resolved"
-                                disabled={busy}
-                                onClick={() => handleResolve(incident)}
-                              >
-                                {busy ? <Loader2 size={14} className="tui-spin" /> : <CheckCircle2 size={14} />}
-                              </button>
-                            )}
                             <button
                               className="tui-icon-btn"
                               title="View on map"
-                              onClick={() => navigate(`/?incident=${incident.id}`)}
+                              onClick={() => navigate(`/map?zone=${zone.id}`)}
                             >
                               <MapPin size={14} />
                             </button>
                             <button
                               className="tui-icon-btn"
                               title="Full details"
-                              onClick={() => navigate(`/incident/${incident.id}`)}
+                              onClick={() => navigate(`/zone/${zone.id}`)}
                             >
                               <ArrowUpRight size={14} />
-                            </button>
-                            <button
-                              className="tui-icon-btn tui-icon-btn-danger"
-                              title="Delete incident"
-                              disabled={busy}
-                              onClick={() => setPendingDelete(incident)}
-                            >
-                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
@@ -637,7 +567,7 @@ export default function IncidentsPage() {
             <span className="tui-page-info">
               {total === 0
                 ? 'No results'
-                : `${page * PAGE_SIZE + 1}–${Math.min(total, (page + 1) * PAGE_SIZE)} of ${total.toLocaleString()} incidents`}
+                : `${page * PAGE_SIZE + 1}–${Math.min(total, (page + 1) * PAGE_SIZE)} of ${total.toLocaleString()} zones`}
             </span>
             <div className="tui-page-controls">
               <button
@@ -663,16 +593,6 @@ export default function IncidentsPage() {
           </div>
         )}
       </div>
-
-      <ConfirmDialog
-        isOpen={!!pendingDelete}
-        title="Delete incident"
-        message={`Delete "${pendingDelete?.title || 'this incident'}"? It will be moved to the recycle bin.`}
-        confirmText="Delete"
-        danger
-        onConfirm={handleDelete}
-        onCancel={() => setPendingDelete(null)}
-      />
     </div>
   );
 }

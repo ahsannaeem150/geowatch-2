@@ -14,6 +14,7 @@ import {
   Filter,
   Info,
   Monitor,
+  Minimize2,
   Palette,
   Plus,
   Crosshair,
@@ -1039,7 +1040,7 @@ function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
   );
 }
 
-function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabled, onToggleAutoZoom }) {
+function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabled, onToggleAutoZoom, compactMode, onToggleCompactMode }) {
   return (
     <div style={{ padding: 'calc(16px * var(--admin-ui-scale))' }}>
       <div
@@ -1118,6 +1119,57 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabl
               position: 'absolute',
               top: 'calc(2px * var(--admin-ui-scale))',
               left: autoZoomEnabled ? 'calc(20px * var(--admin-ui-scale))' : 'calc(2px * var(--admin-ui-scale))',
+              width: 'calc(18px * var(--admin-ui-scale))',
+              height: 'calc(18px * var(--admin-ui-scale))',
+              borderRadius: '50%',
+              background: '#fff',
+              transition: 'left 0.15s ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+            }}
+          />
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 'calc(12px * var(--admin-ui-scale))',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-sm)',
+          boxShadow: 'var(--shadow-sm)',
+          marginBottom: 'calc(10px * var(--admin-ui-scale))',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
+          <Minimize2 size={16} color="var(--text-secondary)" />
+          <div>
+            <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', color: 'var(--text-primary)' }}>Compact mode</div>
+            <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>Reduce workspace UI density</div>
+          </div>
+        </div>
+        <button
+          onClick={onToggleCompactMode}
+          aria-checked={compactMode}
+          role="switch"
+          style={{
+            width: 'calc(40px * var(--admin-ui-scale))',
+            height: 'calc(22px * var(--admin-ui-scale))',
+            borderRadius: 'calc(11px * var(--admin-ui-scale))',
+            border: 'none',
+            background: compactMode ? 'var(--accent)' : 'var(--border-strong)',
+            position: 'relative',
+            cursor: 'pointer',
+            transition: 'background 0.15s ease',
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              top: 'calc(2px * var(--admin-ui-scale))',
+              left: compactMode ? 'calc(20px * var(--admin-ui-scale))' : 'calc(2px * var(--admin-ui-scale))',
               width: 'calc(18px * var(--admin-ui-scale))',
               height: 'calc(18px * var(--admin-ui-scale))',
               borderRadius: '50%',
@@ -1284,7 +1336,7 @@ export default function WorkspaceDrawer(props) {
           />
         );
       case 'settings':
-        return <SettingsDrawer theme={theme} style={style} onToggleTheme={toggleTheme} onSetStyle={setStyle} autoZoomEnabled={props.autoZoomEnabled} onToggleAutoZoom={props.onToggleAutoZoom} />;
+        return <SettingsDrawer theme={theme} style={style} onToggleTheme={toggleTheme} onSetStyle={setStyle} autoZoomEnabled={props.autoZoomEnabled} onToggleAutoZoom={props.onToggleAutoZoom} compactMode={props.compactMode} onToggleCompactMode={props.onToggleCompactMode} />;
       default:
         return null;
     }

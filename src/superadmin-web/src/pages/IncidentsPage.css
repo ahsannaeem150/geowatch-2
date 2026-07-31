@@ -1,0 +1,49 @@
+/* ─── Incidents Directory Page (/incidents) ───
+   Chrome, toolbar, table, dropdown, and popover styles are shared
+   with the zones directory and live in
+   src/admin-web/src/components/TableUI/table-ui.css (imported by the page).
+   Only incident-specific cells live here. */
+
+/* Domain / Category cell — compact two-line layout, no pill box.
+   Line 1: domain-color dot + full category name; line 2: domain caption. */
+.ip-domcell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ip-domdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ip-domcell-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ip-domcat {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ip-domname {
+  font-size: 9px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}

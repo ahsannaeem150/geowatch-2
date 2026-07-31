@@ -1,0 +1,101 @@
+/* ─── Public directory pages (/incidents, /zones) ───
+   Read-only versions of the admin table directories. Chrome, toolbar, table,
+   dropdown, and popover styles are shared with admin via
+   src/user-web/src/components/TableUI/table-ui.css (imported by the pages).
+   Only the public page container + incident-specific cells live here. */
+
+.tui-public-page {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: calc(14px * var(--admin-ui-scale));
+}
+
+/* Page heading: title + subtitle on the left, total count on the right. */
+.tui-public-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tui-public-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+
+.tui-public-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+/* Toolbar + chips render as bordered cards inside the public container. */
+.tui-public-page .tui-toolbar {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale));
+}
+
+.tui-public-page .tui-chips-bar {
+  background: transparent;
+  border-bottom: none;
+  padding: 0 calc(4px * var(--admin-ui-scale));
+}
+
+.tui-public-page .tui-content {
+  padding: 0;
+}
+
+/* Domain / Category cell — compact two-line layout, no pill box.
+   Line 1: domain-color dot + full category name; line 2: domain caption. */
+.ip-domcell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ip-domdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ip-domcell-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ip-domcat {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ip-domname {
+  font-size: 9px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
