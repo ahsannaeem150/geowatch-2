@@ -128,6 +128,17 @@ export default function MapPage() {
     Number.isFinite(parseFloat(latParam)) &&
     Number.isFinite(parseFloat(lngParam)) &&
     Number.isFinite(parseFloat(zoomParam));
+  // Viewport params appended AFTER mount by the app's own viewport sync
+  // (handleViewportChange) are not a saved position. Freeze the flag to what
+  // the URL carried when this page mounted, so incident/zone deep-link
+  // flights still fire once the sync has written lat/lng/zoom into the URL.
+  const savedViewportRef = useRef(undefined);
+  if (savedViewportRef.current === undefined) {
+    savedViewportRef.current = hasViewportParams
+      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: parseFloat(zoomParam) }
+      : null;
+  }
+  const hasSavedViewport = !!savedViewportRef.current;
   const refParam = searchParams.get('ref');
   const actorParam = searchParams.get('actor');
   const returnToParam = searchParams.get('returnTo');
@@ -164,7 +175,6 @@ export default function MapPage() {
 
   // ─── Zones (polygon incidents) ───
   const [selectedZoneId, setSelectedZoneId] = useState(null);
-  const [fitBounds, setFitBounds] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   // ─── Zone Drawing ───
@@ -185,6 +195,20 @@ export default function MapPage() {
   // ─── Map context menu ───
   const mapRef = useRef(null);
   const prevIncidentIdRef = useRef(null);
+  // Live mirror of the current selection for deep-link already-selected guards.
+  const selectedIncidentRef = useRef(null);
+  selectedIncidentRef.current = selectedIncident;
+  // Deep-link stale-URL guards. In-app selections write ?incident/?zone via
+  // React Router transitions that can take arbitrarily long to land (and can
+  // be superseded), so the deep-link effects can fire while the URL param is
+  // still stale. Each effect stamps the time it first observes a param value;
+  // when the last in-app selection is NEWER than that observation, the param
+  // is stale and must not hijack the selection's own flight. External URL
+  // changes (paste, back/forward, inspector clicks) stamp a fresh observation
+  // and are processed normally.
+  const lastInAppSelectAtRef = useRef(0);
+  const incidentUrlSeenRef = useRef({ param: null, at: 0 });
+  const zoneUrlSeenRef = useRef({ param: null, at: 0 });
   const {
     isOpen: mapMenuOpen,
     position: mapMenuPosition,
@@ -257,6 +281,7 @@ export default function MapPage() {
   const [rightPanelRendered, setRightPanelRendered] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(false);
   const rightPanelRef = useRef(null);
+  const flyToTimeoutRef = useRef(null);
 
   const isPanelOpen = !!(selectedIncident || showZoneCreatePanel || pointFormMode);
 
@@ -383,6 +408,28 @@ export default function MapPage() {
     return () => clearTimeout(timer);
   }, [isPanelOpen, rightPanelCollapsed]);
 
+  useEffect(() => () => clearTimeout(flyToTimeoutRef.current), []);
+
+  const exitFocusMode = useCallback(() => {
+    if (!focusMode) return;
+    setFocusMode(false);
+    setActiveDrawer(null);
+  }, [focusMode]);
+
+  // Delay a camera flight by the right-panel transition when the selection is
+  // about to open the panel, so the flight starts from the settled layout.
+  // Padding is measured live at flight time via getCurrentMapPadding.
+  const scheduleFlyTo = useCallback((request, panelAlreadyOpen) => {
+    clearTimeout(flyToTimeoutRef.current);
+    if (!request) {
+      setFlyToCoords(null);
+    } else if (panelAlreadyOpen) {
+      setFlyToCoords(request);
+    } else {
+      flyToTimeoutRef.current = setTimeout(() => setFlyToCoords(request), RIGHT_PANEL_TRANSITION_MS);
+    }
+  }, []);
+
   // ─── Fetch incidents with smart viewport filtering ───
   useEffect(() => {
     let cancelled = false;
@@ -487,10 +534,13 @@ export default function MapPage() {
     [activities, lastSeenTimestamp]
   );
 
-  // Padding for floating overlays inside the map container (ghost banner)
-  // that must avoid the absolutely-positioned chrome (drawer, right panel,
-  // power-search rails).
-  const getBannerPadding = useCallback(
+  // Compute the padding MapLibre should apply so camera flights target the
+  // visible map rectangle after a layout change. `overrides` lets callers
+  // describe the state *after* the action they are about to trigger. Also used
+  // for floating overlays inside the map container (ghost banner) that must
+  // avoid the absolutely-positioned chrome (drawer, right panel, power-search
+  // rails).
+  const getNextMapPadding = useCallback(
     (overrides = {}) =>
       computeMapPadding({
         scale: compactMode ? 0.9 : 1,
@@ -505,6 +555,35 @@ export default function MapPage() {
     [compactMode, powerSearchMode, psFilterCollapsed, psResultsCollapsed, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed]
   );
 
+  // Live layout state mirror for the map padding getter. SuperadminMap calls
+  // getCurrentMapPadding at flight time (after panel/drawer transitions and
+  // the scheduleFlyTo delay), so the padding always matches the chrome that is
+  // actually on screen — a snapshot taken at click time would go stale.
+  const layoutStateRef = useRef({});
+  layoutStateRef.current = {
+    compactMode,
+    powerSearchMode,
+    psFilterCollapsed,
+    psResultsCollapsed,
+    activeDrawer,
+    focusMode,
+    isPanelOpen,
+    rightPanelCollapsed,
+  };
+  const getCurrentMapPadding = useCallback(() => {
+    const s = layoutStateRef.current;
+    return computeMapPadding({
+      scale: s.compactMode ? 0.9 : 1,
+      powerSearchMode: s.powerSearchMode,
+      psFilterCollapsed: s.psFilterCollapsed,
+      psResultsCollapsed: s.psResultsCollapsed,
+      activeDrawer: s.activeDrawer,
+      focusMode: s.focusMode,
+      isPanelOpen: s.isPanelOpen,
+      rightPanelCollapsed: s.rightPanelCollapsed,
+    });
+  }, []);
+
   // ─── Handle zone ID from URL — deep-linking ───
   const zoneDeepLinkProcessed = useRef(false);
   const prevZoneIdRef = useRef(null);
@@ -518,22 +597,57 @@ export default function MapPage() {
       return;
     }
 
+    // Stamp the first observation of this param value; suppress the effect
+    // when a newer in-app selection makes the param stale (see the ref block).
+    if (zoneUrlSeenRef.current.param !== zoneIdFromUrl) {
+      zoneUrlSeenRef.current = { param: zoneIdFromUrl, at: performance.now() };
+    }
+    if (lastInAppSelectAtRef.current > zoneUrlSeenRef.current.at) {
+      zoneDeepLinkProcessed.current = true;
+      return;
+    }
+
+    // Already-selected guard (mirrors the incident deep-link guard): when the
+    // URL param was written by an in-app zone selection (map click, power
+    // search), the selection's own flight already ran — do not re-fire a
+    // deep-link flight that would hijack the source and bypass the map-click
+    // tolerance rule.
+    const currentZoneSelection = selectedIncidentRef.current;
+    const currentIsPolygonZone = currentZoneSelection?.geometry_type === 'polygon' || currentZoneSelection?.geometryType === 'polygon';
+    if (currentZoneSelection?.id === zoneIdFromUrl && currentIsPolygonZone) {
+      zoneDeepLinkProcessed.current = true;
+      return;
+    }
+
     const zone = polygonIncidents.find((z) => z.id === zoneIdFromUrl);
     if (zone && !zoneDeepLinkProcessed.current) {
+      exitFocusMode();
       setSelectedZoneId(zone.id);
       setSelectedIncident(zone);
+      setRightPanelCollapsed(false);
       // Only fly to the zone when the URL does not already carry a saved viewport.
       // This preserves the map position when the user returns from the full-page zone view.
-      if (!hasViewportParams && zone.geometry?.coordinates?.[0]) {
-        const coords = zone.geometry.coordinates[0];
-        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-        coords.forEach(([lng, lat]) => {
-          minLng = Math.min(minLng, lng);
-          minLat = Math.min(minLat, lat);
-          maxLng = Math.max(maxLng, lng);
-          maxLat = Math.max(maxLat, lat);
-        });
-        setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+      if (!hasSavedViewport) {
+        const centroid = getZoneCentroid(zone);
+        const bounds = getZoneBounds(zone);
+        if (centroid && bounds) {
+          scheduleFlyTo(
+            {
+              type: 'zone',
+              source: 'deep-link',
+              lat: centroid.lat,
+              lng: centroid.lng,
+              bounds,
+              padding: getNextMapPadding({
+                focusMode: false,
+                activeDrawer: focusMode ? null : activeDrawer,
+                rightPanelCollapsed: false,
+                isPanelOpen: true,
+              }),
+            },
+            isPanelOpen && !rightPanelCollapsed
+          );
+        }
       }
       zoneDeepLinkProcessed.current = true;
       return;
@@ -547,7 +661,7 @@ export default function MapPage() {
         return next;
       });
     }
-  }, [zoneIdFromUrl, polygonIncidents, hasViewportParams, setSearchParams]);
+  }, [zoneIdFromUrl, polygonIncidents, hasSavedViewport, setSearchParams, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   // Fetch domains for layers drawer
   useEffect(() => {
@@ -756,6 +870,8 @@ export default function MapPage() {
 
   // Select incident
   const handleSelectIncident = useCallback((incident, opts = {}) => {
+    const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+    const source = opts.source || 'map';
     if (focusMode) {
       setFocusMode(false);
       setActiveDrawer(null);
@@ -766,44 +882,46 @@ export default function MapPage() {
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
 
+    // Padding snapshot describing the layout AFTER this selection (panel
+    // open, focus exited); the map re-measures live at flight time.
+    const padding = getNextMapPadding({
+      focusMode: false,
+      activeDrawer: focusMode ? null : activeDrawer,
+      rightPanelCollapsed: false,
+      isPanelOpen: true,
+    });
+
     if (incident?.geometry_type === 'polygon') {
       setSelectedZoneId(incident.id);
       if (!opts.skipFlyTo) {
-        setFlyToCoords(null);
-        if (incident.geometry?.coordinates?.[0]) {
-          const coords = incident.geometry.coordinates[0];
-          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-          coords.forEach(([lng, lat]) => {
-            minLng = Math.min(minLng, lng);
-            minLat = Math.min(minLat, lat);
-            maxLng = Math.max(maxLng, lng);
-            maxLat = Math.max(maxLat, lat);
-          });
-          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
-        } else {
-          setFitBounds(null);
+        const centroid = getZoneCentroid(incident);
+        const bounds = getZoneBounds(incident);
+        if (centroid && bounds) {
+          scheduleFlyTo(
+            { type: 'zone', source, lat: centroid.lat, lng: centroid.lng, bounds, padding },
+            panelAlreadyOpen
+          );
         }
       } else {
-        setFlyToCoords(null);
-        setFitBounds(null);
+        scheduleFlyTo(null, true);
       }
     } else {
       setSelectedZoneId(null);
       if (!opts.skipFlyTo) {
-        setFitBounds(null);
         const lat = parseFloat(incident?.latitude);
         const lng = parseFloat(incident?.longitude);
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          setFlyToCoords({ lat, lng, zoom: 10 });
-        } else {
-          setFlyToCoords(null);
+          scheduleFlyTo(
+            { type: 'incident', source, lat, lng, padding },
+            panelAlreadyOpen
+          );
         }
       } else {
-        setFlyToCoords(null);
-        setFitBounds(null);
+        scheduleFlyTo(null, true);
       }
     }
 
+    lastInAppSelectAtRef.current = performance.now();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('incident', incident.id);
@@ -816,7 +934,7 @@ export default function MapPage() {
     } catch {
       // ignore
     }
-  }, [setSearchParams, focusMode, recordRecent]);
+  }, [setSearchParams, focusMode, recordRecent, getNextMapPadding, activeDrawer, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const handleBack = useCallback(() => {
     setSelectedIncident(null);
@@ -830,7 +948,6 @@ export default function MapPage() {
     setOriginalZoneVertices([]);
     setShowZoneCreatePanel(false);
     setZoneInfoEditMode(false);
-    setFitBounds(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('incident');
@@ -937,10 +1054,9 @@ export default function MapPage() {
       });
       setSelectedZoneId(null);
       setGhostZone(null);
-      setFlyToCoords(null);
-      setFitBounds(null);
+      scheduleFlyTo(null, true);
     },
-    [setSearchParams]
+    [setSearchParams, scheduleFlyTo]
   );
 
   // ─── Shared incident detail callbacks ───
@@ -1376,15 +1492,43 @@ export default function MapPage() {
       return;
     }
 
+    // Stamp the first observation of this param value; suppress the effect
+    // when a newer in-app selection makes the param stale (see the ref block).
+    if (incidentUrlSeenRef.current.param !== incidentIdFromUrl) {
+      incidentUrlSeenRef.current = { param: incidentIdFromUrl, at: performance.now() };
+    }
+    if (lastInAppSelectAtRef.current > incidentUrlSeenRef.current.at) {
+      return;
+    }
+
     // Reset ghost-fetch tracking when the requested incident changes
     if (lastIncidentIdRef.current !== incidentIdFromUrl) {
       ghostFetchAttempted.current = false;
       lastIncidentIdRef.current = incidentIdFromUrl;
     }
 
+    // If a zone is currently selected (by URL or by user click), it takes
+    // precedence; do not auto-switch back to a stale incident id.
+    if (zoneIdFromUrl) {
+      return;
+    }
+
+    // Already-selected guard: when the URL param was written by an in-app
+    // selection (map click, drawer, power search), the selection's own flight
+    // already ran — do not re-fire a deep-link flight that would hijack the
+    // source and bypass its zoom rules.
+    const currentSelection = selectedIncidentRef.current;
+    const currentIsPolygon = currentSelection?.geometry_type === 'polygon' || currentSelection?.geometryType === 'polygon';
+    if (currentSelection?.id === incidentIdFromUrl && !currentIsPolygon) {
+      return;
+    }
+    if (currentIsPolygon) {
+      return;
+    }
+
     const inList = incidents.find((i) => i.id === incidentIdFromUrl);
     if (inList) {
-      handleSelectIncident(inList, { skipFlyTo: hasViewportParams });
+      handleSelectIncident(inList, { skipFlyTo: hasSavedViewport, source: 'deep-link' });
       ghostFetchAttempted.current = true;
       return;
     }
@@ -1394,7 +1538,7 @@ export default function MapPage() {
       getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res?.incident) {
-            handleSelectIncident(res.incident, { skipFlyTo: hasViewportParams });
+            handleSelectIncident(res.incident, { skipFlyTo: hasSavedViewport, source: 'deep-link' });
           }
         })
         .catch((err) => {
@@ -1410,22 +1554,37 @@ export default function MapPage() {
                   setGhostZone(null);
 
                   // Fly the map to the deleted incident and render a ghost marker/zone.
+                  const deepLinkPadding = getNextMapPadding({
+                    focusMode: false,
+                    activeDrawer: focusMode ? null : activeDrawer,
+                    rightPanelCollapsed: false,
+                    isPanelOpen: true,
+                  });
                   if (deletedIncident.geometry_type === 'polygon' && deletedIncident.geometry?.coordinates?.[0]) {
-                    const coords = deletedIncident.geometry.coordinates[0];
-                    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-                    coords.forEach(([lng, lat]) => {
-                      minLng = Math.min(minLng, lng);
-                      minLat = Math.min(minLat, lat);
-                      maxLng = Math.max(maxLng, lng);
-                      maxLat = Math.max(maxLat, lat);
-                    });
-                    setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+                    const centroid = getZoneCentroid(deletedIncident);
+                    const bounds = getZoneBounds(deletedIncident);
+                    if (centroid && bounds) {
+                      scheduleFlyTo(
+                        {
+                          type: 'zone',
+                          source: 'deep-link',
+                          lat: centroid.lat,
+                          lng: centroid.lng,
+                          bounds,
+                          padding: deepLinkPadding,
+                        },
+                        isPanelOpen && !rightPanelCollapsed
+                      );
+                    }
                     setGhostZone(deletedIncident);
                   } else {
                     const lat = parseFloat(deletedIncident.latitude);
                     const lng = parseFloat(deletedIncident.longitude);
                     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                      setFlyToCoords({ lat, lng, zoom: 10 });
+                      scheduleFlyTo(
+                        { type: 'incident', source: 'deep-link', lat, lng, padding: deepLinkPadding },
+                        isPanelOpen && !rightPanelCollapsed
+                      );
                     }
                   }
                 } else {
@@ -1452,10 +1611,12 @@ export default function MapPage() {
           }
         });
     }
-  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, hasViewportParams, setSearchParams]);
+  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, hasSavedViewport, setSearchParams, zoneIdFromUrl, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   // ─── Zone selection ───
-  const handleZoneClick = useCallback((zoneId) => {
+  const handleZoneClick = useCallback((zoneId, opts = {}) => {
+    const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+    const source = opts.source || 'map';
     const zone = polygonIncidents.find((z) => z.id === zoneId)
       || (powerSearchMode ? psResults.find((z) => z.id === zoneId) : null);
     if (!zone) return;
@@ -1470,19 +1631,29 @@ export default function MapPage() {
     setEditingZoneId(null);
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
-    // Compute bounds from polygon and fly map there
-    if (zone.geometry?.coordinates?.[0]) {
-      const coords = zone.geometry.coordinates[0];
-      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-      coords.forEach(([lng, lat]) => {
-        minLng = Math.min(minLng, lng);
-        minLat = Math.min(minLat, lat);
-        maxLng = Math.max(maxLng, lng);
-        maxLat = Math.max(maxLat, lat);
-      });
-      setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+    // Comfort-fit the zone in the visible map area (smart selection camera).
+    const centroid = getZoneCentroid(zone);
+    const bounds = getZoneBounds(zone);
+    if (centroid && bounds) {
+      scheduleFlyTo(
+        {
+          type: 'zone',
+          source,
+          lat: centroid.lat,
+          lng: centroid.lng,
+          bounds,
+          padding: getNextMapPadding({
+            focusMode: false,
+            activeDrawer: focusMode ? null : activeDrawer,
+            rightPanelCollapsed: false,
+            isPanelOpen: true,
+          }),
+        },
+        panelAlreadyOpen
+      );
     }
     // Update URL to make zone shareable
+    lastInAppSelectAtRef.current = performance.now();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('zone', zone.id);
@@ -1495,7 +1666,7 @@ export default function MapPage() {
     } catch {
       // ignore
     }
-  }, [polygonIncidents, powerSearchMode, psResults, focusMode, recordRecent, setSearchParams]);
+  }, [polygonIncidents, powerSearchMode, psResults, focusMode, recordRecent, setSearchParams, getNextMapPadding, activeDrawer, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   // ─── Drawing history helpers ───
   const pushToHistory = useCallback((vertices, isClosed) => {
@@ -1654,18 +1825,28 @@ export default function MapPage() {
         setEditingZoneVertices([]);
         setOriginalZoneVertices([]);
 
-        if (newZone.geometry?.coordinates?.[0]) {
-          const coords = newZone.geometry.coordinates[0];
-          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-          coords.forEach(([lng, lat]) => {
-            minLng = Math.min(minLng, lng);
-            minLat = Math.min(minLat, lat);
-            maxLng = Math.max(maxLng, lng);
-            maxLat = Math.max(maxLat, lat);
-          });
-          setFitBounds({ bounds: [[minLng, minLat], [maxLng, maxLat]], padding: 40 });
+        const centroid = getZoneCentroid(newZone);
+        const bounds = getZoneBounds(newZone);
+        if (centroid && bounds) {
+          scheduleFlyTo(
+            {
+              type: 'zone',
+              source: 'create',
+              lat: centroid.lat,
+              lng: centroid.lng,
+              bounds,
+              padding: getNextMapPadding({
+                focusMode: false,
+                activeDrawer: focusMode ? null : activeDrawer,
+                rightPanelCollapsed: false,
+                isPanelOpen: true,
+              }),
+            },
+            isPanelOpen && !rightPanelCollapsed
+          );
         }
 
+        lastInAppSelectAtRef.current = performance.now();
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.set('zone', newZone.id);
@@ -1680,7 +1861,7 @@ export default function MapPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [setSearchParams]);
+  }, [setSearchParams, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
 
   const handleEditZone = useCallback((explicitZone) => {
     const zone = explicitZone || polygonIncidents.find((z) => z.id === selectedZoneId);
@@ -2029,12 +2210,6 @@ export default function MapPage() {
   }, []);
 
   // ─── Workspace chrome handlers ───
-  const exitFocusMode = useCallback(() => {
-    if (!focusMode) return;
-    setFocusMode(false);
-    setActiveDrawer(null);
-  }, [focusMode]);
-
   const handleDrawerSelect = useCallback(
     (id) => {
       exitFocusMode();
@@ -2137,7 +2312,13 @@ export default function MapPage() {
     const parsedLat = parseFloat(lat);
     const parsedLng = parseFloat(lng);
     if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return;
-    setFlyToCoords({ lat: parsedLat, lng: parsedLng, zoom: zoom || getZoomForLocation() });
+    setFlyToCoords({
+      type: 'location',
+      source: 'search',
+      lat: parsedLat,
+      lng: parsedLng,
+      zoom: zoom || getZoomForLocation(),
+    });
   }, []);
 
   const handleDismissContext = useCallback(() => {
@@ -2182,24 +2363,24 @@ export default function MapPage() {
 
   // ─── Drawer data handlers ───
   const selectIncidentById = useCallback(
-    (incidentId, incidentData) => {
+    (incidentId, incidentData, source = 'list') => {
       // SSE payloads carry unparsed geometry — for polygons, fetch the full
       // incident so fit-bounds and zone rendering get real coordinates.
       const usable =
         incidentData &&
         (incidentData.geometry_type !== 'polygon' || incidentData.geometry?.coordinates);
       if (usable) {
-        handleSelectIncident(incidentData);
+        handleSelectIncident(incidentData, { source });
         return;
       }
       const found = incidents.find((i) => i.id === incidentId);
       if (found) {
-        handleSelectIncident(found);
+        handleSelectIncident(found, { source });
         return;
       }
       getIncident(incidentId)
         .then((res) => {
-          if (res?.incident) handleSelectIncident(res.incident);
+          if (res?.incident) handleSelectIncident(res.incident, { source });
         })
         .catch(() => {
           console.warn('Could not fetch incident', incidentId);
@@ -2211,7 +2392,7 @@ export default function MapPage() {
   const handleSelectActivityIncident = useCallback(
     (incidentId) => {
       const activity = activities.find((a) => a.incidentId === incidentId);
-      selectIncidentById(incidentId, activity?.incident || null);
+      selectIncidentById(incidentId, activity?.incident || null, 'activity');
     },
     [activities, selectIncidentById]
   );
@@ -2219,14 +2400,14 @@ export default function MapPage() {
   const handleSelectNotificationIncident = useCallback(
     (incidentId) => {
       if (!incidentId) return;
-      selectIncidentById(incidentId, null);
+      selectIncidentById(incidentId, null, 'notification');
     },
     [selectIncidentById]
   );
 
   const handleSelectRecent = useCallback(
     (recent) => {
-      if (recent?.id) selectIncidentById(recent.id, null);
+      if (recent?.id) selectIncidentById(recent.id, null, 'recent');
     },
     [selectIncidentById]
   );
@@ -2310,7 +2491,7 @@ export default function MapPage() {
   const handlePowerSearchSelect = useCallback(
     (incident) => {
       if (!incident) return;
-      handleSelectIncident(incident);
+      handleSelectIncident(incident, { source: 'power-search' });
     },
     [handleSelectIncident]
   );
@@ -2382,7 +2563,7 @@ export default function MapPage() {
     ? selectedIncident
     : null;
 
-  const bannerPadding = getBannerPadding();
+  const bannerPadding = getNextMapPadding();
 
   return (
     <>
@@ -2517,7 +2698,7 @@ export default function MapPage() {
               onShowAllZones={handleShowAllZones}
               onHideAllZones={handleHideAllZones}
               visibleIncidents={filteredIncidents}
-              onSelectIncident={handleSelectIncident}
+              onSelectIncident={(incident) => handleSelectIncident(incident, { source: 'drawer' })}
               activeIncidents={activeIncidents}
               overdueCount={overdueIncidentCount}
               onResolveIncident={handleResolveFromDrawer}
@@ -2531,7 +2712,7 @@ export default function MapPage() {
               onMarkAllNotificationsRead={markAllNotificationsRead}
               onSelectNotificationIncident={handleSelectNotificationIncident}
               savedIncidents={savedIncidents}
-              onSelectSavedIncident={handleSelectIncident}
+              onSelectSavedIncident={(incident) => handleSelectIncident(incident, { source: 'drawer' })}
               onUnsaveIncident={unsaveIncident}
               recents={recents}
               onClearRecents={clearRecents}
@@ -2650,10 +2831,13 @@ export default function MapPage() {
               onEventClick={handleSelectIncident}
               onViewportChange={handleViewportChange}
               flyToCoords={flyToCoords}
-              fitBounds={fitBounds}
+              getMapPadding={getCurrentMapPadding}
               initialViewport={
-                hasViewportParams
-                  ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
+                savedViewportRef.current
+                  ? {
+                      center: [savedViewportRef.current.lng, savedViewportRef.current.lat],
+                      zoom: savedViewportRef.current.zoom,
+                    }
                   : null
               }
               ghostIncident={ghostIncident}
@@ -3358,7 +3542,7 @@ export default function MapPage() {
         onClose={() => setCommandPaletteOpen(false)}
         incidents={incidents}
         savedIds={savedIds}
-        onSelectIncident={(incident) => handleSelectIncident(incident)}
+        onSelectIncident={(incident) => handleSelectIncident(incident, { source: 'palette' })}
         onSelectLocation={handlePaletteSelectLocation}
         onAddIncident={handleAddIncident}
         onAddZone={handleAddZone}
@@ -3368,6 +3552,37 @@ export default function MapPage() {
       />
     </>
   );
+}
+
+function getZoneCentroid(zone) {
+  const coords = zone?.geometry?.coordinates?.[0];
+  if (!coords || coords.length === 0) return null;
+  let sumLng = 0;
+  let sumLat = 0;
+  coords.forEach(([lng, lat]) => {
+    sumLng += lng;
+    sumLat += lat;
+  });
+  return { lng: sumLng / coords.length, lat: sumLat / coords.length };
+}
+
+function getZoneBounds(zone) {
+  const coords = zone?.geometry?.coordinates?.[0];
+  if (!coords || coords.length === 0) return null;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  coords.forEach(([lng, lat]) => {
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+  });
+  if (!Number.isFinite(minLng) || !Number.isFinite(maxLng) || !Number.isFinite(minLat) || !Number.isFinite(maxLat)) {
+    return null;
+  }
+  return [[minLng, minLat], [maxLng, maxLat]];
 }
 
 function getZoomForLocation(type, cls) {

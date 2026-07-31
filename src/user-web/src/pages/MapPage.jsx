@@ -114,6 +114,11 @@ export default function MapPage() {
     Number.isFinite(parseFloat(latParam)) &&
     Number.isFinite(parseFloat(lngParam)) &&
     Number.isFinite(parseFloat(zoomParam));
+  // Mount-time snapshot: true only when the URL the page was OPENED with
+  // carried an explicit camera (shared-view restore). lat/lng/zoom params
+  // written afterwards by the app's own viewport sync must not turn a plain
+  // ?incident=/?zone= deep-link into a skipFlyTo.
+  const initialUrlHadViewportRef = useRef(!!hasViewportParams);
 
   // ─── Date & filters ───
   const today = getToday();
@@ -218,6 +223,11 @@ export default function MapPage() {
   const skipNextZoneFitRef = useRef(false);
   const zoneGhostFetchAttempted = useRef(false);
   const ghostFetchAttempted = useRef(false);
+  const flyToTimeoutRef = useRef(null);
+  // Last URL param value each deep-link effect has already handled (or
+  // intentionally ignored because it came from an in-app selection).
+  const incidentDeepLinkProcessedRef = useRef(null);
+  const zoneDeepLinkProcessedRef = useRef(null);
 
   // Keep ref in sync with state for SSE handler
   useEffect(() => {
@@ -433,6 +443,51 @@ export default function MapPage() {
     [compactMode, powerSearchMode, psFilterCollapsed, psResultsCollapsed, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed]
   );
 
+  // Live layout state mirror for the map padding getter. UserMap calls
+  // getCurrentMapPadding at flight time (after panel/drawer transitions and
+  // the scheduleFlyTo delay), so the padding always matches the chrome that is
+  // actually on screen — a snapshot taken at click time would go stale.
+  const layoutStateRef = useRef({});
+  layoutStateRef.current = {
+    compactMode,
+    powerSearchMode,
+    psFilterCollapsed,
+    psResultsCollapsed,
+    activeDrawer,
+    focusMode,
+    isPanelOpen,
+    rightPanelCollapsed,
+  };
+  const getCurrentMapPadding = useCallback(() => {
+    const s = layoutStateRef.current;
+    return computeMapPadding({
+      scale: s.compactMode ? 0.9 : 1,
+      powerSearchMode: s.powerSearchMode,
+      psFilterCollapsed: s.psFilterCollapsed,
+      psResultsCollapsed: s.psResultsCollapsed,
+      activeDrawer: s.activeDrawer,
+      focusMode: s.focusMode,
+      isPanelOpen: s.isPanelOpen,
+      rightPanelCollapsed: s.rightPanelCollapsed,
+    });
+  }, []);
+
+  useEffect(() => () => clearTimeout(flyToTimeoutRef.current), []);
+
+  // Delay the flight by the right-panel transition when the panel is about to
+  // open, so the camera (and the live padding measurement) targets the settled
+  // layout instead of the mid-transition one.
+  const scheduleFlyTo = useCallback((request, panelAlreadyOpen) => {
+    clearTimeout(flyToTimeoutRef.current);
+    if (!request) {
+      setFlyToCoords(null);
+    } else if (panelAlreadyOpen) {
+      setFlyToCoords(request);
+    } else {
+      flyToTimeoutRef.current = setTimeout(() => setFlyToCoords(request), RIGHT_PANEL_TRANSITION_MS);
+    }
+  }, []);
+
   // ─── Right panel animation lifecycle ───
   useEffect(() => {
     if (isPanelOpen) {
@@ -485,8 +540,12 @@ export default function MapPage() {
 
       if (center && Number.isFinite(zoom)) {
         setSearchParams(
-          (prev) => {
-            const next = new URLSearchParams(prev);
+          () => {
+            // Build from the LIVE URL: react-router's functional updater
+            // receives a render-time (possibly stale) searchParams snapshot,
+            // which would clobber a concurrent selection's incident/zone
+            // param with the previous one.
+            const next = new URLSearchParams(window.location.search);
             next.set('lat', center.lat.toFixed(6));
             next.set('lng', center.lng.toFixed(6));
             next.set('zoom', zoom.toFixed(2));
@@ -658,59 +717,52 @@ export default function MapPage() {
   // ─── Selection handlers ───
   const handleSelectIncident = useCallback(
     (incident, opts = {}) => {
+      const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
       if (focusMode) setFocusMode(false);
       setRightPanelCollapsed(false);
       setSelectedIncident(incident);
 
       const isPolygon = incident.geometry_type === 'polygon';
-      const padding = getNextMapPadding();
+      const padding = getNextMapPadding({
+        focusMode: false,
+        activeDrawer: focusMode ? null : activeDrawer,
+        rightPanelCollapsed: false,
+        isPanelOpen: true,
+      });
 
       if (!opts.skipFlyTo) {
         if (isPolygon) {
           if (skipNextZoneFitRef.current) {
+            // Returning from a full-page zone view: the saved camera is
+            // restored from the URL viewport params — no flight at all.
             skipNextZoneFitRef.current = false;
-            setFlyToCoords({
-              lat: parseFloat(incident.latitude),
-              lng: parseFloat(incident.longitude),
-              type: 'zone',
-              source: opts.source || 'list',
-              padding,
-            });
-          } else if (incident.geometry?.coordinates?.[0]) {
-            const coords = incident.geometry.coordinates[0];
-            let minLng = Infinity,
-              minLat = Infinity,
-              maxLng = -Infinity,
-              maxLat = -Infinity;
-            coords.forEach(([lng, lat]) => {
-              minLng = Math.min(minLng, lng);
-              minLat = Math.min(minLat, lat);
-              maxLng = Math.max(maxLng, lng);
-              maxLat = Math.max(maxLat, lat);
-            });
-            setFlyToCoords({
-              lat: parseFloat(incident.latitude),
-              lng: parseFloat(incident.longitude),
-              type: 'zone',
-              source: opts.source || 'list',
-              bounds: [
-                [minLng, minLat],
-                [maxLng, maxLat],
-              ],
-              padding,
-            });
+          } else {
+            // Polygon rows from the list endpoint have null latitude/longitude
+            // — the flight must target the geometry centroid instead.
+            const centroid = getZoneCentroid(incident);
+            const bounds = getZoneBounds(incident);
+            if (centroid && bounds) {
+              scheduleFlyTo({
+                lat: centroid.lat,
+                lng: centroid.lng,
+                type: 'zone',
+                source: opts.source || 'list',
+                bounds,
+                padding,
+              }, panelAlreadyOpen);
+            }
           }
         } else {
-          setFlyToCoords({
+          scheduleFlyTo({
             lat: parseFloat(incident.latitude),
             lng: parseFloat(incident.longitude),
             type: 'incident',
             source: opts.source || 'list',
             padding,
-          });
+          }, panelAlreadyOpen);
         }
       } else {
-        setFlyToCoords(null);
+        scheduleFlyTo(null, true);
       }
 
       setSearchParams((prev) => {
@@ -725,7 +777,7 @@ export default function MapPage() {
         return next;
       });
     },
-    [focusMode, getNextMapPadding, setSearchParams]
+    [focusMode, activeDrawer, isPanelOpen, rightPanelCollapsed, getNextMapPadding, setSearchParams, scheduleFlyTo]
   );
 
   const handleSelectEventFromActivity = useCallback(
@@ -759,7 +811,7 @@ export default function MapPage() {
 
     selectedIncidentRef.current = null;
     setSelectedIncident(null);
-    setFlyToCoords(null);
+    scheduleFlyTo(null, true);
 
     setSearchParams(
       (prev) => {
@@ -770,7 +822,7 @@ export default function MapPage() {
       },
       { replace: true }
     );
-  }, [setSearchParams]);
+  }, [setSearchParams, scheduleFlyTo]);
 
   const handleNavigateToFullPage = useCallback(
     (incidentId) => {
@@ -860,15 +912,34 @@ export default function MapPage() {
   // ─── Handle incident ID from URL — robust deep-linking with ghost support ───
   useEffect(() => {
     if (!incidentIdFromUrl) {
+      incidentDeepLinkProcessedRef.current = null;
       ghostFetchAttempted.current = false;
       return;
     }
 
     if (selectedIncident?.geometry_type === 'polygon') return;
 
+    // Already handled this exact URL value. Router/identity churn can re-fire
+    // this effect with a STALE param while an in-app selection is mid-flight;
+    // without this guard the stale id would be re-selected and hijack the
+    // camera (observed: a power-search click re-flew the previous selection at
+    // deep-link zoom).
+    if (incidentDeepLinkProcessedRef.current === incidentIdFromUrl) return;
+
+    // Already-selected guard: when the URL param was written by an in-app
+    // incident selection (map click, drawer, power search), the selection's
+    // own flight already ran — mark it handled and do not re-fire a deep-link
+    // flight that would hijack the source.
+    const currentSelection = selectedIncidentRef.current;
+    if (currentSelection?.id === incidentIdFromUrl && currentSelection?.geometry_type !== 'polygon') {
+      incidentDeepLinkProcessedRef.current = incidentIdFromUrl;
+      return;
+    }
+
     const inList = incidents.find((i) => i.id === incidentIdFromUrl);
     if (inList) {
-      handleSelectIncident(inList, { skipFlyTo: hasViewportParams, source: 'deep-link' });
+      incidentDeepLinkProcessedRef.current = incidentIdFromUrl;
+      handleSelectIncident(inList, { skipFlyTo: initialUrlHadViewportRef.current, source: 'deep-link' });
       ghostFetchAttempted.current = true;
       return;
     }
@@ -879,7 +950,8 @@ export default function MapPage() {
         .getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams, source: 'deep-link' });
+            incidentDeepLinkProcessedRef.current = incidentIdFromUrl;
+            handleSelectIncident(res.data.incident, { skipFlyTo: initialUrlHadViewportRef.current, source: 'deep-link' });
           }
         })
         .catch(() => {
@@ -890,22 +962,29 @@ export default function MapPage() {
           });
         });
     }
-  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, hasViewportParams, setSearchParams]);
+  }, [incidentIdFromUrl, incidents.length, handleSelectIncident, setSearchParams]);
 
   // ─── Handle zone ID from URL — deep-linking with ghost support ───
   useEffect(() => {
     if (!zoneIdFromUrl) {
+      zoneDeepLinkProcessedRef.current = null;
       zoneGhostFetchAttempted.current = false;
       return;
     }
 
-    if (selectedIncident?.id === zoneIdFromUrl && selectedIncident?.geometry_type === 'polygon') {
+    // Already handled this exact URL value (see the incident effect above).
+    if (zoneDeepLinkProcessedRef.current === zoneIdFromUrl) return;
+
+    const currentZoneSelection = selectedIncidentRef.current;
+    if (currentZoneSelection?.id === zoneIdFromUrl && currentZoneSelection?.geometry_type === 'polygon') {
+      zoneDeepLinkProcessedRef.current = zoneIdFromUrl;
       return;
     }
 
     const inList = incidents.find((i) => i.id === zoneIdFromUrl);
     if (inList) {
-      handleSelectIncident(inList, { skipFlyTo: hasViewportParams, source: 'deep-link' });
+      zoneDeepLinkProcessedRef.current = zoneIdFromUrl;
+      handleSelectIncident(inList, { skipFlyTo: initialUrlHadViewportRef.current, source: 'deep-link' });
       zoneGhostFetchAttempted.current = true;
       return;
     }
@@ -916,7 +995,8 @@ export default function MapPage() {
         .getIncident(zoneIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            handleSelectIncident(res.data.incident, { skipFlyTo: hasViewportParams, source: 'deep-link' });
+            zoneDeepLinkProcessedRef.current = zoneIdFromUrl;
+            handleSelectIncident(res.data.incident, { skipFlyTo: initialUrlHadViewportRef.current, source: 'deep-link' });
           }
         })
         .catch(() => {
@@ -927,7 +1007,7 @@ export default function MapPage() {
           });
         });
     }
-  }, [zoneIdFromUrl, incidents.length, handleSelectIncident, hasViewportParams, setSearchParams]);
+  }, [zoneIdFromUrl, incidents.length, handleSelectIncident, setSearchParams]);
 
   const handleResetToToday = useCallback(() => {
     setDateRange({ from: today, to: today });
@@ -1216,6 +1296,7 @@ export default function MapPage() {
   const handlePowerSearchSelect = useCallback(
     (incident) => {
       if (!incident) return;
+      const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
       if (focusMode) setFocusMode(false);
       setRightPanelCollapsed(false);
       const isPolygon = incident.geometry_type === 'polygon';
@@ -1232,24 +1313,24 @@ export default function MapPage() {
         const bounds = getZoneBounds(incident);
         if (centroid && bounds) {
           setSelectedIncident(incident);
-          setFlyToCoords({
+          scheduleFlyTo({
             type: 'zone',
             source: 'power-search',
             lat: centroid.lat,
             lng: centroid.lng,
             bounds,
             padding,
-          });
+          }, panelAlreadyOpen);
         }
       } else {
         setSelectedIncident(incident);
-        setFlyToCoords({
+        scheduleFlyTo({
           lat: parseFloat(incident.latitude),
           lng: parseFloat(incident.longitude),
           type: 'incident',
           source: 'power-search',
           padding,
-        });
+        }, panelAlreadyOpen);
       }
 
       setSearchParams((prev) => {
@@ -1264,7 +1345,7 @@ export default function MapPage() {
         return next;
       });
     },
-    [focusMode, getNextMapPadding, setSearchParams]
+    [focusMode, isPanelOpen, rightPanelCollapsed, getNextMapPadding, setSearchParams, scheduleFlyTo]
   );
 
   const handleToggleSavedPowerSearch = useCallback(
@@ -1482,6 +1563,7 @@ export default function MapPage() {
             onZoneContextMenu={handleZoneContextMenu}
             onMapContextMenu={handleMapContextMenu}
             autoZoomEnabled={autoZoomEnabled}
+            getMapPadding={getCurrentMapPadding}
           />
 
           {mapMenuOpen && (

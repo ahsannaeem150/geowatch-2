@@ -102,7 +102,7 @@ Each frontend imports shared code through the `@shared` Vite alias (`resolve.ali
 - `marker-builder.js`, `marker-icons.js` — Map marker generation helpers.
 - `styles/incident-detail.css`, `media-components.css` — Imported in each app's `main.jsx`.
 - `hooks/` — `useCategories.js`, `useZoneCategories.js`, `useLongPress.js`, `useMapContextMenu.js`.
-- `utils/` — `zoneGeometry.js`, `themeColors.js`.
+- `utils/` — `zoneGeometry.js`, `themeColors.js`, `selectionCamera.js` (shared smart selection camera policy used by admin-web and user-web).
 - `index.js` — Public exports (incident-detail package, zone components, `RightPanelCollapseButton`).
 
 ### Backend Layered Architecture
@@ -502,7 +502,8 @@ Read these files in order when starting on a task:
 - **user-web `/map` layout port is complete and polished.** The public map now uses the finalized admin-web dashboard chrome: top bar with public nav + Google avatar, left rail/drawer, absolute-overlay right detail panel with collapse/reopen handle, Power Search full-viewport overlay, compact/focus modes, Settings-drawer auto-zoom toggle, and an admin-style ⌘K command palette with tabbed scopes (All/Incidents/Locations/Actions), recent incidents, public quick actions, footer shortcuts, and concise Nominatim location labels with working fly-to.
 - Key files: `src/user-web/src/pages/MapPage.jsx`, `src/user-web/src/components/Map/UserMap.jsx`, `src/user-web/src/components/Layout/UserCommandPalette.jsx`, and the `WorkspaceTopBar` / `WorkspaceRail` / `WorkspaceDrawer` / `PowerSearchPanel` components in `src/user-web/src/components/Layout/`.
 - The old flat command palette, `LiveActivityFeed`, `TickerBar`, `IncidentSidebar`, `MapControls`, and floating `LocationSearch` were removed from `/map` (some of those components still exist for other pages).
-- **DONE (2026-07-26):** the same workspace chrome is now ported to `superadmin-web` — `/superadmin/map` is a full-viewport workspace page (WorkspaceTopBar with Dashboard button + Super Admin pill + Add Incident/Add Zone, 8-item rail with drawers, Power Search overlay, ⌘K palette with Nominatim locations + console page-jump actions, absolute-overlay right panel) rendered outside the sidebar `Layout`; console pages keep the sidebar shell. Old map chrome (`MapControls`, floating `LocationSearch`, `DatePicker`, `MapLegend` overlay) removed. Smoke-tested via `scripts/verify-superadmin-workspace.mjs` (13/13). Remaining follow-ups: browser smoke tests on user-web; console TopBar cleanup (dead search box/bell).
+- **DONE (2026-07-26):** the same workspace chrome is now ported to `superadmin-web` — `/superadmin/map` is a full-viewport workspace page (WorkspaceTopBar with Dashboard button + Super Admin pill + Add Incident/Add Zone, 8-item rail with drawers, Power Search overlay, ⌘K palette with Nominatim locations + console page-jump actions, absolute-overlay right panel) rendered outside the sidebar `Layout`; console pages keep the sidebar shell. Old map chrome (`MapControls`, floating `LocationSearch`, `DatePicker`, `MapLegend` overlay) removed. Smoke-tested via `scripts/verify-superadmin-workspace.mjs` (13/13).
+- **DONE (2026-07-31):** the smart selection camera (shared policy in `src/shared/utils/selectionCamera.js`) is now ported to `user-web` — `UserMap.jsx` uses the admin flyTo pattern (live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guard, `window.__geowatchUserMap` dev handle), and `MapPage.jsx` has `scheduleFlyTo` + live layout padding + deep-link processed-refs. Verified via `scripts/verify-smart-zoom-user.mjs` (15/15). Remaining follow-ups: browser smoke tests on user-web; console TopBar cleanup (dead search box/bell).
 
 ### Active Trial Routes (user-web)
 

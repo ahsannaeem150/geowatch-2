@@ -26,6 +26,12 @@ export function computeMapPadding({
   const PS_FILTER_COLLAPSED = 44;
   const PS_RESULTS_WIDTH = 300;
   const RIGHT_PANEL_WIDTH = 630;
+  // Power-search chrome that overlays the TOP of the map: the PS top bar plus
+  // the active-chips bar. Mirrors --admin-ps-topbar-height (52) and
+  // --admin-ps-chips-height (38) in map-workspace.css; the right panel starts
+  // below the same offset, and the map fit must account for it too.
+  const PS_TOPBAR_HEIGHT = 52;
+  const PS_CHIPS_HEIGHT = 38;
 
   let left = 0;
 
@@ -42,8 +48,10 @@ export function computeMapPadding({
   // MapLibre to treat the panel area as right padding instead.
   const right = isPanelOpen && !rightPanelCollapsed ? RIGHT_PANEL_WIDTH * scale : 0;
 
+  const top = powerSearchMode ? (PS_TOPBAR_HEIGHT + PS_CHIPS_HEIGHT) * scale : 0;
+
   return {
-    top: 0,
+    top,
     right,
     bottom: 0,
     left,

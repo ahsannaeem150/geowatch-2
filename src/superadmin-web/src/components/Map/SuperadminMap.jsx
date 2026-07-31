@@ -6,6 +6,7 @@ import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builde
 import { useTheme } from '@shared/useTheme.js';
 import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
 import { smallestZoneFeature } from '@shared/utils/zoneGeometry.js';
+import { getSelectionCamera, selectionSignature, zoneComfortFactor } from '@shared/utils/selectionCamera.js';
 import { format } from 'date-fns';
 
 // Tile coverage: z0-14 tiles exist inside HOT_BBOX, only z0-10 outside it.
@@ -63,6 +64,18 @@ function getMaxZoomForCenter(lng, lat) {
   return inside ? 22 : 10;
 }
 
+function paddingEquals(a, b) {
+  if (!a || !b) return false;
+  return a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
+}
+
+// Zone fitting guards: below this padded visible size the comfort-padded
+// cameraForBounds call is skipped in favor of the layout-padded exact fit.
+const MIN_FIT_VISIBLE_PX = 160;
+// Zoom-out bias applied when only the exact layout-padded fit is available, so
+// the zone isn't flush against the chrome.
+const ZONE_FALLBACK_ZOOM_MARGIN = 0.5;
+
 const SuperadminMap = forwardRef(function SuperadminMap({
   incidents = [],
   zones = [],
@@ -73,7 +86,6 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   onMapDblClick,
   onViewportChange,
   flyToCoords,
-  fitBounds,
   initialViewport,
   markerCoords,
   ghostIncident,
@@ -110,6 +122,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   showZones = true,
   adminMode = false,
   autoZoomEnabled = true,
+  getMapPadding,
 }, ref) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -121,6 +134,9 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   const popupTimeoutRef = useRef(null);
   const isProgrammaticMove = useRef(false);
   const isClamping = useRef(false);
+  const lastSelectionFlightRef = useRef(null);
+  const fitRetryRef = useRef(false);
+  const [fitRetryTick, setFitRetryTick] = useState(0);
   const onViewportChangeRef = useRef(onViewportChange);
   const rubberBandCoords = useRef(null);
   const mapModeRef = useRef(mapMode);
@@ -576,56 +592,214 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       resizeObserver.observe(mapContainer.current);
     }
 
+    // Expose map instance in dev so verification scripts can read zoom/center.
+    if (import.meta.env.DEV) {
+      window.__geowatchSuperadminMap = map.current;
+    }
+
     return () => {
       if (resizeObserver) resizeObserver.disconnect();
       markers.current.forEach((m) => m.remove());
       tempMarker.current?.remove();
       popupRef.current?.remove();
+      if (import.meta.env.DEV) {
+        delete window.__geowatchSuperadminMap;
+      }
       map.current?.remove();
     };
   }, []);
 
-  // Fly to coordinates
+  // Fly to coordinates — smart selection camera (shared policy decides zoom/duration)
   useEffect(() => {
     if (
-      flyToCoords &&
-      map.current &&
-      Number.isFinite(flyToCoords.lng) &&
-      Number.isFinite(flyToCoords.lat)
+      !flyToCoords ||
+      !map.current ||
+      !Number.isFinite(flyToCoords.lng) ||
+      !Number.isFinite(flyToCoords.lat)
     ) {
-      isProgrammaticMove.current = true;
-      map.current.flyTo({
-        center: [flyToCoords.lng, flyToCoords.lat],
-        // When auto-zoom is off, keep the user's current zoom and just pan.
-        zoom: autoZoomEnabled ? (flyToCoords.zoom ?? 10) : map.current.getZoom(),
-        duration: 800,
-      });
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flyToCoords]);
 
-  // Fit to bounds (for zone selection)
-  useEffect(() => {
-    if (fitBounds && map.current) {
-      isProgrammaticMove.current = true;
-      if (!autoZoomEnabled) {
-        // Auto-zoom off: pan to the bounds center at the current zoom instead
-        // of reframing the viewport.
-        const [[minLng, minLat], [maxLng, maxLat]] = fitBounds.bounds;
-        map.current.flyTo({
-          center: [(minLng + maxLng) / 2, (minLat + maxLat) / 2],
-          zoom: map.current.getZoom(),
-          duration: 800,
-        });
-        return;
-      }
-      map.current.fitBounds(fitBounds.bounds, {
-        padding: fitBounds.padding ?? 40,
-        duration: fitBounds.duration ?? 800,
-      });
+    const { type, source, bounds } = flyToCoords;
+    const mapInstance = map.current;
+
+    // Padding is measured LIVE at flight time (after the scheduleFlyTo delay
+    // and any panel/drawer transitions) so the fit always matches the chrome
+    // actually on screen. flyToCoords.padding is only a legacy fallback.
+    const padding = getMapPadding
+      ? getMapPadding()
+      : (flyToCoords.padding || { top: 0, right: 0, bottom: 0, left: 0 });
+
+    const currentZoom = mapInstance.getZoom();
+    const currentCenter = mapInstance.getCenter();
+    const maxZoom = getMaxZoomForCenter(flyToCoords.lng, flyToCoords.lat);
+
+    // Repeat-click guard: skip only when an identical (type, source, lng, lat)
+    // selection would repeat the last flight AND neither the camera nor the
+    // layout chrome has meaningfully changed since. Re-clicking after the user
+    // pans/zooms or toggles the drawer/panel re-flies and re-fits.
+    const signature = selectionSignature({ type, source, lng: flyToCoords.lng, lat: flyToCoords.lat });
+    const lastFlight = lastSelectionFlightRef.current;
+    if (lastFlight && lastFlight.signature === signature) {
+      const mapBounds = mapInstance.getBounds();
+      const viewportSpan = Math.hypot(
+        mapBounds.getEast() - mapBounds.getWest(),
+        mapBounds.getNorth() - mapBounds.getSouth()
+      );
+      const centerDrift = Math.hypot(
+        currentCenter.lng - lastFlight.center.lng,
+        currentCenter.lat - lastFlight.center.lat
+      );
+      const sameCamera =
+        Math.abs(currentZoom - lastFlight.zoom) <= 0.3 && centerDrift <= viewportSpan * 0.05;
+      if (sameCamera && paddingEquals(padding, lastFlight.padding)) return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitBounds]);
+
+    // MapLibre persists the previous flyTo's padding on the transform, and
+    // cameraForBounds ADDS it to the padding we pass (see
+    // _cameraForBoxAndBearing: `edgePadding = tr.padding`) — a second fit
+    // would double-count the chrome. Neutralize it ONLY around the zone
+    // measurement below (reset → measure → restore synchronously, so no paint
+    // can show the intermediate state); incident flights never touch padding.
+
+    // Compute visible area after layout padding (sidebars / panels).
+    const container = mapInstance.getContainer();
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const padLeft = padding?.left || 0;
+    const padRight = padding?.right || 0;
+    const padTop = padding?.top || 0;
+    const padBottom = padding?.bottom || 0;
+    const visibleWidth = Math.max(1, containerWidth - padLeft - padRight);
+    const visibleHeight = Math.max(1, containerHeight - padTop - padBottom);
+
+    // Exact fit against the real layout padding (never unpadded).
+    const layoutPaddedCamera = (bbox) => mapInstance.cameraForBounds(bbox, { padding, maxZoom: 22 });
+
+    // Helpers for fitting a polygon bounding box into the visible map area.
+    const doesFitAtZoom = (bbox, zoom) => {
+      const camera = layoutPaddedCamera(bbox);
+      // Unknown (null camera) → assume it does NOT fit so the flight isn't skipped.
+      return camera ? zoom >= camera.zoom : false;
+    };
+
+    // Returns { zoom } or { deferred: true } when MapLibre can't produce a
+    // camera this frame (flaky null) — the caller retries once on the next rAF.
+    const computeFittingZoom = (bbox, comfortFactor = 1.0) => {
+      // Add extra padding so the zone occupies only `comfortFactor` of the
+      // visible rectangle. 1.0 means an exact fit; 0.55 means 45% total margin.
+      const extraHoriz = visibleWidth * (1 - comfortFactor) / 2;
+      const extraVert = visibleHeight * (1 - comfortFactor) / 2;
+      const fittedPadding = {
+        top: padTop + extraVert,
+        bottom: padBottom + extraVert,
+        left: padLeft + extraHoriz,
+        right: padRight + extraHoriz,
+      };
+      const usePadding = visibleWidth >= MIN_FIT_VISIBLE_PX && visibleHeight >= MIN_FIT_VISIBLE_PX;
+      let camera = usePadding
+        ? mapInstance.cameraForBounds(bbox, { padding: fittedPadding, maxZoom: 22 })
+        : null;
+      if (camera) return { zoom: camera.zoom, deferred: false };
+      // Fallback: exact fit against the layout padding (never padding: 0),
+      // biased slightly out so the zone isn't flush with the chrome.
+      camera = layoutPaddedCamera(bbox);
+      if (camera) return { zoom: camera.zoom - ZONE_FALLBACK_ZOOM_MARGIN, deferred: false };
+      return { zoom: null, deferred: true };
+    };
+
+    // Precompute the map-dependent inputs the shared policy needs.
+    const isZone = type === 'zone' && bounds;
+    let fitZoom;
+    let fitsAtCurrentZoom = false;
+    if (isZone) {
+      // Reset persistent padding only for the measurement, synchronously —
+      // no paint can show the intermediate state (no camera snap).
+      const previousPadding = mapInstance.getPadding();
+      mapInstance.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+      try {
+        const fit = computeFittingZoom(bounds, zoneComfortFactor(bounds));
+        if (fit.deferred) {
+          if (!fitRetryRef.current) {
+            // MapLibre returned no camera this frame — retry once on the next
+            // frame (re-runs this effect via fitRetryTick).
+            fitRetryRef.current = true;
+            requestAnimationFrame(() => setFitRetryTick((t) => t + 1));
+          } else {
+            fitRetryRef.current = false;
+          }
+          return;
+        }
+        fitRetryRef.current = false;
+        fitZoom = fit.zoom;
+        fitsAtCurrentZoom = doesFitAtZoom(bounds, currentZoom);
+      } finally {
+        mapInstance.setPadding(previousPadding);
+      }
+    }
+    let isVisibleInViewport = false;
+    if (type === 'incident' && source === 'power-search') {
+      const pt = mapInstance.project([flyToCoords.lng, flyToCoords.lat]);
+      isVisibleInViewport =
+        pt.x >= padLeft && pt.x <= containerWidth - padRight &&
+        pt.y >= padTop && pt.y <= containerHeight - padBottom;
+    }
+
+    let decision;
+    if (type === 'incident' || isZone) {
+      decision = getSelectionCamera({
+        type,
+        source,
+        bounds,
+        currentZoom,
+        isVisibleInViewport,
+        fitsAtCurrentZoom,
+        autoZoomEnabled,
+        fitZoom,
+      });
+    } else {
+      // Location search or legacy requests: preserve current zoom and just pan.
+      decision = {
+        zoom: Number.isFinite(flyToCoords.zoom) ? flyToCoords.zoom : currentZoom,
+        duration: 800,
+        panOnly: true,
+        skip: false,
+      };
+    }
+
+    const targetZoom = Math.min(decision.zoom, maxZoom);
+    // Pan-only and equal-zoom results go through easeTo: flyTo's van Wijk arc
+    // zooms out mid-flight on long pans, which reads as stutter/chaos when no
+    // zoom change is intended.
+    const zoomUnchanged = decision.panOnly || Math.abs(targetZoom - currentZoom) < 0.001;
+
+    // Force a resize so the camera move uses the current container size after
+    // layout changes (e.g. right panel opening) instead of the previous size.
+    mapInstance.resize();
+    // Defer one frame so the resize has been applied; this makes the
+    // very first selection (which also opens the right panel) smooth.
+    requestAnimationFrame(() => {
+      if (!map.current) return;
+      isProgrammaticMove.current = true;
+      lastSelectionFlightRef.current = {
+        signature,
+        zoom: targetZoom,
+        center: { lng: flyToCoords.lng, lat: flyToCoords.lat },
+        padding,
+      };
+      const camera = {
+        center: [flyToCoords.lng, flyToCoords.lat],
+        zoom: targetZoom,
+        padding,
+        duration: decision.duration,
+      };
+      if (zoomUnchanged) {
+        map.current.easeTo(camera);
+      } else {
+        map.current.flyTo(camera);
+      }
+    });
+  }, [flyToCoords, fitRetryTick]);
 
   // Switch map style when theme changes
   useEffect(() => {

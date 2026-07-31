@@ -12328,3 +12328,13 @@ fix: incident-click stutter — setPadding reset scoped to zone measurement (syn
 ## 📅 2026-07-31 — Module: shared/admin-web — Large-zone comfort tweak
 
 fix: trans-regional zones (≥2000km bbox diagonal) now use comfort factor 0.7 (fill more of the viewport, slightly less zoomed-out) via new `zoneComfortFactor()` in src/shared/utils/selectionCamera.js; smaller zones keep 0.55 exactly. Build green.
+
+
+## 📅 2026-07-31 — Module: user-web — Smart selection camera port
+
+feat: port admin's smart selection camera to user-web — UserMap flyTo effect replaced with the shared-policy pattern (live getMapPadding, padded cameraForBounds zone fit, easeTo pan-only, repeat guard), MapPage scheduleFlyTo + layoutStateRef + deep-link processed-refs, PS topbar/chips top padding. Also fixed pre-existing user-web bugs the port exposed: polygon rows have null lat/lng (zone flights now target geometry centroid), map-load viewport sync no longer suppresses ?zone=/?incident= flights (mount-time snapshot), and viewport-sync URL writes build from window.location so they can't clobber selection params. Verified 15/15 in scripts/verify-smart-zoom-user.mjs; build green.
+
+
+## 📅 2026-07-31 — Module: superadmin-web — Smart selection camera port
+
+feat: port admin's smart selection camera to superadmin-web — SuperadminMap flyTo effect replaced with the shared-policy pattern (live getMapPadding, padded cameraForBounds zone fit, easeTo pan-only, repeat guard, DEV handle), MapPage scheduleFlyTo + layoutStateRef + source tagging + zone/incident deep-link guards, PS topbar/chips top padding. Also fixed pre-existing bugs the port exposed: viewport-sync URL writes flipped hasViewportParams and suppressed all deep-link flights (now a mount-time snapshot), and stale-URL deep-link runs could hijack in-app selections (now suppressed via first-seen-param timestamps vs last in-app selection). Inspector sidebars deliberately excluded from map padding (flex siblings, not overlays). Verified 20/20 in scripts/verify-smart-zoom-superadmin.mjs; build green.
