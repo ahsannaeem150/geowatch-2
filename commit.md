@@ -12338,3 +12338,8 @@ feat: port admin's smart selection camera to user-web — UserMap flyTo effect r
 ## 📅 2026-07-31 — Module: superadmin-web — Smart selection camera port
 
 feat: port admin's smart selection camera to superadmin-web — SuperadminMap flyTo effect replaced with the shared-policy pattern (live getMapPadding, padded cameraForBounds zone fit, easeTo pan-only, repeat guard, DEV handle), MapPage scheduleFlyTo + layoutStateRef + source tagging + zone/incident deep-link guards, PS topbar/chips top padding. Also fixed pre-existing bugs the port exposed: viewport-sync URL writes flipped hasViewportParams and suppressed all deep-link flights (now a mount-time snapshot), and stale-URL deep-link runs could hijack in-app selections (now suppressed via first-seen-param timestamps vs last in-app selection). Inspector sidebars deliberately excluded from map padding (flex siblings, not overlays). Verified 20/20 in scripts/verify-smart-zoom-superadmin.mjs; build green.
+
+
+## 📅 2026-07-31 — Module: admin-web — Deep-link race guards
+
+fix: apply the superadmin/user-web deep-link guards to admin-web's DashboardLayout — hasViewportParams frozen to a mount-time snapshot (viewport-sync URL writes no longer suppress incident deep-link flights) and stale-URL suppression in the incident/zone deep-link effects (first-seen-param timestamps vs a last-in-app-selection clock stamped by all in-app selection handlers). No behavior changes otherwise; existing zone already-selected guard kept. Verified 20/20 in scripts/verify-smart-zoom.mjs; build green.

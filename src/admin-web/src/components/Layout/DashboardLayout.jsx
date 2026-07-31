@@ -136,6 +136,17 @@ export default function DashboardLayout() {
     Number.isFinite(parseFloat(latParam)) &&
     Number.isFinite(parseFloat(lngParam)) &&
     Number.isFinite(parseFloat(zoomParam));
+  // Viewport params appended AFTER mount by the app's own viewport sync
+  // (handleViewportChange) are not a saved position. Freeze the flag to what
+  // the URL carried when this page mounted, so incident deep-link flights
+  // still fire once the sync has written lat/lng/zoom into the URL.
+  const savedViewportRef = useRef(undefined);
+  if (savedViewportRef.current === undefined) {
+    savedViewportRef.current = hasViewportParams
+      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam), zoom: parseFloat(zoomParam) }
+      : null;
+  }
+  const hasSavedViewport = !!savedViewportRef.current;
   const ghostFetchAttempted = useRef(false);
   const zoneDeepLinkProcessed = useRef(false);
   const prevZoneIdRef = useRef(null);
@@ -147,6 +158,17 @@ export default function DashboardLayout() {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const selectedIncidentRef = useRef(selectedIncident);
   selectedIncidentRef.current = selectedIncident;
+  // Deep-link stale-URL guards. In-app selections write ?incident/?zone via
+  // React Router transitions that can take arbitrarily long to land (and can
+  // be superseded), so the deep-link effects can fire while the URL param is
+  // still stale. Each effect stamps the time it first observes a param value;
+  // when the last in-app selection is NEWER than that observation, the param
+  // is stale and must not hijack the selection's own flight. External URL
+  // changes (paste, back/forward) stamp a fresh observation and are processed
+  // normally.
+  const lastInAppSelectAtRef = useRef(0);
+  const incidentUrlSeenRef = useRef({ param: null, at: 0 });
+  const zoneUrlSeenRef = useRef({ param: null, at: 0 });
   const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
   const [selectedIncidentDetailLoading, setSelectedIncidentDetailLoading] = useState(false);
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
@@ -696,6 +718,7 @@ export default function DashboardLayout() {
 
     if (focusZoneFromState) {
       const zone = focusZoneFromState;
+      lastInAppSelectAtRef.current = performance.now();
       setSelectedZoneId(zone.id);
       setSelectedIncident(zone);
       setIsEditing(false);
@@ -767,6 +790,16 @@ export default function DashboardLayout() {
     }
 
     if (!zoneIdFromUrl) {
+      return;
+    }
+
+    // Stamp the first observation of this param value; suppress the effect
+    // when a newer in-app selection makes the param stale (see the ref block).
+    if (zoneUrlSeenRef.current.param !== zoneIdFromUrl) {
+      zoneUrlSeenRef.current = { param: zoneIdFromUrl, at: performance.now() };
+    }
+    if (lastInAppSelectAtRef.current > zoneUrlSeenRef.current.at) {
+      zoneDeepLinkProcessed.current = true;
       return;
     }
 
@@ -1213,6 +1246,7 @@ export default function DashboardLayout() {
     setEditingZoneVertices([]);
     setOriginalZoneVertices([]);
     // Update URL to make incident shareable
+    lastInAppSelectAtRef.current = performance.now();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('incident', incident.id);
@@ -1231,6 +1265,15 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (!incidentIdFromUrl) {
       ghostFetchAttempted.current = false;
+      return;
+    }
+
+    // Stamp the first observation of this param value; suppress the effect
+    // when a newer in-app selection makes the param stale (see the ref block).
+    if (incidentUrlSeenRef.current.param !== incidentIdFromUrl) {
+      incidentUrlSeenRef.current = { param: incidentIdFromUrl, at: performance.now() };
+    }
+    if (lastInAppSelectAtRef.current > incidentUrlSeenRef.current.at) {
       return;
     }
 
@@ -1255,7 +1298,7 @@ export default function DashboardLayout() {
 
     const inList = incidents.find((i) => i.id === incidentIdFromUrl);
     if (inList) {
-      handleEventClick(inList, { skipFlyTo: hasViewportParams, source: 'deep-link' });
+      handleEventClick(inList, { skipFlyTo: hasSavedViewport, source: 'deep-link' });
       ghostFetchAttempted.current = true;
       return;
     }
@@ -1267,7 +1310,7 @@ export default function DashboardLayout() {
         .getIncident(incidentIdFromUrl)
         .then((res) => {
           if (res.data?.incident) {
-            handleEventClick(res.data.incident, { skipFlyTo: hasViewportParams, source: 'deep-link' });
+            handleEventClick(res.data.incident, { skipFlyTo: hasSavedViewport, source: 'deep-link' });
           }
         })
         .catch(() => {
@@ -1283,7 +1326,7 @@ export default function DashboardLayout() {
           });
         });
     }
-  }, [incidentIdFromUrl, incidents.length, handleEventClick, hasViewportParams, zoneIdFromUrl]);
+  }, [incidentIdFromUrl, incidents.length, handleEventClick, hasSavedViewport, zoneIdFromUrl]);
 
   const handleZoneClick = useCallback((zoneIdOrZone, opts = {}) => {
     const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
@@ -1324,6 +1367,7 @@ export default function DashboardLayout() {
       );
     }
     // Update URL to make zone shareable
+    lastInAppSelectAtRef.current = performance.now();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('zone', zone.id);
@@ -1599,6 +1643,7 @@ export default function DashboardLayout() {
 
         // Select the newly created zone and fly the map to it
         const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
+        lastInAppSelectAtRef.current = performance.now();
         setSelectedIncident(newZone);
         setSelectedZoneId(newZone.id);
         setPanelMode('detail');
@@ -1854,6 +1899,7 @@ export default function DashboardLayout() {
     );
     setMarkerCoords(null);
     // Update URL to make incident shareable
+    lastInAppSelectAtRef.current = performance.now();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('incident', incident.id);
@@ -1868,6 +1914,7 @@ export default function DashboardLayout() {
     setRightPanelCollapsed(false);
     const isPolygon = incident.geometry_type === 'polygon' || incident.geometryType === 'polygon';
     if (isPolygon) {
+      lastInAppSelectAtRef.current = performance.now();
       setSelectedIncident(incident);
       setSelectedZoneId(incident.id);
       setIsEditing(false);
@@ -2128,6 +2175,7 @@ export default function DashboardLayout() {
     setPanelMode('detail');
     setRightPanelCollapsed(false);
     setMarkerCoords(null);
+    lastInAppSelectAtRef.current = performance.now();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('incident', newIncident.id);
@@ -2179,6 +2227,7 @@ export default function DashboardLayout() {
     (incidentId, incidentData, { source = 'drawer' } = {}) => {
       const panelAlreadyOpen = isPanelOpen && !rightPanelCollapsed;
       exitFocusMode();
+      lastInAppSelectAtRef.current = performance.now();
       const padding = getNextMapPadding({
         focusMode: false,
         activeDrawer: focusMode ? null : activeDrawer,
@@ -2895,8 +2944,11 @@ export default function DashboardLayout() {
             onViewportChange={handleViewportChange}
             flyToCoords={flyToCoords}
             initialViewport={
-              hasViewportParams
-                ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
+              savedViewportRef.current
+                ? {
+                    center: [savedViewportRef.current.lng, savedViewportRef.current.lat],
+                    zoom: savedViewportRef.current.zoom,
+                  }
                 : null
             }
             markerCoords={markerCoords}
