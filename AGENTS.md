@@ -84,7 +84,6 @@ geowatch/
 ├── tools/                    # Downloaded martin binary (gitignored)
 ├── seeds.sql                 # Sample dev data
 ├── commit.md                 # Full build history (append every change)
-├── handoff.md                # Current project state and focus
 ├── trialRoutes.md            # Reference for active design/trial routes
 ├── PROJECT.md                # Architecture, conventions, and requirements traceability
 └── AGENTS.md                 # This file
@@ -376,6 +375,14 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
 
 ## 8. Testing Instructions
 
+### Token-Saving Working Protocol (owner-approved, overrides older habits)
+
+- **Verify with builds only** (`npm run build:<app>`). Run Playwright verify/screenshot scripts **only for major behavioral changes or when the owner explicitly asks** — the owner tests manually otherwise and reports behavior back.
+- **Do not read screenshots back** unless something looks wrong; the owner inspects them.
+- **Batch small tweaks** into one task instead of separate rounds.
+- **commit.md**: append a short 2–3 line summary per change — no detailed tables/sections.
+- Keep agent reports and user-facing replies terse.
+
 **There are currently no automated tests in this repository.** No Jest, Vitest, Playwright test suites, or CI pipelines are configured for the project code. (`playwright` is a backend dependency but powers the screenshot/verification utilities in `scripts/`, not test automation.)
 
 ### Manual Verification Steps
@@ -479,21 +486,18 @@ There is **no automated CI/CD, Docker, or deployment pipeline** in this reposito
 
 Read these files in order when starting on a task:
 
-1. `handoff.md` — Current state, file map, active focus, known issues.
-2. `PROJECT.md` — Architecture, conventions, functional/non-functional requirements.
-3. `commit.md` — Full build history; append every change.
-4. `docs/design-brief.md` — UI/UX direction.
-5. `docs/api-spec.md` — Backend API contract.
-6. `docs/database-schema.sql` — Database schema (single source of truth).
-7. `trialRoutes.md` — Reference for active design/trial routes.
-
-Note: `handoff.md`'s file map predates some refactors — trust the actual tree over the doc when they disagree (e.g., there is no `zone.service.js`; user-web's incident detail wrapper lives at `src/user-web/src/components/IncidentDetail/IncidentDetailPage.jsx`).
+1. `PROJECT.md` — Architecture, conventions, functional/non-functional requirements.
+2. `commit.md` — Full build history; append every change.
+3. `docs/design-brief.md` — UI/UX direction.
+4. `docs/api-spec.md` — Backend API contract.
+5. `docs/database-schema.sql` — Database schema (single source of truth).
+6. `trialRoutes.md` — Reference for active design/trial routes.
 
 ---
 
 ## 12. Current Focus and Known Issues
 
-### Active Work (as of the latest `handoff.md`)
+### Active Work
 
 - **user-web `/map` layout port is complete and polished.** The public map now uses the finalized admin-web dashboard chrome: top bar with public nav + Google avatar, left rail/drawer, absolute-overlay right detail panel with collapse/reopen handle, Power Search full-viewport overlay, compact/focus modes, Settings-drawer auto-zoom toggle, and an admin-style ⌘K command palette with tabbed scopes (All/Incidents/Locations/Actions), recent incidents, public quick actions, footer shortcuts, and concise Nominatim location labels with working fly-to.
 - Key files: `src/user-web/src/pages/MapPage.jsx`, `src/user-web/src/components/Map/UserMap.jsx`, `src/user-web/src/components/Layout/UserCommandPalette.jsx`, and the `WorkspaceTopBar` / `WorkspaceRail` / `WorkspaceDrawer` / `PowerSearchPanel` components in `src/user-web/src/components/Layout/`.
@@ -536,7 +540,7 @@ Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPos
 
 When handed a task:
 
-1. Read this file, `handoff.md`, `PROJECT.md`, and `commit.md`.
+1. Read this file, `PROJECT.md`, and `commit.md`.
 2. Identify the correct workspace (`backend`, `user-web`, `admin-web`, `superadmin-web`, or `shared`).
 3. Make **minimal** changes; do not refactor unrelated code.
 4. Follow existing code style in the file you edit.
@@ -549,7 +553,7 @@ When handed a task:
    style: description
    chore: description
    ```
-8. Update `handoff.md` and `trialRoutes.md` if you change project status, add routes, or make architectural decisions.
+8. Update `trialRoutes.md` if you add or change routes.
 9. Provide a conventional-commit style message in your final response.
 
 ---

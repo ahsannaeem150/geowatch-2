@@ -166,7 +166,7 @@ The following were removed in Phase 9:
 - `src/user-web/src/components/IncidentDetail/IncidentDetailView.jsx`
 
 ## Build Rules for Kimi Code
-1. **Read `handoff.md` FIRST** — this is the single most important document
+1. **Read `AGENTS.md` FIRST** — this is the single most important document
 2. Read `PROJECT.md` for architecture and conventions
 3. Read `commit.md` for full build history
 4. Read `docs/design-brief.md` for frontend work
