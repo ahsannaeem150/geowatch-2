@@ -12343,3 +12343,23 @@ feat: port admin's smart selection camera to superadmin-web — SuperadminMap fl
 ## 📅 2026-07-31 — Module: admin-web — Deep-link race guards
 
 fix: apply the superadmin/user-web deep-link guards to admin-web's DashboardLayout — hasViewportParams frozen to a mount-time snapshot (viewport-sync URL writes no longer suppress incident deep-link flights) and stale-URL suppression in the incident/zone deep-link effects (first-seen-param timestamps vs a last-in-app-selection clock stamped by all in-app selection handlers). No behavior changes otherwise; existing zone already-selected guard kept. Verified 20/20 in scripts/verify-smart-zoom.mjs; build green.
+
+
+## 📅 2026-07-31 — Module: admin-web/backend — Zones directory page
+
+feat: rebuild admin-web /zones as a table-style zones directory — slim workspace top bar with live total count, debounced title/location search, category color chips, status segmented control, verification/severity filters, sort dropdown (incl. area), active-filter chips with reset, sticky-header table with skeleton/empty/error states, 25/page pagination, row deep links (?zone= and /zone/:id), ConfirmDialog delete. Backend: searchIncidents gains area_asc/area_desc sort and location_context in the full-text vector. Build green.
+
+
+## 📅 2026-07-31 — Module: admin-web/backend — Zones directory fixes
+
+fix: zones page — fixed table-layout colgroup so cells align under headings, mini dot+label severity chip replaces oversized badge, resolve action moved left of map/details/delete; category filter now works (zoneCategoryId added to list/search Zod query schemas — it was silently stripped before reaching the service WHERE). New primary date-filter popover (presets/single/custom range, instant apply, active chip) and reusable keyboard-navigable custom dropdown replacing all native selects. Build green; category/date filters curl-verified.
+
+
+## 📅 2026-07-31 — Module: admin-web/backend/shared — Zones directory refinements
+
+feat: zones page — multi-select category chips backed by new zoneCategoryIds[] param (Zod schemas + controller whitelists + service ANY branch; single-id kept), Verification column replaced by Created (absolute date), shared SeverityBadge gains opt-in size="sm" used in the table, custom-range date popover widened so inputs no longer overflow. Curl-verified id union; all three frontend builds green.
+
+
+## 📅 2026-07-31 — Module: admin-web — TableUI extraction + incidents directory + topbar rework
+
+feat: extract shared table UI to components/TableUI (TableDropdown, TableDateFilter, table-ui.css with tui-* classes; ZonesPage visually unchanged). New /incidents directory page (point incidents): Domain/Category chip, verification column, domain multi-select chips (domainSlugs ANY), severity sort options. Topbar: Compact toggle moved into Settings drawer switch, new Incidents button, slim mode below 1640px so the bar fits at 1280px (scripts/check-topbar-fit.mjs: 1280 ✓ 1920 ✓). Build green.

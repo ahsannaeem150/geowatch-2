@@ -92,6 +92,10 @@ function buildIncidentWhereClause(filters, options = {}) {
     conditions.push(`i.zone_category_id = $${idx++}`);
     params.push(filters.zoneCategoryId);
   }
+  if (Array.isArray(filters.zoneCategoryIds) && filters.zoneCategoryIds.length > 0) {
+    conditions.push(`i.zone_category_id = ANY($${idx++})`);
+    params.push(filters.zoneCategoryIds);
+  }
   if (filters.severity !== undefined && filters.severity !== null) {
     conditions.push(`i.severity = $${idx++}`);
     params.push(filters.severity);
@@ -161,6 +165,10 @@ function buildSearchOrderBy(sort, hasQuery) {
       return 'i.title ASC';
     case 'name_desc':
       return 'i.title DESC';
+    case 'area_asc':
+      return 'ST_Area(i.geom::geography) ASC, i.start_date DESC';
+    case 'area_desc':
+      return 'ST_Area(i.geom::geography) DESC, i.start_date DESC';
     case 'relevance':
     default:
       return hasQuery ? 'r.rank DESC, i.severity DESC, i.start_date DESC' : 'i.start_date DESC, i.created_at DESC';
@@ -205,7 +213,7 @@ export async function searchIncidents(filters) {
   const { where, params, nextIndex } = buildIncidentWhereClause(filters, { skipDefaultDate: true });
   let idx = nextIndex;
 
-  const tsVectorExpr = `to_tsvector('english', COALESCE(i.title, '') || ' ' || COALESCE(i.description, ''))`;
+  const tsVectorExpr = `to_tsvector('english', COALESCE(i.title, '') || ' ' || COALESCE(i.description, '') || ' ' || COALESCE(i.location_context, ''))`;
   const textConditions = [];
   const textParams = [];
 

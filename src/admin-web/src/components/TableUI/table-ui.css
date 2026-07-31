@@ -1,0 +1,1018 @@
+/* ─── TableUI — shared table-directory UI (admin-web) ───
+   Chrome + atoms shared by the directory pages (/zones, /incidents):
+   slim top bar, toolbar controls, filter chips, fixed-grid table,
+   skeletons, states, pagination, custom dropdown, date-filter popover.
+   All colors come from design tokens — light theme safe. */
+
+/* ─── Page shell ─── */
+.tui-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-gradient);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+/* ─── Top bar ─── */
+.tui-topbar {
+  height: var(--admin-topbar-height);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 calc(16px * var(--admin-ui-scale));
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.tui-topbar-left,
+.tui-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: calc(12px * var(--admin-ui-scale));
+  min-width: 0;
+}
+
+.tui-brand {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--admin-ui-scale));
+}
+
+.tui-brand-mark {
+  width: calc(28px * var(--admin-ui-scale));
+  height: calc(28px * var(--admin-ui-scale));
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(12px * var(--admin-ui-scale));
+  font-weight: 700;
+  color: var(--text-on-accent);
+  box-shadow: 0 0 20px var(--accent-glow-strong);
+  flex-shrink: 0;
+}
+
+.tui-brand-name {
+  font-size: calc(15px * var(--admin-ui-scale));
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.tui-brand-pill {
+  font-size: calc(9px * var(--admin-ui-scale));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  padding: calc(2px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale));
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.tui-total {
+  font-size: calc(12px * var(--admin-ui-scale));
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tui-total-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent-light);
+}
+
+.tui-user {
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--admin-ui-scale));
+  padding: calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale));
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.tui-user-name {
+  font-size: calc(11px * var(--admin-ui-scale));
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: calc(160px * var(--admin-ui-scale));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tui-avatar {
+  width: calc(24px * var(--admin-ui-scale));
+  height: calc(24px * var(--admin-ui-scale));
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(9px * var(--admin-ui-scale));
+  font-weight: 700;
+  color: var(--text-on-accent);
+  border: 2px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+/* ─── Shared small button ─── */
+.tui-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--admin-ui-scale));
+  padding: calc(6px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale));
+  font-size: calc(12px * var(--admin-ui-scale));
+  font-weight: 700;
+  font-family: var(--font-sans);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tui-btn:hover {
+  border-color: var(--accent-light);
+  color: var(--text-primary);
+}
+
+/* ─── Toolbar ─── */
+.tui-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(10px * var(--admin-ui-scale));
+  padding: calc(12px * var(--admin-ui-scale)) calc(20px * var(--admin-ui-scale));
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tui-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--admin-ui-scale));
+  flex-wrap: wrap;
+}
+
+.tui-search {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+}
+
+.tui-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.tui-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 30px 0 32px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.tui-search-input:focus {
+  border-color: var(--accent-light);
+}
+
+.tui-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.tui-search-clear {
+  position: absolute;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tui-search-clear:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* Status segmented control */
+.tui-seg {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.tui-seg-btn {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tui-seg-btn:hover {
+  color: var(--text-secondary);
+}
+
+.tui-seg-btn.active {
+  background: var(--accent-subtle-bg);
+  border-color: var(--accent-subtle-border);
+  color: var(--accent-light);
+}
+
+/* Sort control wrapper (pushes the dropdown to the right edge) */
+.tui-sort {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tui-sort-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Category/domain toggle chip row */
+.tui-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  flex-shrink: 0;
+}
+
+.tui-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tui-cat-chip:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.tui-cat-chip.active {
+  background: var(--accent-subtle-bg);
+  border-color: var(--accent-subtle-border);
+  color: var(--accent-light);
+}
+
+.tui-cat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── Active filter chips bar (Power Search visual language) ─── */
+.tui-chips-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--admin-ui-scale));
+  padding: calc(7px * var(--admin-ui-scale)) calc(20px * var(--admin-ui-scale));
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+
+.tui-chips-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  flex-shrink: 0;
+}
+
+.tui-chips-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--text-on-accent);
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.tui-chip:hover {
+  border-color: var(--danger-light);
+  color: var(--danger-light);
+}
+
+.tui-chip-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.tui-chip-reset:hover {
+  color: var(--danger-light);
+  background: var(--alert-error-bg);
+  border-color: var(--alert-error-border);
+}
+
+/* ─── Action error banner ─── */
+.tui-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: var(--alert-error-bg);
+  border-bottom: 1px solid var(--alert-error-border);
+  color: var(--danger-light);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tui-banner-close {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.tui-banner-close:hover {
+  opacity: 1;
+}
+
+/* ─── Content + table card ─── */
+.tui-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(10px * var(--admin-ui-scale));
+  padding: calc(14px * var(--admin-ui-scale)) calc(20px * var(--admin-ui-scale));
+}
+
+.tui-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.tui-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.tui-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tui-th-num {
+  text-align: right;
+}
+
+.tui-th-actions {
+  text-align: right;
+}
+
+.tui-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.tui-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tui-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.tui-row:hover {
+  background: var(--bg-hover);
+}
+
+/* Title cell (glyph + title + secondary line) */
+.tui-tcell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tui-tcell-glyph {
+  flex-shrink: 0;
+}
+
+.tui-tcell-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tui-tcell-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.tui-tcell-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Number / text helpers */
+.tui-num {
+  text-align: right;
+}
+
+.tui-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.tui-unit {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.tui-dash {
+  color: var(--text-muted);
+}
+
+.tui-muted-nowrap {
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Actions cell */
+.tui-cell-actions {
+  text-align: right;
+}
+
+.tui-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.tui-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tui-icon-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.tui-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tui-icon-btn-resolve:hover:not(:disabled) {
+  background: var(--alert-success-bg);
+  border-color: var(--alert-success-border);
+  color: var(--success);
+}
+
+.tui-icon-btn-danger:hover:not(:disabled) {
+  background: var(--alert-error-bg);
+  border-color: var(--alert-error-border);
+  color: var(--danger-light);
+}
+
+.tui-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ─── States (empty / error) ─── */
+.tui-cell-state {
+  cursor: default;
+}
+
+.tui-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.tui-table-wrap > .tui-state {
+  min-height: 100%;
+}
+
+.tui-state-icon {
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.tui-state-icon-error {
+  color: var(--danger-light);
+}
+
+.tui-state-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tui-state-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 340px;
+}
+
+.tui-state .tui-btn {
+  margin-top: 10px;
+}
+
+/* ─── Skeleton rows ─── */
+.tui-row-skel td {
+  cursor: default;
+}
+
+.tui-skel {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border-subtle) 50%, var(--bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.tui-skel-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tui-skel-glyph {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tui-skel-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  max-width: 300px;
+}
+
+.tui-skel-line {
+  height: 10px;
+}
+
+.tui-skel-line-sub {
+  height: 8px;
+}
+
+.tui-skel-pill {
+  width: 72px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+}
+
+/* ─── Pagination ─── */
+.tui-pagination {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.tui-page-info {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.tui-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tui-page-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* ─── Custom dropdown (TableDropdown) ─── */
+.tui-dd {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tui-dd-trigger {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tui-dd-trigger:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.tui-dd-trigger.open {
+  border-color: var(--accent-light);
+  color: var(--text-primary);
+}
+
+.tui-dd-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tui-dd-caret {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.tui-dd-trigger.open .tui-dd-caret {
+  transform: rotate(180deg);
+}
+
+.tui-dd-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tui-dd-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 300;
+  min-width: 100%;
+  width: max-content;
+  max-width: 260px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+
+.tui-dd-panel-right {
+  left: auto;
+  right: 0;
+}
+
+.tui-dd-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tui-dd-option.highlight {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tui-dd-option.active {
+  color: var(--accent-light);
+}
+
+.tui-dd-option-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tui-dd-check {
+  flex-shrink: 0;
+  color: var(--accent-light);
+}
+
+/* ─── Date filter popover (TableDateFilter) ─── */
+.tui-date {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Emphasized primary toolbar control — taller and bolder than the rest */
+.tui-date-trigger {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tui-date-trigger:hover {
+  border-color: var(--border-hover);
+}
+
+.tui-date-trigger.open {
+  border-color: var(--accent-light);
+}
+
+.tui-date-trigger.filtered {
+  background: var(--accent-subtle-bg);
+  border-color: var(--accent-subtle-border);
+}
+
+.tui-date-trigger.filtered .tui-date-trigger-icon,
+.tui-date-trigger.filtered .tui-date-trigger-label {
+  color: var(--accent-light);
+}
+
+.tui-date-trigger-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tui-date-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 300;
+  width: 320px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tui-date-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px;
+}
+
+.tui-date-preset {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.tui-date-preset:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tui-date-preset.active {
+  background: var(--accent-subtle-bg);
+  border-color: var(--accent-subtle-border);
+  color: var(--accent-light);
+}
+
+.tui-date-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 6px 0;
+}
+
+.tui-date-caption {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  padding: 0 2px;
+}
+
+.tui-date-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  color-scheme: dark;
+  transition: border-color 0.15s ease;
+}
+
+[data-theme="light"] .tui-date-input {
+  color-scheme: light;
+}
+
+.tui-date-input:focus {
+  border-color: var(--accent-light);
+}
+
+.tui-date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Constrain the two range inputs so they fit inside the panel padding */
+.tui-date-range .tui-date-input {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+}
+
+.tui-date-range-arrow {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}

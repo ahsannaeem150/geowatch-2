@@ -15,6 +15,7 @@ import SidebarTrial2Admin from './components/DesignTrial/SidebarTrial2Admin.jsx'
 import SidebarTrial2SuperAdmin from './components/DesignTrial/SidebarTrial2SuperAdmin.jsx';
 
 import ZonesPage from './pages/ZonesPage.jsx';
+import IncidentsPage from './pages/IncidentsPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
 
@@ -61,6 +62,9 @@ const incidentRoute = (
 const zonesRoute = (
   <Route path="/zones" element={<ProtectedRoute><ZonesPage /></ProtectedRoute>} />
 );
+const incidentsRoute = (
+  <Route path="/incidents" element={<ProtectedRoute><IncidentsPage /></ProtectedRoute>} />
+);
 const zoneRoute = (
   <Route path="/zone/:id" element={<ProtectedRoute><ZoneDetailPage /></ProtectedRoute>} />
 );
@@ -92,6 +96,7 @@ const AppRoutes = React.memo(function AppRoutes() {
       {layerDrawerOptionsTrialRoute}
       {incidentRoute}
       {zonesRoute}
+      {incidentsRoute}
       {zoneRoute}
       {dashboardRoute}
     </Routes>

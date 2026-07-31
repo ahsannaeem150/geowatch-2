@@ -1,0 +1,5 @@
+/* ─── Incidents Directory Page (/incidents) ───
+   All chrome, toolbar, table, dropdown, and popover styles are shared
+   with the zones directory and live in
+   src/admin-web/src/components/TableUI/table-ui.css (imported by the page).
+   Add incident-specific overrides here only when they genuinely diverge. */

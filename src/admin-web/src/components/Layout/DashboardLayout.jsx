@@ -2319,6 +2319,10 @@ export default function DashboardLayout() {
     navigate('/zones');
   }, [navigate]);
 
+  const handleOpenIncidents = useCallback(() => {
+    navigate('/incidents');
+  }, [navigate]);
+
   // ─── Shared incident-detail callbacks ───
   function dataUrlToFile(dataUrl, fileName = 'image.png') {
     const arr = dataUrl.split(',');
@@ -2772,10 +2776,10 @@ export default function DashboardLayout() {
           onAddIncident={handleAddIncident}
           onAddZone={handleAddZone}
           onOpenZones={handleOpenZones}
+          onOpenIncidents={handleOpenIncidents}
           user={user}
           onLogout={logout}
           compactMode={compactMode}
-          onToggleCompactMode={toggleCompactMode}
         />
       )}
 
@@ -2873,6 +2877,8 @@ export default function DashboardLayout() {
             onSelectRecentIncident={handleSelectRecent}
             autoZoomEnabled={autoZoomEnabled}
             onToggleAutoZoom={toggleAutoZoom}
+            compactMode={compactMode}
+            onToggleCompactMode={toggleCompactMode}
           />
         )}
 
