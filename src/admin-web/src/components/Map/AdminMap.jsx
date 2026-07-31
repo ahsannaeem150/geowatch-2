@@ -6,7 +6,7 @@ import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builde
 import { useTheme } from '@shared/useTheme.js';
 import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
 import { ringArea, smallestZoneFeature } from '@shared/utils/zoneGeometry.js';
-import { getSelectionCamera, selectionSignature, ZONE_COMFORT_FACTOR } from '@shared/utils/selectionCamera.js';
+import { getSelectionCamera, selectionSignature, zoneComfortFactor } from '@shared/utils/selectionCamera.js';
 import { format } from 'date-fns';
 
 // Tile coverage: z0-14 tiles exist inside HOT_BBOX, only z0-10 outside it.
@@ -726,7 +726,7 @@ const AdminMap = forwardRef(function AdminMap({
       const previousPadding = mapInstance.getPadding();
       mapInstance.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
       try {
-        const fit = computeFittingZoom(bounds, ZONE_COMFORT_FACTOR);
+        const fit = computeFittingZoom(bounds, zoneComfortFactor(bounds));
         if (fit.deferred) {
           if (!fitRetryRef.current) {
             // MapLibre returned no camera this frame — retry once on the next

@@ -109,6 +109,26 @@ export function zoneSizeCap(bounds) {
 }
 
 /**
+ * Trans-regional zones (bbox diagonal ≥ ZONE_LARGE_DIAGONAL_KM) fill a larger
+ * share of the viewport so they don't sit slightly too zoomed-out. Everything
+ * smaller keeps ZONE_COMFORT_FACTOR exactly — small zones are verified good.
+ */
+export const ZONE_LARGE_DIAGONAL_KM = 2000;
+export const ZONE_COMFORT_FACTOR_LARGE = 0.7;
+
+/**
+ * Comfort factor by zone size. Huge zones → ZONE_COMFORT_FACTOR_LARGE,
+ * everything else → ZONE_COMFORT_FACTOR.
+ */
+export function zoneComfortFactor(bounds) {
+  const b = normalizeBounds(bounds);
+  if (!b) return ZONE_COMFORT_FACTOR;
+  return haversineKm(b[0], b[1]) >= ZONE_LARGE_DIAGONAL_KM
+    ? ZONE_COMFORT_FACTOR_LARGE
+    : ZONE_COMFORT_FACTOR;
+}
+
+/**
  * Stable signature for the repeat-click guard: identical (type, source, lng, lat)
  * selections in a row are ignored entirely (no re-flight).
  */
