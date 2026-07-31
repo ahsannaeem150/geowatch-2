@@ -12318,3 +12318,8 @@ fix: zone camera-fit matches live chrome — AdminMap reads padding via a live g
 ```
 chore: move backend dev port 3000 → 3100 — env files, code fallbacks, launcher/status/verify scripts, and living docs updated; WhatsApp bridge retains port 3000
 ```
+
+
+## 📅 2026-07-31 — Module: admin-web/shared — Selection camera: stutter fix, slower zone flights, huge-zone clamp
+
+fix: incident-click stutter — setPadding reset scoped to zone measurement (synchronous reset→measure→restore, no painted snap), easeTo for pan-only/equal-zoom moves (no flyTo zoom-out arc). Zone fit duration 800→1000ms, centroid pan 300→800ms; ZONE_MIN_ZOOM 4→2.5 so trans-regional zones aren't clipped. Verified 20/20 in scripts/verify-smart-zoom.mjs (new huge-zone containment + setPadding/easeTo instrumentation checks).

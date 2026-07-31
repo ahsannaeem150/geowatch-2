@@ -665,12 +665,10 @@ const AdminMap = forwardRef(function AdminMap({
 
     // MapLibre persists the previous flyTo's padding on the transform, and
     // cameraForBounds ADDS it to the padding we pass (see
-    // _cameraForBoxAndBearing: `edgePadding = tr.padding`). After any padded
-    // flight, a second fit would double-count the chrome — producing a
-    // too-low zoom or even undefined (negative scale). Neutralize the
-    // persistent padding before measuring; the flyTo below re-applies the
-    // correct one, all within the same frame (no visible jump).
-    mapInstance.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+    // _cameraForBoxAndBearing: `edgePadding = tr.padding`) — a second fit
+    // would double-count the chrome. Neutralize it ONLY around the zone
+    // measurement below (reset → measure → restore synchronously, so no paint
+    // can show the intermediate state); incident flights never touch padding.
 
     // Compute visible area after layout padding (sidebars / panels).
     const container = mapInstance.getContainer();
@@ -721,23 +719,32 @@ const AdminMap = forwardRef(function AdminMap({
     // Precompute the map-dependent inputs the shared policy needs.
     const isZone = type === 'zone' && bounds;
     let fitZoom;
+    let fitsAtCurrentZoom = false;
     if (isZone) {
-      const fit = computeFittingZoom(bounds, ZONE_COMFORT_FACTOR);
-      if (fit.deferred) {
-        if (!fitRetryRef.current) {
-          // MapLibre returned no camera this frame — retry once on the next
-          // frame (re-runs this effect via fitRetryTick).
-          fitRetryRef.current = true;
-          requestAnimationFrame(() => setFitRetryTick((t) => t + 1));
-        } else {
-          fitRetryRef.current = false;
+      // Reset persistent padding only for the measurement, synchronously —
+      // no paint can show the intermediate state (no camera snap).
+      const previousPadding = mapInstance.getPadding();
+      mapInstance.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+      try {
+        const fit = computeFittingZoom(bounds, ZONE_COMFORT_FACTOR);
+        if (fit.deferred) {
+          if (!fitRetryRef.current) {
+            // MapLibre returned no camera this frame — retry once on the next
+            // frame (re-runs this effect via fitRetryTick).
+            fitRetryRef.current = true;
+            requestAnimationFrame(() => setFitRetryTick((t) => t + 1));
+          } else {
+            fitRetryRef.current = false;
+          }
+          return;
         }
-        return;
+        fitRetryRef.current = false;
+        fitZoom = fit.zoom;
+        fitsAtCurrentZoom = doesFitAtZoom(bounds, currentZoom);
+      } finally {
+        mapInstance.setPadding(previousPadding);
       }
-      fitRetryRef.current = false;
-      fitZoom = fit.zoom;
     }
-    const fitsAtCurrentZoom = isZone ? doesFitAtZoom(bounds, currentZoom) : false;
     let isVisibleInViewport = false;
     if (type === 'incident' && source === 'power-search') {
       const pt = mapInstance.project([flyToCoords.lng, flyToCoords.lat]);
@@ -769,11 +776,15 @@ const AdminMap = forwardRef(function AdminMap({
     }
 
     const targetZoom = Math.min(decision.zoom, maxZoom);
+    // Pan-only and equal-zoom results go through easeTo: flyTo's van Wijk arc
+    // zooms out mid-flight on long pans, which reads as stutter/chaos when no
+    // zoom change is intended.
+    const zoomUnchanged = decision.panOnly || Math.abs(targetZoom - currentZoom) < 0.001;
 
-    // Force a resize so flyTo uses the current container size after layout
-    // changes (e.g. right panel opening) instead of the previous size.
+    // Force a resize so the camera move uses the current container size after
+    // layout changes (e.g. right panel opening) instead of the previous size.
     mapInstance.resize();
-    // Defer flyTo one frame so the resize has been applied; this makes the
+    // Defer one frame so the resize has been applied; this makes the
     // very first selection (which also opens the right panel) smooth.
     requestAnimationFrame(() => {
       if (!map.current) return;
@@ -784,12 +795,17 @@ const AdminMap = forwardRef(function AdminMap({
         center: { lng: flyToCoords.lng, lat: flyToCoords.lat },
         padding,
       };
-      map.current.flyTo({
+      const camera = {
         center: [flyToCoords.lng, flyToCoords.lat],
         zoom: targetZoom,
         padding,
         duration: decision.duration,
-      });
+      };
+      if (zoomUnchanged) {
+        map.current.easeTo(camera);
+      } else {
+        map.current.flyTo(camera);
+      }
     });
   }, [flyToCoords, fitRetryTick]);
 

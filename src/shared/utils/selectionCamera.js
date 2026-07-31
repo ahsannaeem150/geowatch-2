@@ -37,15 +37,15 @@ export const DURATION_DEEP_LINK = 800;
 /** Pan-only duration when auto-zoom is disabled (legacy behavior). */
 export const DURATION_PAN_ONLY = 800;
 /** Zone flight duration (comfort-fit). */
-export const DURATION_ZONE_FIT = 800;
+export const DURATION_ZONE_FIT = 1000;
 /** Short pan to the zone centroid when the fit flight is skipped. */
-export const DURATION_ZONE_CENTROID_PAN = 300;
+export const DURATION_ZONE_CENTROID_PAN = 800;
 
 // ─── Zone (polygon) fitting ───
 /** Fraction of the padded visible viewport the zone bbox should fill (0.55 = 55%). */
 export const ZONE_COMFORT_FACTOR = 0.55;
 /** Never zoom out past this when comfort-fitting a zone. */
-export const ZONE_MIN_ZOOM = 4;
+export const ZONE_MIN_ZOOM = 2.5;
 /**
  * Max zoom caps by zone size — the bbox diagonal (haversine of the two bbox
  * corners) picks the cap so tiny zones don't dive to street level:

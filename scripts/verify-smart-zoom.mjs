@@ -50,9 +50,22 @@ const MEDIUM_ZONE_BODY = {
   severity: 2,
   startDate: new Date().toISOString(),
 };
+// Trans-regional zone for the ZONE_MIN_ZOOM (2.5) clamp check: 40°E→75°E,
+// 10°N→35°N, diagonal >3000 km.
+const HUGE_ZONE_BODY = {
+  title: 'SmartZoom Test Huge Zone',
+  geometryType: 'polygon',
+  geometry: {
+    type: 'Polygon',
+    coordinates: [[[40, 10], [75, 10], [75, 35], [40, 35], [40, 10]]],
+  },
+  severity: 2,
+  startDate: new Date().toISOString(),
+};
 // Medium zone geometry constants for map-click + rect assertions.
 const MED_CENTER = [67.7, 31.2];
 const MED_BBOX = { minLng: 67.2, minLat: 30.7, maxLng: 68.2, maxLat: 31.7 };
+const HUGE_BBOX = { minLng: 40, minLat: 10, maxLng: 75, maxLat: 35 };
 
 const ZOOM_TOL = 0.3;
 
@@ -135,11 +148,15 @@ async function main() {
   const mediumZoneData = (await apiFetch(token, '/incidents', {
     method: 'POST', body: JSON.stringify(MEDIUM_ZONE_BODY),
   })).incident;
+  const hugeZoneData = (await apiFetch(token, '/incidents', {
+    method: 'POST', body: JSON.stringify(HUGE_ZONE_BODY),
+  })).incident;
   const TINY_ZONE_ID = tinyZoneData.id;
   const LARGE_ZONE_ID = largeZoneData.id;
   const MEDIUM_ZONE_ID = mediumZoneData.id;
-  check('zone fixtures created via API', !!(TINY_ZONE_ID && LARGE_ZONE_ID && MEDIUM_ZONE_ID),
-    `tiny=${TINY_ZONE_ID} large=${LARGE_ZONE_ID} medium=${MEDIUM_ZONE_ID}`);
+  const HUGE_ZONE_ID = hugeZoneData.id;
+  check('zone fixtures created via API', !!(TINY_ZONE_ID && LARGE_ZONE_ID && MEDIUM_ZONE_ID && HUGE_ZONE_ID),
+    `tiny=${TINY_ZONE_ID} large=${LARGE_ZONE_ID} medium=${MEDIUM_ZONE_ID} huge=${HUGE_ZONE_ID}`);
   const largeBbox = zoneBbox(LARGE_ZONE_BODY.geometry);
 
   const browser = await chromium.launch();
@@ -262,7 +279,7 @@ async function main() {
   zoom = await getZoom();
   check('tiny zone (~1.5 km) → zoom ≤ 11.3 (size cap 11)', zoom <= 11.3, `zoom=${zoom.toFixed(2)}`);
 
-  // ─── 6. Large zone deep-link → zoom ≥ 3.7 and bbox fits ───
+  // ─── 6. Large zone deep-link → zoom ≥ 2.4 (min zoom 2.5 clamp) and bbox fits ───
   await page.goto(`${ADMIN_BASE}/?zone=${LARGE_ZONE_ID}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
   await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
@@ -276,10 +293,30 @@ async function main() {
       bounds: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
     };
   }, largeBbox);
-  check('large zone (~2340 km) → zoom ≥ 3.7 (min zoom 4 clamp)', zoom >= 3.7, `zoom=${zoom.toFixed(2)}`);
+  check('large zone (~2340 km) → zoom ≥ 2.4 (min zoom 2.5 clamp)', zoom >= 2.4, `zoom=${zoom.toFixed(2)}`);
   check('large zone bbox fully inside map bounds after fit', fitsCheck.fits,
     `map=${fitsCheck.bounds.map((v) => v.toFixed(1)).join(',')} zone=${[largeBbox.minLng, largeBbox.minLat, largeBbox.maxLng, largeBbox.maxLat].map((v) => v.toFixed(1)).join(',')}`);
   await page.screenshot({ path: join(OUT, 'large-zone-fit.png') });
+
+  // ─── 6b. Huge trans-regional zone (>3000 km) → fully contained, zoom ≥ 2.4 ───
+  await page.goto(`${ADMIN_BASE}/?zone=${HUGE_ZONE_ID}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForTimeout(6000);
+  zoom = await getZoom();
+  const hugeFits = await page.evaluate((bb) => {
+    const EPS = 0.5; // degrees of slack for viewport edge rounding
+    const b = window.__geowatchAdminMap.getBounds();
+    return {
+      fits: bb.minLng >= b.getWest() - EPS && bb.maxLng <= b.getEast() + EPS &&
+            bb.minLat >= b.getSouth() - EPS && bb.maxLat <= b.getNorth() + EPS,
+      bounds: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
+    };
+  }, HUGE_BBOX);
+  check('huge zone (>3000 km) → zoom ≥ 2.4 (not clipped by min-zoom clamp)', zoom >= 2.4, `zoom=${zoom.toFixed(2)}`);
+  check('huge zone bbox fully inside map bounds (no clipping)', hugeFits.fits,
+    `map=${hugeFits.bounds.map((v) => v.toFixed(1)).join(',')} zone=40,10,75,35`);
+  await page.screenshot({ path: join(OUT, 'huge-zone-fit.png') });
 
   // ─── 7. z3 + marker click on map → zoom ≈ 6 ───
   await jumpTo(3, [parseFloat(incA.longitude), parseFloat(incA.latitude)]);
@@ -310,6 +347,32 @@ async function main() {
     }
   }
   await page.screenshot({ path: join(OUT, 'final-state.png') });
+
+  // ─── 7b. Stutter instrumentation: incident click never touches padding;
+  // same-zoom pan uses easeTo (no flyTo zoom-out arc) ───
+  await page.evaluate(() => {
+    const m = window.__geowatchAdminMap;
+    window.__cam = { setPadding: 0, flyTo: 0, easeTo: 0 };
+    const osp = m.setPadding.bind(m);
+    m.setPadding = (p) => { window.__cam.setPadding += 1; return osp(p); };
+    const ofly = m.flyTo.bind(m);
+    m.flyTo = (o) => { window.__cam.flyTo += 1; return ofly(o); };
+    const oet = m.easeTo.bind(m);
+    m.easeTo = (o) => { window.__cam.easeTo += 1; return oet(o); };
+  });
+  await jumpTo(7, [parseFloat(incA.longitude), parseFloat(incA.latitude)]);
+  await page.waitForTimeout(500);
+  await page.click('button[title="Incidents"]');
+  await page.waitForSelector('text=Incidents in Viewport', { timeout: 5000 });
+  await page.waitForTimeout(600);
+  await drawerCards.nth(0).click(); // 'list' → max(7, 6) = 7 = currentZoom → pan only
+  await page.waitForTimeout(1800);
+  const camStats = await page.evaluate(() => window.__cam);
+  check('incident same-zoom pan: setPadding ×0, exactly 1 move and it is easeTo',
+    camStats.setPadding === 0 && camStats.flyTo === 0 && camStats.easeTo === 1,
+    JSON.stringify(camStats));
+  await page.keyboard.press('Escape'); // close drawer
+  await page.waitForTimeout(300);
 
   // ─── Zone-fit chrome checks (medium ~95 km zone) ───
   // Each group starts from a FRESH page load so no stale flight/popup/camera
@@ -420,6 +483,8 @@ async function main() {
     window.__flyCount = 0;
     const ofly = m.flyTo.bind(m);
     m.flyTo = (opts) => { window.__flyCount += 1; return ofly(opts); };
+    const oet = m.easeTo.bind(m);
+    m.easeTo = (opts) => { window.__flyCount += 1; return oet(opts); };
   });
   await page2.evaluate(([z, c]) => window.__geowatchAdminMap.jumpTo({ zoom: z, center: c }), [7, MED_CENTER]);
   await page2.waitForTimeout(500);
@@ -476,7 +541,7 @@ async function main() {
   }
 
   // ─── Cleanup: soft-delete the zone fixtures ───
-  for (const id of [TINY_ZONE_ID, LARGE_ZONE_ID, MEDIUM_ZONE_ID]) {
+  for (const id of [TINY_ZONE_ID, LARGE_ZONE_ID, MEDIUM_ZONE_ID, HUGE_ZONE_ID]) {
     try {
       await apiFetch(token, `/incidents/${id}`, { method: 'DELETE' });
       console.log(`Cleaned up zone fixture ${id}`);
