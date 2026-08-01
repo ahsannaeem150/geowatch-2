@@ -71,7 +71,7 @@ export default function LiveActivityFeed({
                 borderRadius: '50%',
                 background: 'var(--danger)',
                 color: 'var(--text-on-accent)',
-                fontSize: '9px',
+                fontSize: '10px',
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',

@@ -8,6 +8,13 @@ import { ThemeProvider } from '@shared/theme-context.jsx';
 import { PublicAuthProvider } from './contexts/PublicAuthContext.jsx';
 import { SignInModalProvider } from './contexts/SignInModalContext.jsx';
 
+// Apply the persisted reduce-motion preference before first paint
+try {
+  if (localStorage.getItem('geowatch_user_reduce_motion') === 'true') {
+    document.documentElement.classList.add('reduce-motion');
+  }
+} catch {}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ThemeProvider>

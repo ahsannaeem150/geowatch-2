@@ -9,9 +9,11 @@ import {
   Command,
   List,
   Hexagon,
+  Bookmark,
 } from 'lucide-react';
 import GoogleSignInButton from '../GoogleSignInButton/GoogleSignInButton.jsx';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
+import { api } from '../../services/api.js';
 import TopBarDateControl from './TopBarDateControl.jsx';
 import TopBarModePill from './TopBarModePill.jsx';
 
@@ -100,6 +102,47 @@ export default function WorkspaceTopBar({
     clearNavTimers();
     setNavOpen(true);
   }, [markPeeked, clearNavTimers]);
+
+  // Saved-incident count for the profile menu badge (lightweight, public auth)
+  const [savedCount, setSavedCount] = useState(null);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSavedCount(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .listSavedIncidents()
+      .then((res) => {
+        if (!cancelled) setSavedCount((res.data?.incidents || []).length);
+      })
+      .catch(() => {
+        if (!cancelled) setSavedCount(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
+  // Close the profile menu on outside click / Escape
+  const userMenuRef = useRef(null);
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDocDown = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenuOpen]);
 
   // First-visit auto-peek: pulse the brand, reveal the nav briefly, then hide
   // it and never auto-peek again. Any interaction ends the peek early.
@@ -411,7 +454,7 @@ export default function WorkspaceTopBar({
         </button>
 
         {/* Auth area */}
-        <div style={{ position: 'relative' }}>
+        <div ref={userMenuRef} style={{ position: 'relative' }}>
           {authLoading ? (
             <div
               style={{
@@ -501,113 +544,178 @@ export default function WorkspaceTopBar({
                 )}
               </button>
 
-              {userMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    right: 0,
-                    width: 'calc(240px * var(--admin-ui-scale))',
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: 'calc(14px * var(--admin-ui-scale))',
-                    boxShadow: 'var(--shadow-lg)',
-                    zIndex: 200,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))', marginBottom: 'calc(14px * var(--admin-ui-scale))' }}>
-                    {user?.avatar_url ? (
-                      <img
-                        src={user.avatar_url}
-                        alt=""
-                        style={{
-                          width: 'calc(34px * var(--admin-ui-scale))',
-                          height: 'calc(34px * var(--admin-ui-scale))',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          border: '2px solid var(--border-subtle)',
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 'calc(34px * var(--admin-ui-scale))',
-                          height: 'calc(34px * var(--admin-ui-scale))',
-                          borderRadius: '50%',
-                          background: 'var(--accent)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 'calc(11px * var(--admin-ui-scale))',
-                          fontWeight: 700,
-                          color: 'var(--text-on-accent)',
-                          border: '2px solid var(--border-subtle)',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {initials}
-                      </div>
-                    )}
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {displayName}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 'calc(11px * var(--admin-ui-scale))',
-                          color: 'var(--text-muted)',
-                          marginTop: 'calc(2px * var(--admin-ui-scale))',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {user?.email || ''}
+              <AnimatePresence>
+                {userMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92, y: -6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.92, y: -6 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    role="menu"
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      right: 0,
+                      transformOrigin: 'top right',
+                      width: 'calc(264px * var(--admin-ui-scale))',
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 'calc(6px * var(--admin-ui-scale))',
+                      boxShadow: 'var(--shadow-lg)',
+                      zIndex: 200,
+                    }}
+                  >
+                    {/* Identity header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))', padding: 'calc(10px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))' }}>
+                      {user?.avatar_url ? (
+                        <img
+                          src={user.avatar_url}
+                          alt=""
+                          style={{
+                            width: 'calc(38px * var(--admin-ui-scale))',
+                            height: 'calc(38px * var(--admin-ui-scale))',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            border: '2px solid var(--accent-subtle-border)',
+                            boxShadow: '0 0 0 2px var(--accent-subtle-bg)',
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 'calc(38px * var(--admin-ui-scale))',
+                            height: 'calc(38px * var(--admin-ui-scale))',
+                            borderRadius: '50%',
+                            background: 'var(--accent)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 'calc(13px * var(--admin-ui-scale))',
+                            fontWeight: 700,
+                            color: 'var(--text-on-accent)',
+                            border: '2px solid var(--accent-subtle-border)',
+                            boxShadow: '0 0 0 2px var(--accent-subtle-bg)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {initials}
+                        </div>
+                      )}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {displayName}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 'calc(11px * var(--admin-ui-scale))',
+                            color: 'var(--text-muted)',
+                            marginTop: 'calc(2px * var(--admin-ui-scale))',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {user?.email || ''}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0 calc(4px * var(--admin-ui-scale))' }} />
+
+                    {/* Saved incidents */}
                     <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate('/map?drawer=saved');
+                      }}
                       style={{
                         width: '100%',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 'calc(8px * var(--admin-ui-scale))',
-                        padding: 'calc(8px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
-                        fontSize: 'calc(13px * var(--admin-ui-scale))',
-                        fontWeight: 700,
-                        color: 'var(--text-secondary)',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border-subtle)',
+                        gap: 'calc(10px * var(--admin-ui-scale))',
+                        padding: 'calc(9px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                        marginTop: 'calc(4px * var(--admin-ui-scale))',
+                        border: 'none',
                         borderRadius: 'var(--radius-sm)',
+                        background: 'transparent',
+                        color: 'var(--text-secondary)',
+                        fontSize: 'calc(13px * var(--admin-ui-scale))',
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-sans)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = 'var(--bg-hover)';
-                        e.currentTarget.style.borderColor = 'var(--border-hover)';
                         e.currentTarget.style.color = 'var(--text-primary)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-input)';
-                        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                        e.currentTarget.style.background = 'transparent';
                         e.currentTarget.style.color = 'var(--text-secondary)';
                       }}
+                    >
+                      <Bookmark size={iconSize(15)} />
+                      <span style={{ flex: 1, textAlign: 'left' }}>Saved incidents</span>
+                      {savedCount !== null && (
+                        <span
+                          style={{
+                            fontSize: 'calc(10px * var(--admin-ui-scale))',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-mono)',
+                            color: 'var(--accent-light)',
+                            background: 'var(--accent-subtle-bg)',
+                            border: '1px solid var(--accent-subtle-border)',
+                            borderRadius: 'var(--radius-pill)',
+                            padding: 'calc(1px * var(--admin-ui-scale)) calc(7px * var(--admin-ui-scale))',
+                          }}
+                        >
+                          {savedCount}
+                        </span>
+                      )}
+                    </button>
+
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', margin: 'calc(4px * var(--admin-ui-scale)) calc(4px * var(--admin-ui-scale)) 0' }} />
+
+                    {/* Sign out */}
+                    <button
+                      role="menuitem"
                       onClick={() => {
                         setUserMenuOpen(false);
                         logout?.();
                       }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'calc(10px * var(--admin-ui-scale))',
+                        padding: 'calc(9px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                        marginTop: 'calc(4px * var(--admin-ui-scale))',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'transparent',
+                        color: 'var(--danger)',
+                        fontSize: 'calc(13px * var(--admin-ui-scale))',
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-sans)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--alert-error-bg)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
                     >
-                      <LogOut size={iconSize(14)} />
+                      <LogOut size={iconSize(15)} />
                       Sign out
                     </button>
-                  </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </>
           ) : (
             <GoogleSignInButton onCredential={handleCredentialResponse} buttonWidth="160" />

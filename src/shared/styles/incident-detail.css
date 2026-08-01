@@ -4223,3 +4223,42 @@
   width: 14px;
   height: 14px;
 }
+
+/* ─── Long-form reading font (Inter) — descriptions & evidence body text ─── */
+.id-summary__desc,
+.id-update-card__text,
+.id-post__text,
+.id-article__body,
+.id-note__text {
+  font-family: var(--font-longform);
+}
+
+/* ─── Featured collapsed marker — stands in for an item already shown in the Featured block ─── */
+.opt1-featured-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.opt1-featured-collapsed:hover {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.opt1-featured-collapsed svg {
+  color: #fbbf24;
+  flex-shrink: 0;
+}

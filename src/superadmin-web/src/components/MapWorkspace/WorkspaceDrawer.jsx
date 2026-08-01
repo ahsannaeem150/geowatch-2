@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -23,6 +23,7 @@ import {
   FileText,
   Activity as ActivityIcon,
   Hexagon,
+  ZapOff,
 } from 'lucide-react';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
@@ -1041,6 +1042,26 @@ function RecentsDrawer({ recents, onClearRecents, onSelectRecentIncident }) {
 }
 
 function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabled, onToggleAutoZoom, compactMode, onToggleCompactMode }) {
+  // Reduce motion is app-global (class on <html>) but self-contained here —
+  // boot-time application happens in main.jsx, this switch owns live toggling.
+  const [reduceMotion, setReduceMotion] = useState(() => {
+    try {
+      return localStorage.getItem('geowatch_superadmin_reduce_motion') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleReduceMotion = () => {
+    setReduceMotion((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('geowatch_superadmin_reduce_motion', String(next));
+      } catch {}
+      document.documentElement.classList.toggle('reduce-motion', next);
+      return next;
+    });
+  };
+
   return (
     <div style={{ padding: 'calc(16px * var(--admin-ui-scale))' }}>
       <div
@@ -1170,6 +1191,57 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabl
               position: 'absolute',
               top: 'calc(2px * var(--admin-ui-scale))',
               left: compactMode ? 'calc(20px * var(--admin-ui-scale))' : 'calc(2px * var(--admin-ui-scale))',
+              width: 'calc(18px * var(--admin-ui-scale))',
+              height: 'calc(18px * var(--admin-ui-scale))',
+              borderRadius: '50%',
+              background: '#fff',
+              transition: 'left 0.15s ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+            }}
+          />
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 'calc(12px * var(--admin-ui-scale))',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-sm)',
+          boxShadow: 'var(--shadow-sm)',
+          marginBottom: 'calc(10px * var(--admin-ui-scale))',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
+          <ZapOff size={16} color="var(--text-secondary)" />
+          <div>
+            <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', color: 'var(--text-primary)' }}>Reduce motion</div>
+            <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>Minimize animations and transitions</div>
+          </div>
+        </div>
+        <button
+          onClick={toggleReduceMotion}
+          aria-checked={reduceMotion}
+          role="switch"
+          style={{
+            width: 'calc(40px * var(--admin-ui-scale))',
+            height: 'calc(22px * var(--admin-ui-scale))',
+            borderRadius: 'calc(11px * var(--admin-ui-scale))',
+            border: 'none',
+            background: reduceMotion ? 'var(--accent)' : 'var(--border-strong)',
+            position: 'relative',
+            cursor: 'pointer',
+            transition: 'background 0.15s ease',
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              top: 'calc(2px * var(--admin-ui-scale))',
+              left: reduceMotion ? 'calc(20px * var(--admin-ui-scale))' : 'calc(2px * var(--admin-ui-scale))',
               width: 'calc(18px * var(--admin-ui-scale))',
               height: 'calc(18px * var(--admin-ui-scale))',
               borderRadius: '50%',

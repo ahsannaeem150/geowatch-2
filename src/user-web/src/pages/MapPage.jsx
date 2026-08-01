@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
+import { Skeleton } from '@shared/components/Skeleton.jsx';
 import UserMap from '../components/Map/UserMap.jsx';
 import WorkspaceTopBar from '../components/Layout/WorkspaceTopBar.jsx';
 import WorkspaceRail from '../components/Layout/WorkspaceRail.jsx';
@@ -1859,26 +1860,34 @@ export default function MapPage() {
               <div
                 style={{
                   flex: 1,
+                  padding: 'calc(20px * var(--admin-ui-scale))',
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 'calc(12px * var(--admin-ui-scale))',
-                  color: 'var(--text-muted)',
-                  fontSize: 'calc(13px * var(--admin-ui-scale))',
+                  overflow: 'hidden',
                 }}
               >
-                <div
-                  style={{
-                    width: 'calc(24px * var(--admin-ui-scale))',
-                    height: 'calc(24px * var(--admin-ui-scale))',
-                    borderRadius: '50%',
-                    border: '2px solid var(--border-subtle)',
-                    borderTopColor: 'var(--accent-light)',
-                    animation: 'spin 1s linear infinite',
-                  }}
-                />
-                Loading details…
+                {/* Sidebar-shaped skeleton — the panel arrives composed */}
+                <div style={{ display: 'flex', gap: 'calc(8px * var(--admin-ui-scale))', marginBottom: 'calc(18px * var(--admin-ui-scale))' }}>
+                  <Skeleton width="72px" height="20px" style={{ borderRadius: 'var(--radius-pill)' }} />
+                  <Skeleton width="92px" height="20px" style={{ borderRadius: 'var(--radius-pill)' }} />
+                  <Skeleton width="60px" height="20px" style={{ borderRadius: 'var(--radius-pill)' }} />
+                </div>
+                <Skeleton height="26px" width="78%" style={{ marginBottom: 'calc(10px * var(--admin-ui-scale))' }} />
+                <Skeleton height="14px" width="46%" style={{ marginBottom: 'calc(22px * var(--admin-ui-scale))' }} />
+                {['86%', '68%', '76%'].map((w, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))', marginBottom: 'calc(12px * var(--admin-ui-scale))' }}>
+                    <Skeleton width="15px" height="15px" style={{ borderRadius: '50%', flexShrink: 0 }} />
+                    <Skeleton height="12px" width={w} />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 'calc(10px * var(--admin-ui-scale))', margin: 'calc(20px * var(--admin-ui-scale)) 0' }}>
+                  {[0, 1, 2].map((i) => (
+                    <Skeleton key={i} height="72px" style={{ flex: 1 }} />
+                  ))}
+                </div>
+                <Skeleton height="12px" style={{ marginBottom: 'calc(9px * var(--admin-ui-scale))' }} />
+                <Skeleton height="12px" style={{ marginBottom: 'calc(9px * var(--admin-ui-scale))' }} />
+                <Skeleton height="12px" width="58%" />
               </div>
             ) : (
               <>

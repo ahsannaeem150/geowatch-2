@@ -10,6 +10,7 @@ import IncidentsPage from './pages/IncidentsPage.jsx';
 import ZonesPage from './pages/ZonesPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
+import NotFoundPage from './pages/NotFoundPage.jsx';
 import ZoneTrialSidebarPage from './pages/ZoneTrialSidebarPage.jsx';
 import ZoneTrialLayoutB from './pages/ZoneTrialLayoutB.jsx';
 import ZoneTrialMeterPage from './pages/ZoneTrialMeterPage.jsx';
@@ -33,6 +34,27 @@ function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
+// Per-route document titles. Detail pages set their own title from the
+// loaded incident/zone; everything else maps here.
+const ROUTE_TITLES = [
+  { match: /^\/$/, title: 'GeoWatch — Global Conflict Monitor' },
+  { match: /^\/map$/, title: 'Map — GeoWatch' },
+  { match: /^\/incidents$/, title: 'Incidents — GeoWatch' },
+  { match: /^\/zones$/, title: 'Zones — GeoWatch' },
+  { match: /^\/about$/, title: 'About — GeoWatch' },
+  // Catch-all (404) — keep last; detail pages override with the loaded title
+  { match: /^\/(?!incident\/|zone\/|trial\/).*/, title: 'Page not found — GeoWatch' },
+];
+
+function RouteTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const hit = ROUTE_TITLES.find((r) => r.match.test(pathname));
+    if (hit) document.title = hit.title;
   }, [pathname]);
   return null;
 }
@@ -66,6 +88,7 @@ function AnimatedRoutes() {
           <Route path="/trial/zone-heroes" element={<ZoneHeroesTrialPage />} />
           <Route path="/trial/zone-sidebar-animations" element={<ZoneSidebarAnimationTrialPage />} />
           <Route path="/trial/zone-create" element={<ZoneTrialCreatePage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </motion.div>
     </AnimatePresence>
@@ -97,6 +120,7 @@ function AppContent() {
       }}
     >
       <ScrollToTop />
+      <RouteTitle />
       {!isMapPage && <Header />}
       <main
         style={{

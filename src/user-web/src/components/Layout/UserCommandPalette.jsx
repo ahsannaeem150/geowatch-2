@@ -899,7 +899,7 @@ function IncidentItem({ incident, active, saved, onClick, query, showRecentLabel
           {highlight(incident.title, query)}
           {saved && <Star size={12} fill="var(--warning)" color="var(--warning)" />}
           {showRecentLabel && (
-            <Badge style={{ padding: '1px 6px', fontSize: '9px', letterSpacing: '0.5px' }}>Recent</Badge>
+            <Badge style={{ padding: '1px 6px', fontSize: '10px', letterSpacing: '0.5px' }}>Recent</Badge>
           )}
         </div>
         <div

@@ -3,7 +3,7 @@ import { Icons, SOURCE_TYPE_ICONS, SOURCE_TYPE_LABELS } from './IncidentIcons.js
 import { sortPinned, countEvidence, formatDate, formatTime } from './IncidentUtils.js';
 import { VerificationBadge } from './IncidentBadges.jsx';
 import XPostCompactList, { XEmbed, ArchivedPost, ArchiveLightbox } from './XPostCompactList.jsx';
-import { ArticleCard, AdminNoteCard, EditableArticleCard, EditableAdminNoteCard, MediaGrid } from './SourceCards.jsx';
+import { ArticleCard, AdminNoteCard, EditableArticleCard, EditableAdminNoteCard, MediaGrid, FeaturedCollapsedRow } from './SourceCards.jsx';
 
 
 export function findItemByFeature(sources, featured) {
@@ -73,8 +73,7 @@ export function RailFeaturedSection({ event, featuredItem, onMediaClick, onClear
   );
 }
 
-function EditableMediaThumb({ item, onClick, onEdit, onDelete, onPin, onFeature, isFeatured }) {
-  return (
+function EditableMediaThumb({ item, onClick, onEdit, onDelete, onPin, onFeature, isFeatured }) {  return (
     <div className="opt1-media-wrap">
       <div
         role="button"
@@ -187,22 +186,26 @@ function EditableMediaThumb({ item, onClick, onEdit, onDelete, onPin, onFeature,
   );
 }
 
-function EditableMediaGrid({ items, onItemClick, onEdit, onDelete, onPin, onFeature, featuredId }) {
+function EditableMediaGrid({ items, onItemClick, onEdit, onDelete, onPin, onFeature, featuredId, collapsedId, onExpandCollapsed }) {
   if (!items?.length) return null;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-      {items.map((item) => (
-        <EditableMediaThumb
-          key={item.id}
-          item={item}
-          onClick={onItemClick}
-          onEdit={() => onEdit(item)}
-          onDelete={() => onDelete(item.id)}
-          onPin={() => onPin(item.id)}
-          onFeature={onFeature ? () => onFeature(item.id) : undefined}
-          isFeatured={featuredId === item.id}
-        />
-      ))}
+      {items.map((item) =>
+        collapsedId === item.id ? (
+          <FeaturedCollapsedRow key={item.id} onExpand={onExpandCollapsed} />
+        ) : (
+          <EditableMediaThumb
+            key={item.id}
+            item={item}
+            onClick={onItemClick}
+            onEdit={() => onEdit(item)}
+            onDelete={() => onDelete(item.id)}
+            onPin={() => onPin(item.id)}
+            onFeature={onFeature ? () => onFeature(item.id) : undefined}
+            isFeatured={featuredId === item.id}
+          />
+        )
+      )}
     </div>
   );
 }
@@ -237,6 +240,20 @@ export default function EvidenceRail({
   const featuredPostId = featuredItem?.sourceType === 'x_post' ? featuredItem.sourceId || featuredItem.itemId : null;
   const featuredArticleId = featuredItem?.sourceType === 'news_article' ? featuredItem.sourceId || featuredItem.itemId : null;
   const featuredNoteId = featuredItem?.sourceType === 'admin_note' ? featuredItem.sourceId || featuredItem.itemId : null;
+
+  // When the Featured block is visible (All tab), the featured item's original
+  // in the list collapses to a small "Featured above" marker so it doesn't
+  // render twice — expandable on demand. On type-specific tabs the featured
+  // block is hidden, so the item renders normally there.
+  const [revealedFeaturedId, setRevealedFeaturedId] = useState(null);
+  const collapseOriginals = filter === 'all' && !!featuredItem;
+  const collapseId = (id) => (collapseOriginals && id && id !== revealedFeaturedId ? id : null);
+  const collapsedMediaId = collapseId(featuredMediaId);
+  const collapsedPostId = collapseId(featuredPostId);
+  const collapsedArticleId = collapseId(featuredArticleId);
+  const collapsedNoteId = collapseId(featuredNoteId);
+  const expandCollapsed = () =>
+    setRevealedFeaturedId(featuredItem ? featuredItem.sourceId || featuredItem.itemId : null);
 
   const media = useMemo(() => sortPinned(sources.media || [], featuredMediaId), [sources.media, featuredMediaId]);
   const posts = useMemo(() => sortPinned(sources.x_post || [], featuredPostId), [sources.x_post, featuredPostId]);
@@ -307,9 +324,16 @@ export default function EvidenceRail({
               onPin={(id) => onPinEvidence?.(event.id, 'media', id)}
               onFeature={isAdmin ? (id) => onFeatureEvidence?.(event.id, { sourceType: 'media', sourceId: id }) : undefined}
               featuredId={featuredMediaId}
+              collapsedId={collapsedMediaId}
+              onExpandCollapsed={expandCollapsed}
             />
           ) : (
-            <MediaGrid items={media} onItemClick={onMediaClick} />
+            <MediaGrid
+              items={media}
+              onItemClick={onMediaClick}
+              collapsedId={collapsedMediaId}
+              onExpandCollapsed={expandCollapsed}
+            />
           ),
       },
       x_post: {
@@ -327,6 +351,8 @@ export default function EvidenceRail({
             onCheckSource={onCheckSource ? (item) => onCheckSource?.(event.id, item) : undefined}
             onAutoCheck={onAutoCheck ? (item) => onAutoCheck?.(event.id, item) : undefined}
             featuredId={featuredPostId}
+            collapsedId={collapsedPostId}
+            onExpandCollapsed={expandCollapsed}
           />
         ),
       },
@@ -335,20 +361,30 @@ export default function EvidenceRail({
         render: () =>
           isAdmin ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {articles.map((article) => (
-                <EditableArticleCard
-                  key={article.id}
-                  article={article}
-                  onEdit={() => onEditEvidence?.(event.id, 'news_article', article)}
-                  onDelete={() => onDeleteEvidence?.(event.id, 'news_article', article.id)}
-                  onPin={() => onPinEvidence?.(event.id, 'news_article', article.id)}
-                  onFeature={isAdmin ? () => onFeatureEvidence?.(event.id, { sourceType: 'news_article', sourceId: article.id }) : undefined}
-                  isFeatured={featuredArticleId === article.id}
-                />
-              ))}
+              {articles.map((article) =>
+                collapsedArticleId === article.id ? (
+                  <FeaturedCollapsedRow key={article.id} onExpand={expandCollapsed} />
+                ) : (
+                  <EditableArticleCard
+                    key={article.id}
+                    article={article}
+                    onEdit={() => onEditEvidence?.(event.id, 'news_article', article)}
+                    onDelete={() => onDeleteEvidence?.(event.id, 'news_article', article.id)}
+                    onPin={() => onPinEvidence?.(event.id, 'news_article', article.id)}
+                    onFeature={isAdmin ? () => onFeatureEvidence?.(event.id, { sourceType: 'news_article', sourceId: article.id }) : undefined}
+                    isFeatured={featuredArticleId === article.id}
+                  />
+                )
+              )}
             </div>
           ) : (
-            articles.map((article) => <ArticleCard key={article.id} article={article} isFeatured={featuredArticleId === article.id} />)
+            articles.map((article) =>
+              collapsedArticleId === article.id ? (
+                <FeaturedCollapsedRow key={article.id} onExpand={expandCollapsed} />
+              ) : (
+                <ArticleCard key={article.id} article={article} isFeatured={featuredArticleId === article.id} />
+              )
+            )
           ),
       },
       admin_note: {
@@ -356,20 +392,30 @@ export default function EvidenceRail({
         render: () =>
           isAdmin ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {notes.map((note) => (
-                <EditableAdminNoteCard
-                  key={note.id}
-                  note={note}
-                  onEdit={() => onEditEvidence?.(event.id, 'admin_note', note)}
-                  onDelete={() => onDeleteEvidence?.(event.id, 'admin_note', note.id)}
-                  onPin={() => onPinEvidence?.(event.id, 'admin_note', note.id)}
-                  onFeature={isAdmin ? () => onFeatureEvidence?.(event.id, { sourceType: 'admin_note', sourceId: note.id }) : undefined}
-                  isFeatured={featuredNoteId === note.id}
-                />
-              ))}
+              {notes.map((note) =>
+                collapsedNoteId === note.id ? (
+                  <FeaturedCollapsedRow key={note.id} onExpand={expandCollapsed} />
+                ) : (
+                  <EditableAdminNoteCard
+                    key={note.id}
+                    note={note}
+                    onEdit={() => onEditEvidence?.(event.id, 'admin_note', note)}
+                    onDelete={() => onDeleteEvidence?.(event.id, 'admin_note', note.id)}
+                    onPin={() => onPinEvidence?.(event.id, 'admin_note', note.id)}
+                    onFeature={isAdmin ? () => onFeatureEvidence?.(event.id, { sourceType: 'admin_note', sourceId: note.id }) : undefined}
+                    isFeatured={featuredNoteId === note.id}
+                  />
+                )
+              )}
             </div>
           ) : (
-            notes.map((note) => <AdminNoteCard key={note.id} note={note} isFeatured={featuredNoteId === note.id} />)
+            notes.map((note) =>
+              collapsedNoteId === note.id ? (
+                <FeaturedCollapsedRow key={note.id} onExpand={expandCollapsed} />
+              ) : (
+                <AdminNoteCard key={note.id} note={note} isFeatured={featuredNoteId === note.id} />
+              )
+            )
           ),
       },
     };

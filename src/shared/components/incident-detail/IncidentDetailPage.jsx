@@ -6,9 +6,7 @@ import { SEVERITY_LABELS, VERIFICATION, formatDate, formatTime } from './Inciden
 import { Badge } from './IncidentBadges.jsx';
 import EvidenceRail from './EvidenceRail.jsx';
 import Lightbox from './Lightbox.jsx';
-
-const DEFAULT_HERO_IMAGE =
-  'https://images.unsplash.com/photo-1562742382-d2a5c01dff21?auto=format&fit=crop&w=1600&q=80';
+import TargetingCard from './TargetingCard.jsx';
 
 const ROLE_META = {
   user: { label: 'Public view', color: 'var(--accent-light)', accent: 'var(--accent)', accentLight: 'var(--accent-light)' },
@@ -240,10 +238,19 @@ function Hero({ incident, heroImage, mode }) {
 
   return (
     <div className="opt1-hero">
-      <div
-        className="opt1-hero-bg"
-        style={{ backgroundImage: `url(${heroImage?.url || DEFAULT_HERO_IMAGE})` }}
-      />
+      {heroImage?.url ? (
+        <div
+          className="opt1-hero-bg"
+          style={{ backgroundImage: `url(${heroImage.url})` }}
+        />
+      ) : (
+        <TargetingCard
+          className="opt1-hero-bg"
+          latitude={incident.latitude}
+          longitude={incident.longitude}
+          color={incident.domainColor || incident.categoryColor || '#9f1239'}
+        />
+      )}
       <div className="opt1-hero-overlay" />
       <div className="opt1-hero-content">
         <div className="opt1-hero-meta">
@@ -284,7 +291,7 @@ function readFileAsDataUrl(file) {
 function IncidentEditModal({ incident, onClose, onSave }) {
   const [form, setForm] = useState({ ...incident });
   const [heroMode, setHeroMode] = useState('url');
-  const [heroPreview, setHeroPreview] = useState(incident.heroImageUrl || DEFAULT_HERO_IMAGE);
+  const [heroPreview, setHeroPreview] = useState(incident.heroImageUrl || '');
   const patch = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleHeroFile = async (e) => {
@@ -650,7 +657,7 @@ export default function IncidentDetailPage({
 
       <main className="opt1-main">
         <div style={{ maxWidth: rightSidebar ? 1580 : 1400, margin: '0 auto', padding: rightSidebar ? '0 16px 80px' : '0 24px 80px' }}>
-          <Hero incident={incident} heroImage={{ url: incident.heroImageUrl || DEFAULT_HERO_IMAGE }} mode={mode} />
+          <Hero incident={incident} heroImage={{ url: incident.heroImageUrl || null }} mode={mode} />
 
           <div className="opt1-section-title">Story timeline</div>
           <div

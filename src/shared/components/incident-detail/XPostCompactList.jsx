@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { Icons, SOURCE_TYPE_ICONS } from './IncidentIcons.jsx';
 import { relativeTime, sortPinned } from './IncidentUtils.js';
+import { FeaturedCollapsedRow } from './SourceCards.jsx';
 
 let twitterScriptPromise = null;
 function loadTwitterScript() {
@@ -157,6 +158,8 @@ export default function XPostCompactList({
   onCheckSource,
   onAutoCheck,
   featuredId,
+  collapsedId = null,
+  onExpandCollapsed,
   archivedLightboxPortal = false,
 }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
@@ -341,6 +344,11 @@ export default function XPostCompactList({
 
       <div className="id-x-compact__list">
         {pagePosts.map((post) => {
+          // Featured item's original collapses to a marker (shown above in the
+          // Featured block); the marker expands it back on demand.
+          if (collapsedId === post.id) {
+            return <FeaturedCollapsedRow key={post.id} onExpand={onExpandCollapsed} />;
+          }
           const isOpen = openIds.has(post.id);
           return (
             <div key={post.id} className={`id-x-compact__item ${isOpen ? 'open' : ''}`} data-featured={featuredId === post.id || undefined}>

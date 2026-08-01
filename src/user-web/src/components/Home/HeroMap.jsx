@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { api } from '../../services/api.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getIncidentDomainColor } from '@shared/utils/themeColors.js';
+import { useReducedMotion } from '@shared/hooks/useReducedMotion.js';
 
 function getMapStyleUrl() {
   return document.documentElement.getAttribute('data-theme') === 'light'
@@ -13,6 +14,7 @@ function getMapStyleUrl() {
 
 export default function HeroMap() {
   const { theme } = useTheme();
+  const reducedMotion = useReducedMotion();
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markersRef = useRef([]);
@@ -113,30 +115,33 @@ export default function HeroMap() {
         });
       });
 
-      // Slow auto-drift within a tight bounds box so it bounces instead of stopping at edges
-      const BOUNDS = { lngMin: 30, lngMax: 80, latMin: 12, latMax: 42 };
-      let vx = 0.004;
-      let vy = 0.002;
+      // Slow auto-drift within a tight bounds box so it bounces instead of stopping at edges.
+      // Skipped entirely when the user prefers reduced motion.
+      if (!reducedMotion) {
+        const BOUNDS = { lngMin: 30, lngMax: 80, latMin: 12, latMax: 42 };
+        let vx = 0.004;
+        let vy = 0.002;
 
-      const drift = () => {
-        if (!map.current) return;
-        const center = map.current.getCenter();
-        let lng = center.lng + vx;
-        let lat = center.lat + vy;
+        const drift = () => {
+          if (!map.current) return;
+          const center = map.current.getCenter();
+          let lng = center.lng + vx;
+          let lat = center.lat + vy;
 
-        if (lng <= BOUNDS.lngMin || lng >= BOUNDS.lngMax) {
-          vx = -vx;
-          lng = Math.max(BOUNDS.lngMin, Math.min(BOUNDS.lngMax, lng));
-        }
-        if (lat <= BOUNDS.latMin || lat >= BOUNDS.latMax) {
-          vy = -vy;
-          lat = Math.max(BOUNDS.latMin, Math.min(BOUNDS.latMax, lat));
-        }
+          if (lng <= BOUNDS.lngMin || lng >= BOUNDS.lngMax) {
+            vx = -vx;
+            lng = Math.max(BOUNDS.lngMin, Math.min(BOUNDS.lngMax, lng));
+          }
+          if (lat <= BOUNDS.latMin || lat >= BOUNDS.latMax) {
+            vy = -vy;
+            lat = Math.max(BOUNDS.latMin, Math.min(BOUNDS.latMax, lat));
+          }
 
-        map.current.setCenter([lng, lat]);
+          map.current.setCenter([lng, lat]);
+          driftFrameRef.current = requestAnimationFrame(drift);
+        };
         driftFrameRef.current = requestAnimationFrame(drift);
-      };
-      driftFrameRef.current = requestAnimationFrame(drift);
+      }
     });
 
     return () => {
@@ -149,7 +154,7 @@ export default function HeroMap() {
       map.current?.remove();
       map.current = null;
     };
-  }, [incidents, theme]);
+  }, [incidents, theme, reducedMotion]);
 
   // Watch for theme changes and update map style
   useEffect(() => {

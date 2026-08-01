@@ -12443,3 +12443,63 @@ style: Header nav absolutely centered (auth-independent); profile avatar menu re
 ## 📅 2026-08-01 — Module: user-web/shared — Brand interaction + neumorphic theme switch
 
 style: map brand click now navigates home; nav reveals on hover (175ms intent, 250ms leave grace) and keyboard focus; pill cluster verified centered both states. ThemeToggle rebuilt as neumorphic switch — embossed token-driven track, spring thumb w/ icon crossfade, crimson glow (light) / blue-violet moon glow (dark), same props/size class; fits all 7 usage spots. Verified 7/7 (scripts/check-brand-nav-user.mjs); builds green ×3.
+
+
+## 📅 2026-08-01 — Module: user-web — Audit polish batch (#3/#6/#7/#8/#9/#11)
+
+feat: index.html SVG favicon + meta/OG/Twitter/theme-color + per-route document titles (detail pages use the loaded title). Detail pages get skeleton loading + tui-state error cards (DetailPageStates.jsx). Footer: health badge wired to /health (60s poll, gray Unreachable), dead API Docs removed, version corrected to v1.0.0. NewsTicker items are map deep-links with LIVE chip + hover pause. Map topbar profile menu at Header parity (fm entrance, outside/Escape close, Saved w/ count badge, danger sign-out). Right panel spinner → sidebar-shaped skeleton. Build green.
+
+
+## 📅 2026-08-01 — Module: shared — Audit #1 light-mode accent tokens
+
+fix: light-theme accent tints were Tailwind pink (#fce7f3/#fbcfe8/#f9a8d4) — retinted to solid crimson derivatives of #9f1239 on white (7%/20%/12%: #f8eef1/#ecd0d7/#f4e3e7), mirroring the dark rgba ramp; no other pink remains in src.
+
+## 📅 2026-08-01 — Module: shared — Audit #5 global focus rings
+
+feat: global keyboard-only focus ring in design-tokens.css (:focus-visible 2px var(--border-focus) + :focus:not(:focus-visible) reset) — shared base all three apps import; mouse users unaffected.
+
+## 📅 2026-08-01 — Module: shared/user-web — Audit #15 typography + light readability
+
+feat: display scale vars (display-2xl/xl/lg, title, body, caption) + --font-longform (Inter) + .font-longform utility; dark --text-muted #6b7280→#8b919b (~6.2:1), light muted→#525c6b (~6.5:1); Inter wired for incident descriptions/evidence text + About prose; 9px floor raised to 10px across user-web production labels + .ip-domname in all three apps (trials untouched).
+
+## 📅 2026-08-01 — Module: shared/user-web — Audit #4 reduced motion
+
+feat: global reduced-motion support — OS media query AND .reduce-motion class kill non-essential animation + tactical film grain; new useReducedMotion hook guarding FadeIn/useCountUp/HeroMap drift; user-web Settings drawer Reduce motion switch (ZapOff, persisted geowatch_user_reduce_motion, boot-applied in main.jsx).
+
+## 📅 2026-08-01 — Module: shared/admin-web — Audit #2 targeting card hero
+
+feat: procedural TargetingCard (SVG reticle + grid + domain tint + mono coords, reduced-motion-safe) replaces the hotlinked Unsplash default hero in shared IncidentDetailPage (all 3 apps), the edit-modal preview, and admin create-sidebar preview. Category-banner feature traced as never-implemented (mock comment in a trial file only — no DB column, backend field, or admin/superadmin UI exists); nothing dormant left behind. Unsplash remains only in design-trial files.
+
+
+## 📅 2026-08-01 — Module: user-web — About page rebuild
+
+feat: About rebuilt as composed animated page — mission hero (--display-2xl staggered line-reveal, hairline-grid + reticle backdrop, mono coords), live coverage stats (same endpoints as home StatsSection + count-up), severity-scale showcase (whileInView staggered ramp, real SEVERITY_SCALE colors), real domain legend from getDomains, numbered principles from existing copy, /map CTA; useReducedMotion guards throughout, token-only colors. Build green.
+
+
+## 📅 2026-08-01 — Module: user-web — 404 page
+
+feat: NotFoundPage ("off the map": blinking reticle, giant mono 404°00′N coords, SIGNAL LOST chip, Open the map/Home actions) registered as * route inside public chrome; RouteTitle catch-all + in-page title. Build green.
+
+
+## 📅 2026-08-01 — Module: admin-web/superadmin-web — Detail skeleton + error states
+
+feat: ported user-web's DetailPageStates (hero-shaped loading skeleton + retry/back error card) into both consoles — per-app component + wired into the incident/zone full-page wrappers, replacing bare loading/error text. Builds green ×2.
+
+
+## 📅 2026-08-01 — Module: admin-web/superadmin-web — Reduce-motion settings toggle
+
+feat: "Reduce motion" switch in each console's Settings drawer (ZapOff row, same switch visual as auto-zoom/compact) — localStorage geowatch_admin_reduce_motion / geowatch_superadmin_reduce_motion, live html class toggle, boot-time application in each main.jsx. Builds green ×2.
+
+
+## 📅 2026-08-01 — Module: admin-web/superadmin-web — Favicon + route titles
+
+feat: inline SVG favicon (dark tile + crimson G), meta description + theme-color in both index.html files; per-route document.title via RouteTitle in each App.jsx (admin: Map/Incidents/Zones/Login; superadmin: full console page list). Builds green ×2.
+
+
+## 📅 2026-08-01 — Module: shared/all-apps — Incident-detail overhaul step 1 (3 bug fixes)
+
+fix: timeline flicker + selection reset — SSE refetch in all three incident wrappers was non-silent, unmounting the page and resetting activeId/open state; now silent (user-web:88, admin:87, superadmin:119 IncidentDetailPage.jsx).
+
+fix: featured evidence rendered twice (Featured block + original list position) — original now collapses to a "Featured above" marker row, expandable on demand, on the All tab (FeaturedCollapsedRow in SourceCards; wired through EvidenceRail media/articles/notes, EditableMediaGrid, MediaGrid, XPostCompactList).
+
+fix: incident Back button non-deterministic — window.history.length counts the whole session, making navigate(-1) a same-page hop; now always returns to the app map (user /map restores the saved return-view; admin /; superadmin /superadmin/map). Verified 7/7 in scripts/check-incident-detail-fixes.mjs; all three builds green.

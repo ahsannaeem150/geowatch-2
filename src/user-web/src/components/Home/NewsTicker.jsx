@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export default function NewsTicker({ incidents = [] }) {
   if (incidents.length === 0) return null;
@@ -20,21 +21,32 @@ export default function NewsTicker({ incidents = [] }) {
 
   return (
     <div className="home-ticker">
-      <div className="home-ticker__track">
-        {allItems.map((incident, i) => (
-          <span key={`${incident.id}-${i}`} className="home-ticker__item">
-            <span
-              className="home-ticker__dot"
-              style={{ background: getSeverityColor(incident.severity) }}
-            />
-            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-              {incident.title}
-            </span>
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {incident.location_context || `${parseFloat(incident.latitude).toFixed(2)}, ${parseFloat(incident.longitude).toFixed(2)}`}
-            </span>
-          </span>
-        ))}
+      <span className="home-ticker__live">
+        <span className="home-ticker__live-dot" />
+        LIVE
+      </span>
+      <div className="home-ticker__viewport">
+        <div className="home-ticker__track">
+          {allItems.map((incident, i) => (
+            <Link
+              key={`${incident.id}-${i}`}
+              to={`/map?incident=${incident.id}`}
+              className="home-ticker__item"
+              title={`${incident.title} — open on the map`}
+            >
+              <span
+                className="home-ticker__dot"
+                style={{ background: getSeverityColor(incident.severity) }}
+              />
+              <span className="home-ticker__title">
+                {incident.title}
+              </span>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {incident.location_context || `${parseFloat(incident.latitude).toFixed(2)}, ${parseFloat(incident.longitude).toFixed(2)}`}
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

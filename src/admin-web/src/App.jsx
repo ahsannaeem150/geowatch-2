@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import LoginPage from './components/Login/LoginPage.jsx';
 import DashboardLayout from './components/Layout/DashboardLayout.jsx';
@@ -103,10 +103,31 @@ const AppRoutes = React.memo(function AppRoutes() {
   );
 });
 
+// Per-route document titles (first match wins; trials fall through to Admin)
+const ROUTE_TITLES = [
+  { match: /^\/login$/, title: 'Login — Admin' },
+  { match: /^\/incidents$/, title: 'Incidents — Admin' },
+  { match: /^\/zones$/, title: 'Zones — Admin' },
+  { match: /^\/incident\//, title: 'Incident — Admin' },
+  { match: /^\/zone\//, title: 'Zone — Admin' },
+  { match: /^\/$/, title: 'Map — Admin' },
+  { match: /.*/, title: 'GeoWatch Admin' },
+];
+
+function RouteTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const hit = ROUTE_TITLES.find((r) => r.match.test(pathname));
+    if (hit) document.title = hit.title;
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <RouteTitle />
         <AppRoutes />
       </BrowserRouter>
     </AuthProvider>

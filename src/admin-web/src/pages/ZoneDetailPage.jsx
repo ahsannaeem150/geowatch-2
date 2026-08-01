@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ZoneDetailPage as SharedZoneDetailPage } from '@shared';
 import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
+import { DetailLoadingSkeleton, DetailErrorState } from '../components/IncidentDetail/DetailPageStates.jsx';
 
 function dataUrlToFile(dataUrl, fileName = 'image.png') {
   const arr = dataUrl.split(',');
@@ -363,18 +364,17 @@ export default function ZoneDetailPage() {
   }, [navigate]);
 
   if (loading) {
-    return (
-      <div style={{ padding: 40, color: 'var(--text-secondary)', textAlign: 'center' }}>
-        Loading zone details…
-      </div>
-    );
+    return <DetailLoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div style={{ padding: 40, color: 'var(--danger)', textAlign: 'center' }}>
-        {error}
-      </div>
+      <DetailErrorState
+        title="Failed to load zone"
+        message={error}
+        onRetry={() => fetchData()}
+        onBack={handleBack}
+      />
     );
   }
 

@@ -1,8 +1,42 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity } from 'lucide-react';
+import { API_BASE_URL } from '@shared/constants.js';
 
 export default function Footer() {
+  // Live backend health — polled from the public /health endpoint
+  const [health, setHealth] = useState('checking'); // 'checking' | 'ok' | 'down'
+  useEffect(() => {
+    let cancelled = false;
+    const ping = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/health`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!cancelled) setHealth('ok');
+      } catch {
+        if (!cancelled) setHealth('down');
+      }
+    };
+    ping();
+    const t = setInterval(ping, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
+
+  const statusStyle =
+    health === 'ok'
+      ? {
+          background: 'var(--alert-success-bg)',
+          border: '1px solid var(--alert-success-border)',
+          color: 'var(--success)',
+        }
+      : {
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-subtle)',
+          color: 'var(--text-muted)',
+        };
   return (
     <footer
       style={{
@@ -73,32 +107,29 @@ export default function Footer() {
           <Link to="/about" style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
             About
           </Link>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            API Docs
-          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div
+            title={health === 'ok' ? 'Backend API reachable' : health === 'down' ? 'Backend API unreachable' : 'Checking backend API…'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
               padding: '4px 10px',
-              background: 'var(--alert-success-bg)',
-              border: '1px solid var(--alert-success-border)',
+              ...statusStyle,
               borderRadius: 'var(--radius-pill)',
               fontSize: '11px',
               fontWeight: 600,
-              color: 'var(--success)',
               fontFamily: 'var(--font-mono)',
+              transition: 'all 0.3s ease',
             }}
           >
             <Activity size={10} />
-            Operational
+            {health === 'ok' ? 'Operational' : health === 'down' ? 'Unreachable' : 'Checking…'}
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, fontFamily: 'var(--font-mono)' }}>
-            v1.0.4
+            v1.0.0
           </p>
         </div>
       </div>

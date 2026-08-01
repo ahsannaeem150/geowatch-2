@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from '@shared/hooks/useReducedMotion.js';
 
 export function useCountUp(end, duration = 1200, startOn = true) {
   const [count, setCount] = useState(0);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!startOn) {
       setCount(0);
+      return;
+    }
+
+    // Reduced motion: land on the final value immediately, no animation
+    if (reducedMotion) {
+      setCount(end);
       return;
     }
 
@@ -29,7 +37,7 @@ export function useCountUp(end, duration = 1200, startOn = true) {
 
     rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
-  }, [end, duration, startOn]);
+  }, [end, duration, startOn, reducedMotion]);
 
   return count;
 }

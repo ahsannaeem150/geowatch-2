@@ -9,10 +9,8 @@ import {
 } from '../DesignTrial/IncidentDetailTrialData.js';
 import { api } from '../../services/api.js';
 import RightPanelCollapseButton from '@shared/components/RightPanelCollapseButton.jsx';
+import TargetingCard from '@shared/components/incident-detail/TargetingCard.jsx';
 import '../DesignTrial/IncidentDetailTrial.css';
-
-const DEFAULT_HERO_IMAGE =
-  'https://images.unsplash.com/photo-1562742382-d2a5c01dff21?auto=format&fit=crop&w=1600&q=80';
 
 function dataUrlToFile(dataUrl, fileName = 'image.png') {
   const arr = dataUrl.split(',');
@@ -331,7 +329,7 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
   const [heroImageFile, setHeroImageFile] = useState(null);
   const heroPreviewUrl = useMemo(() => {
     if (heroImageFile) return URL.createObjectURL(heroImageFile);
-    return DEFAULT_HERO_IMAGE;
+    return null;
   }, [heroImageFile]);
 
   const heroObjectUrlRef = useRef(null);
@@ -730,22 +728,44 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
               borderRadius: 'var(--radius-md)',
             }}
           >
-            <img
-              src={heroPreviewUrl}
-              alt="Hero preview"
-              style={{
-                width: 80,
-                height: 50,
-                objectFit: 'cover',
-                borderRadius: 6,
-                border: '1px solid var(--border-subtle)',
-                flexShrink: 0,
-              }}
-            />
+            {heroImageFile ? (
+              <img
+                src={heroPreviewUrl}
+                alt="Hero preview"
+                style={{
+                  width: 80,
+                  height: 50,
+                  objectFit: 'cover',
+                  borderRadius: 6,
+                  border: '1px solid var(--border-subtle)',
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 80,
+                  height: 50,
+                  borderRadius: 6,
+                  border: '1px solid var(--border-subtle)',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  position: 'relative',
+                }}
+              >
+                <TargetingCard
+                  compact
+                  latitude={latitude}
+                  longitude={longitude}
+                  color={domains.find((d) => String(d.id) === String(domainId))?.color || '#9f1239'}
+                  label=""
+                />
+              </div>
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Hero image</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                Optional. Defaults to a category placeholder until you upload one.
+                Optional. A targeting card is generated from the coordinates until you upload one.
               </div>
               <label
                 style={{

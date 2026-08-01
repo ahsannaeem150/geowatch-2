@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import LoginPage from './components/Login/LoginPage.jsx';
 import Layout from './components/Layout/Layout.jsx';
@@ -149,10 +149,40 @@ function AppRoutes() {
   );
 }
 
+// Per-route document titles (first match wins)
+const ROUTE_TITLES = [
+  { match: /^\/login$/, title: 'Login — Superadmin' },
+  { match: /^\/superadmin$/, title: 'Dashboard — Superadmin' },
+  { match: /^\/superadmin\/map$/, title: 'Map — Superadmin' },
+  { match: /^\/superadmin\/incidents$/, title: 'Incidents — Superadmin' },
+  { match: /^\/superadmin\/zones$/, title: 'Zones — Superadmin' },
+  { match: /^\/superadmin\/users$/, title: 'Users — Superadmin' },
+  { match: /^\/superadmin\/public-users$/, title: 'Public Users — Superadmin' },
+  { match: /^\/superadmin\/audit$/, title: 'Audit — Superadmin' },
+  { match: /^\/superadmin\/domains$/, title: 'Domains — Superadmin' },
+  { match: /^\/superadmin\/zone-categories$/, title: 'Zone Categories — Superadmin' },
+  { match: /^\/superadmin\/system$/, title: 'System — Superadmin' },
+  { match: /^\/superadmin\/export$/, title: 'Export — Superadmin' },
+  { match: /^\/superadmin\/recycle-bin$/, title: 'Recycle Bin — Superadmin' },
+  { match: /^\/superadmin\/incident\//, title: 'Incident — Superadmin' },
+  { match: /^\/superadmin\/zone\//, title: 'Zone — Superadmin' },
+  { match: /.*/, title: 'GeoWatch Superadmin' },
+];
+
+function RouteTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const hit = ROUTE_TITLES.find((r) => r.match.test(pathname));
+    if (hit) document.title = hit.title;
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <RouteTitle />
         <AppRoutes />
       </AuthProvider>
     </BrowserRouter>

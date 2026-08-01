@@ -5,6 +5,7 @@ import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 import { useSignInModal } from '../contexts/SignInModalContext.jsx';
+import { DetailLoadingSkeleton, DetailErrorState } from '../components/IncidentDetail/DetailPageStates.jsx';
 
 export default function ZoneDetailPage() {
   const { id } = useParams();
@@ -35,6 +36,11 @@ export default function ZoneDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Document title from the loaded zone
+  useEffect(() => {
+    if (data?.incident?.title) document.title = `${data.incident.title} — GeoWatch`;
+  }, [data?.incident?.title]);
 
   // Redirect non-zone incidents to the point incident view
   useEffect(() => {
@@ -188,18 +194,17 @@ export default function ZoneDetailPage() {
   );
 
   if (loading) {
-    return (
-      <div style={{ padding: 40, color: 'var(--text-secondary)', textAlign: 'center' }}>
-        Loading zone details…
-      </div>
-    );
+    return <DetailLoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div style={{ padding: 40, color: 'var(--danger)', textAlign: 'center' }}>
-        {error}
-      </div>
+      <DetailErrorState
+        title="Failed to load zone"
+        message={error}
+        onRetry={() => fetchData()}
+        onBack={handleBack}
+      />
     );
   }
 

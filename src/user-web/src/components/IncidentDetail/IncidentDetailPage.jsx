@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { IncidentDetailPage as SharedIncidentDetailPage } from '@shared';
 import { api, mapIncidentForShared } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
+import { DetailLoadingSkeleton, DetailErrorState } from './DetailPageStates.jsx';
 
 export default function IncidentDetailPage() {
   const { id } = useParams();
@@ -30,6 +31,11 @@ export default function IncidentDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Document title from the loaded incident
+  useEffect(() => {
+    if (data?.incident?.title) document.title = `${data.incident.title} — GeoWatch`;
+  }, [data?.incident?.title]);
 
   // Redirect zone incidents to the dedicated zone view
   useEffect(() => {
@@ -79,7 +85,9 @@ export default function IncidentDetailPage() {
             payload.type === 'timeline_added' ||
             payload.type === 'timeline_deleted'
           ) {
-            fetchData();
+            // Silent: a full loading swap would unmount the detail page and
+            // reset local UI state (active timeline item, expanded posts)
+            fetchData({ silent: true });
           }
 
           if (payload.type === 'incident_deleted') {
@@ -123,11 +131,12 @@ export default function IncidentDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/map');
-    }
+    // Deterministic: always return to the map. When a saved return-view exists
+    // (geowatch_user_returning/geowatch_user_return_view), MapPage restores the
+    // exact camera on mount. history.length is untrustworthy — it counts the
+    // whole session (external links, redirects, same-page entries), which made
+    // navigate(-1) a no-op or a same-URL hop.
+    navigate('/map');
   }, [navigate]);
 
   const handleCheckSource = useCallback(
@@ -143,18 +152,17 @@ export default function IncidentDetailPage() {
   );
 
   if (loading) {
-    return (
-      <div style={{ padding: 40, color: 'var(--text-secondary)', textAlign: 'center' }}>
-        Loading incident details…
-      </div>
-    );
+    return <DetailLoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div style={{ padding: 40, color: 'var(--danger)', textAlign: 'center' }}>
-        {error}
-      </div>
+      <DetailErrorState
+        title="Failed to load incident"
+        message={error}
+        onRetry={() => fetchData()}
+        onBack={handleBack}
+      />
     );
   }
 

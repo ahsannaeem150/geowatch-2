@@ -407,7 +407,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
                     {typeLabel && (
                       <span
                         style={{
-                          fontSize: '9px',
+                          fontSize: '10px',
                           fontWeight: 700,
                           textTransform: 'uppercase',
                           letterSpacing: '0.5px',
@@ -448,7 +448,7 @@ export default function LocationSearch({ onSelect, viewbox }) {
       <div
         style={{
           marginTop: '4px',
-          fontSize: '9px',
+          fontSize: '10px',
           color: 'var(--text-muted)',
           textAlign: 'right',
           opacity: 0.7,

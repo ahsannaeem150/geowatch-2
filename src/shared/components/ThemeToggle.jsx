@@ -6,10 +6,9 @@ import { useTheme } from '../useTheme.js';
 /**
  * ThemeToggle — neumorphic animated theme switch (shared across all apps).
  * Embossed pill track + raised thumb that slides with a spring; the thumb
- * carries the active theme's icon with a soft glow (crimson accent in light
- * mode, soft blue-violet in dark mode). All structural colors come from the
- * design tokens so it adapts to every app/theme/interface-style; only the
- * neutral shadow alphas and the dark-mode glow hue are literals.
+ * carries the active theme's icon with a soft glow (crimson accent in both
+ * light and dark mode — the site's identity color). All structural colors
+ * come from the design tokens so it adapts to every app/theme/style.
  */
 export default function ThemeToggle({ size = 18 }) {
   const { theme, toggleTheme } = useTheme();
@@ -22,9 +21,9 @@ export default function ThemeToggle({ size = 18 }) {
   const sideIconSize = Math.round(size * 0.67);
   const thumbIconSize = Math.round(size * 0.78);
 
-  // Owner-specified glow accents; everything else derives from tokens.
-  const glowColor = isDark ? '#a89bff' : 'var(--accent)';
-  const glowShadow = isDark ? 'rgba(168, 155, 255, 0.55)' : 'var(--accent-glow-strong)';
+  // Glow always uses the site's crimson accent, both themes.
+  const glowColor = 'var(--accent)';
+  const glowShadow = 'var(--accent-glow-strong)';
 
   const trackShadow = isDark
     ? 'inset 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 -1px 2px rgba(255, 255, 255, 0.05)'

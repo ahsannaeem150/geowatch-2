@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { ZoneDetailPage as SharedZoneDetailPage } from '@shared';
+import { DetailLoadingSkeleton, DetailErrorState } from '../IncidentDetail/DetailPageStates.jsx';
 import {
   getIncident,
   mapIncidentForShared,
@@ -498,18 +499,17 @@ export default function ZoneDetailPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div style={{ padding: 40, color: 'var(--text-secondary)', textAlign: 'center' }}>
-        Loading zone details…
-      </div>
-    );
+    return <DetailLoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div style={{ padding: 40, color: 'var(--danger)', textAlign: 'center' }}>
-        {error}
-      </div>
+      <DetailErrorState
+        title="Failed to load zone"
+        message={error}
+        onRetry={() => fetchData()}
+        onBack={handleBack}
+      />
     );
   }
 

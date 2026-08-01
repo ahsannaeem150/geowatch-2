@@ -1,0 +1,132 @@
+/* ─── TargetingCard — procedural incident hero (no uploaded media) ───
+   Always-dark imagery panel; tinted via --tc-color (domain color). All motion
+   is CSS keyframes, neutralized by the global reduced-motion rules. */
+
+.tc {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0b0c12;
+  font-family: var(--font-mono);
+}
+
+.tc__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.tc__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 55% 50% at 50% 46%, var(--tc-color) 0%, transparent 72%);
+  opacity: 0.22;
+}
+
+.tc__scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -80px;
+  height: 80px;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.05), transparent);
+  animation: tc-scan 6s linear infinite;
+  pointer-events: none;
+}
+
+.tc__center {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.tc__reticle {
+  width: min(150px, 32%);
+  min-width: 72px;
+  aspect-ratio: 1;
+  color: var(--tc-color);
+}
+
+.tc__reticle circle,
+.tc__reticle line {
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.85;
+}
+
+.tc__reticle .tc__dot {
+  fill: currentColor;
+  stroke: none;
+  opacity: 1;
+}
+
+.tc__reticle .tc__ping {
+  fill: none;
+  transform-origin: 60px 60px;
+  animation: tc-ping 2.6s ease-out infinite;
+}
+
+.tc__coords {
+  color: #c7cdd8;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+.tc__label {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.6px;
+  color: #7d8590;
+  text-transform: uppercase;
+}
+
+.tc__label--right {
+  left: auto;
+  right: 12px;
+  color: var(--tc-color);
+  opacity: 0.9;
+}
+
+.tc--compact .tc__grid {
+  background-size: 22px 22px;
+}
+
+.tc--compact .tc__scan {
+  display: none;
+}
+
+@keyframes tc-scan {
+  from {
+    top: -80px;
+  }
+  to {
+    top: calc(100% + 80px);
+  }
+}
+
+@keyframes tc-ping {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}

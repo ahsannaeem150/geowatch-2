@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { IncidentDetailPage as SharedIncidentDetailPage } from '@shared';
 import { api, mapIncidentForShared } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
+import { DetailLoadingSkeleton, DetailErrorState } from './DetailPageStates.jsx';
 
 function dataUrlToFile(dataUrl, fileName = 'image.png') {
   const arr = dataUrl.split(',');
@@ -84,7 +85,9 @@ export default function IncidentDetailPage() {
             payload.type === 'timeline_added' ||
             payload.type === 'timeline_deleted'
           ) {
-            fetchData();
+            // Silent: a full loading swap would unmount the detail page and
+            // reset local UI state (active timeline item, expanded posts)
+            fetchData({ silent: true });
           }
 
           if (payload.type === 'incident_deleted') {
@@ -350,26 +353,24 @@ export default function IncidentDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/');
-    }
+    // Deterministic: always return to the workspace map. history.length counts
+    // the whole session (external links, redirects, same-page entries), which
+    // made navigate(-1) a no-op or a same-URL hop.
+    navigate('/');
   }, [navigate]);
 
   if (loading) {
-    return (
-      <div style={{ padding: 40, color: 'var(--text-secondary)', textAlign: 'center' }}>
-        Loading incident details…
-      </div>
-    );
+    return <DetailLoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div style={{ padding: 40, color: 'var(--danger)', textAlign: 'center' }}>
-        {error}
-      </div>
+      <DetailErrorState
+        title="Failed to load incident"
+        message={error}
+        onRetry={() => fetchData()}
+        onBack={handleBack}
+      />
     );
   }
 

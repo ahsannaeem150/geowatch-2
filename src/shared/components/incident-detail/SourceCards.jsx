@@ -10,13 +10,27 @@ export function MediaThumb({ item, onClick, carousel }) {
   );
 }
 
-export function MediaGrid({ items, onItemClick, maxVisible = 4, featuredId = null }) {
+// Collapsed stand-in for an item whose original is hidden because it is
+// already shown in the Featured block above — expands the item on demand.
+export function FeaturedCollapsedRow({ onExpand }) {
+  return (
+    <button type="button" className="opt1-featured-collapsed" onClick={onExpand}>
+      {Icons.star} Featured above — show in list
+    </button>
+  );
+}
+
+export function MediaGrid({ items, onItemClick, maxVisible = 4, featuredId = null, collapsedId = null, onExpandCollapsed }) {
   if (!items?.length) return null;
   return (
     <div className="id-media-grid">
-      {items.map((item) => (
-        <MediaThumb key={item.id} item={item} onClick={onItemClick} />
-      ))}
+      {items.map((item) =>
+        collapsedId === item.id ? (
+          <FeaturedCollapsedRow key={item.id} onExpand={onExpandCollapsed} />
+        ) : (
+          <MediaThumb key={item.id} item={item} onClick={onItemClick} />
+        )
+      )}
     </div>
   );
 }

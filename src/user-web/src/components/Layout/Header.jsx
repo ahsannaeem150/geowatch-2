@@ -267,7 +267,7 @@ export default function Header() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 700,
                     background: active ? 'var(--accent)' : 'var(--bg-hover)',
                     color: active ? 'var(--text-on-accent)' : 'var(--text-muted)',
