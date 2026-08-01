@@ -196,6 +196,35 @@ async function main() {
     `readout="${readoutCircle?.replace(/\s+/g, ' ').slice(0, 60)}" ringLen=${ringInfo.ringLen}`);
   await page.screenshot({ path: join(OUT, 'circle-draw.png') });
 
+  // Regression: the finishing click must NOT re-arm a new circle — moving the
+  // mouse afterwards must not bring the radius label back.
+  const away = mapPoint(0.35, 0.6);
+  await page.mouse.move(away.x, away.y, { steps: 5 });
+  await page.waitForTimeout(500);
+  const labelReappeared = await page.evaluate(() =>
+    [...document.querySelectorAll('.maplibregl-marker')].some((e) => /km/.test(e.textContent || '')));
+  check('click-click finish does not re-arm (no radius label after finish)',
+    !labelReappeared,
+    `labelReappeared=${labelReappeared}`);
+
+  // Coexisting drag path: fresh click arms, then press-drag-release finishes.
+  const c2 = mapPoint(0.5, 0.5);
+  await page.mouse.click(c2.x, c2.y); // arm new circle center
+  await page.waitForTimeout(300);
+  const dragStart = mapPoint(0.5, 0.5);
+  const dragEnd = mapPoint(0.66, 0.5);
+  await page.mouse.move(dragStart.x, dragStart.y);
+  await page.mouse.down();
+  await page.mouse.move(dragEnd.x, dragEnd.y, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(800);
+  const readoutDrag = await page.locator('text=Draw zone').locator('..').textContent();
+  const labelAfterDrag = await page.evaluate(() =>
+    [...document.querySelectorAll('.maplibregl-marker')].some((e) => /km/.test(e.textContent || '')));
+  check('drag-release path also finishes circle (64 vertices, no re-arm)',
+    /64 vertices/.test(readoutDrag) && !labelAfterDrag,
+    `readout="${readoutDrag?.replace(/\s+/g, ' ').slice(0, 60)}" labelAfterDrag=${labelAfterDrag}`);
+
   // Save → zone create form opens
   await page.click('button:has-text("Save")');
   await page.waitForTimeout(1200);

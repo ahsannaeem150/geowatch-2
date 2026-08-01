@@ -12388,3 +12388,8 @@ feat: port admin directory batch to superadmin-web — TableUI (TableDropdown/Ta
 ## 📅 2026-07-31 — Module: admin-web/shared — Incident placement mode + drawing toolbar 2.0 with circle zones
 
 feat: Add Incident now arms a map placement mode — crosshair, hover preview marker, click-to-place/move, draggable marker, two-way sync with the form's lat/lng fields (typed coords move the marker + ease into view), Esc disarm, cancel cleanup, location-required validation, and edit-form parity (draggable marker). Drawing toolbar upgraded to segmented Pan(V)/Polygon(P)/Circle(C) tools with undo/redo buttons, shortcut hint line, live vertex-count + area readout (shared estimatePolygonAreaSqM/formatArea), Enter-to-finish; new circle tool (click center → drag/click to finish, live radius label, 64-pt ring via shared circleRing in zoneGeometry.js) that continues as a normal polygon zone. Also fixed a latent crash: Esc in draw mode referenced an undefined onDrawCancelRef. Verified 13/13 in new scripts/verify-draw-tools.mjs + 20/20 smart-zoom regression.
+
+
+## 📅 2026-07-31 — Module: admin-web — Drawing toolbar spacing fix + circle click-click finish fix
+
+fix: drawing toolbar 2.0 no longer cramped — wider container padding, 14px group gaps with dividers, comfortable tool/undo/save button sizing, no label truncation at 1280px. fix: circle tool state machine — the click trailing a drag-release finish re-armed a new circle (mouseup finished, then click saw empty center and set a new one); now drag-release finishes only on real pointer movement with a 350ms click-suppression window, and plain second click always finishes — both paths coexist with no re-arm. Verified 15/15 in scripts/verify-draw-tools.mjs (new no-rearm + drag-release checks).

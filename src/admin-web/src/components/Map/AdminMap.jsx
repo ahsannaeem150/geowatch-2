@@ -243,6 +243,8 @@ const AdminMap = forwardRef(function AdminMap({
   const circleCenterRef = useRef(null);
   const circleRadiusRef = useRef(0);
   const circleDraggingRef = useRef(false);
+  const circleDragMovedRef = useRef(false);
+  const suppressCircleClickUntilRef = useRef(0);
   const circleLabelRef = useRef(null);
 
   // Expose imperative map actions to the parent for context-menu commands
@@ -1316,12 +1318,14 @@ const AdminMap = forwardRef(function AdminMap({
         return;
       }
 
-      // ─── Circle tool: first click sets center, second click finishes ───
+      // ─── Circle tool: first click sets center, second click finishes.
+      // The click that immediately follows a drag-release finish is swallowed
+      // (suppress window) so it can't re-arm a new circle.
       if (drawToolRef.current === 'circle') {
+        if (performance.now() < suppressCircleClickUntilRef.current) return;
         if (!circleCenterRef.current) {
           circleCenterRef.current = [e.lngLat.lng, e.lngLat.lat];
           circleRadiusRef.current = 0;
-          circleDraggingRef.current = false;
         } else {
           finishCircle();
         }
@@ -1428,22 +1432,30 @@ const AdminMap = forwardRef(function AdminMap({
       if (mapModeRef.current !== 'polygon') return;
       if (drawToolRef.current !== 'circle') return;
       if (!circleCenterRef.current) return;
+      if (circleDraggingRef.current) circleDragMovedRef.current = true;
       renderCirclePreview(e.lngLat);
     };
 
-    // Press-and-drag after the center is set also finishes on release.
+    // Press-and-drag after the center is set also finishes on release — but
+    // only when the pointer actually moved (a real drag), otherwise the pair
+    // is a plain second click which finishes in the click handler above.
     const onMouseDownCircle = () => {
       if (mapModeRef.current !== 'polygon') return;
       if (drawToolRef.current !== 'circle') return;
       if (!circleCenterRef.current) return;
       circleDraggingRef.current = true;
+      circleDragMovedRef.current = false;
       if (mapInstance.dragPan.isEnabled()) mapInstance.dragPan.disable();
     };
     const onMouseUpCircle = () => {
       if (!circleDraggingRef.current) return;
       circleDraggingRef.current = false;
       if (mapInstance.dragPan.isEnabled() === false) mapInstance.dragPan.enable();
-      if (circleCenterRef.current) finishCircle();
+      if (circleDragMovedRef.current && circleCenterRef.current) {
+        // Swallow the click that trails a drag-release so it can't re-arm.
+        suppressCircleClickUntilRef.current = performance.now() + 350;
+        finishCircle();
+      }
     };
 
     mapInstance.on('click', onClick);

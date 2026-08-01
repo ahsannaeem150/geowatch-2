@@ -31,7 +31,7 @@ export default function DrawingToolbar({
     alignItems: 'center',
     justifyContent: 'center',
     gap: '6px',
-    padding: '7px 14px',
+    padding: '8px 14px',
     fontSize: '12px',
     fontWeight: 700,
     letterSpacing: '0.3px',
@@ -42,12 +42,13 @@ export default function DrawingToolbar({
     cursor: 'pointer',
     transition: 'all 0.15s ease',
     whiteSpace: 'nowrap',
+    flexShrink: 0,
     userSelect: 'none',
   };
 
   const iconBtn = (disabled) => ({
     ...btnBase,
-    padding: '7px 9px',
+    padding: '8px 10px',
     opacity: disabled ? 0.4 : 1,
     cursor: disabled ? 'not-allowed' : 'pointer',
   });
@@ -73,6 +74,13 @@ export default function DrawingToolbar({
     border: '1px solid rgba(239,68,68,0.4)',
   };
 
+  const divider = {
+    width: '1px',
+    alignSelf: 'stretch',
+    background: 'var(--border-subtle)',
+    flexShrink: 0,
+  };
+
   return (
     <div
       style={{
@@ -84,22 +92,24 @@ export default function DrawingToolbar({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'stretch',
-        gap: '6px',
-        padding: '8px 12px',
+        gap: '8px',
+        padding: '10px 16px 8px',
         background: 'var(--bg-surface)',
         backdropFilter: 'blur(12px)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-lg)',
+        maxWidth: 'calc(100% - 48px)',
+        boxSizing: 'border-box',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {/* Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <div
             style={{
-              width: '28px',
-              height: '28px',
+              width: '30px',
+              height: '30px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--accent-subtle-bg)',
               color: 'var(--accent-light)',
@@ -108,13 +118,13 @@ export default function DrawingToolbar({
               justifyContent: 'center',
             }}
           >
-            <Hexagon size={14} />
+            <Hexagon size={15} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
               Draw zone
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: 1.3, marginTop: '1px' }}>
               {vertexCount > 0
                 ? `${vertexCount} ${vertexCount === 1 ? 'vertex' : 'vertices'}${areaText ? ` · ${areaText}` : ''}`
                 : 'Pick a tool to start'}
@@ -122,16 +132,19 @@ export default function DrawingToolbar({
           </div>
         </div>
 
+        <div style={divider} />
+
         {/* Segmented tool switch */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '2px',
-            padding: '2px',
+            gap: '4px',
+            padding: '3px',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
+            flexShrink: 0,
           }}
         >
           {TOOLS.map(({ id, label, kbd, Icon }) => {
@@ -144,8 +157,8 @@ export default function DrawingToolbar({
                 title={`${label} (${kbd})`}
                 style={{
                   ...btnBase,
-                  padding: '5px 10px',
-                  gap: '5px',
+                  padding: '6px 12px',
+                  gap: '6px',
                   border: 'none',
                   background: active ? 'var(--accent-subtle-bg)' : 'transparent',
                   color: active ? 'var(--accent-light)' : 'var(--text-secondary)',
@@ -153,14 +166,16 @@ export default function DrawingToolbar({
               >
                 <Icon size={13} />
                 <span>{label}</span>
-                <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 800 }}>{kbd}</span>
+                <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 800, marginLeft: '2px' }}>{kbd}</span>
               </button>
             );
           })}
         </div>
 
+        <div style={divider} />
+
         {/* Undo / Redo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <button
             type="button"
             style={iconBtn(!canUndo)}
@@ -168,7 +183,7 @@ export default function DrawingToolbar({
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
           >
-            <Undo2 size={13} />
+            <Undo2 size={14} />
           </button>
           <button
             type="button"
@@ -177,12 +192,14 @@ export default function DrawingToolbar({
             disabled={!canRedo}
             title="Redo (Ctrl+Shift+Z)"
           >
-            <Redo2 size={13} />
+            <Redo2 size={14} />
           </button>
         </div>
 
+        <div style={divider} />
+
         {/* Save / Cancel */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button
             type="button"
             style={cancelBtn}
@@ -212,6 +229,7 @@ export default function DrawingToolbar({
           color: 'var(--text-muted)',
           textAlign: 'center',
           letterSpacing: '0.2px',
+          paddingBottom: '2px',
         }}
       >
         {TOOL_HINTS[tool] || TOOL_HINTS.polygon}
