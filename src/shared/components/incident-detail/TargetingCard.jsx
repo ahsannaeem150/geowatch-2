@@ -13,6 +13,10 @@ import './TargetingCard.css';
  *   color               — domain/category tint color
  *   label               — corner tag (default "GW · TARGETING"), '' hides
  *   compact             — thumbnail mode: hides coords + corner label
+ *   hasOverlay          — hero mode: reticle shifts to the right third and
+ *                         dims, coords pin to the bottom-right corner, and a
+ *                         bottom-left scrim keeps the title zone legible.
+ *                         Off (sidebar/preview) the composition stays centered.
  *   className, style    — container overrides
  */
 export default function TargetingCard({
@@ -21,6 +25,7 @@ export default function TargetingCard({
   color = '#9f1239',
   label = 'GW · TARGETING',
   compact = false,
+  hasOverlay = false,
   className = '',
   style = {},
 }) {
@@ -33,13 +38,14 @@ export default function TargetingCard({
 
   return (
     <div
-      className={`tc${compact ? ' tc--compact' : ''}${className ? ` ${className}` : ''}`}
+      className={`tc${compact ? ' tc--compact' : ''}${hasOverlay ? ' tc--overlay' : ''}${className ? ` ${className}` : ''}`}
       style={{ ...style, '--tc-color': color }}
       aria-hidden="true"
     >
       <div className="tc__vignette" />
       <div className="tc__grid" />
       <div className="tc__scan" />
+      {hasOverlay && <div className="tc__scrim" />}
 
       <div className="tc__center">
         <svg className="tc__reticle" viewBox="0 0 120 120" fill="none">
@@ -52,8 +58,12 @@ export default function TargetingCard({
           <line x1="90" y1="60" x2="114" y2="60" />
           <circle className="tc__dot" cx="60" cy="60" r="3" />
         </svg>
-        {!compact && coordText && <div className="tc__coords">{coordText}</div>}
+        {!compact && !hasOverlay && coordText && <div className="tc__coords">{coordText}</div>}
       </div>
+
+      {!compact && hasOverlay && coordText && (
+        <div className="tc__coords tc__coords--corner">{coordText}</div>
+      )}
 
       {!compact && label && <div className="tc__label">{label}</div>}
       {!compact && <div className="tc__label tc__label--right">NO IMAGERY</div>}

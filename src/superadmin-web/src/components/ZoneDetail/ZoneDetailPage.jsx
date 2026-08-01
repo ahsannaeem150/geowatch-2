@@ -483,11 +483,12 @@ export default function ZoneDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/superadmin/map');
-    }
+    // Deterministic: always return to the map. When a saved return-view exists
+    // (geowatch_superadmin_returning/geowatch_superadmin_return_view), MapPage
+    // restores the full context on mount. history.length counts the whole
+    // session (external links, redirects, same-page entries), which made
+    // navigate(-1) a no-op or a same-URL hop.
+    navigate('/superadmin/map');
   }, [navigate]);
 
   const handleOpenAudit = useCallback(() => {

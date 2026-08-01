@@ -274,33 +274,46 @@ export default function DashboardLayout() {
     [incidents]
   );
 
-  // Restore exact map view and selected zone when returning from a full-page detail view
+  // Restore full map context when returning from a full-page detail view:
+  // date range (live or historic — the mode pill and date control both derive
+  // from it), the camera, and the selected incident/zone. The selection is
+  // restored through the normal ?incident=/?zone= deep-link effects (flights
+  // skipped via the mount-time saved-viewport snapshot) — no duplicated
+  // selection logic. Missing fields (older payloads) degrade to viewport-only.
   useEffect(() => {
-    const returningZoneId = sessionStorage.getItem('geowatch_admin_selected_zone');
-    if (returningZoneId) {
-      sessionStorage.removeItem('geowatch_admin_selected_zone');
-      setSelectedZoneId(returningZoneId);
-    }
-
     if (sessionStorage.getItem('geowatch_admin_returning') !== '1') return;
     sessionStorage.removeItem('geowatch_admin_returning');
-    skipNextZoneFitRef.current = true;
     const raw = sessionStorage.getItem('geowatch_admin_return_view');
     sessionStorage.removeItem('geowatch_admin_return_view');
     if (!raw) return;
     try {
-      const { lat, lng, zoom } = JSON.parse(raw);
-      if (
-        Number.isFinite(lat) &&
-        Number.isFinite(lng) &&
-        Number.isFinite(zoom)
-      ) {
+      const payload = JSON.parse(raw);
+      const {
+        lat,
+        lng,
+        zoom,
+        dateRange: savedRange,
+        selectedIncidentId,
+        selectedZoneId,
+      } = payload;
+      // Date state FIRST so the restored selection is inside the fetched window
+      if (savedRange && ('from' in savedRange || 'to' in savedRange)) {
+        setDateRange({ from: savedRange.from ?? null, to: savedRange.to ?? null });
+      }
+      if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom)) {
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev);
             next.set('lat', Number(lat).toFixed(6));
             next.set('lng', Number(lng).toFixed(6));
             next.set('zoom', Number(zoom).toFixed(2));
+            if (selectedZoneId) {
+              next.set('zone', selectedZoneId);
+              next.delete('incident');
+            } else if (selectedIncidentId) {
+              next.set('incident', selectedIncidentId);
+              next.delete('zone');
+            }
             return next;
           },
           { replace: true }
@@ -310,20 +323,6 @@ export default function DashboardLayout() {
       // ignore malformed stored view
     }
   }, [setSearchParams]);
-
-  // Restore the selected zone sidebar (without refitting the map) when returning
-  // from a full-page zone detail view.
-  useEffect(() => {
-    if (!selectedZoneId) return;
-    if (selectedIncident?.id === selectedZoneId) return;
-    const zone = polygonIncidents.find((z) => z.id === selectedZoneId);
-    if (zone) {
-      exitFocusMode();
-      setSelectedIncident(zone);
-      setPanelMode('detail');
-      setRightPanelCollapsed(false);
-    }
-  }, [selectedZoneId, polygonIncidents, selectedIncident?.id, exitFocusMode]);
 
   // ─── Zone Drawing ───
   const [mapMode, setMapMode] = useState('pan'); // 'pan' | 'polygon'
@@ -990,6 +989,9 @@ export default function DashboardLayout() {
         if (centroid && bounds) {
           if (skipNextZoneFitRef.current) {
             skipNextZoneFitRef.current = false;
+          } else if (hasSavedViewport) {
+            // The URL carried an explicit camera (shared view / return-view
+            // restore) — select the zone at that camera instead of refitting.
           } else {
             scheduleFlyTo(
               {
@@ -1023,7 +1025,7 @@ export default function DashboardLayout() {
       });
       setToast({ message: 'Zone not found in current date range', type: 'error' });
     }
-  }, [location.state, location.pathname, location.search, zoneIdFromUrl, polygonIncidents, navigate, setSearchParams, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo]);
+  }, [location.state, location.pathname, location.search, zoneIdFromUrl, polygonIncidents, navigate, setSearchParams, exitFocusMode, getNextMapPadding, activeDrawer, focusMode, isPanelOpen, rightPanelCollapsed, scheduleFlyTo, hasSavedViewport]);
 
   const prevIncidentIdRef = useRef(null);
 
@@ -2560,9 +2562,9 @@ export default function DashboardLayout() {
   const handleNavigateToFullPage = useCallback(() => {
     if (!selectedIncident?.id) return;
     const map = mapRef.current?.getMap?.();
+    const isZone = selectedIncident?.geometry_type === 'polygon';
 
     const navigateToFullPage = () => {
-      const isZone = selectedIncident?.geometry_type === 'polygon';
       navigate(`/${isZone ? 'zone' : 'incident'}/${selectedIncident.id}`);
     };
 
@@ -2573,10 +2575,19 @@ export default function DashboardLayout() {
       }
       const center = map.getCenter();
       const zoom = map.getZoom();
-      const view = { lat: center.lat, lng: center.lng, zoom };
+      // Full return context: Back must restore the date range (live or
+      // historic), the selected incident/zone, and the camera.
+      const view = {
+        lat: center.lat,
+        lng: center.lng,
+        zoom,
+        dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
+        isLiveMode,
+        selectedIncidentId: isZone ? null : selectedIncident.id,
+        selectedZoneId: isZone ? selectedIncident.id : null,
+      };
       sessionStorage.setItem('geowatch_admin_return_view', JSON.stringify(view));
       sessionStorage.setItem('geowatch_admin_returning', '1');
-      sessionStorage.setItem('geowatch_admin_selected_zone', selectedIncident.id);
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -2595,7 +2606,7 @@ export default function DashboardLayout() {
     } else {
       saveMapViewAndNavigate();
     }
-  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams]);
+  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams, dateRange.from, dateRange.to, isLiveMode]);
 
   const handleUpdateIncident = useCallback(
     withDetailRefresh(async (patch) => {

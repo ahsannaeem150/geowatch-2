@@ -130,3 +130,37 @@
     opacity: 0;
   }
 }
+
+/* ─── Overlay-aware mode (incident hero with title overlay) ───
+   Reticle moves to the right third and dims; coords pin bottom-right; a
+   bottom-left scrim keeps the title zone legible. */
+.tc--overlay .tc__center {
+  left: 72%;
+  top: 44%;
+}
+
+.tc--overlay .tc__reticle {
+  width: min(120px, 26%);
+  opacity: 0.7;
+}
+
+.tc__coords--corner {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  font-size: 10px;
+  opacity: 0.55;
+  letter-spacing: 1.2px;
+}
+
+.tc__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    75deg,
+    rgba(11, 13, 18, 0.72) 0%,
+    rgba(11, 13, 18, 0.28) 45%,
+    transparent 70%
+  );
+  pointer-events: none;
+}

@@ -249,6 +249,7 @@ function Hero({ incident, heroImage, mode }) {
           latitude={incident.latitude}
           longitude={incident.longitude}
           color={incident.domainColor || incident.categoryColor || '#9f1239'}
+          hasOverlay
         />
       )}
       <div className="opt1-hero-overlay" />
@@ -433,18 +434,48 @@ function EventModal({ event, onClose, onSave }) {
   );
 }
 
-function Option1TopBar({ mode, onBack, onEditIncident, onAddEvent, extraActions }) {
+function Option1TopBar({ mode, incident, onBack, onEditIncident, onAddEvent, extraActions }) {
   const role = ROLE_META[mode];
   const isAdmin = mode === 'admin' || mode === 'superadmin';
+  const domainName = incident?.domainName || incident?.domain;
+  const domainColor = incident?.domainColor || '#6b7280';
+  const categoryName = incident?.categoryName || incident?.category;
+  const status = incident?.status;
+  const title = incident?.title;
 
   return (
     <div className="opt1-topbar">
       <div className="opt1-topbar-inner">
         <div className="opt1-topbar-left">
           <button type="button" className="opt1-back-link" onClick={onBack}>
-            {Icons.chevronLeft} Back
+            {Icons.chevronLeft} Map
           </button>
-          <div className="opt1-topbar-title">Incident details</div>
+          <nav className="opt1-crumbs" aria-label="Incident context">
+            {domainName && (
+              <span className="opt1-crumbs__domain">
+                <span className="opt1-crumbs__dot" style={{ background: domainColor }} />
+                {domainName}
+              </span>
+            )}
+            {categoryName && (
+              <>
+                <span className="opt1-crumbs__sep">›</span>
+                <span className="opt1-crumbs__item">{categoryName}</span>
+              </>
+            )}
+            {status && (
+              <>
+                <span className="opt1-crumbs__sep">·</span>
+                <span className="opt1-crumbs__item opt1-crumbs__item--status">{status}</span>
+              </>
+            )}
+            {title && (
+              <>
+                <span className="opt1-crumbs__sep">›</span>
+                <span className="opt1-crumbs__title">{title}</span>
+              </>
+            )}
+          </nav>
           <span
             className="opt1-role-badge"
             style={{ background: 'var(--accent-subtle-bg)', color: 'var(--accent-light)', borderColor: 'var(--accent-subtle-border)' }}
@@ -641,6 +672,7 @@ export default function IncidentDetailPage({
     >
       <Option1TopBar
         mode={mode}
+        incident={incident}
         onBack={onBack}
         onEditIncident={() => setModal({ type: 'incident' })}
         onAddEvent={() => setModal({ type: 'event' })}

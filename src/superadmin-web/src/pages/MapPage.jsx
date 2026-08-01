@@ -1163,9 +1163,25 @@ export default function MapPage() {
   const handleNavigateToFullPage = useCallback(() => {
     if (!selectedIncident?.id) return;
     const map = mapRef.current?.getMap?.();
+    const isZone = selectedIncident?.geometry_type === 'polygon';
     if (map) {
       const center = map.getCenter();
       const zoom = map.getZoom();
+      // Full return context: Back must restore the date range (live or
+      // historic), the selected incident/zone, and the camera.
+      sessionStorage.setItem(
+        'geowatch_superadmin_return_view',
+        JSON.stringify({
+          lat: center.lat,
+          lng: center.lng,
+          zoom,
+          dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
+          isLiveMode,
+          selectedIncidentId: isZone ? null : selectedIncident.id,
+          selectedZoneId: isZone ? selectedIncident.id : null,
+        })
+      );
+      sessionStorage.setItem('geowatch_superadmin_returning', '1');
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -1178,7 +1194,50 @@ export default function MapPage() {
       );
     }
     navigate(`/superadmin/incident/${selectedIncident.id}`);
-  }, [navigate, selectedIncident?.id, setSearchParams]);
+  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams, dateRange.from, dateRange.to, isLiveMode]);
+
+  // Restore full map context when returning from a full-page detail view:
+  // date range (live or historic — the mode pill and date control both derive
+  // from it), the camera, and the selected incident/zone. The selection is
+  // restored through the normal ?incident=/?zone= deep-link effects (flights
+  // skipped via the mount-time saved-viewport snapshot) — no duplicated
+  // selection logic. Missing fields (older payloads) degrade to viewport-only.
+  useEffect(() => {
+    if (sessionStorage.getItem('geowatch_superadmin_returning') !== '1') return;
+    sessionStorage.removeItem('geowatch_superadmin_returning');
+    const raw = sessionStorage.getItem('geowatch_superadmin_return_view');
+    sessionStorage.removeItem('geowatch_superadmin_return_view');
+    if (!raw) return;
+    try {
+      const payload = JSON.parse(raw);
+      const { lat, lng, zoom, dateRange: savedRange, selectedIncidentId, selectedZoneId } = payload;
+      // Date state FIRST so the restored selection is inside the fetched window
+      if (savedRange && ('from' in savedRange || 'to' in savedRange)) {
+        setDateRange({ from: savedRange.from ?? null, to: savedRange.to ?? null });
+      }
+      if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom)) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('lat', Number(lat).toFixed(6));
+            next.set('lng', Number(lng).toFixed(6));
+            next.set('zoom', Number(zoom).toFixed(2));
+            if (selectedZoneId) {
+              next.set('zone', selectedZoneId);
+              next.delete('incident');
+            } else if (selectedIncidentId) {
+              next.set('incident', selectedIncidentId);
+              next.delete('zone');
+            }
+            return next;
+          },
+          { replace: true }
+        );
+      }
+    } catch {
+      // ignore malformed stored view
+    }
+  }, [setSearchParams]);
 
   const handleCopyIncidentLink = useCallback(() => {
     if (!selectedIncident?.id) return;

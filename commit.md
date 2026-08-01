@@ -12503,3 +12503,20 @@ fix: timeline flicker + selection reset — SSE refetch in all three incident wr
 fix: featured evidence rendered twice (Featured block + original list position) — original now collapses to a "Featured above" marker row, expandable on demand, on the All tab (FeaturedCollapsedRow in SourceCards; wired through EvidenceRail media/articles/notes, EditableMediaGrid, MediaGrid, XPostCompactList).
 
 fix: incident Back button non-deterministic — window.history.length counts the whole session, making navigate(-1) a same-page hop; now always returns to the app map (user /map restores the saved return-view; admin /; superadmin /superadmin/map). Verified 7/7 in scripts/check-incident-detail-fixes.mjs; all three builds green.
+
+
+## 📅 2026-08-01 — Module: shared — Incident-detail step 2: hero composition + context bars
+
+style: TargetingCard overlay-aware (hasOverlay prop) — reticle to right third at 70% prominence, coords pinned bottom-right corner, bottom-left scrim for title legibility; hero meta restyled to mono items with hairline separators. Sidebar/preview usage unchanged (centered).
+
+style: detail secondary topbars redesigned as 46px breadcrumb/context bars — ghost "← Map" back (fixes invalid border-radius), domain dot-chip › category · status › truncated title in mono, existing actions regrouped right, token-driven light/dark, incident bar stays sticky; zone bar (shared ZoneAdminTopBar → .zd-topbar) matches, non-sticky. Zone app wrappers still use the old history back-heuristic (deferred — app-level files out of scope). Builds green ×3.
+
+
+## 📅 2026-08-01 — Module: all apps — Back-restore full map context
+
+fix: detail→map Back now restores full context — return-view payload extended with dateRange/isLiveMode/selectedIncidentId/selectedZoneId (+activeDrawer on user-web); unified mount restore sets date state FIRST then re-selects via the existing deep-link effects (flights skipped via saved-viewport); user-web viewport sync no longer purges unprocessed ?incident=/?zone= params (race that closed the panel); admin zone deep-link skips refit when the URL carried a camera (matches superadmin). Verified 6/6 (scripts/check-back-restore-user.mjs) + smart-zoom 15/15; builds green ×3.
+
+
+## 📅 2026-08-01 — Module: all apps — Deterministic Back on zone detail pages
+
+fix: zone detail wrappers (user/admin/superadmin) drop the navigate(-1) history heuristic for a deterministic navigate to the app map, mirroring the incident wrappers — the extended return-view restores full zone context (selectedZoneId) on mount. Builds green ×3.

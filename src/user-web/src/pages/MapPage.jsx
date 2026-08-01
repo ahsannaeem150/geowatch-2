@@ -628,8 +628,19 @@ export default function MapPage() {
             next.set('lng', center.lng.toFixed(6));
             next.set('zoom', zoom.toFixed(2));
             if (!selectedIncidentRef.current) {
-              next.delete('incident');
-              next.delete('zone');
+              // Only purge params for selections that were already handled and
+              // are now gone (stale). A param whose deep-link has NOT been
+              // processed yet is a selection still in flight (e.g. the
+              // return-view restore) — purging it here would race the
+              // deep-link effect and silently close the panel.
+              const pendingIncident = next.get('incident');
+              const pendingZone = next.get('zone');
+              if (pendingIncident && incidentDeepLinkProcessedRef.current === pendingIncident) {
+                next.delete('incident');
+              }
+              if (pendingZone && zoneDeepLinkProcessedRef.current === pendingZone) {
+                next.delete('zone');
+              }
             }
             return next;
           },
@@ -914,9 +925,20 @@ export default function MapPage() {
         if (map) {
           const center = map.getCenter();
           const zoom = map.getZoom();
+          // Full return context: Back must restore the date range (live or
+          // historic), the selected incident/zone, the drawer, and the camera.
           sessionStorage.setItem(
             'geowatch_user_return_view',
-            JSON.stringify({ lat: center.lat, lng: center.lng, zoom })
+            JSON.stringify({
+              lat: center.lat,
+              lng: center.lng,
+              zoom,
+              dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
+              isLiveMode,
+              selectedIncidentId: isZone ? null : incidentId,
+              selectedZoneId: isZone ? incidentId : null,
+              activeDrawer,
+            })
           );
           setSearchParams(
             (prev) => {
@@ -929,9 +951,6 @@ export default function MapPage() {
             { replace: true }
           );
         }
-        if (isZone) {
-          sessionStorage.setItem('geowatch_user_selected_zone', incidentId);
-        }
         sessionStorage.setItem('geowatch_user_returning', '1');
         navigate(isZone ? `/zone/${incidentId}` : `/incident/${incidentId}`);
       };
@@ -942,37 +961,37 @@ export default function MapPage() {
         saveMapViewAndNavigate();
       }
     },
-    [navigate, selectedIncident?.geometry_type, setSearchParams]
+    [navigate, selectedIncident?.geometry_type, setSearchParams, dateRange.from, dateRange.to, isLiveMode, activeDrawer]
   );
 
-  // Restore exact map view and selected zone when returning from a full-page detail view
+  // Restore full map context when returning from a full-page detail view:
+  // date range (live or historic — the mode pill and date control both derive
+  // from it), the rail drawer, the camera, and the selected incident/zone.
+  // The selection is restored through the normal ?incident=/?zone= deep-link
+  // effects (skipFlyTo via the mount-time viewport snapshot) — no duplicated
+  // selection logic. Missing fields (older payloads) degrade to viewport-only.
   useEffect(() => {
-    const returningZoneId = sessionStorage.getItem('geowatch_user_selected_zone');
-    if (returningZoneId) {
-      sessionStorage.removeItem('geowatch_user_selected_zone');
-      skipNextZoneFitRef.current = true;
-      const zone = incidents.find((i) => i.id === returningZoneId);
-      if (zone) {
-        setSelectedIncident(zone);
-      } else {
-        api.getIncident(returningZoneId)
-          .then((res) => {
-            if (res.data?.incident) {
-              setSelectedIncident(res.data.incident);
-            }
-          })
-          .catch(() => {});
-      }
-    }
-
     if (sessionStorage.getItem('geowatch_user_returning') !== '1') return;
     sessionStorage.removeItem('geowatch_user_returning');
-    skipNextZoneFitRef.current = true;
     const raw = sessionStorage.getItem('geowatch_user_return_view');
     sessionStorage.removeItem('geowatch_user_return_view');
     if (!raw) return;
     try {
-      const { lat, lng, zoom } = JSON.parse(raw);
+      const payload = JSON.parse(raw);
+      const {
+        lat,
+        lng,
+        zoom,
+        dateRange: savedRange,
+        selectedIncidentId,
+        selectedZoneId,
+        activeDrawer: savedDrawer,
+      } = payload;
+      // Date state FIRST so the restored selection is inside the fetched window
+      if (savedRange && ('from' in savedRange || 'to' in savedRange)) {
+        setDateRange({ from: savedRange.from ?? null, to: savedRange.to ?? null });
+      }
+      if (savedDrawer) setActiveDrawer(savedDrawer);
       if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom)) {
         setSearchParams(
           (prev) => {
@@ -980,6 +999,13 @@ export default function MapPage() {
             next.set('lat', Number(lat).toFixed(6));
             next.set('lng', Number(lng).toFixed(6));
             next.set('zoom', Number(zoom).toFixed(2));
+            if (selectedZoneId) {
+              next.set('zone', selectedZoneId);
+              next.delete('incident');
+            } else if (selectedIncidentId) {
+              next.set('incident', selectedIncidentId);
+              next.delete('zone');
+            }
             return next;
           },
           { replace: true }
@@ -988,7 +1014,7 @@ export default function MapPage() {
     } catch {
       // ignore malformed stored view
     }
-  }, [incidents, setSearchParams]);
+  }, [setSearchParams]);
 
   // ─── Handle incident ID from URL — robust deep-linking with ghost support ───
   useEffect(() => {

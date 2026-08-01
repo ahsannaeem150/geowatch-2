@@ -181,6 +181,7 @@ function ZoneTrialHero({ zone, saved, onSave, onCopyLink }) {
 }
 
 function ZoneAdminTopBar({
+  incident,
   onBack,
   onEditInfo,
   onEditShape,
@@ -193,12 +194,39 @@ function ZoneAdminTopBar({
   mode = 'user',
 }) {
   const isSuper = mode === 'superadmin';
+  const categoryName = incident?.zoneCategoryName;
+  const categoryColor = incident?.zoneCategoryColor || '#6b7280';
+  const title = incident?.title;
   return (
-    <div className="zone-admin-topbar" data-role={mode}>
-      <button type="button" className="zone-trial-backbar__btn" onClick={onBack}>
-        <ArrowLeft size={16} />
-        Back
-      </button>
+    <div className="zd-topbar" data-role={mode}>
+      <div className="zd-topbar__left">
+        <button type="button" className="opt1-back-link" onClick={onBack}>
+          <ArrowLeft size={14} />
+          Map
+        </button>
+        <nav className="opt1-crumbs" aria-label="Zone context">
+          {categoryName && (
+            <span className="opt1-crumbs__domain">
+              <span className="opt1-crumbs__dot" style={{ background: categoryColor }} />
+              {categoryName}
+            </span>
+          )}
+          <span className="opt1-crumbs__sep">›</span>
+          <span className="opt1-crumbs__item">Zone</span>
+          {status && (
+            <>
+              <span className="opt1-crumbs__sep">·</span>
+              <span className="opt1-crumbs__item opt1-crumbs__item--status">{status}</span>
+            </>
+          )}
+          {title && (
+            <>
+              <span className="opt1-crumbs__sep">›</span>
+              <span className="opt1-crumbs__title">{title}</span>
+            </>
+          )}
+        </nav>
+      </div>
       <div className="zone-admin-topbar__actions">
         {onAddUpdate && (
           <button type="button" className="zone-admin-topbar__btn" onClick={onAddUpdate}>
@@ -407,6 +435,7 @@ export default function ZoneDetailPage({
     <div className="zone-full-page" data-selected-event-id={selectedEventId}>
       {(onBack || hasAdminActions || isSuper) && (
         <ZoneAdminTopBar
+          incident={incident}
           onBack={onBack}
           onEditInfo={!isReadOnly && onEditZoneInfo ? () => setInfoOpen(true) : undefined}
           onEditShape={!isReadOnly && onEditZoneShape ? onEditZoneShape : undefined}

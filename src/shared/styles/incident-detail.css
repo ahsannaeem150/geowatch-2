@@ -2507,23 +2507,35 @@
 .opt1-hero-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 0;
   align-items: center;
   margin-bottom: 16px;
 }
 
+/* Meta items as mono text with hairline separators (workspace chrome language) */
 .opt1-hero-meta-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
+  padding: 3px 12px;
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0;
+  background: transparent;
+  color: rgba(241, 245, 249, 0.75);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.opt1-hero-meta-item:first-child {
+  padding-left: 0;
+}
+
+.opt1-hero-meta-item:last-child {
+  border-right: none;
 }
 
 .opt1-live-dot {
@@ -2917,22 +2929,19 @@
   transition: width 0.1s linear;
 }
 
-/* Top bar tweaks */
+/* Top bar — slim breadcrumb/context bar in the workspace chrome family */
 .opt1-topbar {
   position: sticky;
   top: 0;
+  z-index: 50;
   backdrop-filter: blur(12px);
-  background: rgba(11, 13, 18, 0.82) !important;
+  background: var(--bg-glass);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /* Light theme overrides */
 [data-theme="light"] .option1-root {
   background: var(--bg-elevated) !important;
-}
-
-[data-theme="light"] .opt1-topbar {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-bottom: 1px solid var(--border-default);
 }
 
 [data-theme="light"] .option1-root .opt1-hero-bg {
@@ -3115,14 +3124,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 18px;
+  height: 46px;
+  padding: 0 18px;
 }
 
 .opt1-topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 14px;
+  min-width: 0;
 }
 
 .opt1-topbar-right {
@@ -3131,25 +3141,85 @@
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
+/* Ghost back button — arrow + Map, workspace hairline family */
 .opt1-back-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 8;
-  background: var(--bg-hover);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
   color: var(--text-secondary);
-  text-decoration: none;
   font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.opt1-back-link:hover {
+  border-color: var(--accent-light);
+  color: var(--text-primary);
+}
+
+/* Breadcrumb context — mono, muted, hairline-separated */
+.opt1-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+.opt1-crumbs__domain {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.opt1-crumbs__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.opt1-crumbs__sep {
+  color: var(--text-muted);
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.opt1-crumbs__item {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.opt1-crumbs__item--status {
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   font-weight: 700;
 }
 
-.opt1-topbar-title {
-  font-size: 14px;
-  font-weight: 800;
+.opt1-crumbs__title {
   color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 420px;
 }
 
 .opt1-role-badge {
@@ -4260,5 +4330,29 @@
 
 .opt1-featured-collapsed svg {
   color: #fbbf24;
+  flex-shrink: 0;
+}
+
+/* ─── Zone detail context bar — same breadcrumb family as opt1-topbar ─── */
+.zd-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 46px;
+  padding: 0 18px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.zd-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.zd-topbar .zone-admin-topbar__actions {
   flex-shrink: 0;
 }

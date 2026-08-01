@@ -356,11 +356,12 @@ export default function ZoneDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/');
-    }
+    // Deterministic: always return to the workspace map. When a saved
+    // return-view exists (geowatch_admin_returning/geowatch_admin_return_view),
+    // DashboardLayout restores the full context on mount. history.length counts
+    // the whole session (external links, redirects, same-page entries), which
+    // made navigate(-1) a no-op or a same-URL hop.
+    navigate('/');
   }, [navigate]);
 
   if (loading) {

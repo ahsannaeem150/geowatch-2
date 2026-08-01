@@ -154,11 +154,12 @@ export default function ZoneDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/map');
-    }
+    // Deterministic: always return to the map. When a saved return-view exists
+    // (geowatch_user_returning/geowatch_user_return_view), MapPage restores the
+    // full context (date range, selection, camera) on mount. history.length is
+    // untrustworthy — it counts the whole session (external links, redirects,
+    // same-page entries), which made navigate(-1) a no-op or a same-URL hop.
+    navigate('/map');
   }, [navigate]);
 
   const handleSave = useCallback(
