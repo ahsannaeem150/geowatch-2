@@ -12520,3 +12520,13 @@ fix: detail→map Back now restores full context — return-view payload extende
 ## 📅 2026-08-01 — Module: all apps — Deterministic Back on zone detail pages
 
 fix: zone detail wrappers (user/admin/superadmin) drop the navigate(-1) history heuristic for a deterministic navigate to the app map, mirroring the incident wrappers — the extended return-view restores full zone context (selectedZoneId) on mount. Builds green ×3.
+
+
+## 📅 2026-08-01 — Module: shared — Incident-detail step 3: coherence pass
+
+style: bring the opt1/id detail package to the workspace chrome language — solid hero title (gradient text killed), 300ms hover zoom (8s ken-burns gone), root radius/glow vars aligned (radius-lg/md, glow none), filter tabs → mono hairline chips with subtle-accent active, gradients on primary buttons/timeline progress/progress bar → solid accent, pinned/featured badges → hairline chips, card hovers lose lift/shadow in favor of border emphasis, drawer loses accent-glow shadow, bento cells on --bg-input, id-pill → mono hairline chip. Verified 12/12 in scripts/check-detail-coherence.mjs (no gradient title, no frosted pills, ken-burns gone, light contrast 17.7:1, 630px sidebar no overflow); screenshots in temp_screenshots/detail-coherence/. Builds green ×3.
+
+
+## 📅 2026-08-01 — Module: shared — Light-theme hero + border fixes
+
+fix: incident hero white band in light mode — old [data-theme=light] override painted meta items rgba(255,255,255,.82) over the dark banner; deleted it and re-pinned surface/text custom properties to dark values inside .opt1-hero scope (media zone stays dark in both themes, YouTube pattern). Light borders strengthened: subtle #e5e7eb→#d1d5db, default #d1d5db→#c3c9d1, hover→#b6bcc6; shared --border-strong defined (dark #34343a, light #b6bcc6 — was undefined outside superadmin). Builds green ×3.

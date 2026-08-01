@@ -18,6 +18,7 @@
   --border-subtle: #242429;
   --border-default: rgba(148, 163, 184, 0.12);
   --border-hover: #34343a;
+  --border-strong: #34343a;
   --border-focus: #9f1239;
 
   /* ─── Text ─── */
@@ -163,10 +164,11 @@
   --bg-input: #ffffff;
   --bg-glass: rgba(255, 255, 255, 0.92);
 
-  /* Borders — visible but refined on white */
-  --border-subtle: #e5e7eb;
-  --border-default: #d1d5db;
-  --border-hover: #d1d5db;
+  /* Borders — quiet but visible on white */
+  --border-subtle: #d1d5db;
+  --border-default: #c3c9d1;
+  --border-hover: #b6bcc6;
+  --border-strong: #b6bcc6;
   --border-focus: #9f1239;
 
   /* Text — high contrast, readable gray scale */
