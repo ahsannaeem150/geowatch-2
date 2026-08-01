@@ -12413,3 +12413,18 @@ feat: TopBarDateControl wired for real (Today → onResetToToday + live pill, ot
 ## 📅 2026-08-01 — Module: admin-web — Stateful mode pill (LIVE/HISTORIC)
 
 feat: merge LIVE pill + clock + historic state into TopBarModePill — live = pulsing dot + ticking clock inside the pill, historic = amber static dot + compact range label + Back-to-LIVE button (pill body clickable, T shortcut outside inputs). TopBarClock deleted; date trigger unchanged. verify-date-control.mjs extended to 25 checks (all green), smart-zoom 20/20, topbar fit 1280/1920 ✓, build green.
+
+
+## 📅 2026-08-01 — Module: user-web — Date-control family port
+
+feat: admin's date-control family on user-web /map — TopBarDateControl popover (presets/single/custom, Today→live restore) + TopBarModePill (ticking LIVE clock / amber HISTORIC + Back-to-LIVE + T shortcut) replace the topbar's date inputs + hardcoded LIVE pill; large-range gating (>31d or All time: no point fetch below z6, hint chip, zones always load, viewport fetch at/above z6); slim topbar labels <1640px. Verified 24/24 (scripts/verify-date-control-user.mjs) + smart-zoom regression 15/15. Build green.
+
+
+## 📅 2026-08-01 — Module: superadmin-web — Port incident placement mode + drawing toolbar 2.0 with circle zones
+
+feat: port admin-web's placement mode (crosshair, hover preview, click-place/move, draggable marker, two-way sync with superadmin's point IncidentForm, Esc disarm, cancel cleanup, location validation, edit-form parity) and drawing toolbar 2.0 (segmented Pan/Polygon/Circle, undo/redo, hint line, live readouts, stable width) with the circle tool (click-click + drag-release state machine, live radius label, 64-pt ring) to superadmin-web's MapPage/SuperadminMap; edit-mode vertex save/cancel bar kept as-is, superadmin's redundant bottom draw indicator removed, latent onDrawCancelRef Esc crash fixed. Verified 16/16 in new scripts/verify-draw-tools-superadmin.mjs + 20/20 smart-zoom + 13/13 workspace regressions.
+
+
+## 📅 2026-08-01 — Module: superadmin-web — Date-control family port
+
+feat: port TopBarDateControl + TopBarModePill to superadmin-web (topbar center swap; slim labels at <1860px) and large-range gating in MapPage (31d / zoom 6, null→1970/2099 sentinels, points-only viewport refetch above gate, hint + counter chips; draw/placement paths untouched). verify-date-control-superadmin.mjs 21/21; regressions: smart-zoom 20/20, draw-tools 16/16, workspace 13/13; build green.

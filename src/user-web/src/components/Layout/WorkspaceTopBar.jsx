@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Search,
@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import GoogleSignInButton from '../GoogleSignInButton/GoogleSignInButton.jsx';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
+import TopBarDateControl from './TopBarDateControl.jsx';
+import TopBarModePill from './TopBarModePill.jsx';
 
 function getInitials(user) {
   const full = user?.fullName || user?.full_name || '';
@@ -31,6 +33,7 @@ export default function WorkspaceTopBar({
   dateRange,
   onDateRangeChange,
   onResetToToday,
+  isLiveMode = true,
   onOpenSearch,
   onOpenAdvancedSearch,
   onToggleFocusMode,
@@ -43,6 +46,19 @@ export default function WorkspaceTopBar({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [loginError, setLoginError] = useState('');
   const iconSize = (n) => (compactMode ? Math.round(n * 0.9) : n);
+
+  // Slim mode: below ~1640px viewport the full bar would overflow, so the
+  // search box narrows, the Advanced button goes icon-only, and the mode pill
+  // + date control switch to compact labels.
+  const [slim, setSlim] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1640px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1640px)');
+    const onChange = (e) => setSlim(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   const displayName = useMemo(() => getDisplayName(user), [user]);
   const initials = useMemo(() => getInitials(user), [user]);
@@ -158,7 +174,7 @@ export default function WorkspaceTopBar({
             color: 'var(--text-muted)',
             fontSize: 'calc(13px * var(--admin-ui-scale))',
             cursor: 'pointer',
-            minWidth: 'calc(220px * var(--admin-ui-scale))',
+            minWidth: slim ? 'calc(150px * var(--admin-ui-scale))' : 'calc(220px * var(--admin-ui-scale))',
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
@@ -218,95 +234,25 @@ export default function WorkspaceTopBar({
           }}
         >
           <Search size={iconSize(13)} />
-          <span>Advanced</span>
+          {!slim && <span>Advanced</span>}
         </button>
       </div>
 
-      {/* Center: mode + date + verified filter */}
+      {/* Center: mode pill + date control */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'calc(8px * var(--admin-ui-scale))',
-            padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: 'calc(11px * var(--admin-ui-scale))',
-            fontWeight: 700,
-            letterSpacing: '1px',
-            background: 'var(--alert-error-bg)',
-            border: '1px solid var(--alert-error-border)',
-            color: 'var(--badge-red-text)',
-          }}
-        >
-          <span
-            style={{
-              width: 'calc(6px * var(--admin-ui-scale))',
-              height: 'calc(6px * var(--admin-ui-scale))',
-              borderRadius: '50%',
-              background: 'currentColor',
-              boxShadow: '0 0 10px currentColor',
-              animation: 'pulse 2s ease-in-out infinite',
-            }}
-          />
-          LIVE MODE
-        </div>
+        <TopBarModePill
+          slim={slim}
+          isLiveMode={isLiveMode}
+          dateRange={dateRange}
+          onResetToToday={onResetToToday}
+        />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-          <input
-            type="date"
-            value={dateRange.from}
-            onChange={(e) => onDateRangeChange?.({ from: e.target.value, to: dateRange.to })}
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'calc(11px * var(--admin-ui-scale))',
-              outline: 'none',
-              cursor: 'pointer',
-              width: 'calc(124px * var(--admin-ui-scale))',
-            }}
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: 'calc(11px * var(--admin-ui-scale))' }}>→</span>
-          <input
-            type="date"
-            value={dateRange.to}
-            onChange={(e) => onDateRangeChange?.({ from: dateRange.from, to: e.target.value })}
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'calc(11px * var(--admin-ui-scale))',
-              outline: 'none',
-              cursor: 'pointer',
-              width: 'calc(124px * var(--admin-ui-scale))',
-            }}
-          />
-          <button
-            onClick={onResetToToday}
-            style={{
-              padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
-              fontSize: 'calc(10px * var(--admin-ui-scale))',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-input)',
-              color: 'var(--accent-light)',
-              cursor: 'pointer',
-            }}
-          >
-            Today
-          </button>
-        </div>
-
+        <TopBarDateControl
+          slim={slim}
+          dateRange={dateRange}
+          onDateRangeChange={onDateRangeChange}
+          onResetToToday={onResetToToday}
+        />
       </div>
 
       {/* Right: actions + auth */}

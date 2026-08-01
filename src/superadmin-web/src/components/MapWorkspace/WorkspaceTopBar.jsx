@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import TopBarModePill from './TopBarModePill.jsx';
+import TopBarDateControl from './TopBarDateControl.jsx';
 import {
   Hexagon,
   Plus,
@@ -45,6 +47,7 @@ export default function WorkspaceTopBar({
   user,
   onLogout,
   compactMode,
+  isLiveMode = true,
 }) {
   const isLive = true;
   const navigate = useNavigate();
@@ -314,98 +317,21 @@ export default function WorkspaceTopBar({
         )}
       </div>
 
-      {/* Center: mode + date */}
+      {/* Center: mode pill + date */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))' }}>
-        {!slim && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'calc(8px * var(--admin-ui-scale))',
-              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 'calc(11px * var(--admin-ui-scale))',
-              fontWeight: 700,
-              letterSpacing: '1px',
-              background: 'var(--alert-error-bg)',
-              border: '1px solid var(--alert-error-border)',
-              color: 'var(--badge-red-text)',
-            }}
-          >
-            <span
-              style={{
-                width: 'calc(6px * var(--admin-ui-scale))',
-                height: 'calc(6px * var(--admin-ui-scale))',
-                borderRadius: '50%',
-                background: 'currentColor',
-                boxShadow: '0 0 10px currentColor',
-                animation: 'pulse 2s ease-in-out infinite',
-              }}
-            />
-            LIVE MODE
-          </div>
-        )}
+        <TopBarModePill
+          slim={slim}
+          isLiveMode={isLiveMode}
+          dateRange={dateRange}
+          onResetToToday={onResetToToday}
+        />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-          <input
-            type="date"
-            value={dateRange.from}
-            onChange={(e) =>
-              onDateRangeChange?.({ from: e.target.value, to: dateRange.to })
-            }
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'calc(11px * var(--admin-ui-scale))',
-              outline: 'none',
-              cursor: 'pointer',
-              width: slim ? 'calc(96px * var(--admin-ui-scale))' : 'calc(124px * var(--admin-ui-scale))',
-            }}
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: 'calc(11px * var(--admin-ui-scale))' }}>→</span>
-          <input
-            type="date"
-            value={dateRange.to}
-            onChange={(e) =>
-              onDateRangeChange?.({ from: dateRange.from, to: e.target.value })
-            }
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: 'calc(5px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'calc(11px * var(--admin-ui-scale))',
-              outline: 'none',
-              cursor: 'pointer',
-              width: slim ? 'calc(96px * var(--admin-ui-scale))' : 'calc(124px * var(--admin-ui-scale))',
-            }}
-          />
-          {!slim && (
-            <button
-              onClick={onResetToToday}
-              style={{
-                padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
-                fontSize: 'calc(10px * var(--admin-ui-scale))',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-input)',
-                color: 'var(--accent-light)',
-                cursor: 'pointer',
-              }}
-            >
-              Today
-            </button>
-          )}
-        </div>
+        <TopBarDateControl
+          slim={slim}
+          dateRange={dateRange}
+          onDateRangeChange={onDateRangeChange}
+          onResetToToday={onResetToToday}
+        />
       </div>
 
       {/* Right: actions + user */}

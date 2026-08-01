@@ -31,6 +31,11 @@ const LS_AUTO_ZOOM = 'geowatch_user_auto_zoom';
 const MAX_ACTIVITIES = 50;
 const RIGHT_PANEL_TRANSITION_MS = 250;
 const PS_PAGE_SIZE = 25;
+// Large-range gating (flightradar-style): ranges wider than this or unbounded
+// ("All time") withhold point incidents until the map is zoomed to GATE_ZOOM
+// or closer; polygon zones always load.
+const LARGE_RANGE_DAYS = 31;
+const GATE_ZOOM = 6;
 
 const DEFAULT_PS_FILTERS = {
   domainSlugs: [],
@@ -196,6 +201,23 @@ export default function MapPage() {
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
+  // ─── Large-range gating (flightradar-style) ───
+  // Ranges > LARGE_RANGE_DAYS or unbounded ("All time") withhold point
+  // incidents below GATE_ZOOM; polygons always load. Crossing the gate zoom
+  // re-evaluates via the main fetch effect (isRangeGated dependency).
+  const [mapZoom, setMapZoom] = useState(null);
+  const isUnboundedRange = !dateRange.from || !dateRange.to;
+  const rangeDayCount = isUnboundedRange
+    ? Infinity
+    : Math.floor(
+        (new Date(`${dateRange.to}T00:00:00`) - new Date(`${dateRange.from}T00:00:00`)) / 86400000
+      ) + 1;
+  const isLargeRange = isUnboundedRange || rangeDayCount > LARGE_RANGE_DAYS;
+  const isRangeGated = isLargeRange && !(mapZoom >= GATE_ZOOM);
+
+  // Live mode = the map shows exactly today (drives the topbar LIVE pill)
+  const isLiveMode = dateRange.from === today && dateRange.to === today;
+
   // ─── Saved Incidents ───
   const { isAuthenticated, user } = usePublicAuth();
   const { openSignInModal } = useSignInModal();
@@ -277,8 +299,42 @@ export default function MapPage() {
       if (filters.categoryId) baseParams.categoryId = filters.categoryId;
       if (filters.severity) baseParams.severity = filters.severity;
 
-      const pointParams = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
-      const zoneParams = { dateFrom: dateRange.from, dateTo: dateRange.to, geometryType: 'polygon' };
+      // Unbounded "All time" translates to a maximally wide overlap window —
+      // the list endpoint applies a default "visible today" window when no
+      // date params are sent, so nulls must never reach it.
+      const effFrom = dateRange.from || '1970-01-01';
+      const effTo = dateRange.to || '2099-12-31';
+
+      // ─── Large-range mode (flightradar-style gating) ───
+      if (isLargeRange) {
+        // Polygon zones always load — few and needed for context
+        const zonesRes = await api.getIncidents({ dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' });
+        if (cancelled) return;
+        const zones = zonesRes.data.incidents || [];
+
+        if (isRangeGated) {
+          // Below the gate zoom: withhold point incidents entirely
+          setIncidents(zones);
+          setTotalEventCount(0);
+          setViewportFiltering(false);
+          viewportFilteringRef.current = 'gated';
+        } else {
+          // At/above the gate zoom: viewport-bounded points + global zones
+          setViewportFiltering(true);
+          viewportFilteringRef.current = true;
+          const pointParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point', ...baseParams };
+          if (viewportBoundsRef.current) pointParams.viewport = viewportBoundsRef.current;
+          const pointRes = await api.getIncidents(pointParams);
+          if (cancelled) return;
+          setIncidents([...(pointRes.data.incidents || []), ...zones]);
+          setTotalEventCount(pointRes.data.count || 0);
+        }
+        setLoading(false);
+        return;
+      }
+
+      const pointParams = { dateFrom: effFrom, dateTo: effTo, ...baseParams };
+      const zoneParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' };
 
       const [pointRes, zoneRes] = await Promise.all([
         api.getIncidents(pointParams),
@@ -319,7 +375,7 @@ export default function MapPage() {
     return () => {
       cancelled = true;
     };
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu, isLargeRange, isRangeGated]);
 
   // Fetch domains, categories, and zone categories
   useEffect(() => {
@@ -537,6 +593,7 @@ export default function MapPage() {
     ({ bounds, center, zoom }) => {
       closeMapMenu();
       viewportBoundsRef.current = bounds;
+      if (Number.isFinite(zoom)) setMapZoom(zoom);
 
       if (center && Number.isFinite(zoom)) {
         setSearchParams(
@@ -560,17 +617,20 @@ export default function MapPage() {
       }
 
       if (viewportFilteringRef.current === true) {
+        // Unbounded ranges must never send null dates (see the fetch effect).
+        const effFrom = dateRange.from || '1970-01-01';
+        const effTo = dateRange.to || '2099-12-31';
         const pointParams = {
-          dateFrom: dateRange.from,
-          dateTo: dateRange.to,
+          dateFrom: effFrom,
+          dateTo: effTo,
           viewport: bounds,
         };
         if (filters.categoryId) pointParams.categoryId = filters.categoryId;
         if (filters.severity) pointParams.severity = filters.severity;
 
         const zoneParams = {
-          dateFrom: dateRange.from,
-          dateTo: dateRange.to,
+          dateFrom: effFrom,
+          dateTo: effTo,
           geometryType: 'polygon',
           viewport: bounds,
         };
@@ -1462,6 +1522,7 @@ export default function MapPage() {
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
           onResetToToday={handleResetToToday}
+          isLiveMode={isLiveMode}
           onOpenSearch={() => setCommandPaletteOpen(true)}
           onOpenAdvancedSearch={() => setPowerSearchMode(true)}
           onToggleFocusMode={() => {
@@ -1623,6 +1684,48 @@ export default function MapPage() {
                     : `${totalEventCount} total incidents match this date range — zoom or pan to explore`}
                 </div>
               )}
+              {isRangeGated && (
+                <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '4px' }}>
+                  zoom in to load incidents
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Large-range gate hint — point incidents withheld below the gate zoom */}
+          {isRangeGated && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'var(--bg-surface)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '8px 14px',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: 'var(--shadow-md)',
+                pointerEvents: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: 'var(--warning)',
+                  flexShrink: 0,
+                }}
+              />
+              Zoom in to load incidents for this range
             </div>
           )}
 

@@ -369,6 +369,7 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
 - MapLibre positions markers via `translate3d` on the parent element — apply visual effects (scale, shadow) to a child element, never override the parent transform.
 - Split marker effects into separate `useEffect`s: one for create/remove/position (`[events]`), one for selection styling (`[selectedIncidentId]`).
 - Smart viewport filtering: fetch without viewport first; if total count > 100, enable viewport-bounded fetching on pan/zoom, otherwise load everything.
+- Large-range gating (admin-web + user-web): ranges > 31 days or unbounded ("All time") withhold point incidents below zoom 6 (zones always load); at/above zoom 6 point fetches become viewport-bounded. Null date-range ends must never reach the list endpoint — translate to `1970-01-01`/`2099-12-31` (it defaults to "visible today" when dates are absent).
 - Date visibility: active incidents visible until `end_date`; resolved incidents get a 1-day grace period.
 
 ---

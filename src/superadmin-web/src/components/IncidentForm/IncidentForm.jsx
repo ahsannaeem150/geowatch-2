@@ -13,6 +13,7 @@ export default function IncidentForm({
   onSubmit,
   onCancel,
   submitting = false,
+  onCoordsChange,
 }) {
   const isEdit = !!initialData;
 
@@ -35,16 +36,38 @@ export default function IncidentForm({
   );
   const [locationContext, setLocationContext] = useState(initialData?.location_context || '');
 
-  // Keep coords in sync if initialCoords changes (create mode)
+  // Keep coords in sync when the map marker is placed/moved/dragged
+  // (initialCoords changes from the map side, create and edit mode alike).
   useEffect(() => {
-    if (initialCoords && !isEdit) {
-      setLatitude(initialCoords.lat.toString());
-      setLongitude(initialCoords.lng.toString());
+    if (initialCoords) {
+      setLatitude(initialCoords.lat.toFixed(6));
+      setLongitude(initialCoords.lng.toFixed(6));
     }
-  }, [initialCoords, isEdit]);
+  }, [initialCoords]);
+
+  const coordsValid =
+    latitude.trim() !== '' && longitude.trim() !== '' &&
+    Number.isFinite(parseFloat(latitude)) && Number.isFinite(parseFloat(longitude));
+
+  // Two-way sync: valid typed coords move/drop the map marker.
+  const handleLatChange = (e) => {
+    const v = e.target.value;
+    setLatitude(v);
+    const la = parseFloat(v);
+    const lo = parseFloat(longitude);
+    if (Number.isFinite(la) && Number.isFinite(lo)) onCoordsChange?.(la, lo);
+  };
+  const handleLngChange = (e) => {
+    const v = e.target.value;
+    setLongitude(v);
+    const la = parseFloat(latitude);
+    const lo = parseFloat(v);
+    if (Number.isFinite(la) && Number.isFinite(lo)) onCoordsChange?.(la, lo);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!coordsValid) return;
     const payload = {
       title,
       description: description || undefined,
@@ -126,7 +149,7 @@ export default function IncidentForm({
               type="number"
               step="any"
               value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
+              onChange={handleLatChange}
               required
               style={inputStyle}
             />
@@ -137,12 +160,17 @@ export default function IncidentForm({
               type="number"
               step="any"
               value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
+              onChange={handleLngChange}
               required
               style={inputStyle}
             />
           </div>
         </div>
+        {!coordsValid && (
+          <p style={{ margin: '-8px 0 16px', fontSize: 11, color: 'var(--warning)', lineHeight: 1.4 }}>
+            Place the marker on the map or enter coordinates
+          </p>
+        )}
 
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>Category</label>
@@ -245,7 +273,7 @@ export default function IncidentForm({
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !coordsValid}
             style={{
               padding: '9px 18px',
               fontSize: '13px',
@@ -256,7 +284,7 @@ export default function IncidentForm({
               color: '#f2f2f2',
               cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
-              opacity: submitting ? 0.6 : 1,
+              opacity: submitting || !coordsValid ? 0.6 : 1,
             }}
           >
             {submitting ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Incident'}

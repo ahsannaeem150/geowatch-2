@@ -69,6 +69,7 @@ import { useStaffSavedIncidents } from '../hooks/useStaffSavedIncidents.js';
 import { useStaffRecents } from '../hooks/useStaffRecents.js';
 import { useSearchCategories } from '../hooks/useSearchCategories.js';
 import { computeMapPadding } from '../utils/mapPadding.js';
+import { estimatePolygonAreaSqM, formatArea } from '@shared/utils/zoneGeometry.js';
 
 const LS_KEY = 'geowatch_superadmin_last_seen';
 const LS_COMPACT = 'geowatch_superadmin_compact_mode';
@@ -107,6 +108,12 @@ function getLastSeen() {
 function setLastSeen(ts) {
   localStorage.setItem(LS_KEY, String(ts));
 }
+
+// Flightradar-style large-range gating: date ranges spanning more than this
+// many days (or an unbounded "All time") only load point incidents once the
+// map is zoomed to GATE_ZOOM or closer; polygon zones always load.
+const LARGE_RANGE_DAYS = 31;
+const GATE_ZOOM = 6;
 
 export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -336,6 +343,27 @@ export default function MapPage() {
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
+  // ─── Large-range gating (flightradar-style) ───
+  // Ranges > LARGE_RANGE_DAYS or unbounded ("All time") withhold point
+  // incidents below GATE_ZOOM; polygons always load. Crossing the gate zoom
+  // re-evaluates via the main fetch effect (isRangeGated dependency).
+  const [mapZoom, setMapZoom] = useState(null);
+  const isUnboundedRange = !dateRange.from || !dateRange.to;
+  const rangeDayCount = isUnboundedRange
+    ? Infinity
+    : Math.floor(
+        (new Date(`${dateRange.to}T00:00:00`) - new Date(`${dateRange.from}T00:00:00`)) / 86400000
+      ) + 1;
+  const isLargeRange = isUnboundedRange || rangeDayCount > LARGE_RANGE_DAYS;
+  const isRangeGated = isLargeRange && !(mapZoom >= GATE_ZOOM);
+  const isLargeRangeRef = useRef(isLargeRange);
+  useEffect(() => {
+    isLargeRangeRef.current = isLargeRange;
+  }, [isLargeRange]);
+
+  // Live mode = the map shows exactly today (drives the topbar LIVE pill)
+  const isLiveMode = dateRange.from === today && dateRange.to === today;
+
   // ─── SSE Connection ───
   const esRef = useRef(null);
 
@@ -444,7 +472,41 @@ export default function MapPage() {
       if (filters.severity) baseParams.severity = filters.severity;
       if (filters.status) baseParams.status = filters.status;
 
-      const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
+      // Unbounded "All time" translates to a maximally wide overlap window —
+      // the list endpoint applies a default "visible today" window when no
+      // date params are sent, so nulls must never reach it.
+      const effFrom = dateRange.from || '1970-01-01';
+      const effTo = dateRange.to || '2099-12-31';
+
+      // ─── Large-range mode (flightradar-style gating) ───
+      if (isLargeRange) {
+        // Polygon zones always load — few and needed for context
+        const zonesRes = await getIncidents({ dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' });
+        if (cancelled) return;
+        const zones = zonesRes.incidents || [];
+
+        if (isRangeGated) {
+          // Below the gate zoom: withhold point incidents entirely
+          setIncidents(zones);
+          setTotalEventCount(0);
+          setViewportFiltering(false);
+          viewportFilteringRef.current = 'gated';
+        } else {
+          // At/above the gate zoom: viewport-bounded points + global zones
+          setViewportFiltering(true);
+          viewportFilteringRef.current = true;
+          const params = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point', ...baseParams };
+          if (viewportBoundsRef.current) params.viewport = viewportBoundsRef.current;
+          const pointsRes = await getIncidents(params);
+          if (cancelled) return;
+          setIncidents([...pointsRes.incidents || [], ...zones]);
+          setTotalEventCount(pointsRes.count);
+        }
+        setLoading(false);
+        return;
+      }
+
+      const params1 = { dateFrom: effFrom, dateTo: effTo, ...baseParams };
       const res1 = await getIncidents(params1);
 
       if (cancelled) return;
@@ -461,8 +523,8 @@ export default function MapPage() {
 
         if (viewportBoundsRef.current) {
           const params2 = {
-            dateFrom: dateRange.from,
-            dateTo: dateRange.to,
+            dateFrom: effFrom,
+            dateTo: effTo,
             viewport: viewportBoundsRef.current,
             ...baseParams,
           };
@@ -482,7 +544,7 @@ export default function MapPage() {
     return () => {
       cancelled = true;
     };
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, refreshKey]);
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, refreshKey, isLargeRange, isRangeGated]);
 
 
   // Filtered incidents (must be declared before any effect/callback that depends on polygonIncidents)
@@ -829,6 +891,7 @@ export default function MapPage() {
     viewportBoundsRef.current = bounds;
 
     if (center && Number.isFinite(zoom)) {
+      setMapZoom(zoom);
       const lat = center.lat.toFixed(6);
       const lng = center.lng.toFixed(6);
       const z = zoom.toFixed(2);
@@ -850,21 +913,42 @@ export default function MapPage() {
     }
 
     if (viewportFilteringRef.current === true) {
-      const params = {
-        dateFrom: dateRange.from,
-        dateTo: dateRange.to,
-        viewport: bounds,
-      };
-      if (filters.categoryId) params.categoryId = filters.categoryId;
-      if (filters.severity) params.severity = filters.severity;
-      if (filters.status) params.status = filters.status;
+      const effFrom = dateRange.from || '1970-01-01';
+      const effTo = dateRange.to || '2099-12-31';
 
-      getIncidents(params)
-        .then((res) => {
-          setIncidents(res.incidents || []);
-          setTotalEventCount(res.count);
-        })
-        .catch(() => setIncidents([]));
+      if (isLargeRangeRef.current) {
+        // Large ranges: points-only viewport refetch; zones stay global
+        const params = { dateFrom: effFrom, dateTo: effTo, viewport: bounds, geometryType: 'point' };
+        if (filters.categoryId) params.categoryId = filters.categoryId;
+        if (filters.severity) params.severity = filters.severity;
+        if (filters.status) params.status = filters.status;
+
+        getIncidents(params)
+          .then((res) => {
+            setIncidents((prev) => [
+              ...(res.incidents || []),
+              ...prev.filter((i) => i.geometry_type === 'polygon'),
+            ]);
+            setTotalEventCount(res.count);
+          })
+          .catch(() => {});
+      } else {
+        const params = {
+          dateFrom: effFrom,
+          dateTo: effTo,
+          viewport: bounds,
+        };
+        if (filters.categoryId) params.categoryId = filters.categoryId;
+        if (filters.severity) params.severity = filters.severity;
+        if (filters.status) params.status = filters.status;
+
+        getIncidents(params)
+          .then((res) => {
+            setIncidents(res.incidents || []);
+            setTotalEventCount(res.count);
+          })
+          .catch(() => setIncidents([]));
+      }
     }
   }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, closeMapMenu, setSearchParams, latParam, lngParam, zoomParam]);
 
@@ -1677,6 +1761,7 @@ export default function MapPage() {
       drawHistoryRef.current.shift();
       historyIndexRef.current -= 1;
     }
+    setDrawHistState({ canUndo: historyIndexRef.current > 0, canRedo: false });
   }, []);
 
   const handleDrawUndo = useCallback(() => {
@@ -1686,6 +1771,10 @@ export default function MapPage() {
     setDrawVertices(prev.vertices.map((v) => [...v]));
     setIsPolygonClosed(prev.isClosed);
     setSelectedDrawVertexIndex(null);
+    setDrawHistState({
+      canUndo: historyIndexRef.current > 0,
+      canRedo: historyIndexRef.current < drawHistoryRef.current.length - 1,
+    });
   }, []);
 
   const handleDrawRedo = useCallback(() => {
@@ -1695,6 +1784,10 @@ export default function MapPage() {
     setDrawVertices(next.vertices.map((v) => [...v]));
     setIsPolygonClosed(next.isClosed);
     setSelectedDrawVertexIndex(null);
+    setDrawHistState({
+      canUndo: historyIndexRef.current > 0,
+      canRedo: historyIndexRef.current < drawHistoryRef.current.length - 1,
+    });
   }, []);
 
   const pushToEditHistory = useCallback((vertices) => {
@@ -1733,8 +1826,10 @@ export default function MapPage() {
       setShowZoneCreatePanel(false);
       setZoneInfoEditMode(false);
       setSelectedDrawVertexIndex(null);
+      setDrawTool('polygon');
       drawHistoryRef.current = [{ vertices: [], isClosed: false }];
       historyIndexRef.current = 0;
+      setDrawHistState({ canUndo: false, canRedo: false });
       // Clear editing state when entering drawing mode
       setEditingZoneId(null);
       setEditingZoneVertices([]);
@@ -1772,9 +1867,54 @@ export default function MapPage() {
     setIsPolygonClosed(false);
     setShowZoneCreatePanel(false);
     setSelectedDrawVertexIndex(null);
+    setDrawTool('polygon');
     drawHistoryRef.current = [{ vertices: [], isClosed: false }];
     historyIndexRef.current = 0;
+    setDrawHistState({ canUndo: false, canRedo: false });
   }, []);
+
+  // ─── Draw tool state (Pan / Polygon / Circle) ───
+  const [drawTool, setDrawTool] = useState('polygon');
+  const [drawHistState, setDrawHistState] = useState({ canUndo: false, canRedo: false });
+
+  const handleCircleComplete = useCallback(({ radiusMeters, vertices }) => {
+    if (!vertices || radiusMeters < 50) {
+      setToast({ message: 'Circle too small — drag a radius of at least 50 m.', type: 'error' });
+      return;
+    }
+    // Circle becomes a closed 64-vertex polygon; one undo step removes it.
+    setDrawVertices(vertices);
+    setIsPolygonClosed(true);
+    setSelectedDrawVertexIndex(null);
+    pushToHistory(vertices, true);
+  }, [pushToHistory]);
+
+  const handleDrawFinish = useCallback(() => {
+    if (isPolygonClosedRef.current) return;
+    if (drawVerticesRef.current.length >= 3) {
+      setIsPolygonClosed(true);
+      setSelectedDrawVertexIndex(null);
+      pushToHistory(drawVerticesRef.current, true);
+    }
+  }, [pushToHistory]);
+
+  // Save finishes the shape (closing if needed) and opens the zone form —
+  // superadmin's handleDrawClose also opens the create panel on close.
+  const handleDrawSave = useCallback(() => {
+    if (!isPolygonClosedRef.current) {
+      if (drawVerticesRef.current.length >= 3) handleDrawClose();
+      return;
+    }
+    setShowZoneCreatePanel(true);
+    setRightPanelCollapsed(false);
+  }, [handleDrawClose]);
+
+  // Live area readout for the drawing toolbar.
+  const polygonAreaText = useMemo(() => {
+    if (drawVertices.length < 3) return null;
+    const area = estimatePolygonAreaSqM(drawVertices);
+    return area != null ? formatArea(area) : null;
+  }, [drawVertices]);
 
   const handleDrawVertexSelect = useCallback((index) => {
     setSelectedDrawVertexIndex(index);
@@ -2209,6 +2349,62 @@ export default function MapPage() {
     setPointFormCoords(null);
   }, []);
 
+  // ─── Incident placement mode (ported from admin-web DashboardLayout) ───
+  // Armed while the create form is open without coords; dismissed by Esc
+  // (marker + typed coords stay). Edit mode only gets the draggable marker.
+  const placementMode = pointFormMode === 'create';
+  const [placementDismissed, setPlacementDismissed] = useState(false);
+  const placementActive = placementMode && !placementDismissed;
+  useEffect(() => {
+    setPlacementDismissed(false);
+  }, [pointFormMode, selectedIncident?.id]);
+
+  useEffect(() => {
+    if (!placementMode) return;
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (placementDismissed) {
+        handlePointFormCancel();
+      } else {
+        setPlacementDismissed(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placementMode, placementDismissed]);
+
+  const handlePlacementClick = useCallback(({ lat, lng }) => {
+    setPointFormCoords({ lat, lng });
+  }, []);
+
+  const handleMarkerDragEnd = useCallback(({ lat, lng }) => {
+    setPointFormCoords({ lat, lng });
+  }, []);
+
+  // Form fields → map: typing valid coords moves/drops the marker, easing the
+  // map to it when it falls outside the current view.
+  const handleFormCoordsChange = useCallback((lat, lng) => {
+    const m = mapRef.current?.getMap?.();
+    if (m) {
+      const b = m.getBounds();
+      const visible = lng >= b.getWest() && lng <= b.getEast() && lat >= b.getSouth() && lat <= b.getNorth();
+      if (!visible) m.easeTo({ center: [lng, lat], duration: 600 });
+    }
+    setPointFormCoords({ lat, lng });
+  }, []);
+
+  // Edit-mode parity: show the incident's marker (draggable, two-way synced
+  // with the form's lat/lng fields) whenever the edit form opens.
+  useEffect(() => {
+    if (pointFormMode !== 'edit' || !selectedIncident || selectedIncident.geometry_type === 'polygon') return;
+    const lat = parseFloat(selectedIncident.latitude);
+    const lng = parseFloat(selectedIncident.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) setPointFormCoords({ lat, lng });
+  }, [pointFormMode, selectedIncident?.id]);
+
   // ─── Workspace chrome handlers ───
   const handleDrawerSelect = useCallback(
     (id) => {
@@ -2239,10 +2435,11 @@ export default function MapPage() {
   }, []);
 
   // Add Incident: same creation flow as the context menu, opened without
-  // pre-set coordinates (type them in or double-click the map to place).
+  // pre-set coordinates (type them in or click the map to place).
   const handleAddIncident = useCallback(() => {
     exitFocusMode();
-    setMapMode('pan');
+    // Placement mode and zone drawing are mutually exclusive — cancel any draw.
+    if (mapMode === 'polygon') handleDrawCancel();
     setShowZoneCreatePanel(false);
     setZoneInfoEditMode(false);
     setSelectedIncident(null);
@@ -2260,7 +2457,7 @@ export default function MapPage() {
       next.delete('zone');
       return next;
     });
-  }, [exitFocusMode, setSearchParams]);
+  }, [exitFocusMode, setSearchParams, mapMode, handleDrawCancel]);
 
   // Add Zone: same polygon-drawing flow as "Create Zone Here".
   const handleAddZone = useCallback(() => {
@@ -2582,6 +2779,7 @@ export default function MapPage() {
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
             onResetToToday={handleResetToToday}
+            isLiveMode={isLiveMode}
             onOpenSearch={() => setCommandPaletteOpen(true)}
             onOpenAdvancedSearch={() => setPowerSearchMode(true)}
             activeCount={activeIncidentCount}
@@ -2871,9 +3069,17 @@ export default function MapPage() {
               onMarkerContextMenu={handleMarkerContextMenu}
               onZoneContextMenu={handleZoneContextMenu}
               onMapContextMenu={handleMapContextMenu}
-              markerCoords={pointFormMode === 'create' ? pointFormCoords : null}
+              markerCoords={pointFormMode ? pointFormCoords : null}
               onMapDblClick={handleMapDblClick}
               autoZoomEnabled={autoZoomEnabled}
+              placementMode={placementActive}
+              markerDraggable={pointFormMode === 'create' || pointFormMode === 'edit'}
+              onPlacementClick={handlePlacementClick}
+              onMarkerDragEnd={handleMarkerDragEnd}
+              drawTool={drawTool}
+              onDrawToolChange={setDrawTool}
+              onCircleComplete={handleCircleComplete}
+              onDrawFinish={handleDrawFinish}
             />
 
             {mapMenuOpen && (
@@ -2900,9 +3106,9 @@ export default function MapPage() {
               onCancel={() => setConfirmDialog(null)}
             />
 
-            {/* Drawing / edit toolbar overlay — only while drawing a zone polygon
-                or editing zone geometry (mirrors admin-web's render conditions) */}
-            {(editingZoneId || mapMode === 'polygon') && (
+            {/* Drawing / edit toolbar overlay — 2.0 toolbar in draw mode;
+                save/cancel bar stays for zone vertex-edit mode */}
+            {editingZoneId ? (
             <div
               style={{
                 position: 'absolute',
@@ -2911,81 +3117,110 @@ export default function MapPage() {
                 zIndex: 20,
               }}
             >
-              {editingZoneId ? (
-                <div
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px',
+                  background: 'var(--bg-surface)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-lg)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleZoneGeometrySave}
+                  disabled={submitting}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px',
-                    background: 'var(--bg-surface)',
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    boxShadow: 'var(--shadow-lg)',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    letterSpacing: '0.3px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--success, #22c55e)',
+                    background: 'var(--success-bg, rgba(34,197,94,0.15))',
+                    color: 'var(--success, #22c55e)',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={handleZoneGeometrySave}
-                    disabled={submitting}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      letterSpacing: '0.3px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--success, #22c55e)',
-                      background: 'var(--success-bg, rgba(34,197,94,0.15))',
-                      color: 'var(--success, #22c55e)',
-                      cursor: submitting ? 'not-allowed' : 'pointer',
-                      opacity: submitting ? 0.6 : 1,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <span>✓</span>
-                    <span>{submitting ? 'Saving…' : 'Save Changes'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleZoneEditCancel}
-                    disabled={submitting}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      letterSpacing: '0.3px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid rgba(239,68,68,0.4)',
-                      background: 'transparent',
-                      color: 'var(--danger, #ef4444)',
-                      cursor: submitting ? 'not-allowed' : 'pointer',
-                      opacity: submitting ? 0.6 : 1,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <span>✕</span>
-                    <span>Cancel</span>
-                  </button>
-                </div>
-              ) : (
-                <DrawingToolbar
-                  mode={mapMode}
-                  hasClosedPolygon={isPolygonClosed && drawVertices.length >= 3}
-                  selectedZoneId={selectedZoneId}
-                  onSetMode={handleSetMode}
-                  onSave={handleDrawClose}
-                  onCancel={handleDrawCancel}
-                  onEditZone={handleEditZone}
-                />
-              )}
+                  <span>✓</span>
+                  <span>{submitting ? 'Saving…' : 'Save Changes'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleZoneEditCancel}
+                  disabled={submitting}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    letterSpacing: '0.3px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(239,68,68,0.4)',
+                    background: 'transparent',
+                    color: 'var(--danger, #ef4444)',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>✕</span>
+                  <span>Cancel</span>
+                </button>
+              </div>
             </div>
+            ) : mapMode === 'polygon' ? (
+              <DrawingToolbar
+                tool={drawTool}
+                onToolChange={setDrawTool}
+                canUndo={drawHistState.canUndo}
+                canRedo={drawHistState.canRedo}
+                onUndo={handleDrawUndo}
+                onRedo={handleDrawRedo}
+                onCancel={handleDrawCancel}
+                onSave={handleDrawSave}
+                vertexCount={drawVertices.length}
+                areaText={polygonAreaText}
+                isClosed={isPolygonClosed}
+              />
+            ) : null}
+
+            {/* Incident placement hint chip */}
+            {placementActive && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 20,
+                  padding: '8px 14px',
+                  background: 'var(--bg-surface)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  boxShadow: 'var(--shadow-md)',
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pointFormCoords
+                  ? 'Drag to adjust, or click elsewhere to move • Esc to cancel'
+                  : 'Click on the map to place the incident • Esc to cancel'}
+              </div>
             )}
 
             {/* Incident counter overlay — top left */}
@@ -3017,6 +3252,48 @@ export default function MapPage() {
                     {totalEventCount} total incidents match this date range — zoom or pan to explore
                   </div>
                 )}
+                {isRangeGated && (
+                  <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '4px' }}>
+                    zoom in to load incidents
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Large-range gate hint — point incidents withheld below the gate zoom */}
+            {isRangeGated && !powerSearchMode && !focusMode && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'var(--bg-surface)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  zIndex: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: 'var(--shadow-md)',
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: 'var(--warning)',
+                    flexShrink: 0,
+                  }}
+                />
+                Zoom in to load incidents for this range
               </div>
             )}
 
@@ -3159,11 +3436,12 @@ export default function MapPage() {
               {pointFormMode ? (
                 <IncidentForm
                   initialData={pointFormMode === 'edit' ? selectedIncident : null}
-                  initialCoords={pointFormMode === 'create' ? pointFormCoords : null}
+                  initialCoords={pointFormCoords}
                   categories={categories}
                   onSubmit={handlePointFormSubmit}
                   onCancel={handlePointFormCancel}
                   submitting={submitting}
+                  onCoordsChange={handleFormCoordsChange}
                 />
               ) : zoneInfoEditMode && selectedIncident ? (
                 <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>

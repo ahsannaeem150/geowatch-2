@@ -5,7 +5,7 @@ import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { useTheme } from '@shared/useTheme.js';
 import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
-import { smallestZoneFeature } from '@shared/utils/zoneGeometry.js';
+import { smallestZoneFeature, circleRing, haversineMeters } from '@shared/utils/zoneGeometry.js';
 import { getSelectionCamera, selectionSignature, zoneComfortFactor } from '@shared/utils/selectionCamera.js';
 import { format } from 'date-fns';
 
@@ -123,6 +123,14 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   adminMode = false,
   autoZoomEnabled = true,
   getMapPadding,
+  placementMode = false,
+  markerDraggable = false,
+  onPlacementClick,
+  onMarkerDragEnd,
+  drawTool = 'polygon',
+  onDrawToolChange,
+  onCircleComplete,
+  onDrawFinish,
 }, ref) {
   const { theme } = useTheme();
   const mapContainer = useRef(null);
@@ -211,6 +219,33 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   onDrawRedoRef.current = onDrawRedo;
   selectedDrawVertexIndexRef.current = selectedDrawVertexIndex;
   hoveredDrawVertexIndexRef.current = hoveredDrawVertexIndex;
+
+  // ─── Placement mode + circle tool state (ported from admin-web AdminMap) ───
+  const placementModeRef = useRef(placementMode);
+  const onPlacementClickRef = useRef(onPlacementClick);
+  const onMarkerDragEndRef = useRef(onMarkerDragEnd);
+  const drawToolRef = useRef(drawTool);
+  const onDrawToolChangeRef = useRef(onDrawToolChange);
+  const onCircleCompleteRef = useRef(onCircleComplete);
+  const onDrawFinishRef = useRef(onDrawFinish);
+  placementModeRef.current = placementMode;
+  onPlacementClickRef.current = onPlacementClick;
+  onMarkerDragEndRef.current = onMarkerDragEnd;
+  drawToolRef.current = drawTool;
+  onDrawToolChangeRef.current = onDrawToolChange;
+  onCircleCompleteRef.current = onCircleComplete;
+  onDrawFinishRef.current = onDrawFinish;
+  const placementPreviewRef = useRef(null);
+  const circleCenterRef = useRef(null);
+  const circleRadiusRef = useRef(0);
+  const circleDraggingRef = useRef(false);
+  const circleDragMovedRef = useRef(false);
+  const suppressCircleClickUntilRef = useRef(0);
+  const circleLabelRef = useRef(null);
+  // NOTE: also fixes a latent crash — Esc in draw mode referenced this ref,
+  // which was never defined before the port.
+  const onDrawCancelRef = useRef(onDrawCancel);
+  onDrawCancelRef.current = onDrawCancel;
 
   // Expose imperative map actions to the parent for context-menu commands
   useImperativeHandle(ref, () => ({
@@ -977,11 +1012,19 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       el.appendChild(visual);
       el.appendChild(ring);
 
-      tempMarker.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+      tempMarker.current = new maplibregl.Marker({ element: el, anchor: 'center', draggable: markerDraggable })
         .setLngLat([markerCoords.lng, markerCoords.lat])
         .addTo(map.current);
+
+      // Drag-to-adjust: sync back into the form fields via the parent.
+      if (markerDraggable) {
+        tempMarker.current.on('dragend', () => {
+          const ll = tempMarker.current.getLngLat();
+          onMarkerDragEndRef.current?.({ lat: ll.lat, lng: ll.lng });
+        });
+      }
     }
-  }, [markerCoords]);
+  }, [markerCoords, markerDraggable]);
 
   // Render ghost marker for search-selected incidents outside current date range
   useEffect(() => {
@@ -1064,8 +1107,9 @@ const SuperadminMap = forwardRef(function SuperadminMap({
     const layersReady = () => mapInstance.getLayer('zone-hit');
 
     const onMouseMove = (e) => {
-      // Skip zone hover when in polygon drawing mode or editing mode
-      if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) {
+      // Skip zone hover when in polygon drawing mode, editing mode, or
+      // incident placement mode (keeps the crosshair cursor)
+      if (mapModeRef.current === 'polygon' || editingZoneIdRef.current || placementModeRef.current) {
         if (currentHoverId !== null) {
           setHoveredZoneId(null);
           currentHoverId = null;
@@ -1100,8 +1144,9 @@ const SuperadminMap = forwardRef(function SuperadminMap({
     };
 
     const onClick = (e) => {
-      // Skip zone clicks when in polygon drawing mode or editing mode
-      if (mapModeRef.current === 'polygon' || editingZoneIdRef.current) return;
+      // Skip zone clicks when in polygon drawing mode, editing mode, or
+      // incident placement mode (that click places the incident marker)
+      if (mapModeRef.current === 'polygon' || editingZoneIdRef.current || placementModeRef.current) return;
       if (markerClickedRef.current) {
         markerClickedRef.current = false;
         return;
@@ -1267,6 +1312,23 @@ const SuperadminMap = forwardRef(function SuperadminMap({
         return;
       }
 
+      // ─── Circle tool: first click sets center, second click finishes.
+      // The click that immediately follows a drag-release finish is swallowed
+      // (suppress window) so it can't re-arm a new circle.
+      if (drawToolRef.current === 'circle') {
+        if (performance.now() < suppressCircleClickUntilRef.current) return;
+        if (!circleCenterRef.current) {
+          circleCenterRef.current = [e.lngLat.lng, e.lngLat.lat];
+          circleRadiusRef.current = 0;
+        } else {
+          finishCircle();
+        }
+        return;
+      }
+
+      // Pan tool: clicks do nothing (drag to pan)
+      if (drawToolRef.current === 'pan') return;
+
       // Check if user clicked on any vertex (12px tolerance)
       const nearestIdx = findNearestDrawVertex(e.point, drawVerticesRef.current, mapInstance, 12);
       if (nearestIdx !== -1) {
@@ -1291,9 +1353,118 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       }
     };
 
+    // Render the circle preview (ring + center point) into the draw-preview
+    // source and move the radius label with the cursor.
+    const renderCirclePreview = (cursorLngLat) => {
+      const center = circleCenterRef.current;
+      if (!center) return;
+      const radius = haversineMeters(center, [cursorLngLat.lng, cursorLngLat.lat]);
+      circleRadiusRef.current = radius;
+      const ring = circleRing(center[0], center[1], Math.max(radius, 1), 64);
+      const features = [
+        {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] },
+          properties: { isFill: true },
+        },
+        {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: [center, [cursorLngLat.lng, cursorLngLat.lat]] },
+          properties: { isRubberBand: true },
+        },
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: center },
+          properties: { isVertex: true, isFirst: true },
+        },
+      ];
+      const source = mapInstance.getSource('draw-preview');
+      if (source) source.setData({ type: 'FeatureCollection', features });
+      // Live radius label following the cursor
+      if (!circleLabelRef.current) {
+        const el = document.createElement('div');
+        el.style.padding = '2px 8px';
+        el.style.borderRadius = 'var(--radius-sm)';
+        el.style.background = 'var(--bg-surface)';
+        el.style.border = '1px solid var(--border-default)';
+        el.style.color = 'var(--text-primary)';
+        el.style.fontSize = '11px';
+        el.style.fontWeight = '700';
+        el.style.pointerEvents = 'none';
+        el.style.whiteSpace = 'nowrap';
+        circleLabelRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+          .setLngLat([cursorLngLat.lng, cursorLngLat.lat])
+          .addTo(mapInstance);
+      }
+      const km = radius / 1000;
+      circleLabelRef.current.getElement().textContent =
+        km < 10 ? `${km.toFixed(2)} km` : `${km.toFixed(1)} km`;
+      circleLabelRef.current.setLngLat([cursorLngLat.lng, cursorLngLat.lat]);
+    };
+
+    const clearCirclePreview = () => {
+      circleLabelRef.current?.remove();
+      circleLabelRef.current = null;
+      const source = mapInstance.getSource('draw-preview');
+      if (source) source.setData({ type: 'FeatureCollection', features: [] });
+    };
+
+    const finishCircle = () => {
+      const center = circleCenterRef.current;
+      if (!center) return;
+      const radius = circleRadiusRef.current;
+      const vertices = radius >= 50 ? circleRing(center[0], center[1], radius, 64) : null;
+      circleCenterRef.current = null;
+      circleRadiusRef.current = 0;
+      circleDraggingRef.current = false;
+      if (mapInstance.dragPan.isEnabled() === false) mapInstance.dragPan.enable();
+      clearCirclePreview();
+      onCircleCompleteRef.current?.({ center, radiusMeters: radius, vertices });
+    };
+
+    const onMouseMoveCircle = (e) => {
+      if (mapModeRef.current !== 'polygon') return;
+      if (drawToolRef.current !== 'circle') return;
+      if (!circleCenterRef.current) return;
+      if (circleDraggingRef.current) circleDragMovedRef.current = true;
+      renderCirclePreview(e.lngLat);
+    };
+
+    // Press-and-drag after the center is set also finishes on release — but
+    // only when the pointer actually moved (a real drag), otherwise the pair
+    // is a plain second click which finishes in the click handler above.
+    const onMouseDownCircle = () => {
+      if (mapModeRef.current !== 'polygon') return;
+      if (drawToolRef.current !== 'circle') return;
+      if (!circleCenterRef.current) return;
+      circleDraggingRef.current = true;
+      circleDragMovedRef.current = false;
+      if (mapInstance.dragPan.isEnabled()) mapInstance.dragPan.disable();
+    };
+    const onMouseUpCircle = () => {
+      if (!circleDraggingRef.current) return;
+      circleDraggingRef.current = false;
+      if (mapInstance.dragPan.isEnabled() === false) mapInstance.dragPan.enable();
+      if (circleDragMovedRef.current && circleCenterRef.current) {
+        // Swallow the click that trails a drag-release so it can't re-arm.
+        suppressCircleClickUntilRef.current = performance.now() + 350;
+        finishCircle();
+      }
+    };
+
     mapInstance.on('click', onClick);
+    mapInstance.on('mousemove', onMouseMoveCircle);
+    mapInstance.on('mousedown', onMouseDownCircle);
+    mapInstance.on('mouseup', onMouseUpCircle);
     return () => {
       mapInstance.off('click', onClick);
+      mapInstance.off('mousemove', onMouseMoveCircle);
+      mapInstance.off('mousedown', onMouseDownCircle);
+      mapInstance.off('mouseup', onMouseUpCircle);
+      if (mapInstance.dragPan.isEnabled() === false) mapInstance.dragPan.enable();
+      circleCenterRef.current = null;
+      circleLabelRef.current?.remove();
+      circleLabelRef.current = null;
     };
   }, [onDrawVertexAdd, onDrawClose, onDrawVertexSelect]);
 
@@ -1387,6 +1558,28 @@ const SuperadminMap = forwardRef(function SuperadminMap({
           return;
         }
 
+        // Tool switching: V pan · P polygon · C circle
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+          if (e.key === 'v' || e.key === 'V') {
+            onDrawToolChangeRef.current?.('pan');
+            return;
+          }
+          if (e.key === 'p' || e.key === 'P') {
+            onDrawToolChangeRef.current?.('polygon');
+            return;
+          }
+          if (e.key === 'c' || e.key === 'C') {
+            onDrawToolChangeRef.current?.('circle');
+            return;
+          }
+          // Enter finishes the polygon (same as double-click)
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            onDrawFinishRef.current?.();
+            return;
+          }
+        }
+
         if ((e.key === 'Delete' || e.key === 'Backspace') && selectedDrawVertexIndexRef.current !== null) {
           onDrawVertexDeleteRef.current?.(selectedDrawVertexIndexRef.current);
           return;
@@ -1434,11 +1627,81 @@ const SuperadminMap = forwardRef(function SuperadminMap({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // ─── Cursor change for drawing mode ───
+  // ─── Placement mode: cursor + preview marker + click-to-place ───
   useEffect(() => {
     if (!map.current) return;
-    map.current.getCanvas().style.cursor = mapMode === 'polygon' ? 'crosshair' : '';
-  }, [mapMode]);
+    const mapInstance = map.current;
+    const canvas = mapInstance.getCanvas();
+
+    // Cursor: crosshair while placing; also crosshair for draw tools except pan.
+    const cursor = placementMode
+      ? 'crosshair'
+      : mapMode === 'polygon'
+        ? (drawTool === 'pan' ? '' : 'crosshair')
+        : '';
+    canvas.style.cursor = cursor;
+  }, [placementMode, mapMode, drawTool]);
+
+  // Semi-transparent preview marker that follows the cursor while armed and
+  // no marker is placed yet (Strava-style).
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    if (!placementMode || markerCoords) {
+      placementPreviewRef.current?.remove();
+      placementPreviewRef.current = null;
+      return;
+    }
+
+    const el = document.createElement('div');
+    el.style.width = '0';
+    el.style.height = '0';
+    el.style.position = 'relative';
+    el.style.pointerEvents = 'none';
+    const visual = document.createElement('div');
+    visual.style.position = 'absolute';
+    visual.style.left = '-10px';
+    visual.style.top = '-10px';
+    visual.style.width = '20px';
+    visual.style.height = '20px';
+    visual.style.borderRadius = '50%';
+    visual.style.background = 'var(--accent-light)';
+    visual.style.border = '3px solid #fff';
+    visual.style.opacity = '0.45';
+    el.appendChild(visual);
+
+    const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      .setLngLat(mapInstance.getCenter())
+      .addTo(mapInstance);
+    placementPreviewRef.current = marker;
+
+    const onMouseMove = (e) => {
+      marker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
+    };
+    mapInstance.on('mousemove', onMouseMove);
+    return () => {
+      mapInstance.off('mousemove', onMouseMove);
+      marker.remove();
+      if (placementPreviewRef.current === marker) placementPreviewRef.current = null;
+    };
+  }, [placementMode, markerCoords]);
+
+  // Click on the map places (or moves) the incident marker.
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+    const onClick = (e) => {
+      if (!placementModeRef.current) return;
+      if (mapModeRef.current === 'polygon') return; // drawing wins
+      if (e.originalEvent?.target?.closest('.maplibregl-marker')) return; // let marker clicks select
+      onPlacementClickRef.current?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    };
+    mapInstance.on('click', onClick);
+    return () => {
+      mapInstance.off('click', onClick);
+    };
+  }, []);
 
   // ─── Clear rubber band when polygon is closed (prevents stale line after undo) ───
   useEffect(() => {
@@ -1454,9 +1717,24 @@ const SuperadminMap = forwardRef(function SuperadminMap({
     if (!source) return;
     if (mapMode !== 'polygon') {
       rubberBandCoords.current = null;
+      circleCenterRef.current = null;
+      circleRadiusRef.current = 0;
+      circleDraggingRef.current = false;
+      circleLabelRef.current?.remove();
+      circleLabelRef.current = null;
       source.setData({ type: 'FeatureCollection', features: [] });
     }
   }, [mapMode, styleVersion]);
+
+  // Switching away from the circle tool discards any in-progress circle.
+  useEffect(() => {
+    if (drawTool === 'circle') return;
+    circleCenterRef.current = null;
+    circleRadiusRef.current = 0;
+    circleDraggingRef.current = false;
+    circleLabelRef.current?.remove();
+    circleLabelRef.current = null;
+  }, [drawTool]);
 
   // ─── Right-click context menu for drawing mode ───
   useEffect(() => {
@@ -1706,23 +1984,6 @@ const SuperadminMap = forwardRef(function SuperadminMap({
     };
   }, []);
 
-  // ─── Area calculator helper ───
-  const calculateDrawArea = () => {
-    if (drawVertices.length < 3) return 0;
-    const coords = isPolygonClosed
-      ? drawVertices
-      : drawVertices;
-    let area = 0;
-    for (let i = 0; i < coords.length; i++) {
-      const j = (i + 1) % coords.length;
-      area += coords[i][0] * coords[j][1];
-      area -= coords[j][0] * coords[i][1];
-    }
-    return Math.abs(area) / 2 * 111.32 * 111.32;
-  };
-
-  const drawAreaKm2 = mapMode === 'polygon' ? calculateDrawArea() : 0;
-
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
@@ -1734,46 +1995,6 @@ const SuperadminMap = forwardRef(function SuperadminMap({
         ghostZone={ghostZone}
         showZones={showZones}
       />
-
-      {/* Drawing area indicator */}
-      {mapMode === 'polygon' && drawVertices.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 20,
-            background: 'var(--bg-surface)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 16px',
-            fontSize: '12px',
-            color: 'var(--text-secondary)',
-            boxShadow: 'var(--shadow-lg)',
-            pointerEvents: 'none',
-          }}
-        >
-          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {drawVertices.length} vertex{drawVertices.length !== 1 ? 'es' : ''}
-          </span>
-          {drawVertices.length >= 3 && (
-            <span style={{ marginLeft: '12px' }}>
-              Area: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                {drawAreaKm2 < 1
-                  ? `~${(drawAreaKm2 * 100).toFixed(1)} ha`
-                  : drawAreaKm2 < 1000
-                    ? `~${drawAreaKm2.toFixed(1)} km²`
-                    : `~${(drawAreaKm2 / 1000).toFixed(1)}k km²`}
-              </span>
-            </span>
-          )}
-          <span style={{ marginLeft: '12px', color: 'var(--text-muted)', fontSize: '11px' }}>
-            {isPolygonClosed ? 'Polygon closed — click Save' : 'Double-click or click first vertex to close'}
-          </span>
-        </div>
-      )}
 
       <style>{`
         @keyframes marker-pulse {
