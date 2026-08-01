@@ -286,6 +286,26 @@ export default function MapPage() {
     setFilters((prev) => ({ ...prev, categoryId: cid || '' }));
   }, [searchParams]);
 
+  // ─── Open a rail drawer via ?drawer=<id> (e.g. profile-menu "Saved incidents"
+  // → /map?drawer=saved). Stripped after applying; unknown ids and 'saved'
+  // while signed out are ignored gracefully. ───
+  useEffect(() => {
+    const drawerParam = searchParams.get('drawer');
+    if (!drawerParam) return;
+    const publicDrawers = ['layers', 'incidents', 'active', 'activity', 'settings'];
+    if (publicDrawers.includes(drawerParam) || (drawerParam === 'saved' && isAuthenticated)) {
+      setActiveDrawer(drawerParam);
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('drawer');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [searchParams, isAuthenticated, setSearchParams]);
+
   // ─── Fetch point incidents and polygon zones with smart viewport filtering ───
   useEffect(() => {
     let cancelled = false;
@@ -1537,7 +1557,6 @@ export default function MapPage() {
             });
           }}
           isFocusMode={focusMode}
-          onOpenZones={() => setActiveDrawer((p) => (p === 'layers' ? null : 'layers'))}
           compactMode={compactMode}
         />
       )}

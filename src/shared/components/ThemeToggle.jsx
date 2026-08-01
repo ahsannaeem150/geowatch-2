@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../useTheme.js';
 
 export default function ThemeToggle({ size = 18 }) {
@@ -31,7 +32,38 @@ export default function ThemeToggle({ size = 18 }) {
         e.currentTarget.style.color = 'var(--text-secondary)';
       }}
     >
-      {theme === 'dark' ? <Sun size={size} /> : <Moon size={size} />}
+      {/* Fixed-size stage: the morph crossfades/rotates inside it, so the
+          button never changes size and nothing around it shifts. */}
+      <span
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: size,
+          height: size,
+          flexShrink: 0,
+        }}
+      >
+        <AnimatePresence initial={false}>
+          <motion.span
+            key={theme}
+            initial={{ opacity: 0, rotate: -90, scale: 0.4 }}
+            animate={{ opacity: 1, rotate: 0, scale: 1 }}
+            exit={{ opacity: 0, rotate: 90, scale: 0.4 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {theme === 'dark' ? <Sun size={size} /> : <Moon size={size} />}
+          </motion.span>
+        </AnimatePresence>
+      </span>
     </button>
   );
 }

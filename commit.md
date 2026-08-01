@@ -12428,3 +12428,13 @@ feat: port admin-web's placement mode (crosshair, hover preview, click-place/mov
 ## 📅 2026-08-01 — Module: superadmin-web — Date-control family port
 
 feat: port TopBarDateControl + TopBarModePill to superadmin-web (topbar center swap; slim labels at <1860px) and large-range gating in MapPage (31d / zoom 6, null→1970/2099 sentinels, points-only viewport refetch above gate, hint + counter chips; draw/placement paths untouched). verify-date-control-superadmin.mjs 21/21; regressions: smart-zoom 20/20, draw-tools 16/16, workspace 13/13; build green.
+
+
+## 📅 2026-08-01 — Module: user-web — Topbar/nav rework
+
+style: map topbar finalized — left is brand + Home/Map/About + ⌘K + Advanced (Zones Directory link removed); right cluster gains Incidents (List icon → /incidents) and the Zones button now navigates to /zones instead of opening the layers drawer (drawer stays on the rail's Layers icon; dead onOpenZones prop removed). Public Header nav back to Home/Map/About; Footer gains Incidents + Zones links. Build green.
+
+
+## 📅 2026-08-01 — Module: user-web — Topbar/nav polish batch
+
+style: Header nav absolutely centered (auth-independent); profile avatar menu rebuilt (accent-ring identity header, Saved incidents w/ count badge → /map?drawer=saved, danger sign-out, framer-motion open anim, outside-click/Escape); style picker → segmented control w/ layoutId sliding thumb; ThemeToggle sun/moon morph (shared, all apps); user-web global theme-melt transition; map topbar nav hidden by default — brand click staggered reveal + first-visit auto-peek w/ brand pulse (localStorage), pill cluster true-centered via balanced flex; MapPage ?drawer=<id> support (saved auth-gated, stripped). Verified 6/6 (scripts/check-topbar-polish-user.mjs) + date-control 24/24; builds green ×3.

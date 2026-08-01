@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Palette } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LogOut, Bookmark, ChevronDown } from 'lucide-react';
 import GoogleSignInButton from '../GoogleSignInButton/GoogleSignInButton.jsx';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { useStyle } from '@shared/useStyle.js';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
+import { api } from '../../services/api.js';
 
 const STYLES = [
   { key: 'tactical', label: 'Tac', short: 'T' },
@@ -13,12 +15,14 @@ const STYLES = [
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, login, logout, isAuthenticated, loading: authLoading } = usePublicAuth();
   const { style, setStyle } = useStyle();
   const [scrolled, setScrolled] = useState(false);
-  const [styleMenuOpen, setStyleMenuOpen] = useState(false);
-  const styleMenuRef = useRef(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileMenuRef = useRef(null);
   const [loginError, setLoginError] = useState('');
+  const [savedCount, setSavedCount] = useState(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,15 +32,44 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Saved-incident count for the profile menu badge (lightweight, public auth)
   useEffect(() => {
-    function handleClick(e) {
-      if (styleMenuRef.current && !styleMenuRef.current.contains(e.target)) {
-        setStyleMenuOpen(false);
-      }
+    if (!isAuthenticated) {
+      setSavedCount(null);
+      return;
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+    let cancelled = false;
+    api
+      .listSavedIncidents()
+      .then((res) => {
+        if (!cancelled) setSavedCount((res.data?.incidents || []).length);
+      })
+      .catch(() => {
+        if (!cancelled) setSavedCount(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
+  // Close the profile menu on outside click / Escape
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onDocDown = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [profileOpen]);
 
   const handleCredentialResponse = useCallback(
     async (response) => {
@@ -54,10 +87,43 @@ export default function Header() {
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/map', label: 'Map' },
-    { path: '/incidents', label: 'Incidents' },
-    { path: '/zones', label: 'Zones' },
     { path: '/about', label: 'About' },
   ];
+
+  const avatar = (size, ring = false) =>
+    user?.avatar_url ? (
+      <img
+        src={user.avatar_url}
+        alt={user.full_name || user.email}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          border: ring ? '2px solid var(--accent-subtle-border)' : '1px solid var(--border-subtle)',
+          boxShadow: ring ? '0 0 0 2px var(--accent-subtle-bg)' : 'none',
+        }}
+      />
+    ) : (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: 'var(--accent)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: size * 0.42,
+          fontWeight: 700,
+          color: 'var(--text-on-accent)',
+          border: ring ? '2px solid var(--accent-subtle-border)' : '1px solid var(--border-subtle)',
+          boxShadow: ring ? '0 0 0 2px var(--accent-subtle-bg)' : 'none',
+        }}
+      >
+        {(user?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+      </div>
+    );
 
   return (
     <header
@@ -101,8 +167,18 @@ export default function Header() {
         </span>
       </Link>
 
-      {/* Nav */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      {/* Nav — absolutely centered so unequal side-cluster widths (logged-in
+          vs logged-out) can't pull it off-center */}
+      <nav
+        style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}
+      >
         {navLinks.map((link) => {
           const isActive = location.pathname === link.path;
           return (
@@ -126,110 +202,84 @@ export default function Header() {
         })}
       </nav>
 
-      {/* Right: Style toggle + Theme toggle + Auth */}
+      {/* Right: Style picker + Theme toggle + Auth */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Style toggle */}
-        <div ref={styleMenuRef} style={{ position: 'relative' }}>
-          <button
-            onClick={() => setStyleMenuOpen(!styleMenuOpen)}
-            title="Interface style"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 10px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              textTransform: 'capitalize',
-              transition: 'all var(--transition-fast)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-hover)';
-              e.currentTarget.style.color = 'var(--text-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-subtle)';
-              e.currentTarget.style.color = 'var(--text-secondary)';
-            }}
-          >
-            <Palette size={14} />
-            <span>{STYLES.find((s) => s.key === style)?.label || style}</span>
-          </button>
-
-          {styleMenuOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                right: 0,
-                width: 140,
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: 'var(--shadow-lg)',
-                padding: '4px',
-                zIndex: 200,
-                animation: 'fade-in 0.15s ease forwards',
-              }}
-            >
-              {STYLES.map((s) => (
-                <button
-                  key={s.key}
-                  onClick={() => {
-                    setStyle(s.key);
-                    setStyleMenuOpen(false);
-                  }}
+        {/* Segmented style picker with sliding thumb */}
+        <div
+          role="radiogroup"
+          aria-label="Interface style"
+          title="Interface style"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: 2,
+            gap: 2,
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+          }}
+        >
+          {STYLES.map((s) => {
+            const active = style === s.key;
+            return (
+              <button
+                key={s.key}
+                role="radio"
+                aria-checked={active}
+                onClick={() => setStyle(s.key)}
+                title={`${s.label} interface`}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '4px 9px',
+                  border: 'none',
+                  borderRadius: 'calc(var(--radius-sm) - 2px)',
+                  background: 'transparent',
+                  color: active ? 'var(--accent-light)' : 'var(--text-muted)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'color 0.15s ease',
+                }}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="header-style-thumb"
+                    transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'var(--accent-subtle-bg)',
+                      border: '1px solid var(--accent-subtle-border)',
+                      borderRadius: 'calc(var(--radius-sm) - 2px)',
+                    }}
+                  />
+                )}
+                <span
                   style={{
-                    width: '100%',
+                    position: 'relative',
+                    width: 16,
+                    height: 16,
+                    borderRadius: 4,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: style === s.key ? 'var(--bg-hover)' : 'transparent',
-                    border: 'none',
-                    color: style === s.key ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)',
-                    textTransform: 'capitalize',
-                    transition: 'background var(--transition-fast)',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (style !== s.key) e.currentTarget.style.background = 'var(--bg-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (style !== s.key) e.currentTarget.style.background = 'transparent';
+                    justifyContent: 'center',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    background: active ? 'var(--accent)' : 'var(--bg-hover)',
+                    color: active ? 'var(--text-on-accent)' : 'var(--text-muted)',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <span
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: 4,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      background: style === s.key ? 'var(--accent)' : 'var(--bg-hover)',
-                      color: style === s.key ? 'var(--text-on-accent)' : 'var(--text-muted)',
-                    }}
-                  >
-                    {s.short}
-                  </span>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          )}
+                  {s.short}
+                </span>
+                <span style={{ position: 'relative' }}>{s.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         <ThemeToggle />
@@ -247,77 +297,195 @@ export default function Header() {
               }}
             />
           ) : isAuthenticated && user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {user.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt={user.full_name || user.email}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: 'var(--text-on-accent)',
-                  }}
-                >
-                  {(user.full_name || user.email).charAt(0).toUpperCase()}
-                </div>
-              )}
-              <span
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: 'var(--text-secondary)',
-                  maxWidth: '120px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {user.full_name || user.email}
-              </span>
+            <div ref={profileMenuRef} style={{ position: 'relative' }}>
               <button
-                onClick={logout}
-                title="Sign out"
+                onClick={() => setProfileOpen((p) => !p)}
+                aria-haspopup="menu"
+                aria-expanded={profileOpen}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '28px',
-                  height: '28px',
+                  gap: 8,
+                  padding: '3px 6px 3px 10px',
+                  background: profileOpen ? 'var(--bg-hover)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: profileOpen ? 'var(--border-default)' : 'transparent',
                   borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'transparent',
-                  color: 'var(--text-muted)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-hover)';
-                  e.currentTarget.style.color = 'var(--text-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = 'var(--text-muted)';
-                }}
               >
-                <LogOut size={14} />
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: 'var(--text-secondary)',
+                    maxWidth: '120px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.full_name || user.email}
+                </span>
+                <ChevronDown
+                  size={13}
+                  style={{
+                    color: 'var(--text-muted)',
+                    transition: 'transform 0.15s ease',
+                    transform: profileOpen ? 'rotate(180deg)' : 'none',
+                  }}
+                />
+                {avatar(28)}
               </button>
+
+              <AnimatePresence>
+                {profileOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92, y: -6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.92, y: -6 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    role="menu"
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      right: 0,
+                      transformOrigin: 'top right',
+                      width: 264,
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: 'var(--shadow-lg)',
+                      padding: 6,
+                      zIndex: 200,
+                    }}
+                  >
+                    {/* Identity header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 10px 12px' }}>
+                      {avatar(38, true)}
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {user.full_name || 'User'}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '11px',
+                            color: 'var(--text-muted)',
+                            marginTop: 2,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0 4px' }} />
+
+                    {/* Saved incidents */}
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        navigate('/map?drawer=saved');
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '9px 10px',
+                        marginTop: 4,
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'transparent',
+                        color: 'var(--text-secondary)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-sans)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--bg-hover)';
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }}
+                    >
+                      <Bookmark size={15} />
+                      <span style={{ flex: 1, textAlign: 'left' }}>Saved incidents</span>
+                      {savedCount !== null && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-mono)',
+                            color: 'var(--accent-light)',
+                            background: 'var(--accent-subtle-bg)',
+                            border: '1px solid var(--accent-subtle-border)',
+                            borderRadius: 'var(--radius-pill)',
+                            padding: '1px 7px',
+                          }}
+                        >
+                          {savedCount}
+                        </span>
+                      )}
+                    </button>
+
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '4px 4px 0' }} />
+
+                    {/* Sign out */}
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        logout?.();
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '9px 10px',
+                        marginTop: 4,
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'transparent',
+                        color: 'var(--danger)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-sans)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--alert-error-bg)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <LogOut size={15} />
+                      Sign out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <GoogleSignInButton onCredential={handleCredentialResponse} buttonWidth="160" />

@@ -64,6 +64,12 @@ export default function Footer() {
           <Link to="/map" style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
             Map
           </Link>
+          <Link to="/incidents" style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
+            Incidents
+          </Link>
+          <Link to="/zones" style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
+            Zones
+          </Link>
           <Link to="/about" style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
             About
           </Link>
