@@ -12438,3 +12438,8 @@ style: map topbar finalized — left is brand + Home/Map/About + ⌘K + Advanced
 ## 📅 2026-08-01 — Module: user-web — Topbar/nav polish batch
 
 style: Header nav absolutely centered (auth-independent); profile avatar menu rebuilt (accent-ring identity header, Saved incidents w/ count badge → /map?drawer=saved, danger sign-out, framer-motion open anim, outside-click/Escape); style picker → segmented control w/ layoutId sliding thumb; ThemeToggle sun/moon morph (shared, all apps); user-web global theme-melt transition; map topbar nav hidden by default — brand click staggered reveal + first-visit auto-peek w/ brand pulse (localStorage), pill cluster true-centered via balanced flex; MapPage ?drawer=<id> support (saved auth-gated, stripped). Verified 6/6 (scripts/check-topbar-polish-user.mjs) + date-control 24/24; builds green ×3.
+
+
+## 📅 2026-08-01 — Module: user-web/shared — Brand interaction + neumorphic theme switch
+
+style: map brand click now navigates home; nav reveals on hover (175ms intent, 250ms leave grace) and keyboard focus; pill cluster verified centered both states. ThemeToggle rebuilt as neumorphic switch — embossed token-driven track, spring thumb w/ icon crossfade, crimson glow (light) / blue-violet moon glow (dark), same props/size class; fits all 7 usage spots. Verified 7/7 (scripts/check-brand-nav-user.mjs); builds green ×3.

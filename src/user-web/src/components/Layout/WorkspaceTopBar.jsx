@@ -62,14 +62,44 @@ export default function WorkspaceTopBar({
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // ─── Collapsible public nav (hidden by default; brand click reveals) ───
+  // ─── Collapsible public nav (hidden by default; brand hover/focus reveals,
+  // brand click navigates home) ───
   const [navOpen, setNavOpen] = useState(false);
   const [brandPulse, setBrandPulse] = useState(false);
   const navClusterRef = useRef(null);
+  const revealTimerRef = useRef(null);
+  const hideTimerRef = useRef(null);
   const PEEK_KEY = 'geowatch_user_nav_peeked';
   const markPeeked = useCallback(() => {
     try { localStorage.setItem(PEEK_KEY, '1'); } catch {}
   }, []);
+
+  const clearNavTimers = useCallback(() => {
+    clearTimeout(revealTimerRef.current);
+    clearTimeout(hideTimerRef.current);
+  }, []);
+  useEffect(() => () => clearNavTimers(), [clearNavTimers]);
+
+  // Hover-intent reveal (~175ms so quick passes don't flicker); mouse-leave
+  // hides after a short grace period.
+  const revealNav = useCallback(() => {
+    markPeeked();
+    setBrandPulse(false);
+    clearNavTimers();
+    revealTimerRef.current = setTimeout(() => setNavOpen(true), 175);
+  }, [markPeeked, clearNavTimers]);
+
+  const scheduleHideNav = useCallback(() => {
+    clearTimeout(revealTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setNavOpen(false), 250);
+  }, []);
+
+  const revealNavNow = useCallback(() => {
+    markPeeked();
+    setBrandPulse(false);
+    clearNavTimers();
+    setNavOpen(true);
+  }, [markPeeked, clearNavTimers]);
 
   // First-visit auto-peek: pulse the brand, reveal the nav briefly, then hide
   // it and never auto-peek again. Any interaction ends the peek early.
@@ -103,12 +133,6 @@ export default function WorkspaceTopBar({
     document.addEventListener('mousedown', onDocDown);
     return () => document.removeEventListener('mousedown', onDocDown);
   }, [navOpen, markPeeked]);
-
-  const toggleNav = () => {
-    markPeeked();
-    setBrandPulse(false);
-    setNavOpen((o) => !o);
-  };
 
   const displayName = useMemo(() => getDisplayName(user), [user]);
   const initials = useMemo(() => getInitials(user), [user]);
@@ -165,11 +189,20 @@ export default function WorkspaceTopBar({
     >
       {/* Left: brand + nav + search (flex:1 so the center cluster stays centered) */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-        <div ref={navClusterRef} style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
+        <div
+          ref={navClusterRef}
+          style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}
+          onMouseEnter={revealNav}
+          onMouseLeave={scheduleHideNav}
+          onFocusCapture={revealNavNow}
+          onBlurCapture={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) scheduleHideNav();
+          }}
+        >
           <button
             type="button"
-            onClick={toggleNav}
-            title={navOpen ? 'Hide navigation' : 'Show navigation'}
+            onClick={() => navigate('/')}
+            title="GeoWatch home — hover for navigation"
             aria-expanded={navOpen}
             style={{
               display: 'flex',
@@ -213,7 +246,7 @@ export default function WorkspaceTopBar({
             </span>
           </button>
 
-          {/* Public nav links — hidden by default, staggered reveal on brand click */}
+          {/* Public nav links — hidden by default, staggered reveal on brand hover/focus */}
           <AnimatePresence>
             {navOpen && (
               <motion.nav

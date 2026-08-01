@@ -3,46 +3,104 @@ import { Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../useTheme.js';
 
+/**
+ * ThemeToggle — neumorphic animated theme switch (shared across all apps).
+ * Embossed pill track + raised thumb that slides with a spring; the thumb
+ * carries the active theme's icon with a soft glow (crimson accent in light
+ * mode, soft blue-violet in dark mode). All structural colors come from the
+ * design tokens so it adapts to every app/theme/interface-style; only the
+ * neutral shadow alphas and the dark-mode glow hue are literals.
+ */
 export default function ThemeToggle({ size = 18 }) {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const trackW = Math.round(size * 3); // 54px at size 18
+  const trackH = Math.round(size * 1.56); // 28px at size 18
+  const thumbD = trackH - 6;
+  const travel = trackW - thumbD - 6;
+  const sideIconSize = Math.round(size * 0.67);
+  const thumbIconSize = Math.round(size * 0.78);
+
+  // Owner-specified glow accents; everything else derives from tokens.
+  const glowColor = isDark ? '#a89bff' : 'var(--accent)';
+  const glowShadow = isDark ? 'rgba(168, 155, 255, 0.55)' : 'var(--accent-glow-strong)';
+
+  const trackShadow = isDark
+    ? 'inset 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 -1px 2px rgba(255, 255, 255, 0.05)'
+    : 'inset 0 1px 3px rgba(31, 20, 16, 0.2), inset 0 -1px 1px rgba(255, 255, 255, 0.75)';
+  const thumbShadow = isDark
+    ? '0 2px 5px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.1)'
+    : '0 1px 3px rgba(31, 20, 16, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.85)';
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-pressed={isDark}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '32px',
-        height: '32px',
-        borderRadius: 'var(--radius-sm)',
+        position: 'relative',
+        width: trackW,
+        height: trackH,
+        borderRadius: trackH,
         border: '1px solid var(--border-subtle)',
-        background: 'var(--bg-elevated)',
-        color: 'var(--text-secondary)',
+        background: 'var(--bg-input)',
+        boxShadow: trackShadow,
         cursor: 'pointer',
-        transition: 'all var(--transition-fast)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--bg-hover)';
-        e.currentTarget.style.color = 'var(--text-primary)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'var(--bg-elevated)';
-        e.currentTarget.style.color = 'var(--text-secondary)';
+        padding: 0,
+        flexShrink: 0,
+        transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >
-      {/* Fixed-size stage: the morph crossfades/rotates inside it, so the
-          button never changes size and nothing around it shifts. */}
+      {/* Side guide icons (the thumb covers the active one) */}
       <span
         style={{
-          position: 'relative',
+          position: 'absolute',
+          left: 5,
+          top: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          color: 'var(--text-muted)',
+          pointerEvents: 'none',
+        }}
+      >
+        <Sun size={sideIconSize} />
+      </span>
+      <span
+        style={{
+          position: 'absolute',
+          right: 5,
+          top: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          color: 'var(--text-muted)',
+          pointerEvents: 'none',
+        }}
+      >
+        <Moon size={sideIconSize} />
+      </span>
+
+      {/* Raised sliding thumb with the active icon */}
+      <motion.span
+        initial={false}
+        animate={{ x: isDark ? travel : 0 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: 3,
+          width: thumbD,
+          height: thumbD,
+          borderRadius: '50%',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-default)',
+          boxShadow: thumbShadow,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: size,
-          height: size,
-          flexShrink: 0,
         }}
       >
         <AnimatePresence initial={false}>
@@ -58,12 +116,14 @@ export default function ThemeToggle({ size = 18 }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              color: glowColor,
+              filter: `drop-shadow(0 0 3px ${glowShadow})`,
             }}
           >
-            {theme === 'dark' ? <Sun size={size} /> : <Moon size={size} />}
+            {isDark ? <Moon size={thumbIconSize} /> : <Sun size={thumbIconSize} />}
           </motion.span>
         </AnimatePresence>
-      </span>
+      </motion.span>
     </button>
   );
 }
