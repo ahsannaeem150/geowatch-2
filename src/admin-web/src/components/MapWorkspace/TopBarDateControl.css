@@ -1,0 +1,95 @@
+/* ─── TopBarDateControl — topbar date trigger (UI showcase) ───
+   Panel reuses the TableUI `tui-date-*` language (imported by the component);
+   only the trigger + placement + preview tag live here. */
+
+.tbd {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Trigger: topbar-button scale, but with a persistent accent tint so the
+   date feature reads as a primary control without competing with Add Incident */
+.tbd-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale));
+  font-size: calc(11px * var(--admin-ui-scale));
+  font-weight: 700;
+  font-family: var(--font-sans);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent-subtle-border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tbd-trigger:hover {
+  border-color: var(--accent-light);
+  color: var(--text-primary);
+}
+
+.tbd-trigger.open {
+  border-color: var(--accent-light);
+  color: var(--text-primary);
+}
+
+/* Non-default selection active */
+.tbd-trigger.active {
+  background: var(--accent-subtle-bg);
+  border-color: var(--accent-light);
+  color: var(--accent-light);
+}
+
+.tbd-icon {
+  color: var(--accent-light);
+  flex-shrink: 0;
+}
+
+.tbd-label {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tbd-caret {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.tbd-trigger.open .tbd-caret,
+.tbd-trigger.active .tbd-caret {
+  color: var(--accent-light);
+}
+
+.tbd-trigger.open .tbd-caret {
+  transform: rotate(180deg);
+}
+
+.tbd-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent-light);
+  box-shadow: 0 0 0 2px var(--accent-glow-strong);
+}
+
+/* Panel: right-aligned under the trigger so it never clips off-canvas */
+.tbd-panel {
+  left: auto;
+  right: 0;
+  animation: tbd-panel-in 120ms ease-out;
+}
+
+@keyframes tbd-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

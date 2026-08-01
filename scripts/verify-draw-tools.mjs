@@ -143,6 +143,9 @@ async function main() {
     toolBtns.pan === 1 && toolBtns.polygon === 1 && toolBtns.circle === 1 && undoDisabled && redoDisabled,
     `tools=${JSON.stringify(toolBtns)} undoDisabled=${undoDisabled} redoDisabled=${redoDisabled}`);
 
+  const toolbarRoot = page.locator('div[style*="translateX(-50%)"]', { has: page.getByText('Draw zone', { exact: true }) }).first();
+  const widthAtStart = await toolbarRoot.evaluate((el) => el.offsetWidth);
+
   // Polygon: 3 clicks → readout "3 vertices" + area; Ctrl+Z → 2
   await page.mouse.click(...Object.values(mapPoint(0.4, 0.4)));
   await page.waitForTimeout(300);
@@ -157,6 +160,12 @@ async function main() {
   check('polygon: 3 clicks → "3 vertices" + area readout + undo enabled',
     has3 && hasArea && undoEnabled,
     `readout="${readout3?.replace(/\s+/g, ' ').slice(0, 60)}" undoEnabled=${undoEnabled}`);
+
+  // Toolbar width must not change between empty and populated readout states.
+  const widthAfterReadout = await toolbarRoot.evaluate((el) => el.offsetWidth);
+  check('toolbar width stable across readout changes',
+    Math.abs(widthAfterReadout - widthAtStart) <= 2,
+    `width ${widthAtStart}→${widthAfterReadout}`);
 
   await page.keyboard.press('Control+z');
   await page.waitForTimeout(400);

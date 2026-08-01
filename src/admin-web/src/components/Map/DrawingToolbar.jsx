@@ -124,7 +124,21 @@ export default function DrawingToolbar({
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
               Draw zone
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: 1.3, marginTop: '1px' }}>
+            {/* Fixed ch width so the toolbar never resizes as the readout
+                changes ("Pick a tool to start" → "64 vertices · 43024.2k km²") */}
+            <div
+              style={{
+                fontSize: '10px',
+                color: 'var(--text-muted)',
+                lineHeight: 1.3,
+                marginTop: '1px',
+                width: '27ch',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textAlign: 'left',
+              }}
+            >
               {vertexCount > 0
                 ? `${vertexCount} ${vertexCount === 1 ? 'vertex' : 'vertices'}${areaText ? ` · ${areaText}` : ''}`
                 : 'Pick a tool to start'}
@@ -222,14 +236,19 @@ export default function DrawingToolbar({
         </div>
       </div>
 
-      {/* Hint line */}
+      {/* Hint line — fixed ch width (longest hint wins, no per-tool resize) */}
       <div
         style={{
           fontSize: '10px',
           color: 'var(--text-muted)',
-          textAlign: 'center',
+          textAlign: 'left',
           letterSpacing: '0.2px',
           paddingBottom: '2px',
+          width: '78ch',
+          maxWidth: '100%',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
         }}
       >
         {TOOL_HINTS[tool] || TOOL_HINTS.polygon}

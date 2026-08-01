@@ -12393,3 +12393,23 @@ feat: Add Incident now arms a map placement mode — crosshair, hover preview ma
 ## 📅 2026-07-31 — Module: admin-web — Drawing toolbar spacing fix + circle click-click finish fix
 
 fix: drawing toolbar 2.0 no longer cramped — wider container padding, 14px group gaps with dividers, comfortable tool/undo/save button sizing, no label truncation at 1280px. fix: circle tool state machine — the click trailing a drag-release finish re-armed a new circle (mouseup finished, then click saw empty center and set a new one); now drag-release finishes only on real pointer movement with a 350ms click-suppression window, and plain second click always finishes — both paths coexist with no re-arm. Verified 15/15 in scripts/verify-draw-tools.mjs (new no-rearm + drag-release checks).
+
+
+## 📅 2026-08-01 — Module: admin-web — Stable drawing toolbar width
+
+fix: drawing toolbar 2.0 no longer resizes as the readout/hint changes — vertex-count/area readout fixed at 27ch and the tool hint line at 78ch (nowrap, left-aligned, ellipsis overflow), so the container keeps a constant width across all tool states. Verified 16/16 in scripts/verify-draw-tools.mjs (new width-stability assertion: 873px in both empty and populated readout states).
+
+
+## 📅 2026-07-31 — Module: admin-web — Topbar date control showcase
+
+feat: replace admin topbar native date inputs + Today button with TopBarDateControl (UI showcase, local state only — filtering props accepted but unused; presets/single/custom-range popover in the TableUI date language, right-aligned panel, accent-tinted trigger for non-Today selections, slim-mode short labels, subtle "UI preview" tag + console.debug). LIVE pill position unchanged; topbar fit 1280/1920 ✓. Build green.
+
+
+## 📅 2026-08-01 — Module: admin-web — Wired topbar date control + large-range gating + clock
+
+feat: TopBarDateControl wired for real (Today → onResetToToday + live pill, others → onDateRangeChange, All time → unbounded; selection derived from dateRange prop; preview tag/debug removed). DashboardLayout gates ranges >31d or unbounded behind GATE_ZOOM 6 (zones always load; below gate no point fetch + centered hint chip; above gate viewport-bounded points). New TopBarClock (ticking local time, slim = time only); focus ring + panel animation on the date trigger. verify-date-control.mjs 16/16, verify-smart-zoom.mjs 20/20, build green.
+
+
+## 📅 2026-08-01 — Module: admin-web — Stateful mode pill (LIVE/HISTORIC)
+
+feat: merge LIVE pill + clock + historic state into TopBarModePill — live = pulsing dot + ticking clock inside the pill, historic = amber static dot + compact range label + Back-to-LIVE button (pill body clickable, T shortcut outside inputs). TopBarClock deleted; date trigger unchanged. verify-date-control.mjs extended to 25 checks (all green), smart-zoom 20/20, topbar fit 1280/1920 ✓, build green.

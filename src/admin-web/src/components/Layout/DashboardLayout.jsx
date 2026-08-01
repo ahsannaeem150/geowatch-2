@@ -116,6 +116,12 @@ function getZoneBounds(zone) {
   return [minLng, minLat, maxLng, maxLat];
 }
 
+// Flightradar-style large-range gating: date ranges spanning more than this
+// many days (or an unbounded "All time") only load point incidents once the
+// map is zoomed to GATE_ZOOM or closer; polygon zones always load.
+const LARGE_RANGE_DAYS = 31;
+const GATE_ZOOM = 6;
+
 export default function DashboardLayout() {
   // Use local timezone date, not UTC
   const now = new Date();
@@ -680,6 +686,27 @@ export default function DashboardLayout() {
   const viewportBoundsRef = useRef(null);
   const viewportFilteringRef = useRef(null);
 
+  // ─── Large-range gating (flightradar-style) ───
+  // Ranges > LARGE_RANGE_DAYS or unbounded ("All time") withhold point
+  // incidents below GATE_ZOOM; polygons always load. Crossing the gate zoom
+  // re-evaluates via the main fetch effect (isRangeGated dependency).
+  const [mapZoom, setMapZoom] = useState(null);
+  const isUnboundedRange = !dateRange.from || !dateRange.to;
+  const rangeDayCount = isUnboundedRange
+    ? Infinity
+    : Math.floor(
+        (new Date(`${dateRange.to}T00:00:00`) - new Date(`${dateRange.from}T00:00:00`)) / 86400000
+      ) + 1;
+  const isLargeRange = isUnboundedRange || rangeDayCount > LARGE_RANGE_DAYS;
+  const isRangeGated = isLargeRange && !(mapZoom >= GATE_ZOOM);
+  const isLargeRangeRef = useRef(isLargeRange);
+  useEffect(() => {
+    isLargeRangeRef.current = isLargeRange;
+  }, [isLargeRange]);
+
+  // Live mode = the map shows exactly today (drives the topbar LIVE pill)
+  const isLiveMode = dateRange.from === today && dateRange.to === today;
+
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
@@ -775,8 +802,41 @@ export default function DashboardLayout() {
       const baseParams = {};
       if (activeDomainFilter) baseParams.categoryId = ''; // domain filter is client-side for now
 
+      // Unbounded "All time" translates to a maximally wide overlap window —
+      // the list endpoint applies a default "visible today" window when no
+      // date params are sent, so nulls must never reach it.
+      const effFrom = dateRange.from || '1970-01-01';
+      const effTo = dateRange.to || '2099-12-31';
+
+      // ─── Large-range mode (flightradar-style gating) ───
+      if (isLargeRange) {
+        // Polygon zones always load — few and needed for context
+        const zonesRes = await api.getIncidents({ dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' });
+        if (cancelled) return;
+        const zones = zonesRes.data.incidents;
+
+        if (isRangeGated) {
+          // Below the gate zoom: withhold point incidents entirely
+          setEvents(zones);
+          setTotalEventCount(0);
+          setViewportFiltering(false);
+          viewportFilteringRef.current = 'gated';
+        } else {
+          // At/above the gate zoom: viewport-bounded points + global zones
+          setViewportFiltering(true);
+          viewportFilteringRef.current = true;
+          const params = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point' };
+          if (viewportBoundsRef.current) params.viewport = viewportBoundsRef.current;
+          const pointsRes = await api.getIncidents(params);
+          if (cancelled) return;
+          setEvents([...pointsRes.data.incidents, ...zones]);
+          setTotalEventCount(pointsRes.data.count);
+        }
+        return;
+      }
+
       // Step 1: Fetch without viewport to count total incidents for this date range
-      const params1 = { dateFrom: dateRange.from, dateTo: dateRange.to, ...baseParams };
+      const params1 = { dateFrom: effFrom, dateTo: effTo, ...baseParams };
       const res1 = await api.getIncidents(params1);
 
       if (cancelled) return;
@@ -792,8 +852,8 @@ export default function DashboardLayout() {
 
         if (viewportBoundsRef.current) {
           const params2 = {
-            dateFrom: dateRange.from,
-            dateTo: dateRange.to,
+            dateFrom: effFrom,
+            dateTo: effTo,
             viewport: viewportBoundsRef.current,
             ...baseParams,
           };
@@ -812,7 +872,7 @@ export default function DashboardLayout() {
     return () => {
       cancelled = true;
     };
-  }, [dateRange.from, dateRange.to, refreshKey, activeDomainFilter]);
+  }, [dateRange.from, dateRange.to, refreshKey, activeDomainFilter, isLargeRange, isRangeGated]);
 
   // ─── Handle zone focus from ZonesPage or ?zone=<id> deep-link ───
   useEffect(() => {
@@ -1077,6 +1137,7 @@ export default function DashboardLayout() {
     viewportBoundsRef.current = bounds;
 
     if (center && Number.isFinite(zoom)) {
+      setMapZoom(zoom);
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -1090,17 +1151,33 @@ export default function DashboardLayout() {
     }
 
     if (viewportFilteringRef.current === true) {
-      const params = {
-        dateFrom: dateRange.from,
-        dateTo: dateRange.to,
-        viewport: bounds,
-      };
-      api.getIncidents(params)
-        .then((res) => {
-          setEvents(res.data.incidents);
-          setTotalEventCount(res.data.count);
-        })
-        .catch(() => setEvents([]));
+      const effFrom = dateRange.from || '1970-01-01';
+      const effTo = dateRange.to || '2099-12-31';
+
+      if (isLargeRangeRef.current) {
+        // Large ranges: points-only viewport refetch; zones stay global
+        api.getIncidents({ dateFrom: effFrom, dateTo: effTo, viewport: bounds, geometryType: 'point' })
+          .then((res) => {
+            setEvents((prev) => [
+              ...res.data.incidents,
+              ...prev.filter((i) => i.geometry_type === 'polygon'),
+            ]);
+            setTotalEventCount(res.data.count);
+          })
+          .catch(() => {});
+      } else {
+        const params = {
+          dateFrom: effFrom,
+          dateTo: effTo,
+          viewport: bounds,
+        };
+        api.getIncidents(params)
+          .then((res) => {
+            setEvents(res.data.incidents);
+            setTotalEventCount(res.data.count);
+          })
+          .catch(() => setEvents([]));
+      }
     }
   }, [dateRange.from, dateRange.to, closeMapMenu, setSearchParams]);
 
@@ -2887,6 +2964,7 @@ export default function DashboardLayout() {
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
           onResetToToday={handleResetToToday}
+          isLiveMode={isLiveMode}
           onOpenSearch={() => setSearchModalOpen(true)}
           onOpenAdvancedSearch={() => setPowerSearchMode(true)}
           activeCount={activeIncidentCount}
@@ -3332,8 +3410,50 @@ export default function DashboardLayout() {
                   : `${totalEventCount} total incidents match this date range — zoom or pan to explore`}
               </div>
             )}
+            {isRangeGated && (
+              <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '4px' }}>
+                zoom in to load incidents
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Large-range gate hint — point incidents withheld below the gate zoom */}
+        {isRangeGated && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: 'var(--bg-surface)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '8px 14px',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: 'var(--shadow-md)',
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'var(--warning)',
+                flexShrink: 0,
+              }}
+            />
+            Zoom in to load incidents for this range
+          </div>
+        )}
 
         {/* Right Panel — 630px absolute overlay that slides in with transform */}
         {rightPanelRendered && (
