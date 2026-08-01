@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Shield,
@@ -27,11 +27,11 @@ import {
   Navigation,
   HelpCircle,
 } from 'lucide-react';
-import { api } from '../../services/api.js';
 import FadeIn from './FadeIn.jsx';
 import { Skeleton } from '@shared/components/Skeleton.jsx';
 import { useTheme } from '@shared/useTheme.js';
 import { getDomainColor, getDomainCardColors } from '@shared/utils/themeColors.js';
+import { useHomeData } from '../../hooks/useHomeData.js';
 
 const ICON_MAP = {
   shield: Shield,
@@ -107,51 +107,8 @@ function CategorySkeleton() {
 
 export default function CategoryGrid() {
   const { theme } = useTheme();
-  const [domains, setDomains] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [incidentCounts, setIncidentCounts] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchDomains = api.getDomains().catch((err) => {
-      console.error('CategoryGrid: failed to fetch domains', err);
-      return { data: { domains: [] } };
-    });
-
-    const fetchCategories = api.getCategories().catch((err) => {
-      console.error('CategoryGrid: failed to fetch categories', err);
-      return { data: { categories: [] } };
-    });
-
-    const fetchIncidents = api.getIncidents({ status: 'active' }).catch((err) => {
-      console.error('CategoryGrid: failed to fetch incidents', err);
-      return { data: { incidents: [] } };
-    });
-
-    Promise.all([fetchDomains, fetchCategories, fetchIncidents])
-      .then(([domainsRes, categoriesRes, incidentsRes]) => {
-        const doms = domainsRes.data?.domains || [];
-        const cats = categoriesRes.data?.categories || [];
-        const incidents = incidentsRes.data?.incidents || [];
-
-        // Count incidents per domain
-        const counts = {};
-        incidents.forEach((inc) => {
-          const cat = cats.find((c) => c.id === inc.category_id);
-          if (cat) {
-            counts[cat.domain_id] = (counts[cat.domain_id] || 0) + 1;
-          }
-        });
-
-        setDomains(doms);
-        setCategories(cats);
-        setIncidentCounts(counts);
-      })
-      .catch((err) => {
-        console.error('CategoryGrid: unexpected error', err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  // One consolidated fetch feeds every home section (see useHomeData)
+  const { domains, categories, domainCounts: incidentCounts, loading } = useHomeData();
 
   if (loading) {
     return <CategorySkeleton />;

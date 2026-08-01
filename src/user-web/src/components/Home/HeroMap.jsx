@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { api } from '../../services/api.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getIncidentDomainColor } from '@shared/utils/themeColors.js';
 import { useReducedMotion } from '@shared/hooks/useReducedMotion.js';
+import { useHomeData } from '../../hooks/useHomeData.js';
 
 function getMapStyleUrl() {
   return document.documentElement.getAttribute('data-theme') === 'light'
@@ -12,28 +12,24 @@ function getMapStyleUrl() {
     : '/map-style-dark.json';
 }
 
+function formatHudCoord(lat, lng) {
+  const latStr = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}`;
+  const lngStr = `${Math.abs(lng).toFixed(2)}°${lng >= 0 ? 'E' : 'W'}`;
+  return `${latStr} ${lngStr}`;
+}
+
 export default function HeroMap() {
   const { theme } = useTheme();
   const reducedMotion = useReducedMotion();
+  // One consolidated fetch feeds every home section (see useHomeData)
+  const { activeIncidents: incidents } = useHomeData();
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markersRef = useRef([]);
   const driftFrameRef = useRef(null);
-  const [incidents, setIncidents] = useState([]);
+  const hudThrottleRef = useRef(0);
+  const [hud, setHud] = useState(null);
   const [mapTheme, setMapTheme] = useState(document.documentElement.getAttribute('data-theme') || 'dark');
-
-  // Fetch active incidents
-  useEffect(() => {
-    api
-      .getIncidents({ status: 'active' })
-      .then((res) => {
-        const data = res.data || {};
-        setIncidents(data.incidents || []);
-      })
-      .catch((err) => {
-        console.error('HeroMap: failed to fetch incidents', err);
-      });
-  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -54,7 +50,35 @@ export default function HeroMap() {
 
     map.current = mapInstance;
 
+    // HUD readout — map center coords + incidents in the visible bounds,
+    // throttled to ~4Hz. The HUD only ticks while the map actually moves, so
+    // it goes quiet with the drift when reduced motion is on.
+    const updateHud = () => {
+      const c = mapInstance.getCenter();
+      const b = mapInstance.getBounds();
+      const inView = incidents.filter((i) => {
+        const lat = parseFloat(i.latitude);
+        const lng = parseFloat(i.longitude);
+        return (
+          Number.isFinite(lat) &&
+          Number.isFinite(lng) &&
+          lng >= b.getWest() &&
+          lng <= b.getEast() &&
+          lat >= b.getSouth() &&
+          lat <= b.getNorth()
+        );
+      }).length;
+      setHud({ lat: c.lat, lng: c.lng, inView });
+    };
+    mapInstance.on('move', () => {
+      const now = Date.now();
+      if (now - hudThrottleRef.current < 250) return;
+      hudThrottleRef.current = now;
+      updateHud();
+    });
+
     mapInstance.on('load', () => {
+      updateHud();
       // Add incident markers
       incidents.forEach((incident) => {
         const lat = parseFloat(incident.latitude);
@@ -172,15 +196,25 @@ export default function HeroMap() {
   }, [mapTheme]);
 
   return (
-    <div
-      ref={mapContainer}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 0,
-        width: '100%',
-        height: '100%',
-      }}
-    />
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 0,
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      </div>
+      {hud && (
+        <div className="home-hero-hud">
+          <span>{formatHudCoord(hud.lat, hud.lng)}</span>
+          <span className="home-hero-hud__sep" />
+          <span>{hud.inView} IN VIEW</span>
+        </div>
+      )}
+    </>
   );
 }

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import HeroSection from '../components/Home/HeroSection.jsx';
 import StatsSection from '../components/Home/StatsSection.jsx';
 import CategoryGrid from '../components/Home/CategoryGrid.jsx';
 import FeaturedEvents from '../components/Home/FeaturedEvents.jsx';
 import NewsTicker from '../components/Home/NewsTicker.jsx';
 import BootSequence from '../components/Home/BootSequence.jsx';
-import { api } from '../services/api.js';
+import { useHomeData } from '../hooks/useHomeData.js';
 import './HomePage.css';
 
 function SectionDivider() {
@@ -21,19 +21,16 @@ export default function HomePage() {
     // Only show boot sequence on first visit per session
     return !sessionStorage.getItem('geowatch_booted');
   });
-  const [tickerIncidents, setTickerIncidents] = useState([]);
 
-  useEffect(() => {
-    // Fetch incidents for the news ticker
-    api
-      .getIncidents({ status: 'active' })
-      .then((res) => {
-        const active = res.data.incidents || [];
-        active.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
-        setTickerIncidents(active.slice(0, 10));
-      })
-      .catch(() => setTickerIncidents([]));
-  }, []);
+  // One consolidated fetch feeds every home section (see useHomeData)
+  const { activeIncidents } = useHomeData();
+  const tickerIncidents = useMemo(
+    () =>
+      [...activeIncidents]
+        .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
+        .slice(0, 10),
+    [activeIncidents]
+  );
 
   const handleBootComplete = () => {
     sessionStorage.setItem('geowatch_booted', 'true');

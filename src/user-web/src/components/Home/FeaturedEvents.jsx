@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, AlertCircle } from 'lucide-react';
-import { api } from '../../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { Skeleton } from '@shared/components/Skeleton.jsx';
 import FadeIn from './FadeIn.jsx';
 import { useTheme } from '@shared/useTheme.js';
 import { getIncidentDomainColor } from '@shared/utils/themeColors.js';
+import { useHomeData } from '../../hooks/useHomeData.js';
 import { format } from 'date-fns';
 
 function EventSkeleton() {
@@ -61,28 +61,18 @@ const SEVERITY_COLORS = {
 
 export default function FeaturedEvents() {
   const { theme } = useTheme();
-  const [incidents, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    api
-      .getIncidents({ status: 'active' })
-      .then((res) => {
-        const data = res.data || {};
-        const active = data.incidents || [];
-        active.sort((a, b) => {
+  // One consolidated fetch feeds every home section (see useHomeData)
+  const { activeIncidents, loading, error } = useHomeData();
+  const incidents = useMemo(
+    () =>
+      [...activeIncidents]
+        .sort((a, b) => {
           if (b.severity !== a.severity) return b.severity - a.severity;
           return new Date(b.start_date) - new Date(a.start_date);
-        });
-        setEvents(active.slice(0, 6));
-      })
-      .catch((err) => {
-        console.error('FeaturedEvents: failed to fetch incidents', err);
-        setError(err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+        })
+        .slice(0, 6),
+    [activeIncidents]
+  );
 
   if (loading) {
     return <EventSkeleton />;

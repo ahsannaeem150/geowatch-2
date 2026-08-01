@@ -1,117 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../../services/api.js';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useHomeData } from '../../hooks/useHomeData.js';
 import { useCountUp } from './useCountUp.js';
 import { useInView } from './useInView.js';
-import FadeIn from './FadeIn.jsx';
+import { useReducedMotion } from '@shared/hooks/useReducedMotion.js';
+import { Skeleton } from '@shared/components/Skeleton.jsx';
 
-function StatCard({ value, label, color, delay }) {
+const EASE = [0.16, 1, 0.3, 1];
+
+function LedgerCell({ value, label, color, delay }) {
   const { ref, isInView } = useInView();
   const count = useCountUp(value, 1400, isInView);
+  const reduced = useReducedMotion();
 
-  return (
-    <FadeIn delay={delay}>
-      <div
-        ref={ref}
-        className="home-stat-card"
-        style={{ color }}
-      >
-        <div className="home-stat-card__value">{count.toLocaleString()}</div>
-        <div className="home-stat-card__label" style={{ color: 'var(--text-secondary)' }}>
-          {label}
-        </div>
+  const inner = (
+    <div ref={ref}>
+      <div className="home-ledger__value">{count.toLocaleString()}</div>
+      <div className="home-ledger__label">
+        <span className="home-ledger__tick" style={{ background: color }} />
+        {label}
       </div>
-    </FadeIn>
-  );
-}
-
-function StatSkeleton() {
-  return (
-    <div className="home-skeleton-grid">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="home-skeleton-card">
-          <div className="home-skeleton-card__number" />
-          <div className="home-skeleton-card__label" />
-        </div>
-      ))}
     </div>
+  );
+
+  if (reduced) {
+    return <div className="home-ledger__cell">{inner}</div>;
+  }
+  return (
+    <motion.div
+      className="home-ledger__cell"
+      initial={{ opacity: 0, y: 14 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.5, delay, ease: EASE }}
+    >
+      {inner}
+    </motion.div>
   );
 }
 
 export default function StatsSection() {
-  const [stats, setStats] = useState({ active: 0, today: 0, countries: 0, sources: 0 });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-
-    const fetchActive = api.getIncidents({ status: 'active' }).catch((err) => {
-      console.error('Stats: failed to fetch active incidents', err);
-      return { data: { incidents: [], count: 0 } };
-    });
-
-    const fetchToday = api.getIncidents({ dateFrom: today, dateTo: today }).catch((err) => {
-      console.error('Stats: failed to fetch today incidents', err);
-      return { data: { incidents: [], count: 0 } };
-    });
-
-    const fetchAll = api.getIncidents({}).catch((err) => {
-      console.error('Stats: failed to fetch all incidents', err);
-      return { data: { incidents: [], count: 0 } };
-    });
-
-    Promise.all([fetchActive, fetchToday, fetchAll])
-      .then(([activeRes, todayRes, allRes]) => {
-        const activeData = activeRes.data || {};
-        const todayData = todayRes.data || {};
-        const allData = allRes.data || {};
-
-        const incidents = allData.incidents || [];
-        const countries = new Set(
-          incidents
-            .map((i) => i.location_context?.split(',').pop()?.trim())
-            .filter(Boolean)
-        ).size;
-
-        const sourceNames = new Set(
-          incidents.map((i) => i.source_name).filter(Boolean)
-        );
-
-        setStats({
-          active: activeData.count ?? activeData.incidents?.length ?? 0,
-          today: todayData.count ?? todayData.incidents?.length ?? 0,
-          countries: countries || 0,
-          sources: sourceNames.size || 0,
-        });
-      })
-      .catch((err) => {
-        console.error('Stats: unexpected error', err);
-        setStats({ active: 0, today: 0, countries: 0, sources: 0 });
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <section className="home-stats">
-        <StatSkeleton />
-      </section>
-    );
-  }
+  const { stats, loading } = useHomeData();
+  const reduced = useReducedMotion();
 
   const items = [
     { label: 'Active Events', value: stats.active, color: 'var(--danger)', delay: 0 },
-    { label: 'Events Today', value: stats.today, color: 'var(--success)', delay: 100 },
-    { label: 'Countries Monitored', value: stats.countries, color: 'var(--info)', delay: 200 },
-    { label: 'Data Sources', value: stats.sources, color: 'var(--warning)', delay: 300 },
+    { label: 'Events Today', value: stats.today, color: 'var(--success)', delay: 0.07 },
+    { label: 'Countries Monitored', value: stats.countries, color: 'var(--info)', delay: 0.14 },
+    { label: 'Data Sources', value: stats.sources, color: 'var(--warning)', delay: 0.21 },
   ];
+
+  const band = (
+    <div className="home-ledger">
+      {loading
+        ? [0, 1, 2, 3].map((i) => (
+            <div key={i} className="home-ledger__cell">
+              <Skeleton width="52%" height="30px" style={{ marginBottom: '10px' }} />
+              <Skeleton width="70%" height="11px" />
+            </div>
+          ))
+        : items.map((item) => <LedgerCell key={item.label} {...item} />)}
+    </div>
+  );
 
   return (
     <section className="home-stats">
-      <div className="home-stats__grid">
-        {items.map((item) => (
-          <StatCard key={item.label} {...item} />
-        ))}
-      </div>
+      {reduced ? (
+        band
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.55, ease: EASE }}
+        >
+          {band}
+        </motion.div>
+      )}
     </section>
   );
 }

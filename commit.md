@@ -12530,3 +12530,17 @@ style: bring the opt1/id detail package to the workspace chrome language — sol
 ## 📅 2026-08-01 — Module: shared — Light-theme hero + border fixes
 
 fix: incident hero white band in light mode — old [data-theme=light] override painted meta items rgba(255,255,255,.82) over the dark banner; deleted it and re-pinned surface/text custom properties to dark values inside .opt1-hero scope (media zone stays dark in both themes, YouTube pattern). Light borders strengthened: subtle #e5e7eb→#d1d5db, default #d1d5db→#c3c9d1, hover→#b6bcc6; shared --border-strong defined (dark #34343a, light #b6bcc6 — was undefined outside superadmin). Builds green ×3.
+
+
+## 📅 2026-08-01 — Module: user-web — Home hero HUD + headline restraint (#13)
+
+style: hero map gains an instrument HUD (bottom-right mono readout: live 2-dec center coords ticking with the drift + N IN VIEW from visible bounds, 250ms throttle, quiet under reduced-motion); headline drops the crimson gradient + drop-shadow glow for solid near-white and eases tracking -3.5px → -1.75px. Verified in scripts/check-home-polish.mjs (10/10).
+
+
+## 📅 2026-08-01 — Module: user-web — Stats ledger band + home fetch consolidation (#14)
+
+feat: 4 SaaS stat cards replaced by one hairline-ruled ledger band (1px column rules, mono tabular count-up, small-caps labels, no cards/shadows/radius, fm reveal guarded by reduced-motion); new useHomeData hook consolidates home fetching to ONE getIncidents call (+domains/categories) feeding ticker/hero map/stats/category grid/featured events with identical derivations — network calls on load: 6 → 1. Build green.
+
+## 📅 2026-08-01 — Module: user-web — Hero HUD dark-mode visibility
+
+fix: hero HUD invisible in dark mode — three stacked causes fixed: theme-glass chip → always-dark overlay chip; hero 100dvh below 56px header pushed HUD below the fold (now calc(100dvh - topbar-height)); HUD was trapped in the z-0 map wrapper under the z-1 vignette (now hoisted to hero level).
