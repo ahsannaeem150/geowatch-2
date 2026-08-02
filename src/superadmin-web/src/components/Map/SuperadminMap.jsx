@@ -207,6 +207,9 @@ const SuperadminMap = forwardRef(function SuperadminMap({
   const selectedDrawVertexIndexRef = useRef(selectedDrawVertexIndex);
   const hoveredDrawVertexIndexRef = useRef(hoveredDrawVertexIndex);
   const markerClickedRef = useRef(false);
+  // Latest zone click callback for the once-bound delegated map click handler
+  const onZoneClickRef = useRef(onZoneClick);
+  onZoneClickRef.current = onZoneClick;
   onDrawVertexSelectRef.current = onDrawVertexSelect;
   onDrawVertexMoveRef.current = onDrawVertexMove;
   onDrawVertexDragEndRef.current = onDrawVertexDragEnd;
@@ -1162,7 +1165,7 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       if (topFeature) {
         const zoneId = String(topFeature.id || topFeature.properties?.id);
         if (zoneId && zoneId !== 'undefined') {
-          onZoneClick?.(zoneId);
+          onZoneClickRef.current?.(zoneId);
         }
       }
     };
@@ -1174,7 +1177,9 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       mapInstance.off('mousemove', onMouseMove);
       mapInstance.off('click', onClick);
     };
-  }, [onZoneClick]);
+    // Bind once for the map's lifetime — the handler reads the latest zone
+    // click callback via onZoneClickRef, so zone-set changes never churn it.
+  }, []);
 
   // ─── Update edit zone sources when editing ───
   useEffect(() => {

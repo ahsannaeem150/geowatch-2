@@ -154,6 +154,15 @@ export default function MapPage() {
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
   const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
   const [showZones, setShowZones] = useState(true);
+  const zoneSlugsInitializedRef = useRef(false);
+
+  // Zones default to visible: all categories switched ON once the taxonomy
+  // loads; afterwards the user's drawer toggles own the state (no persistence).
+  useEffect(() => {
+    if (zoneSlugsInitializedRef.current || zoneCategories.length === 0) return;
+    zoneSlugsInitializedRef.current = true;
+    setActiveZoneSlugs(new Set(zoneCategories.map((z) => z.slug).filter(Boolean)));
+  }, [zoneCategories]);
 
   // ─── Layout state ───
   const [activeDrawer, setActiveDrawer] = useState(null);
@@ -354,7 +363,7 @@ export default function MapPage() {
         return;
       }
 
-      const pointParams = { dateFrom: effFrom, dateTo: effTo, ...baseParams };
+      const pointParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point', ...baseParams };
       const zoneParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' };
 
       const [pointRes, zoneRes] = await Promise.all([
@@ -655,6 +664,7 @@ export default function MapPage() {
         const pointParams = {
           dateFrom: effFrom,
           dateTo: effTo,
+          geometryType: 'point',
           viewport: bounds,
         };
         if (filters.categoryId) pointParams.categoryId = filters.categoryId;
@@ -1945,7 +1955,10 @@ export default function MapPage() {
                     timeline={detail.timeline}
                     mode="user"
                     onBack={handleBack}
-                    onFullDetails={handleNavigateToFullPage}
+                    // The shared sidebar invokes this with the click event, so
+                    // wrap it — handleNavigateToFullPage expects the zone id
+                    // (incident sidebar passes the id itself).
+                    onFullDetails={() => handleNavigateToFullPage(selectedIncident?.id)}
                     onShare={async () => {
                       try {
                         await navigator.clipboard.writeText(`${window.location.origin}/zone/${selectedIncident?.id}`);

@@ -12544,3 +12544,23 @@ feat: 4 SaaS stat cards replaced by one hairline-ruled ledger band (1px column r
 ## 📅 2026-08-01 — Module: user-web — Hero HUD dark-mode visibility
 
 fix: hero HUD invisible in dark mode — three stacked causes fixed: theme-glass chip → always-dark overlay chip; hero 100dvh below 56px header pushed HUD below the fold (now calc(100dvh - topbar-height)); HUD was trapped in the z-0 map wrapper under the z-1 vignette (now hoisted to hero level).
+
+
+## 📅 2026-08-01 — Module: user-web map — Zone click robustness + dedupe
+
+fix: zone hover/click rebound per zone-set change (stale-closure class) → single delegated map binding reading zonesRef at event time (UserMap; AdminMap/SuperadminMap converted to once-bound refs for consistency). Also fixed zone duplication in user-web incidents state — the point query lacked geometryType so polygons arrived twice. Verified in scripts/check-zone-map-fixes.mjs (10/10) + smart-zoom 15/15.
+
+
+## 📅 2026-08-01 — Module: user-web map — Zones default-visible
+
+feat: zone overlays now default ON — all zone categories active once the taxonomy loads (one-time init guard; drawer toggles own the state afterwards, no persistence). Build green.
+
+
+## 📅 2026-08-01 — Module: user-web map — Zone sidebar Full-details fix
+
+fix: ZoneDetailSidebar "Full details" invoked the raw handler with the click event as the id (admin/superadmin use no-arg handlers, unaffected) — MapPage now passes a wrapper with the selected zone id; navigation to /zone/:id works.
+
+
+## 📅 2026-08-01 — Module: user-web map — Zone detail Back restores context
+
+fix: zone Back flow verified end-to-end with the extended return-view (bug was upstream: the broken Full-details never saved a valid payload) — Back from /zone/:id restores historic date range and reopens the zone panel (10/10 in scripts/check-zone-map-fixes.mjs).

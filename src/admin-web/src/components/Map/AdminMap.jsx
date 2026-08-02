@@ -1180,7 +1180,9 @@ const AdminMap = forwardRef(function AdminMap({
       mapInstance.off('mousemove', onMouseMove);
       mapInstance.off('click', onClick);
     };
-  }, [onZoneClick]);
+    // Bind once for the map's lifetime — the handler reads the latest zone
+    // click callback via onZoneClickRef, so zone-set changes never churn it.
+  }, []);
 
   // ─── Update edit zone sources when editing ───
   useEffect(() => {

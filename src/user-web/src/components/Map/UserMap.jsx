@@ -525,6 +525,9 @@ const UserMap = forwardRef(function UserMap({
 
   // Zone hover and click interactions
   // The invisible `zone-hit` layer is queried; visuals are rendered by ZoneSvgOverlay.
+  // ONE delegated binding for the map's lifetime — reads the current zones from
+  // zonesRef at event time, so zone-set changes (show-all, refetch, power
+  // search) never leave a stale or dead binding behind.
   useEffect(() => {
     if (!map.current) return;
     const mapInstance = map.current;
@@ -533,16 +536,17 @@ const UserMap = forwardRef(function UserMap({
 
     const layersReady = () => mapInstance.getLayer('zone-hit');
 
-    const onMouseMove = (e) => {
-      if (!layersReady()) return;
-      let features = [];
+    const queryZonesAt = (point) => {
+      if (!layersReady()) return [];
       try {
-        features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
+        return mapInstance.queryRenderedFeatures(point, { layers: zoneLayers });
       } catch {
-        return;
+        return [];
       }
+    };
 
-      const topFeature = smallestZoneFeature(features);
+    const onMouseMove = (e) => {
+      const topFeature = smallestZoneFeature(queryZonesAt(e.point));
       if (topFeature) {
         const featureId = String(topFeature.id);
         if (currentHoverId !== featureId) {
@@ -562,17 +566,10 @@ const UserMap = forwardRef(function UserMap({
     const onClick = (e) => {
       // Ignore clicks that originated on a point marker so incidents inside zones open first
       if (e.originalEvent?.target?.closest('.maplibregl-marker')) return;
-      if (!layersReady()) return;
-      let features = [];
-      try {
-        features = mapInstance.queryRenderedFeatures(e.point, { layers: zoneLayers });
-      } catch {
-        return;
-      }
-      const topFeature = smallestZoneFeature(features);
+      const topFeature = smallestZoneFeature(queryZonesAt(e.point));
       if (topFeature) {
         const zoneId = String(topFeature.id || topFeature.properties?.id);
-        const zone = zones.find((z) => String(z.id) === zoneId);
+        const zone = zonesRef.current.find((z) => String(z.id) === zoneId);
         if (zone) onZoneClickRef.current?.(zone);
       }
     };
@@ -584,7 +581,7 @@ const UserMap = forwardRef(function UserMap({
       mapInstance.off('mousemove', onMouseMove);
       mapInstance.off('click', onClick);
     };
-  }, [zones]);
+  }, []);
 
   // Right-click / long-press context menu for zones and empty map
   useEffect(() => {
