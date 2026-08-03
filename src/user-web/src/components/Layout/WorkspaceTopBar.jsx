@@ -43,6 +43,7 @@ export default function WorkspaceTopBar({
   onToggleFocusMode,
   isFocusMode,
   compactMode,
+  onSaveReturnView,
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -443,12 +444,28 @@ export default function WorkspaceTopBar({
           {isFocusMode ? 'Exit Focus' : 'Focus'}
         </button>
 
-        <button style={actionBtn} onClick={() => navigate('/incidents')} title="Incidents directory">
+        <button
+          style={actionBtn}
+          onClick={() => {
+            // Save the return view so the directory's Back control restores
+            // this exact map state (camera/selection/dateRange/drawer).
+            onSaveReturnView?.();
+            navigate('/incidents');
+          }}
+          title="Incidents directory"
+        >
           <List size={iconSize(13)} />
           Incidents
         </button>
 
-        <button style={actionBtn} onClick={() => navigate('/zones')} title="Zones directory">
+        <button
+          style={actionBtn}
+          onClick={() => {
+            onSaveReturnView?.();
+            navigate('/zones');
+          }}
+          title="Zones directory"
+        >
           <Hexagon size={iconSize(13)} />
           Zones
         </button>

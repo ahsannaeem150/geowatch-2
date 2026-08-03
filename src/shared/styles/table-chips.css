@@ -1,0 +1,37 @@
+/* ─── Shared horizontal-scroll treatment for the active-filter chips bar ───
+   The `.tui-chips-bar` rows on the directory pages scroll horizontally and,
+   with classic (non-overlay) scrollbars, the scrollbar track overlaps the
+   chips. Adding `tui-chips-scroll` to the `.tui-chips-bar` element:
+     1. reserves the scrollbar track BELOW the chips (padding-bottom is
+        always present, so the layout height never jumps when a scrollbar
+        appears),
+     2. styles a thin token-colored scrollbar (WebKit + Firefox).
+
+   Port: each app keeps its own TableUI styles (there is no shared
+   table-ui.css), so porting = add the `tui-chips-scroll` class to the
+   `.tui-chips-bar` element and import this file in the app's main.jsx.
+   The double-class selector keeps it above the base `.tui-chips-bar`
+   padding shorthand regardless of stylesheet order. */
+
+.tui-chips-bar.tui-chips-scroll {
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.tui-chips-bar.tui-chips-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tui-chips-bar.tui-chips-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tui-chips-bar.tui-chips-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+.tui-chips-bar.tui-chips-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

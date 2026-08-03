@@ -23,6 +23,7 @@ import { getBadgeColors } from '@shared/utils/themeColors.js';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import TableDropdown from '../components/TableUI/TableDropdown.jsx';
 import TableDateFilter, { ALL_TIME_FILTER, getDateFilterLabel } from '../components/TableUI/TableDateFilter.jsx';
+import { buildReturnMapUrl } from '../utils/returnView.js';
 import '../components/TableUI/table-ui.css';
 import './DirectoryPages.css';
 
@@ -248,7 +249,37 @@ export default function ZonesPage() {
   }, [dateFilter, query, categoryIds, status, verification, severity, categories]);
 
   return (
-    <div className="tui-public-page">
+    <>
+      {/* ─── Detail-style top bar: back chip + breadcrumb trail (same
+          structure/classes as the incident/zone full-page top bars) ─── */}
+      <div className="opt1-topbar">
+        <div className="opt1-topbar-inner">
+          <div className="opt1-topbar-left">
+            <button
+              type="button"
+              className="opt1-back-link"
+              onClick={() => navigate(buildReturnMapUrl())}
+              title="Back to the map"
+            >
+              <ChevronLeft size={14} />
+              Map
+            </button>
+            <nav className="opt1-crumbs" aria-label="Breadcrumb">
+              <button
+                type="button"
+                className="opt1-crumbs__item tui-crumb-link"
+                onClick={() => navigate(buildReturnMapUrl())}
+              >
+                Map
+              </button>
+              <span className="opt1-crumbs__sep">›</span>
+              <span className="opt1-crumbs__title">Zones</span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div className="tui-public-page">
       {/* ─── Page heading ─── */}
       <div className="tui-public-head">
         <div>
@@ -362,7 +393,7 @@ export default function ZonesPage() {
 
       {/* ─── Active filter chips ─── */}
       {hasActiveFilters && (
-        <div className="tui-chips-bar">
+        <div className="tui-chips-bar tui-chips-scroll">
           <span className="tui-chips-label">
             <Filter size={11} />
             Filters
@@ -593,6 +624,7 @@ export default function ZonesPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

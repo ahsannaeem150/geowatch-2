@@ -12579,3 +12579,18 @@ chore: condensed the Recently Completed section and deduplicated repeated notes 
 ## 📅 2026-08-02 — Modules: admin-web + superadmin-web — Instant camera restore ported
 
 fix: detail Back (incident + zone) now returns to the exact saved map camera in both staff apps — per-app `utils/returnView.js` (`buildReturnMapUrl`, base paths `/` and `/superadmin/map`, existing per-app return-view keys), payload extended with bearing/pitch/padding, `initialViewport` wiring in DashboardLayout/MapPage + AdminMap/SuperadminMap constructor/setPadding. superadmin-web zone Full-details now saves a payload too (was missing). Builds green.
+
+
+## 📅 2026-08-02 — Module: user-web — Directory Back-to-map + category multi-select
+
+feat: /incidents and /zones directory pages gain the detail-style Back chip ("Map", opt1-back-link) → buildReturnMapUrl; MapPage saveMapReturnView (extracted from handleNavigateToFullPage) also fires on topbar nav to those pages, so Back restores the exact map state. Incidents page domain dropdown replaced by new shared CategoryMultiSelect (multi-select, domain-grouped checkboxes, pinned chips, search ≥8, All/Clear) — server-side via existing categorySlugs ANY filter. Build green.
+
+
+## 📅 2026-08-02 — Module: shared/user-web — CategoryMultiSelect domains-first redesign
+
+style: panel redesigned as domains-first accordion per owner feedback — collapsed domain rows with tri-state checkboxes (all/some/none), per-domain expand chevron reveals category drill-in; full domain collapses to one pinned chip (`Domain · all`), partials show category chips; search matches both levels with auto-expand. Same slug-based props, zero wiring changes. Build green.
+
+
+## 📅 2026-08-02 — Module: user-web/shared — Picker polish + chips-scrollbar fix + detail topbar on directories
+
+feat: CategoryMultiSelect polish (sticky panel header, mono count pill on trigger, refined tri-state checkboxes, chip ×-hover affordance, shadow-lg panel). Horizontal active-filters scrollbar no longer overlaps chips — fix lives in shared `styles/table-chips.css` (`.tui-chips-scroll` on `.tui-chips-bar` + main.jsx import; port note in AGENTS.md). /incidents + /zones now render the shared detail-style topbar + breadcrumb (opt1-* classes) with Back chip and clickable Map crumb (both → buildReturnMapUrl). Build green.

@@ -952,6 +952,46 @@ export default function MapPage() {
     );
   }, [setSearchParams, scheduleFlyTo]);
 
+  // Save the full return context (camera + date range + selection + drawer)
+  // so a later Back — from a full-page detail view OR a directory page —
+  // restores the map exactly as left. Detail navigation passes the target
+  // selection explicitly; without one the current panel selection is saved.
+  // Sets the `geowatch_user_returning` latch the mount-time restore effect
+  // consumes. No-op until the map instance exists (map not ready).
+  const saveMapReturnView = useCallback(
+    (selection) => {
+      const map = mapRef.current?.getMap?.();
+      if (!map) return;
+      const selId = selection ? selection.id : (selectedIncident?.id ?? null);
+      const selIsZone = selection ? selection.isZone : selectedIncident?.geometry_type === 'polygon';
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      // Full return context: Back must restore the date range (live or
+      // historic), the selected incident/zone, the drawer, and the camera.
+      // getCenter/getPadding are padding-aware, so saving the tuple
+      // (center, zoom, bearing, pitch, padding) lets the map remount at
+      // the exact framing the user left — no flight, no refit.
+      sessionStorage.setItem(
+        'geowatch_user_return_view',
+        JSON.stringify({
+          lat: center.lat,
+          lng: center.lng,
+          zoom,
+          bearing: map.getBearing(),
+          pitch: map.getPitch(),
+          padding: map.getPadding(),
+          dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
+          isLiveMode,
+          selectedIncidentId: selId && !selIsZone ? selId : null,
+          selectedZoneId: selId && selIsZone ? selId : null,
+          activeDrawer,
+        })
+      );
+      sessionStorage.setItem('geowatch_user_returning', '1');
+    },
+    [selectedIncident, dateRange.from, dateRange.to, isLiveMode, activeDrawer]
+  );
+
   const handleNavigateToFullPage = useCallback(
     (incidentId) => {
       const map = mapRef.current?.getMap?.();
@@ -959,29 +999,9 @@ export default function MapPage() {
 
       const saveMapViewAndNavigate = () => {
         if (map) {
+          saveMapReturnView({ id: incidentId, isZone });
           const center = map.getCenter();
           const zoom = map.getZoom();
-          // Full return context: Back must restore the date range (live or
-          // historic), the selected incident/zone, the drawer, and the camera.
-          // getCenter/getPadding are padding-aware, so saving the tuple
-          // (center, zoom, bearing, pitch, padding) lets the map remount at
-          // the exact framing the user left — no flight, no refit.
-          sessionStorage.setItem(
-            'geowatch_user_return_view',
-            JSON.stringify({
-              lat: center.lat,
-              lng: center.lng,
-              zoom,
-              bearing: map.getBearing(),
-              pitch: map.getPitch(),
-              padding: map.getPadding(),
-              dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
-              isLiveMode,
-              selectedIncidentId: isZone ? null : incidentId,
-              selectedZoneId: isZone ? incidentId : null,
-              activeDrawer,
-            })
-          );
           setSearchParams(
             (prev) => {
               const next = new URLSearchParams(prev);
@@ -992,8 +1012,9 @@ export default function MapPage() {
             },
             { replace: true }
           );
+        } else {
+          sessionStorage.setItem('geowatch_user_returning', '1');
         }
-        sessionStorage.setItem('geowatch_user_returning', '1');
         navigate(isZone ? `/zone/${incidentId}` : `/incident/${incidentId}`);
       };
 
@@ -1003,7 +1024,7 @@ export default function MapPage() {
         saveMapViewAndNavigate();
       }
     },
-    [navigate, selectedIncident?.geometry_type, setSearchParams, dateRange.from, dateRange.to, isLiveMode, activeDrawer]
+    [navigate, selectedIncident?.geometry_type, setSearchParams, saveMapReturnView]
   );
 
   // Restore full map context when returning from a full-page detail view:
@@ -1627,6 +1648,7 @@ export default function MapPage() {
           }}
           isFocusMode={focusMode}
           compactMode={compactMode}
+          onSaveReturnView={saveMapReturnView}
         />
       )}
 

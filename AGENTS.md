@@ -1,6 +1,6 @@
 # GeoWatch — Agent Guide
 
-> This file is written for AI coding agents. Read it first when working on GeoWatch. It describes the project's actual architecture, conventions, commands, and gotchas as of the latest codebase state (2026-08-02).
+> This file is written for AI coding agents. Read it first when working on GeoWatch. It describes the project's architecture, conventions, commands, and gotchas (2026-08-02).
 
 ---
 
@@ -96,7 +96,7 @@ Each frontend imports shared code through the `@shared` Vite alias (`resolve.ali
 - `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`: display scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), `--font-longform` (Inter) for long-form prose, keyboard-only `:focus-visible` rings, reduced-motion suppression (media query + `.reduce-motion` class), `--border-strong`.
 - `constants.js` — Severity scale, event statuses, source types, user roles, verification statuses, API base URL, Martin URL.
 - `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
-- `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`.
+- `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`, `CategoryMultiSelect`.
 - `components/incident-detail/` — Shared incident detail package (sidebar + full page + evidence rail + timeline items + X-post list + source cards + procedural `TargetingCard` hero). Reused across all three frontends.
 - `components/zone/` — Shared zone/polygon detail components (`ZoneDetailSidebar`, `ZoneDetailPage`, `ZoneEditorSidebar`) plus trial-only styles/components.
 - `marker-builder.js`, `marker-icons.js` — Map marker generation helpers.
@@ -497,17 +497,18 @@ Read in order when starting a task:
 
 ### Recently Completed (as of 2026-08-02)
 
-- **Workspace chrome on all three maps** (user-web `/map`, admin-web `/*` DashboardLayout, superadmin-web `/superadmin/map` full-viewport outside the sidebar `Layout`): top bar, left rail/drawers, absolute-overlay right detail panel with collapse/reopen handle, Power Search full-viewport overlay, compact/focus modes, ⌘K palette (tabbed scopes, recents, Nominatim fly-to; superadmin's also jumps to console pages).
-- **Smart selection camera on all three maps** (shared policy in `src/shared/utils/selectionCamera.js`): live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guards, deep-link processed-refs. Verified via `scripts/verify-smart-zoom*.mjs`.
+- **Workspace chrome on all three maps** (user-web `/map`, admin-web `/*`, superadmin-web `/superadmin/map`): top bar, left rail/drawers, absolute-overlay right detail panel with collapse handle, Power Search overlay, compact/focus modes, ⌘K palette (Nominatim fly-to; superadmin's also jumps to console pages).
+- **Smart selection camera on all three maps** (shared policy in `src/shared/utils/selectionCamera.js`): live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guards, deep-link processed-refs.
 - **Directory pages everywhere**: `/incidents` and `/zones` table directories in all three apps, built on shared `TableUI`.
 - **Date-control family on all three topbars**: date range control, LIVE/HISTORIC pill, clock, large-range gating (see Map-Specific Gotchas).
 - **Incident placement mode + drawing toolbar 2.0 with circle zones** in admin-web and superadmin-web.
-- **Superadmin console TopBar rebuilt**: route breadcrumb, Map button, live system-health dot, real notifications bell (unread badge, paged dropdown, mark read/all, delete); dead search box removed.
-- **Cross-app audit polish batch**: inline SVG favicon + per-route `document.title` (RouteTitle); detail skeleton/error states (`DetailPageStates`); `:focus-visible` rings; display typography + Inter long-form; crimson light-mode accents; reduced-motion end-to-end.
-- **Incident-detail overhaul (shared package)**: silent SSE refetch; featured-evidence dedupe (`FeaturedCollapsedRow`); procedural `TargetingCard` hero; coherence pass aligning with workspace chrome.
-- **Deterministic Back navigation + instant camera restore**: detail pages always return to the app map (no `navigate(-1)`); a return-view payload restores dateRange/isLiveMode/selections/activeDrawer on mount. **user-web (2026-08-02)**: the payload camera (center/zoom/bearing/pitch/padding — all padding-aware) also rides in the Back URL via `src/user-web/src/utils/returnView.js` (`buildReturnMapUrl`), so the map mounts at the exact saved camera with no re-flight — ported to admin-web + superadmin-web (2026-08-02; per-app `utils/returnView.js` + keys, base paths `/` and `/superadmin/map`).
-- **user-web home**: hero map instrument HUD, stats ledger band, `useHomeData` hook (6 → 1 network calls); rebuilt About page; 404 page.
-- **user-web map zone fixes**: single delegated zone binding, zone dedupe (`geometryType` on point query), zones default-visible once taxonomy loads, zone Full-details id fix + Back context restore.
+- **Superadmin TopBar rebuilt**: breadcrumb, Map button, health dot, notifications bell (unread badge, paged dropdown, mark read/all/delete).
+- **Cross-app polish batch**: favicon + per-route titles (RouteTitle); detail skeleton/error states; `:focus-visible` rings; display typography + Inter long-form; crimson light accents; reduced-motion end-to-end.
+- **Incident-detail overhaul (shared)**: silent SSE refetch; featured-evidence dedupe; procedural `TargetingCard` hero; workspace-chrome coherence pass.
+- **Deterministic Back navigation + instant camera restore**: incident/zone detail and directory pages in all three apps return to the app map via `buildReturnMapUrl` (per-app `utils/returnView.js`); the return-view payload (camera incl. padding/bearing/pitch, dateRange/selections/activeDrawer) rides in the Back URL, so the map mounts at the exact saved camera with no re-flight. user-web directory pages render the shared detail-style topbar + breadcrumb (`opt1-*` classes).
+- **CategoryMultiSelect (shared)** on user-web `/incidents`: domains-first accordion multi-select (tri-state domain rows, drill-in categories, pinned chips, search ≥8). Chips-scrollbar overlap fix lives in `src/shared/styles/table-chips.css` (`.tui-chips-scroll` on `.tui-chips-bar` + per-app main.jsx import). **Pending ports**: picker + chips fix + detail topbar → user-web `/zones`, then both directory pages in admin-web + superadmin-web.
+- **user-web home**: hero map instrument HUD, stats ledger band, `useHomeData` hook (6 → 1 network calls); rebuilt About; 404 page.
+- **user-web map zone fixes**: delegated zone binding, zone dedupe (`geometryType`), zones default-visible, zone Full-details id fix + Back restore.
 
 ### Active Trial Routes (user-web)
 

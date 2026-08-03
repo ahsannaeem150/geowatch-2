@@ -31,6 +31,22 @@
   color: var(--text-primary);
 }
 
+/* Clickable breadcrumb crumb — inherits the shared opt1-crumbs mono
+   styling; adds only the pointer + hover affordance. */
+.tui-crumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.tui-crumb-link:hover {
+  color: var(--text-primary);
+}
+
 .tui-public-sub {
   margin: 6px 0 0;
   font-size: 13px;
@@ -49,7 +65,10 @@
 .tui-public-page .tui-chips-bar {
   background: transparent;
   border-bottom: none;
+  /* Horizontal padding only — the bottom padding stays with the shared
+     tui-chips-scroll treatment so the scrollbar track remains reserved. */
   padding: 0 calc(4px * var(--admin-ui-scale));
+  padding-bottom: 8px;
 }
 
 .tui-public-page .tui-content {
