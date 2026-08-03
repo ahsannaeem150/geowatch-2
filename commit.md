@@ -12603,3 +12603,8 @@ feat: zones directory inline category chips replaced with the shared picker (fla
 ## 📅 2026-08-02 — Modules: admin-web + superadmin-web — Directory pages port
 
 feat: both staff apps' /incidents + /zones get the full package — shared detail-style topbar + breadcrumb (Back chip + Map crumb → per-app buildReturnMapUrl), CategoryMultiSelect (domain-grouped on incidents, flat id-keyed on zones; server-side categorySlugs/zoneCategoryIds), chips-scrollbar fix (table-chips.css + tui-chips-scroll), and return-view payload save on map→directory nav (admin: wired in DashboardLayout handlers; superadmin: WorkspaceTopBar onSaveReturnView). Builds green.
+
+
+## 📅 2026-08-02 — Module: user-web — Collapsed right-panel reopen handle
+
+fix: collapsing the right detail panel left no way to reopen — the expand handle was gated on `!rightPanelRendered`, which never fired because the panel animation lifecycle only keyed off `isPanelOpen`. Effect now branches on `isPanelOpen && !rightPanelCollapsed` (mirrors admin-web): collapse slides the panel out and unmounts it after 250ms, the existing right-edge ChevronLeft handle appears, click re-expands. Build green.

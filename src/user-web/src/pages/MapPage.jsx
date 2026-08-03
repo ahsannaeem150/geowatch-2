@@ -601,8 +601,12 @@ export default function MapPage() {
   }, []);
 
   // ─── Right panel animation lifecycle ───
+  // Collapsing keeps isPanelOpen true, so the lifecycle keys off the SHOWN
+  // state: on collapse the panel slides out and unmounts after the transition
+  // (revealing the collapsed expand handle at the right edge); on expand it
+  // re-mounts and slides back in. Mirrors admin-web's DashboardLayout.
   useEffect(() => {
-    if (isPanelOpen) {
+    if (isPanelOpen && !rightPanelCollapsed) {
       setRightPanelRendered(true);
       const timer = setTimeout(() => setRightPanelVisible(true), 10);
       return () => clearTimeout(timer);
@@ -610,7 +614,7 @@ export default function MapPage() {
     setRightPanelVisible(false);
     const timer = setTimeout(() => setRightPanelRendered(false), RIGHT_PANEL_TRANSITION_MS);
     return () => clearTimeout(timer);
-  }, [isPanelOpen]);
+  }, [isPanelOpen, rightPanelCollapsed]);
 
   // ─── Fetch detail for right panel ───
   const fetchDetail = useCallback(async (incidentId, opts = {}) => {
