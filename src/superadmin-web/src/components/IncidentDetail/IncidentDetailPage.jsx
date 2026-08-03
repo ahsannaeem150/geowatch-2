@@ -31,6 +31,7 @@ import AuditTable from '../Audit/AuditTable.jsx';
 import UserDetailDrawer from '../Users/UserDetailDrawer.jsx';
 import PublicUserDrawer from '../PublicUsers/PublicUserDrawer.jsx';
 import { DetailLoadingSkeleton, DetailErrorState } from './DetailPageStates.jsx';
+import { buildReturnMapUrl } from '../../utils/returnView.js';
 
 function dataUrlToFile(dataUrl, fileName = 'image.png') {
   const arr = dataUrl.split(',');
@@ -124,7 +125,7 @@ export default function IncidentDetailPage() {
 
           if (payload.type === 'incident_deleted') {
             setToast({ message: 'This incident has been moved to the Recycle Bin', type: 'info' });
-            setTimeout(() => navigate('/superadmin/map'), 2000);
+            setTimeout(() => navigate(buildReturnMapUrl()), 2000);
           }
         } catch (err) {
           console.warn('[SSE] Failed to parse message:', err);
@@ -484,10 +485,13 @@ export default function IncidentDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    // Deterministic: always return to the map. history.length counts the whole
-    // session (external links, redirects, same-page entries), which made
-    // navigate(-1) a no-op or a same-URL hop.
-    navigate('/superadmin/map');
+    // Deterministic: always return to the map. When a saved return-view exists
+    // (geowatch_superadmin_return_view), the camera rides in the Back URL so
+    // MapPage mounts directly at the saved view — the panel-selection restore
+    // skips its flight entirely. history.length counts the whole session
+    // (external links, redirects, same-page entries), which made navigate(-1)
+    // a no-op or a same-URL hop.
+    navigate(buildReturnMapUrl());
   }, [navigate]);
 
   const handleOpenAudit = useCallback(() => {

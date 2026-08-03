@@ -4,6 +4,7 @@ import { IncidentDetailPage as SharedIncidentDetailPage } from '@shared';
 import { api, mapIncidentForShared } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import { DetailLoadingSkeleton, DetailErrorState } from './DetailPageStates.jsx';
+import { buildReturnMapUrl } from '../../utils/returnView.js';
 
 function dataUrlToFile(dataUrl, fileName = 'image.png') {
   const arr = dataUrl.split(',');
@@ -92,7 +93,7 @@ export default function IncidentDetailPage() {
 
           if (payload.type === 'incident_deleted') {
             setToast({ message: 'This incident has been deleted', type: 'info' });
-            setTimeout(() => navigate('/'), 2000);
+            setTimeout(() => navigate(buildReturnMapUrl()), 2000);
           }
         } catch (err) {
           console.warn('[SSE] Failed to parse message:', err);
@@ -353,10 +354,13 @@ export default function IncidentDetailPage() {
   }, [id]);
 
   const handleBack = useCallback(() => {
-    // Deterministic: always return to the workspace map. history.length counts
+    // Deterministic: always return to the workspace map. When a saved
+    // return-view exists (geowatch_admin_return_view), the camera rides in the
+    // Back URL so DashboardLayout mounts directly at the saved view — the
+    // panel-selection restore skips its flight entirely. history.length counts
     // the whole session (external links, redirects, same-page entries), which
     // made navigate(-1) a no-op or a same-URL hop.
-    navigate('/');
+    navigate(buildReturnMapUrl());
   }, [navigate]);
 
   if (loading) {

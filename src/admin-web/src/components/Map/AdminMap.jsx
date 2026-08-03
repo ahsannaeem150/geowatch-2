@@ -499,9 +499,19 @@ const AdminMap = forwardRef(function AdminMap({
       style: styleUrl,
       center: initialViewport?.center ?? [20, 30],
       zoom: initialViewport?.zoom ?? 2,
+      bearing: initialViewport?.bearing ?? 0,
+      pitch: initialViewport?.pitch ?? 0,
       attributionControl: false,
       doubleClickZoom: false,
     });
+
+    // Return-restore: the saved camera was captured padding-aware (panel open),
+    // so re-apply that padding before the first frame to land on the exact
+    // framing the user left. Padding persists on the transform, matching how
+    // selection flights already leave it behind.
+    if (initialViewport?.padding) {
+      map.current.setPadding(initialViewport.padding);
+    }
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 

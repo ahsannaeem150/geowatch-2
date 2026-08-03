@@ -154,6 +154,32 @@ export default function DashboardLayout() {
       : null;
   }
   const hasSavedViewport = !!savedViewportRef.current;
+
+  // Return-restore snapshot: arriving Back from a full-page detail view with
+  // the return-view payload (built into the URL by buildReturnMapUrl). When the
+  // payload's camera matches the URL camera, this mount IS a return — the map
+  // then initializes at the exact saved camera (padding/bearing/pitch
+  // included). A stale payload whose camera differs from the URL (share-link
+  // opened in the same tab) is ignored.
+  const returnViewRef = useRef(undefined);
+  if (returnViewRef.current === undefined) {
+    try {
+      const raw = sessionStorage.getItem('geowatch_admin_return_view');
+      returnViewRef.current = raw ? JSON.parse(raw) : null;
+    } catch {
+      returnViewRef.current = null;
+    }
+  }
+  const returnViewPayload = returnViewRef.current;
+  const returnView =
+    returnViewPayload &&
+    hasViewportParams &&
+    Number(returnViewPayload.lat).toFixed(6) === Number(latParam).toFixed(6) &&
+    Number(returnViewPayload.lng).toFixed(6) === Number(lngParam).toFixed(6) &&
+    Number(returnViewPayload.zoom).toFixed(2) === Number(zoomParam).toFixed(2)
+      ? returnViewPayload
+      : null;
+
   const ghostFetchAttempted = useRef(false);
   const zoneDeepLinkProcessed = useRef(false);
   const prevZoneIdRef = useRef(null);
@@ -2577,10 +2603,16 @@ export default function DashboardLayout() {
       const zoom = map.getZoom();
       // Full return context: Back must restore the date range (live or
       // historic), the selected incident/zone, and the camera.
+      // getCenter/getPadding are padding-aware, so saving the tuple
+      // (center, zoom, bearing, pitch, padding) lets the map remount at
+      // the exact framing the user left — no flight, no refit.
       const view = {
         lat: center.lat,
         lng: center.lng,
         zoom,
+        bearing: map.getBearing(),
+        pitch: map.getPitch(),
+        padding: map.getPadding(),
         dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
         isLiveMode,
         selectedIncidentId: isZone ? null : selectedIncident.id,
@@ -3164,6 +3196,13 @@ export default function DashboardLayout() {
                 ? {
                     center: [savedViewportRef.current.lng, savedViewportRef.current.lat],
                     zoom: savedViewportRef.current.zoom,
+                    ...(returnView && Number.isFinite(returnView.bearing)
+                      ? { bearing: returnView.bearing }
+                      : {}),
+                    ...(returnView && Number.isFinite(returnView.pitch)
+                      ? { pitch: returnView.pitch }
+                      : {}),
+                    ...(returnView?.padding ? { padding: returnView.padding } : {}),
                   }
                 : null
             }

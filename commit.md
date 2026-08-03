@@ -12569,3 +12569,13 @@ fix: zone Back flow verified end-to-end with the extended return-view (bug was u
 ## 📅 2026-08-02 — Module: user-web map — Instant camera restore on detail Back
 
 fix: Back from /incident/:id or /zone/:id no longer reloads the map at the default world view and re-flies to the selection — the return-view camera now rides in the Back URL (new utils/returnView.js buildReturnMapUrl), so MapPage mounts with viewport params present: initialViewport initializes the map directly at the saved camera (payload extended with padding/bearing/pitch — getCenter/getPadding are padding-aware, so framing is pixel-exact with the panel open) and the deep-link selection skips its flight via the mount-time snapshot. The initial deep-link easeTo is suppressed on return mounts (it would clobber the restored padding). Stale payloads whose camera differs from the URL are ignored (share-link safety). Build green.
+
+
+## 📅 2026-08-02 — Repo docs — AGENTS.md trimmed under 32 KB
+
+chore: condensed the Recently Completed section and deduplicated repeated notes (routing/favicons, scripts dir, date-control family) — 34.2 KB → 32.0 KB, no necessary info removed; owner confirmed the user-web instant camera restore behaves correctly (admin/superadmin port next).
+
+
+## 📅 2026-08-02 — Modules: admin-web + superadmin-web — Instant camera restore ported
+
+fix: detail Back (incident + zone) now returns to the exact saved map camera in both staff apps — per-app `utils/returnView.js` (`buildReturnMapUrl`, base paths `/` and `/superadmin/map`, existing per-app return-view keys), payload extended with bearing/pitch/padding, `initialViewport` wiring in DashboardLayout/MapPage + AdminMap/SuperadminMap constructor/setPadding. superadmin-web zone Full-details now saves a payload too (was missing). Builds green.

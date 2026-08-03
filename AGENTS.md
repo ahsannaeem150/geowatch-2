@@ -1,6 +1,6 @@
 # GeoWatch — Agent Guide
 
-> This file is written for AI coding agents. Read it first when working on GeoWatch. It describes the project's actual architecture, conventions, commands, and gotchas as of the latest codebase state (2026-08-01).
+> This file is written for AI coding agents. Read it first when working on GeoWatch. It describes the project's actual architecture, conventions, commands, and gotchas as of the latest codebase state (2026-08-02).
 
 ---
 
@@ -69,9 +69,8 @@ geowatch/
 │   │       ├── middleware/   # auth, role, rate-limiter, validate-request, error-handler, response-wrapper
 │   │       ├── validators/   # Zod schemas
 │   │       ├── storage/      # local.storage.js + index.js (getStorageEngine factory)
-│   │       └── utils/        # api-response, async-handler, audit-log, audit-actions, sse-broadcast,
-│   │                         # image-processor, video-processor (placeholder), oembed, x-oembed,
-│   │                         # x-screenshot, slugify
+│   │       └── utils/        # api-response, async-handler, audit-log(-actions), sse-broadcast,
+│   │                         # image/video-processor, oembed, x-oembed, x-screenshot, slugify
 │   ├── user-web/             # Public website
 │   ├── admin-web/            # Admin dashboard
 │   ├── superadmin-web/       # Superadmin console
@@ -79,7 +78,7 @@ geowatch/
 ├── assets/                   # map-style-{dark,light}.json, fonts/ (Noto Sans fontstacks), tiles/ (gitignored .mbtiles)
 ├── docs/                     # api-spec.md, database-schema.sql, design-brief.md, env-template.md,
 │                             # incident-taxonomy.md, grant-permissions.sql, media-migration.sql,
-│                             # trial-activity-notifications-design.md, dev-credentials.md (gitignored), migrations/
+│                             # dev-credentials.md (gitignored), migrations/
 ├── scripts/                  # Service launcher/stopper/logs + Playwright verification & screenshot utilities
 ├── uploads/                  # Local user-generated content (gitignored)
 ├── tools/                    # Downloaded martin + ffmpeg binaries (gitignored)
@@ -94,7 +93,7 @@ geowatch/
 
 Each frontend imports shared code through the `@shared` Vite alias (`resolve.alias` in each `vite.config.js`).
 
-- `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`. Includes display typography scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), a `--font-longform` (Inter) face for long-form prose, global keyboard-only `:focus-visible` focus rings, reduced-motion suppression (media query + `.reduce-motion` class), and `--border-strong` in both themes.
+- `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`: display scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), `--font-longform` (Inter) for long-form prose, keyboard-only `:focus-visible` rings, reduced-motion suppression (media query + `.reduce-motion` class), `--border-strong`.
 - `constants.js` — Severity scale, event statuses, source types, user roles, verification statuses, API base URL, Martin URL.
 - `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
 - `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`.
@@ -212,20 +211,11 @@ The launcher writes logs and PID files to `logs/` and opens the admin dashboard 
 ### Manual Dev Commands (without the launcher)
 
 ```bash
-# Terminal 1
 ./scripts/start-martin.sh
-
-# Terminal 2
-npm run dev:backend        # nodemon server.js
-
-# Terminal 3
-npm run dev:admin-web      # vite --port 5174
-
-# Terminal 4
-npm run dev:user-web       # vite --port 5173
-
-# Terminal 5
-npm run dev:superadmin-web # vite --port 5175
+npm run dev:backend        # nodemon server.js  → :3100
+npm run dev:admin-web      # vite :5174
+npm run dev:user-web       # vite :5173
+npm run dev:superadmin-web # vite :5175
 ```
 
 ### Production Builds
@@ -240,7 +230,7 @@ Build outputs go to each frontend's `dist/` directory. There is no backend build
 
 ### Scripts Directory
 
-Besides the service launcher/stopper/status/logs helpers, `scripts/` contains Playwright-driven verification and screenshot utilities (`verify-*.mjs`, `screenshot-*.mjs`, `check-*.mjs`), one-off data backfills (`backfill-*.mjs`), and tile debugging pages. These are dev aids, not a test suite — most assume the dev services are already running.
+`scripts/` also holds Playwright verification/screenshot utilities (`verify-*.mjs`, `screenshot-*.mjs`, `check-*.mjs`), one-off data backfills (`backfill-*.mjs`), and tile debugging pages — dev aids, not a test suite; most assume dev services are running.
 
 ---
 
@@ -270,7 +260,7 @@ Staff users (`users` table) and public users (`public_users` table) are separate
 - **admin-web**: `/login`, `/*` → `DashboardLayout` (map-first HUD, includes `/search` Power Search handled inside the layout), `/incidents`, `/zones`, `/incident/:id`, `/zone/:id`, plus `/trial*` and `/sidebarTrial*` design trials.
 - **superadmin-web**: everything under `/superadmin/*` — dashboard, users, public-users, map (full-viewport workspace page rendered outside the sidebar `Layout`), incidents, zones, audit, public-activity, domains, zone-categories, system, export, recycle-bin, x-archive-debug, `incident/:id`, `zone/:id`, `*` → `NotFoundPage`; console pages keep the sidebar shell.
 
-All three apps set per-route `document.title` via a `RouteTitle` component in their `App.jsx` (detail pages use the loaded incident/zone title) and ship an inline SVG favicon + meta description/theme-color in `index.html`.
+All three apps set per-route `document.title` via a `RouteTitle` component and ship an inline SVG favicon + meta in `index.html`.
 
 ---
 
@@ -349,7 +339,7 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
   ```
 - Each frontend wraps the app in the shared `ThemeProvider`.
 - Each frontend's `vite.config.js` includes a `copyMapAssetsPlugin` that copies `assets/map-style-*.json` and `assets/fonts/` into the app's `public/` at build/dev start — map styles and font glyphs are served as same-origin static files.
-- **Reduced motion**: all three apps honor OS `prefers-reduced-motion` AND a `.reduce-motion` HTML class via `design-tokens.css`, and each has a Settings-drawer "Reduce motion" switch persisted in `localStorage` (`geowatch_user_reduce_motion` / `geowatch_admin_reduce_motion` / `geowatch_superadmin_reduce_motion`, boot-applied in each `main.jsx`). Guard new animation with the shared `useReducedMotion` hook.
+- **Reduced motion**: all three apps honor OS `prefers-reduced-motion` AND a `.reduce-motion` HTML class via `design-tokens.css`; each has a Settings-drawer "Reduce motion" switch persisted in `localStorage` (`geowatch_{user,admin,superadmin}_reduce_motion`, boot-applied in each `main.jsx`). Guard new animation with the shared `useReducedMotion` hook.
 - Typography: 10px floor for production labels; use the display scale vars and `.font-longform` (Inter) for long-form prose such as incident descriptions and About copy.
 
 ### Backend Conventions
@@ -375,7 +365,7 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
 - Split marker effects into separate `useEffect`s: one for create/remove/position (`[events]`), one for selection styling (`[selectedIncidentId]`).
 - Zone hover/click handlers must be bound ONCE per map (delegated bindings that read a `zonesRef` at event time) — rebinding per zone-set change causes stale-closure bugs. All three map components (`UserMap`, `AdminMap`, `SuperadminMap`) follow this pattern.
 - Smart viewport filtering: fetch without viewport first; if total count > 100, enable viewport-bounded fetching on pan/zoom, otherwise load everything.
-- Large-range gating (all three map apps): ranges > 31 days or unbounded ("All time") withhold point incidents below zoom 6 (zones always load); at/above zoom 6 point fetches become viewport-bounded. Null date-range ends must never reach the list endpoint — translate to `1970-01-01`/`2099-12-31` (it defaults to "visible today" when dates are absent). All three topbars run the shared date-control family with a stateful LIVE/HISTORIC mode pill and a clock.
+- Large-range gating (all three map apps): ranges > 31 days or unbounded ("All time") withhold point incidents below zoom 6 (zones always load); at/above zoom 6 point fetches become viewport-bounded. Null date-range ends must never reach the list endpoint — translate to `1970-01-01`/`2099-12-31` (it defaults to "visible today" when dates are absent).
 - Date visibility: active incidents visible until `end_date`; resolved incidents get a 1-day grace period.
 - Point-incident list queries must pass `geometryType` — otherwise polygon zones arrive twice (once from the point query, once from the zone path).
 
@@ -416,7 +406,7 @@ npm run build:superadmin-web
 
 The `scripts/verify-*.mjs` / `scripts/check-*.mjs` Playwright utilities can drive a headless browser against the running dev servers for visual/behavioral checks; they assume services are up and may need dev credentials (see gitignored `docs/dev-credentials.md`). Note: repeated login attempts can trip the auth rate limiter — allow a cooldown or reuse a long-lived token when running scripts repeatedly.
 
-If you add automated tests, place them in a `tests/` directory or `__tests__/` folders per workspace and update this section.
+If you add automated tests, place them in `tests/` or `__tests__/` per workspace and update this section.
 
 ---
 
@@ -492,7 +482,7 @@ There is **no automated CI/CD, Docker, or deployment pipeline** in this reposito
 
 ## 11. Key Files to Read Before Working
 
-Read these files in order when starting on a task:
+Read in order when starting a task:
 
 1. `PROJECT.md` — Architecture, conventions, functional/non-functional requirements.
 2. `commit.md` — Full build history; append every change.
@@ -505,19 +495,19 @@ Read these files in order when starting on a task:
 
 ## 12. Current Focus and Known Issues
 
-### Recently Completed (as of 2026-08-01)
+### Recently Completed (as of 2026-08-02)
 
-- **Workspace chrome on all three maps.** user-web `/map`, admin-web `/*` (DashboardLayout), and superadmin-web `/superadmin/map` (full-viewport page rendered outside the sidebar `Layout`) all run the same map-first workspace: top bar, left rail/drawers, absolute-overlay right detail panel with collapse/reopen handle, Power Search full-viewport overlay, compact/focus modes, and a ⌘K command palette (tabbed scopes, recent incidents, Nominatim location fly-to; superadmin's palette also jumps to console pages).
-- **Smart selection camera on all three maps** (shared policy in `src/shared/utils/selectionCamera.js`): live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guards, deep-link processed-refs. Verified via `scripts/verify-smart-zoom*.mjs` (15/15 per app).
-- **Directory pages everywhere**: `/incidents` and `/zones` table directories in all three apps, built on the extracted shared `TableUI` components.
-- **Date-control family on all three topbars**: wired date range control, stateful LIVE/HISTORIC mode pill, clock, and large-range gating (see Map-Specific Gotchas).
-- **Incident placement mode + drawing toolbar 2.0 with circle zones** in admin-web and superadmin-web (stable toolbar width; click-click circle finish).
-- **Superadmin console TopBar rebuilt**: route breadcrumb, prominent Map button, live system-health dot (60s poll), real notifications bell (unread badge, paged dropdown, mark read/all, delete). The old dead search box is gone.
-- **Cross-app audit polish batch**: inline SVG favicon + meta + per-route `document.title` (RouteTitle) in all three apps; detail pages get skeleton loading + error cards (`DetailPageStates` per app); global `:focus-visible` focus rings; display typography scale + Inter long-form; light-mode accent tokens retinted to crimson derivatives; reduced-motion support end-to-end (media query + per-app Settings toggle + `useReducedMotion`).
-- **Incident-detail overhaul (shared package)**: silent SSE refetch (no more page unmount/selection reset); featured-evidence dedupe (`FeaturedCollapsedRow`); procedural `TargetingCard` hero replaces hotlinked Unsplash; hero composition + breadcrumb context bars; coherence pass aligning the package with workspace chrome (solid colors, mono hairline chips, no gradient titles/ken-burns).
-- **Deterministic Back navigation**: incident and zone detail pages in all three apps always return to the app map (no `navigate(-1)` heuristic); an extended return-view payload (dateRange/isLiveMode/selections/activeDrawer) restores full map context on mount. **user-web (2026-08-02)**: the payload camera (center/zoom/bearing/pitch/padding — all padding-aware) also rides in the Back URL via `src/user-web/src/utils/returnView.js` (`buildReturnMapUrl`), so the map mounts directly at the saved camera (`initialViewport` + mount-time snapshot skipFlyTo) with no re-flight — admin/superadmin port pending.
-- **user-web home**: hero map instrument HUD (live coords + in-view count), stats ledger band, and `useHomeData` hook consolidating home fetching to one `getIncidents` call (6 → 1 network calls); rebuilt About page; "off the map" 404 page.
-- **user-web map zone fixes**: single delegated zone event binding, zone dedupe (`geometryType` on point query), zones default-visible once taxonomy loads, ZoneDetailSidebar "Full details" id fix, zone Back context restore.
+- **Workspace chrome on all three maps** (user-web `/map`, admin-web `/*` DashboardLayout, superadmin-web `/superadmin/map` full-viewport outside the sidebar `Layout`): top bar, left rail/drawers, absolute-overlay right detail panel with collapse/reopen handle, Power Search full-viewport overlay, compact/focus modes, ⌘K palette (tabbed scopes, recents, Nominatim fly-to; superadmin's also jumps to console pages).
+- **Smart selection camera on all three maps** (shared policy in `src/shared/utils/selectionCamera.js`): live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guards, deep-link processed-refs. Verified via `scripts/verify-smart-zoom*.mjs`.
+- **Directory pages everywhere**: `/incidents` and `/zones` table directories in all three apps, built on shared `TableUI`.
+- **Date-control family on all three topbars**: date range control, LIVE/HISTORIC pill, clock, large-range gating (see Map-Specific Gotchas).
+- **Incident placement mode + drawing toolbar 2.0 with circle zones** in admin-web and superadmin-web.
+- **Superadmin console TopBar rebuilt**: route breadcrumb, Map button, live system-health dot, real notifications bell (unread badge, paged dropdown, mark read/all, delete); dead search box removed.
+- **Cross-app audit polish batch**: inline SVG favicon + per-route `document.title` (RouteTitle); detail skeleton/error states (`DetailPageStates`); `:focus-visible` rings; display typography + Inter long-form; crimson light-mode accents; reduced-motion end-to-end.
+- **Incident-detail overhaul (shared package)**: silent SSE refetch; featured-evidence dedupe (`FeaturedCollapsedRow`); procedural `TargetingCard` hero; coherence pass aligning with workspace chrome.
+- **Deterministic Back navigation + instant camera restore**: detail pages always return to the app map (no `navigate(-1)`); a return-view payload restores dateRange/isLiveMode/selections/activeDrawer on mount. **user-web (2026-08-02)**: the payload camera (center/zoom/bearing/pitch/padding — all padding-aware) also rides in the Back URL via `src/user-web/src/utils/returnView.js` (`buildReturnMapUrl`), so the map mounts at the exact saved camera with no re-flight — ported to admin-web + superadmin-web (2026-08-02; per-app `utils/returnView.js` + keys, base paths `/` and `/superadmin/map`).
+- **user-web home**: hero map instrument HUD, stats ledger band, `useHomeData` hook (6 → 1 network calls); rebuilt About page; 404 page.
+- **user-web map zone fixes**: single delegated zone binding, zone dedupe (`geometryType` on point query), zones default-visible once taxonomy loads, zone Full-details id fix + Back context restore.
 
 ### Active Trial Routes (user-web)
 
@@ -531,7 +521,7 @@ Read these files in order when starting on a task:
 | `/trial/zone-sidebar-animations` | `ZoneSidebarAnimationTrialPage.jsx` | Sidebar mini-map pulse laboratory |
 | `/trial/zone-create` | `ZoneTrialCreatePage.jsx` | Polygon-incident creation sidebar trial |
 
-Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references. See `trialRoutes.md` for the full list (note: it lags slightly — `/trial/zone-create` is not listed there yet).
+Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references. See `trialRoutes.md` for the full list (`/trial/zone-create` not listed there yet).
 
 ### Known Non-Blocking Issues
 
