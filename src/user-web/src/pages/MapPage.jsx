@@ -2,19 +2,19 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Layers,
-  AlertTriangle,
   Activity as ActivityIcon,
   Bookmark,
   ChevronLeft,
+  List,
+  Radio,
   Settings,
-  Zap,
 } from 'lucide-react';
 import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import { Skeleton } from '@shared/components/Skeleton.jsx';
 import UserMap from '../components/Map/UserMap.jsx';
 import WorkspaceTopBar from '../components/Layout/WorkspaceTopBar.jsx';
-import WorkspaceRail from '../components/Layout/WorkspaceRail.jsx';
+import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
 import WorkspaceDrawer from '../components/Layout/WorkspaceDrawer.jsx';
 import PowerSearchPanel from '../components/Layout/PowerSearchPanel.jsx';
 import UserCommandPalette from '../components/Layout/UserCommandPalette.jsx';
@@ -1597,15 +1597,15 @@ export default function MapPage() {
   const railItems = useMemo(
     () => [
       { id: 'layers', label: 'Layers', icon: Layers },
-      { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
-      { id: 'active', label: 'Active', icon: Zap, badge: activeIncidents.length },
+      { id: 'incidents', label: 'Incidents', icon: List },
+      { id: 'active', label: 'Active', icon: Radio, badge: activeIncidents.length },
       { id: 'activity', label: 'Activity', icon: ActivityIcon, badge: unreadCount },
       ...(isAuthenticated
-        ? [{ id: 'saved', label: 'Saved', icon: Bookmark, badge: savedIncidents.length }]
+        ? [{ id: 'saved', label: 'Saved', icon: Bookmark }]
         : []),
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
-    [activeIncidents.length, unreadCount, isAuthenticated, savedIncidents.length]
+    [activeIncidents.length, unreadCount, isAuthenticated]
   );
 
   // ─── Ghost detection ───

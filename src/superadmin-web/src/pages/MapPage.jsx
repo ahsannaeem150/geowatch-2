@@ -50,7 +50,7 @@ import DrawingToolbar from '../components/Map/DrawingToolbar.jsx';
 import ZoneForm from '../components/ZoneForm/ZoneForm.jsx';
 import IncidentDetailPanel from '../components/Map/IncidentDetailPanel.jsx';
 import WorkspaceTopBar from '../components/MapWorkspace/WorkspaceTopBar.jsx';
-import WorkspaceRail from '../components/MapWorkspace/WorkspaceRail.jsx';
+import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
 import WorkspaceDrawer from '../components/MapWorkspace/WorkspaceDrawer.jsx';
 import PowerSearchPanel from '../components/PowerSearchPanel/PowerSearchPanel.jsx';
 import CommandPalette from '../components/CommandPalette/CommandPalette.jsx';

@@ -12608,3 +12608,8 @@ feat: both staff apps' /incidents + /zones get the full package — shared detai
 ## 📅 2026-08-02 — Module: user-web — Collapsed right-panel reopen handle
 
 fix: collapsing the right detail panel left no way to reopen — the expand handle was gated on `!rightPanelRendered`, which never fired because the panel animation lifecycle only keyed off `isPanelOpen`. Effect now branches on `isPanelOpen && !rightPanelCollapsed` (mirrors admin-web): collapse slides the panel out and unmounts it after 250ms, the existing right-edge ChevronLeft handle appears, click re-expands. Build green.
+
+
+## 📅 2026-08-02 — Modules: all apps/shared — Rail alignment
+
+refactor: user-web rail icons unified to the staff set (`incidents` → List, `active` → Radio); saved rail item loses its count badge everywhere (owner decision); WorkspaceRail hoisted to `src/shared/components/` (three byte-identical copies deleted, imports updated in all apps). All three builds green.

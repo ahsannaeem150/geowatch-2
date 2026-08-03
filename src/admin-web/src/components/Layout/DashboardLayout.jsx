@@ -18,7 +18,7 @@ import { IncidentDetailSidebar, ZoneDetailSidebar, ZoneEditorSidebar } from '@sh
 import CommandPalette from '../CommandPalette/CommandPalette.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
 import WorkspaceTopBar from '../MapWorkspace/WorkspaceTopBar.jsx';
-import WorkspaceRail from '../MapWorkspace/WorkspaceRail.jsx';
+import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
 import WorkspaceDrawer from '../MapWorkspace/WorkspaceDrawer.jsx';
 import { useStaffNotifications } from '../../hooks/useStaffNotifications.js';
 import { useStaffSavedIncidents } from '../../hooks/useStaffSavedIncidents.js';
