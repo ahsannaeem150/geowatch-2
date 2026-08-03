@@ -38,6 +38,22 @@
   min-width: 0;
 }
 
+/* Clickable breadcrumb crumb — inherits the shared opt1-crumbs mono
+   styling; adds only the pointer + hover affordance. */
+.tui-crumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.tui-crumb-link:hover {
+  color: var(--text-primary);
+}
+
 .tui-brand {
   display: flex;
   align-items: center;

@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Filter,
   Loader2,
-  Map as MapIcon,
   MapPin,
   RotateCcw,
   Search,
@@ -18,16 +17,17 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../services/api.js';
-import { useAuth } from '../contexts/AuthContext.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
+import CategoryMultiSelect from '@shared/components/CategoryMultiSelect.jsx';
 import { useCategories } from '@shared/hooks/useCategories.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getBadgeColors } from '@shared/utils/themeColors.js';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import TableDropdown from '../components/TableUI/TableDropdown.jsx';
 import TableDateFilter, { ALL_TIME_FILTER, getDateFilterLabel } from '../components/TableUI/TableDateFilter.jsx';
+import { buildReturnMapUrl } from '../utils/returnView.js';
 import '../components/TableUI/table-ui.css';
 import './IncidentsPage.css';
 
@@ -65,22 +65,6 @@ const SEVERITY_OPTIONS = [
   })),
 ];
 
-function getInitials(user) {
-  const full = user?.fullName || user?.full_name || '';
-  if (full) {
-    const parts = full.trim().split(/\s+/);
-    const first = parts[0]?.[0] || '';
-    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-    return `${first}${last}`.toUpperCase() || 'U';
-  }
-  const email = user?.email || '';
-  return email ? email[0].toUpperCase() : 'U';
-}
-
-function getDisplayName(user) {
-  return user?.fullName || user?.full_name || user?.email || 'User';
-}
-
 function formatRelative(iso) {
   if (!iso) return '—';
   try {
@@ -101,9 +85,8 @@ function formatDate(iso) {
 
 export default function IncidentsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { theme } = useTheme();
-  const { domains } = useCategories();
+  const { categories } = useCategories();
 
   const [incidents, setIncidents] = useState([]);
   const [total, setTotal] = useState(0);
@@ -115,7 +98,7 @@ export default function IncidentsPage() {
   const [dateFilter, setDateFilter] = useState(ALL_TIME_FILTER);
   const [searchInput, setSearchInput] = useState('');
   const [query, setQuery] = useState('');
-  const [domainSlugs, setDomainSlugs] = useState([]);
+  const [categorySlugs, setCategorySlugs] = useState([]);
   const [status, setStatus] = useState('');
   const [verification, setVerification] = useState('');
   const [severity, setSeverity] = useState('');
@@ -146,7 +129,7 @@ export default function IncidentsPage() {
         geometryType: 'point',
         dateFrom: dateFilter.from || undefined,
         dateTo: dateFilter.to || undefined,
-        domainSlugs: domainSlugs.length > 0 ? domainSlugs : undefined,
+        categorySlugs: categorySlugs.length > 0 ? categorySlugs : undefined,
         status: status || undefined,
         verificationStatus: verification || undefined,
         severity: severity ? Number(severity) : undefined,
@@ -169,7 +152,7 @@ export default function IncidentsPage() {
         if (seq !== requestSeq.current) return;
         setLoading(false);
       });
-  }, [query, dateFilter, domainSlugs, status, verification, severity, sort, page, refreshKey]);
+  }, [query, dateFilter, categorySlugs, status, verification, severity, sort, page, refreshKey]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -184,7 +167,7 @@ export default function IncidentsPage() {
     setDateFilter(ALL_TIME_FILTER);
     setSearchInput('');
     setQuery('');
-    setDomainSlugs([]);
+    setCategorySlugs([]);
     setStatus('');
     setVerification('');
     setSeverity('');
@@ -194,15 +177,10 @@ export default function IncidentsPage() {
   const hasActiveFilters = !!(
     dateFilter.preset !== 'all' ||
     query ||
-    domainSlugs.length > 0 ||
+    categorySlugs.length > 0 ||
     status ||
     verification ||
     severity
-  );
-
-  const domainOptions = useMemo(
-    () => domains.map((d) => ({ value: d.slug, label: d.name, color: d.color || '#6b7280' })),
-    [domains]
   );
 
   const activeChips = useMemo(() => {
@@ -221,13 +199,13 @@ export default function IncidentsPage() {
         onRemove: () => { setSearchInput(''); setQuery(''); setPage(0); },
       });
     }
-    domainSlugs.forEach((slug) => {
-      const dom = domains.find((d) => d.slug === slug);
+    categorySlugs.forEach((slug) => {
+      const cat = categories.find((c) => c.slug === slug);
       chips.push({
-        id: `domain-${slug}`,
-        label: dom?.name || slug,
-        color: dom?.color,
-        onRemove: () => { setDomainSlugs((prev) => prev.filter((s) => s !== slug)); setPage(0); },
+        id: `category-${slug}`,
+        label: cat?.name || slug,
+        color: cat?.domain_color,
+        onRemove: () => { setCategorySlugs((prev) => prev.filter((s) => s !== slug)); setPage(0); },
       });
     });
     if (status) {
@@ -255,7 +233,7 @@ export default function IncidentsPage() {
       });
     }
     return chips;
-  }, [dateFilter, query, domainSlugs, status, verification, severity, domains]);
+  }, [dateFilter, query, categorySlugs, status, verification, severity, categories]);
 
   const handleResolve = async (incident) => {
     setBusyId(incident.id);
@@ -285,36 +263,43 @@ export default function IncidentsPage() {
     }
   };
 
-  const initials = getInitials(user);
-  const displayName = getDisplayName(user);
-
   return (
     <div className="tui-page">
-      {/* ─── Top bar ─── */}
-      <header className="tui-topbar">
-        <div className="tui-topbar-left">
-          <div className="tui-brand">
-            <div className="tui-brand-mark">G</div>
-            <span className="tui-brand-name">GeoWatch</span>
-            <span className="tui-brand-pill">Incidents</span>
+      {/* ─── Detail-style top bar: back chip + breadcrumb trail (same
+          structure/classes as the incident/zone full-page top bars). The
+          result count stays on the right. ─── */}
+      <div className="opt1-topbar">
+        <div className="opt1-topbar-inner">
+          <div className="opt1-topbar-left">
+            <button
+              type="button"
+              className="opt1-back-link"
+              onClick={() => navigate(buildReturnMapUrl())}
+              title="Back to the map"
+            >
+              <ChevronLeft size={14} />
+              Map
+            </button>
+            <nav className="opt1-crumbs" aria-label="Breadcrumb">
+              <button
+                type="button"
+                className="opt1-crumbs__item tui-crumb-link"
+                onClick={() => navigate(buildReturnMapUrl())}
+              >
+                Map
+              </button>
+              <span className="opt1-crumbs__sep">›</span>
+              <span className="opt1-crumbs__title">Incidents</span>
+            </nav>
           </div>
-          <span className="tui-total">
-            <span className="tui-total-num">{loading && incidents.length === 0 ? '—' : total.toLocaleString()}</span>
-            {' '}incident{total === 1 ? '' : 's'}
-          </span>
-        </div>
-
-        <div className="tui-topbar-right">
-          <button className="tui-btn" onClick={() => navigate('/')}>
-            <MapIcon size={13} />
-            View on map
-          </button>
-          <div className="tui-user" title={user?.email || ''}>
-            <span className="tui-user-name">{displayName}</span>
-            <div className="tui-avatar">{initials}</div>
+          <div className="opt1-topbar-right">
+            <span className="tui-total">
+              <span className="tui-total-num">{loading && incidents.length === 0 ? '—' : total.toLocaleString()}</span>
+              {' '}incident{total === 1 ? '' : 's'}
+            </span>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* ─── Toolbar ─── */}
       <div className="tui-toolbar">
@@ -340,14 +325,10 @@ export default function IncidentsPage() {
             )}
           </div>
 
-          <TableDropdown
-            multi
-            label="Domains"
-            allLabel="All domains"
-            values={domainSlugs}
-            options={domainOptions}
-            onChange={(next) => { setDomainSlugs(next); setPage(0); }}
-            title="Filter by domain"
+          <CategoryMultiSelect
+            categories={categories}
+            selectedIds={categorySlugs}
+            onChange={(next) => { setCategorySlugs(next); setPage(0); }}
           />
 
           <div className="tui-seg">
@@ -391,7 +372,7 @@ export default function IncidentsPage() {
 
       {/* ─── Active filter chips ─── */}
       {hasActiveFilters && (
-        <div className="tui-chips-bar">
+        <div className="tui-chips-bar tui-chips-scroll">
           <span className="tui-chips-label">
             <Filter size={11} />
             Filters

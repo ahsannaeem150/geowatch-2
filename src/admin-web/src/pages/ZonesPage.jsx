@@ -11,7 +11,6 @@ import {
   Filter,
   Hexagon,
   Loader2,
-  Map as MapIcon,
   MapPin,
   RotateCcw,
   Search,
@@ -19,16 +18,17 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../services/api.js';
-import { useAuth } from '../contexts/AuthContext.jsx';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
+import CategoryMultiSelect from '@shared/components/CategoryMultiSelect.jsx';
 import { useZoneCategories } from '@shared/hooks/useZoneCategories.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getBadgeColors } from '@shared/utils/themeColors.js';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import TableDropdown from '../components/TableUI/TableDropdown.jsx';
 import TableDateFilter, { ALL_TIME_FILTER, getDateFilterLabel } from '../components/TableUI/TableDateFilter.jsx';
+import { buildReturnMapUrl } from '../utils/returnView.js';
 import '../components/TableUI/table-ui.css';
 
 const PAGE_SIZE = 25;
@@ -65,22 +65,6 @@ const SEVERITY_OPTIONS = [
   })),
 ];
 
-function getInitials(user) {
-  const full = user?.fullName || user?.full_name || '';
-  if (full) {
-    const parts = full.trim().split(/\s+/);
-    const first = parts[0]?.[0] || '';
-    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-    return `${first}${last}`.toUpperCase() || 'U';
-  }
-  const email = user?.email || '';
-  return email ? email[0].toUpperCase() : 'U';
-}
-
-function getDisplayName(user) {
-  return user?.fullName || user?.full_name || user?.email || 'User';
-}
-
 function formatAreaKm2(areaSqM) {
   const n = Number(areaSqM);
   if (!Number.isFinite(n) || n <= 0) return null;
@@ -110,7 +94,6 @@ function formatDate(iso) {
 
 export default function ZonesPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { theme } = useTheme();
   const { categories } = useZoneCategories();
 
@@ -209,13 +192,6 @@ export default function ZonesPage() {
     severity
   );
 
-  const toggleCategory = (id) => {
-    setCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-    setPage(0);
-  };
-
   const activeChips = useMemo(() => {
     const chips = [];
     if (dateFilter.preset !== 'all') {
@@ -296,36 +272,43 @@ export default function ZonesPage() {
     }
   };
 
-  const initials = getInitials(user);
-  const displayName = getDisplayName(user);
-
   return (
     <div className="tui-page">
-      {/* ─── Top bar ─── */}
-      <header className="tui-topbar">
-        <div className="tui-topbar-left">
-          <div className="tui-brand">
-            <div className="tui-brand-mark">G</div>
-            <span className="tui-brand-name">GeoWatch</span>
-            <span className="tui-brand-pill">Zones</span>
+      {/* ─── Detail-style top bar: back chip + breadcrumb trail (same
+          structure/classes as the incident/zone full-page top bars). The
+          result count stays on the right. ─── */}
+      <div className="opt1-topbar">
+        <div className="opt1-topbar-inner">
+          <div className="opt1-topbar-left">
+            <button
+              type="button"
+              className="opt1-back-link"
+              onClick={() => navigate(buildReturnMapUrl())}
+              title="Back to the map"
+            >
+              <ChevronLeft size={14} />
+              Map
+            </button>
+            <nav className="opt1-crumbs" aria-label="Breadcrumb">
+              <button
+                type="button"
+                className="opt1-crumbs__item tui-crumb-link"
+                onClick={() => navigate(buildReturnMapUrl())}
+              >
+                Map
+              </button>
+              <span className="opt1-crumbs__sep">›</span>
+              <span className="opt1-crumbs__title">Zones</span>
+            </nav>
           </div>
-          <span className="tui-total">
-            <span className="tui-total-num">{loading && zones.length === 0 ? '—' : total.toLocaleString()}</span>
-            {' '}zone{total === 1 ? '' : 's'}
-          </span>
-        </div>
-
-        <div className="tui-topbar-right">
-          <button className="tui-btn" onClick={() => navigate('/')}>
-            <MapIcon size={13} />
-            View on map
-          </button>
-          <div className="tui-user" title={user?.email || ''}>
-            <span className="tui-user-name">{displayName}</span>
-            <div className="tui-avatar">{initials}</div>
+          <div className="opt1-topbar-right">
+            <span className="tui-total">
+              <span className="tui-total-num">{loading && zones.length === 0 ? '—' : total.toLocaleString()}</span>
+              {' '}zone{total === 1 ? '' : 's'}
+            </span>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* ─── Toolbar ─── */}
       <div className="tui-toolbar">
@@ -350,6 +333,15 @@ export default function ZonesPage() {
               </button>
             )}
           </div>
+
+          <CategoryMultiSelect
+            categories={categories}
+            selectedIds={categoryIds}
+            onChange={(next) => { setCategoryIds(next); setPage(0); }}
+            placeholder="Zone categories"
+            // Zone categories filter by id server-side (zoneCategoryIds), not slug
+            getValue={(cat) => cat.id}
+          />
 
           <div className="tui-seg">
             {STATUS_OPTIONS.map((opt) => (
@@ -388,45 +380,11 @@ export default function ZonesPage() {
             />
           </div>
         </div>
-
-        <div className="tui-cat-row">
-          <button
-            className={`tui-cat-chip${categoryIds.length === 0 ? ' active' : ''}`}
-            onClick={() => { setCategoryIds([]); setPage(0); }}
-          >
-            All categories
-          </button>
-          {categories.map((cat) => {
-            const id = String(cat.id);
-            const active = categoryIds.includes(id);
-            const colors = active ? getBadgeColors(cat.color || '#6b7280', theme) : null;
-            return (
-              <button
-                key={cat.id}
-                className={`tui-cat-chip${active ? ' active' : ''}`}
-                style={
-                  active
-                    ? {
-                        background: colors.background,
-                        borderColor: colors.border.replace('1px solid ', ''),
-                        color: colors.color,
-                      }
-                    : undefined
-                }
-                onClick={() => toggleCategory(id)}
-                title={active ? 'Remove from filter' : 'Add to filter'}
-              >
-                <span className="tui-cat-dot" style={{ background: cat.color || '#6b7280' }} />
-                {cat.name}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* ─── Active filter chips ─── */}
       {hasActiveFilters && (
-        <div className="tui-chips-bar">
+        <div className="tui-chips-bar tui-chips-scroll">
           <span className="tui-chips-label">
             <Filter size={11} />
             Filters

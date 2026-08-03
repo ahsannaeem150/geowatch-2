@@ -5,6 +5,7 @@ import './index.css';
 import './styles/map-workspace.css';
 import '@shared/media-components.css';
 import '@shared/styles/incident-detail.css';
+import '@shared/styles/table-chips.css';
 import { ThemeProvider } from '@shared/theme-context.jsx';
 
 // Apply the persisted reduce-motion preference before first paint

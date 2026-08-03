@@ -17,6 +17,7 @@ import {
 import { api } from '../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
+import CategoryMultiSelect from '@shared/components/CategoryMultiSelect.jsx';
 import { useZoneCategories } from '@shared/hooks/useZoneCategories.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getBadgeColors } from '@shared/utils/themeColors.js';
@@ -189,13 +190,6 @@ export default function ZonesPage() {
     severity
   );
 
-  const toggleCategory = (id) => {
-    setCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-    setPage(0);
-  };
-
   const activeChips = useMemo(() => {
     const chips = [];
     if (dateFilter.preset !== 'all') {
@@ -318,6 +312,15 @@ export default function ZonesPage() {
             )}
           </div>
 
+          <CategoryMultiSelect
+            categories={categories}
+            selectedIds={categoryIds}
+            onChange={(next) => { setCategoryIds(next); setPage(0); }}
+            placeholder="Zone categories"
+            // Zone categories filter by id server-side (zoneCategoryIds), not slug
+            getValue={(cat) => cat.id}
+          />
+
           <div className="tui-seg">
             {STATUS_OPTIONS.map((opt) => (
               <button
@@ -354,40 +357,6 @@ export default function ZonesPage() {
               align="right"
             />
           </div>
-        </div>
-
-        <div className="tui-cat-row">
-          <button
-            className={`tui-cat-chip${categoryIds.length === 0 ? ' active' : ''}`}
-            onClick={() => { setCategoryIds([]); setPage(0); }}
-          >
-            All categories
-          </button>
-          {categories.map((cat) => {
-            const id = String(cat.id);
-            const active = categoryIds.includes(id);
-            const colors = active ? getBadgeColors(cat.color || '#6b7280', theme) : null;
-            return (
-              <button
-                key={cat.id}
-                className={`tui-cat-chip${active ? ' active' : ''}`}
-                style={
-                  active
-                    ? {
-                        background: colors.background,
-                        borderColor: colors.border.replace('1px solid ', ''),
-                        color: colors.color,
-                      }
-                    : undefined
-                }
-                onClick={() => toggleCategory(id)}
-                title={active ? 'Remove from filter' : 'Add to filter'}
-              >
-                <span className="tui-cat-dot" style={{ background: cat.color || '#6b7280' }} />
-                {cat.name}
-              </button>
-            );
-          })}
         </div>
       </div>
 

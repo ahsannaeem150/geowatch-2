@@ -1,0 +1,20 @@
+/* ─── Console directory pages (/superadmin/incidents, /superadmin/zones) ───
+   Chrome, toolbar, table, dropdown, and popover styles are shared via
+   src/superadmin-web/src/components/TableUI/table-ui.css (imported by the
+   pages). Only rules shared by BOTH directory pages live here. */
+
+/* Clickable breadcrumb crumb — inherits the shared opt1-crumbs mono
+   styling; adds only the pointer + hover affordance. */
+.tui-crumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.tui-crumb-link:hover {
+  color: var(--text-primary);
+}

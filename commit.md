@@ -12594,3 +12594,12 @@ style: panel redesigned as domains-first accordion per owner feedback — collap
 ## 📅 2026-08-02 — Module: user-web/shared — Picker polish + chips-scrollbar fix + detail topbar on directories
 
 feat: CategoryMultiSelect polish (sticky panel header, mono count pill on trigger, refined tri-state checkboxes, chip ×-hover affordance, shadow-lg panel). Horizontal active-filters scrollbar no longer overlaps chips — fix lives in shared `styles/table-chips.css` (`.tui-chips-scroll` on `.tui-chips-bar` + main.jsx import; port note in AGENTS.md). /incidents + /zones now render the shared detail-style topbar + breadcrumb (opt1-* classes) with Back chip and clickable Map crumb (both → buildReturnMapUrl). Build green.
+
+
+## 📅 2026-08-02 — Module: user-web — CategoryMultiSelect on /zones
+
+feat: zones directory inline category chips replaced with the shared picker (flat fallback, `getValue=id`, "Zone categories" placeholder) — server-side `zoneCategoryIds` unchanged; active chips + topbar already in place. Build green.
+
+## 📅 2026-08-02 — Modules: admin-web + superadmin-web — Directory pages port
+
+feat: both staff apps' /incidents + /zones get the full package — shared detail-style topbar + breadcrumb (Back chip + Map crumb → per-app buildReturnMapUrl), CategoryMultiSelect (domain-grouped on incidents, flat id-keyed on zones; server-side categorySlugs/zoneCategoryIds), chips-scrollbar fix (table-chips.css + tui-chips-scroll), and return-view payload save on map→directory nav (admin: wired in DashboardLayout handlers; superadmin: WorkspaceTopBar onSaveReturnView). Builds green.

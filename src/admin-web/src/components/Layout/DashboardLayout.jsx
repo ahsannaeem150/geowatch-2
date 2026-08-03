@@ -2538,14 +2538,55 @@ export default function DashboardLayout() {
     [handleSelectFromActivity]
   );
 
+  // Save the full return context (camera + date range + selection) so a later
+  // Back — from a full-page detail view OR a directory page — restores the map
+  // exactly as left. Detail navigation passes the target selection explicitly;
+  // without one the current panel selection is saved. Sets the
+  // `geowatch_admin_returning` latch the mount-time restore effect consumes.
+  // No-op until the map instance exists (map not ready).
+  const saveMapReturnView = useCallback(
+    (selection) => {
+      const map = mapRef.current?.getMap?.();
+      if (!map) return;
+      const selId = selection ? selection.id : (selectedIncident?.id ?? null);
+      const selIsZone = selection ? selection.isZone : selectedIncident?.geometry_type === 'polygon';
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      // Full return context: Back must restore the date range (live or
+      // historic), the selected incident/zone, and the camera.
+      // getCenter/getPadding are padding-aware, so saving the tuple
+      // (center, zoom, bearing, pitch, padding) lets the map remount at
+      // the exact framing the user left — no flight, no refit.
+      const view = {
+        lat: center.lat,
+        lng: center.lng,
+        zoom,
+        bearing: map.getBearing(),
+        pitch: map.getPitch(),
+        padding: map.getPadding(),
+        dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
+        isLiveMode,
+        selectedIncidentId: selId && !selIsZone ? selId : null,
+        selectedZoneId: selId && selIsZone ? selId : null,
+      };
+      sessionStorage.setItem('geowatch_admin_return_view', JSON.stringify(view));
+      sessionStorage.setItem('geowatch_admin_returning', '1');
+    },
+    [selectedIncident, dateRange.from, dateRange.to, isLiveMode]
+  );
+
   // ─── Zone page navigation ───
   const handleOpenZones = useCallback(() => {
+    // Save the return view so the directory's Back control restores this
+    // exact map state (camera/selection/dateRange).
+    saveMapReturnView();
     navigate('/zones');
-  }, [navigate]);
+  }, [navigate, saveMapReturnView]);
 
   const handleOpenIncidents = useCallback(() => {
+    saveMapReturnView();
     navigate('/incidents');
-  }, [navigate]);
+  }, [navigate, saveMapReturnView]);
 
   // ─── Shared incident-detail callbacks ───
   function dataUrlToFile(dataUrl, fileName = 'image.png') {
@@ -2590,47 +2631,25 @@ export default function DashboardLayout() {
     const map = mapRef.current?.getMap?.();
     const isZone = selectedIncident?.geometry_type === 'polygon';
 
-    const navigateToFullPage = () => {
-      navigate(`/${isZone ? 'zone' : 'incident'}/${selectedIncident.id}`);
-    };
-
     const saveMapViewAndNavigate = () => {
-      if (!map) {
-        navigateToFullPage();
-        return;
+      if (map) {
+        saveMapReturnView({ id: selectedIncident.id, isZone });
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('lat', center.lat.toFixed(6));
+            next.set('lng', center.lng.toFixed(6));
+            next.set('zoom', zoom.toFixed(2));
+            return next;
+          },
+          { replace: true }
+        );
+      } else {
+        sessionStorage.setItem('geowatch_admin_returning', '1');
       }
-      const center = map.getCenter();
-      const zoom = map.getZoom();
-      // Full return context: Back must restore the date range (live or
-      // historic), the selected incident/zone, and the camera.
-      // getCenter/getPadding are padding-aware, so saving the tuple
-      // (center, zoom, bearing, pitch, padding) lets the map remount at
-      // the exact framing the user left — no flight, no refit.
-      const view = {
-        lat: center.lat,
-        lng: center.lng,
-        zoom,
-        bearing: map.getBearing(),
-        pitch: map.getPitch(),
-        padding: map.getPadding(),
-        dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
-        isLiveMode,
-        selectedIncidentId: isZone ? null : selectedIncident.id,
-        selectedZoneId: isZone ? selectedIncident.id : null,
-      };
-      sessionStorage.setItem('geowatch_admin_return_view', JSON.stringify(view));
-      sessionStorage.setItem('geowatch_admin_returning', '1');
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('lat', center.lat.toFixed(6));
-          next.set('lng', center.lng.toFixed(6));
-          next.set('zoom', zoom.toFixed(2));
-          return next;
-        },
-        { replace: true }
-      );
-      navigateToFullPage();
+      navigate(`/${isZone ? 'zone' : 'incident'}/${selectedIncident.id}`);
     };
 
     if (map && map.isMoving()) {
@@ -2638,7 +2657,7 @@ export default function DashboardLayout() {
     } else {
       saveMapViewAndNavigate();
     }
-  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams, dateRange.from, dateRange.to, isLiveMode]);
+  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams, saveMapReturnView]);
 
   const handleUpdateIncident = useCallback(
     withDetailRefresh(async (patch) => {

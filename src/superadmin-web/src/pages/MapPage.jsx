@@ -1187,11 +1187,18 @@ export default function MapPage() {
     [selectedIncident?.id, fetchSelectedIncidentDetail]
   );
 
-  const handleNavigateToFullPage = useCallback(() => {
-    if (!selectedIncident?.id) return;
-    const map = mapRef.current?.getMap?.();
-    const isZone = selectedIncident?.geometry_type === 'polygon';
-    if (map) {
+  // Save the full return context (camera + date range + selection) so a later
+  // Back — from a full-page detail view OR a directory page — restores the map
+  // exactly as left. Detail navigation passes the target selection explicitly;
+  // without one the current panel selection is saved. Sets the
+  // `geowatch_superadmin_returning` latch the mount-time restore effect
+  // consumes. No-op until the map instance exists (map not ready).
+  const saveMapReturnView = useCallback(
+    (selection) => {
+      const map = mapRef.current?.getMap?.();
+      if (!map) return;
+      const selId = selection ? selection.id : (selectedIncident?.id ?? null);
+      const selIsZone = selection ? selection.isZone : selectedIncident?.geometry_type === 'polygon';
       const center = map.getCenter();
       const zoom = map.getZoom();
       // Full return context: Back must restore the date range (live or
@@ -1210,11 +1217,23 @@ export default function MapPage() {
           padding: map.getPadding(),
           dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
           isLiveMode,
-          selectedIncidentId: isZone ? null : selectedIncident.id,
-          selectedZoneId: isZone ? selectedIncident.id : null,
+          selectedIncidentId: selId && !selIsZone ? selId : null,
+          selectedZoneId: selId && selIsZone ? selId : null,
         })
       );
       sessionStorage.setItem('geowatch_superadmin_returning', '1');
+    },
+    [selectedIncident, dateRange.from, dateRange.to, isLiveMode]
+  );
+
+  const handleNavigateToFullPage = useCallback(() => {
+    if (!selectedIncident?.id) return;
+    const map = mapRef.current?.getMap?.();
+    const isZone = selectedIncident?.geometry_type === 'polygon';
+    if (map) {
+      saveMapReturnView({ id: selectedIncident.id, isZone });
+      const center = map.getCenter();
+      const zoom = map.getZoom();
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -1227,7 +1246,7 @@ export default function MapPage() {
       );
     }
     navigate(isZone ? `/superadmin/zone/${selectedIncident.id}` : `/superadmin/incident/${selectedIncident.id}`);
-  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams, dateRange.from, dateRange.to, isLiveMode]);
+  }, [navigate, selectedIncident?.id, selectedIncident?.geometry_type, setSearchParams, saveMapReturnView]);
 
   // Restore full map context when returning from a full-page detail view:
   // date range (live or historic — the mode pill and date control both derive
@@ -2884,6 +2903,7 @@ export default function MapPage() {
             user={user}
             onLogout={logout}
             compactMode={compactMode}
+            onSaveReturnView={saveMapReturnView}
           />
         )}
 
