@@ -126,6 +126,32 @@ export default function MapPage() {
   // ?incident=/?zone= deep-link into a skipFlyTo.
   const initialUrlHadViewportRef = useRef(!!hasViewportParams);
 
+  // Return-restore snapshot: arriving Back from a full-page detail view with
+  // the return-view payload (built into the URL by buildReturnMapUrl). When the
+  // payload's camera matches the URL camera, this mount IS a return — the map
+  // then initializes at the exact saved camera (padding/bearing/pitch included)
+  // and no initial flight runs (a no-op easeTo would clobber the restored
+  // padding). A stale payload whose camera differs from the URL (share-link
+  // opened in the same tab) is ignored.
+  const returnViewRef = useRef(undefined);
+  if (returnViewRef.current === undefined) {
+    try {
+      const raw = sessionStorage.getItem('geowatch_user_return_view');
+      returnViewRef.current = raw ? JSON.parse(raw) : null;
+    } catch {
+      returnViewRef.current = null;
+    }
+  }
+  const returnViewPayload = returnViewRef.current;
+  const returnView =
+    returnViewPayload &&
+    hasViewportParams &&
+    Number(returnViewPayload.lat).toFixed(6) === Number(latParam).toFixed(6) &&
+    Number(returnViewPayload.lng).toFixed(6) === Number(lngParam).toFixed(6) &&
+    Number(returnViewPayload.zoom).toFixed(2) === Number(zoomParam).toFixed(2)
+      ? returnViewPayload
+      : null;
+
   // ─── Date & filters ───
   const today = getToday();
   const [dateRange, setDateRange] = useState({ from: today, to: today });
@@ -133,7 +159,7 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(
-    hasViewportParams
+    hasViewportParams && !returnView
       ? {
           lat: parseFloat(latParam),
           lng: parseFloat(lngParam),
@@ -937,12 +963,18 @@ export default function MapPage() {
           const zoom = map.getZoom();
           // Full return context: Back must restore the date range (live or
           // historic), the selected incident/zone, the drawer, and the camera.
+          // getCenter/getPadding are padding-aware, so saving the tuple
+          // (center, zoom, bearing, pitch, padding) lets the map remount at
+          // the exact framing the user left — no flight, no refit.
           sessionStorage.setItem(
             'geowatch_user_return_view',
             JSON.stringify({
               lat: center.lat,
               lng: center.lng,
               zoom,
+              bearing: map.getBearing(),
+              pitch: map.getPitch(),
+              padding: map.getPadding(),
               dateRange: { from: dateRange.from ?? null, to: dateRange.to ?? null },
               isLiveMode,
               selectedIncidentId: isZone ? null : incidentId,
@@ -1671,7 +1703,17 @@ export default function MapPage() {
             flyToCoords={flyToCoords}
             initialViewport={
               hasViewportParams
-                ? { center: [parseFloat(lngParam), parseFloat(latParam)], zoom: parseFloat(zoomParam) }
+                ? {
+                    center: [parseFloat(lngParam), parseFloat(latParam)],
+                    zoom: parseFloat(zoomParam),
+                    ...(returnView && Number.isFinite(returnView.bearing)
+                      ? { bearing: returnView.bearing }
+                      : {}),
+                    ...(returnView && Number.isFinite(returnView.pitch)
+                      ? { pitch: returnView.pitch }
+                      : {}),
+                    ...(returnView?.padding ? { padding: returnView.padding } : {}),
+                  }
                 : null
             }
             ghostIncident={ghostIncident}

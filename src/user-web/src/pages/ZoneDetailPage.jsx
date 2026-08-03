@@ -6,6 +6,7 @@ import { API_BASE_URL } from '@shared/constants.js';
 import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 import { useSignInModal } from '../contexts/SignInModalContext.jsx';
 import { DetailLoadingSkeleton, DetailErrorState } from '../components/IncidentDetail/DetailPageStates.jsx';
+import { buildReturnMapUrl } from '../utils/returnView.js';
 
 export default function ZoneDetailPage() {
   const { id } = useParams();
@@ -115,7 +116,7 @@ export default function ZoneDetailPage() {
 
           if (payload.type === 'incident_deleted') {
             setToast({ message: 'This zone has been removed', type: 'info' });
-            setTimeout(() => navigate('/map'), 2000);
+            setTimeout(() => navigate(buildReturnMapUrl()), 2000);
           }
         } catch (err) {
           console.warn('[SSE] Failed to parse message:', err);
@@ -155,11 +156,12 @@ export default function ZoneDetailPage() {
 
   const handleBack = useCallback(() => {
     // Deterministic: always return to the map. When a saved return-view exists
-    // (geowatch_user_returning/geowatch_user_return_view), MapPage restores the
-    // full context (date range, selection, camera) on mount. history.length is
-    // untrustworthy — it counts the whole session (external links, redirects,
-    // same-page entries), which made navigate(-1) a no-op or a same-URL hop.
-    navigate('/map');
+    // (geowatch_user_return_view), the camera rides in the Back URL so MapPage
+    // mounts directly at the saved view — the panel-selection restore skips
+    // its flight entirely. history.length is untrustworthy — it counts the
+    // whole session (external links, redirects, same-page entries), which made
+    // navigate(-1) a no-op or a same-URL hop.
+    navigate(buildReturnMapUrl());
   }, [navigate]);
 
   const handleSave = useCallback(

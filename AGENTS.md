@@ -1,6 +1,6 @@
 # GeoWatch — Agent Guide
 
-> This file is written for AI coding agents. Read it first when working on GeoWatch. It describes the project's actual architecture, conventions, commands, and gotchas as of the latest codebase state.
+> This file is written for AI coding agents. Read it first when working on GeoWatch. It describes the project's actual architecture, conventions, commands, and gotchas as of the latest codebase state (2026-08-01).
 
 ---
 
@@ -8,9 +8,9 @@
 
 **GeoWatch** is a map-based global conflict and major-events visualization platform — a tactical intelligence dashboard with a premium newsroom aesthetic. The platform has three web frontends and one shared backend:
 
-- **user-web** (`:5173`) — Public website: home page, interactive `/map` explorer, incident/zone detail pages, about page. Read-only plus Google sign-in for saving/bookmarking incidents.
-- **admin-web** (`:5174`) — Internal staff dashboard for creating and curating incidents, timeline updates, sources, media, and polygon zones.
-- **superadmin-web** (`:5175`) — System console for super admins (staff + public user management, audit/activity logs, taxonomy, recycle bin, system health, data export, X-archive debug).
+- **user-web** (`:5173`) — Public website: home page, interactive `/map` explorer, incident/zone directory pages and detail pages, about page, 404 page. Read-only plus Google sign-in for saving/bookmarking incidents.
+- **admin-web** (`:5174`) — Internal staff dashboard for creating and curating incidents, timeline updates, sources, media, and polygon zones (map-first workspace + incidents/zones directory pages).
+- **superadmin-web** (`:5175`) — System console for super admins (staff + public user management, audit/activity logs, taxonomy, recycle bin, system health, data export, X-archive debug) plus the same map workspace and directory pages.
 - **backend** (`:3100`) — Express REST API with JWT auth, PostGIS queries, SSE broadcasting, audit logging, notifications, and media upload processing.
 
 The code lives in a single npm-workspace monorepo. The database is PostgreSQL 16 with PostGIS 3. Map tiles are served by a self-hosted Martin binary reading a local `.mbtiles` file; map styles and font glyphs are self-hosted from `assets/`.
@@ -78,10 +78,11 @@ geowatch/
 │   └── shared/               # Cross-app design tokens, constants, shared components, hooks
 ├── assets/                   # map-style-{dark,light}.json, fonts/ (Noto Sans fontstacks), tiles/ (gitignored .mbtiles)
 ├── docs/                     # api-spec.md, database-schema.sql, design-brief.md, env-template.md,
-│                             # incident-taxonomy.md, grant-permissions.sql, migrations/
+│                             # incident-taxonomy.md, grant-permissions.sql, media-migration.sql,
+│                             # trial-activity-notifications-design.md, dev-credentials.md (gitignored), migrations/
 ├── scripts/                  # Service launcher/stopper/logs + Playwright verification & screenshot utilities
 ├── uploads/                  # Local user-generated content (gitignored)
-├── tools/                    # Downloaded martin binary (gitignored)
+├── tools/                    # Downloaded martin + ffmpeg binaries (gitignored)
 ├── seeds.sql                 # Sample dev data
 ├── commit.md                 # Full build history (append every change)
 ├── trialRoutes.md            # Reference for active design/trial routes
@@ -93,16 +94,16 @@ geowatch/
 
 Each frontend imports shared code through the `@shared` Vite alias (`resolve.alias` in each `vite.config.js`).
 
-- `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`.
+- `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`. Includes display typography scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), a `--font-longform` (Inter) face for long-form prose, global keyboard-only `:focus-visible` focus rings, reduced-motion suppression (media query + `.reduce-motion` class), and `--border-strong` in both themes.
 - `constants.js` — Severity scale, event statuses, source types, user roles, verification statuses, API base URL, Martin URL.
 - `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
 - `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`.
-- `components/incident-detail/` — Shared incident detail package (sidebar + full page + evidence rail + timeline items + X-post list + source cards). Reused across all three frontends.
+- `components/incident-detail/` — Shared incident detail package (sidebar + full page + evidence rail + timeline items + X-post list + source cards + procedural `TargetingCard` hero). Reused across all three frontends.
 - `components/zone/` — Shared zone/polygon detail components (`ZoneDetailSidebar`, `ZoneDetailPage`, `ZoneEditorSidebar`) plus trial-only styles/components.
 - `marker-builder.js`, `marker-icons.js` — Map marker generation helpers.
 - `styles/incident-detail.css`, `media-components.css` — Imported in each app's `main.jsx`.
-- `hooks/` — `useCategories.js`, `useZoneCategories.js`, `useLongPress.js`, `useMapContextMenu.js`.
-- `utils/` — `zoneGeometry.js`, `themeColors.js`, `selectionCamera.js` (shared smart selection camera policy used by admin-web and user-web).
+- `hooks/` — `useCategories.js`, `useZoneCategories.js`, `useLongPress.js`, `useMapContextMenu.js`, `useReducedMotion.js`.
+- `utils/` — `zoneGeometry.js`, `themeColors.js`, `selectionCamera.js` (shared smart selection camera policy used by all three map apps).
 - `index.js` — Public exports (incident-detail package, zone components, `RightPanelCollapseButton`).
 
 ### Backend Layered Architecture
@@ -164,7 +165,7 @@ sudo -u postgres psql -f docs/database-schema.sql
 sudo -u postgres psql -d geowatch_dev -f seeds.sql
 ```
 
-Incremental schema changes live in `docs/migrations/` (numbered SQL files). Apply them in order when setting up an existing database.
+Incremental schema changes live in `docs/migrations/` (numbered SQL files plus a few older named ones). Apply them in order when setting up an existing database.
 
 ### Environment Files
 
@@ -250,7 +251,7 @@ Besides the service launcher/stopper/status/logs helpers, `scripts/` contains Pl
 | User website | http://localhost:5173 | Public read-only + Google sign-in bookmarks |
 | Admin dashboard | http://localhost:5174 | Staff-only, protected by login |
 | Superadmin console | http://localhost:5175 | `super_admin` only |
-| Backend API | http://localhost:3100/api/v1 | Base path is `/api/v1` |
+| Backend API | http://localhost:3100/api/v1 | Base path is `/api/v1` (port moved 3000 → 3100 permanently on 2026-07-31) |
 | Martin tiles | http://localhost:8080 | Self-hosted `.mbtiles` |
 
 All three frontends talk to the backend over HTTP and SSE; only the backend talks to PostgreSQL. Martin serves tiles directly to the frontends.
@@ -265,9 +266,11 @@ Staff users (`users` table) and public users (`public_users` table) are separate
 
 ### Frontend Routing (production routes)
 
-- **user-web**: `/` (home), `/map`, `/incidents` + `/zones` (read-only table directories), `/incident/:id`, `/zone/:id`, `/about`, plus `/trial/zone*` design trials.
-- **admin-web**: `/login`, `/*` → `DashboardLayout` (map-first HUD, includes `/search` Power Search handled inside the layout), `/incident/:id`, `/zones`, `/zone/:id`, plus `/trial*` and `/sidebarTrial*` design trials.
-- **superadmin-web**: everything under `/superadmin/*` — dashboard, users, public-users, map (full-viewport workspace page rendered outside the sidebar `Layout`), audit, public-activity, domains, zone-categories, system, export, recycle-bin, x-archive-debug, `incident/:id`, `zone/:id`.
+- **user-web**: `/` (home), `/map`, `/incidents` + `/zones` (read-only table directories), `/incident/:id`, `/zone/:id`, `/about`, `*` → `NotFoundPage`, plus `/trial/zone*` design trials.
+- **admin-web**: `/login`, `/*` → `DashboardLayout` (map-first HUD, includes `/search` Power Search handled inside the layout), `/incidents`, `/zones`, `/incident/:id`, `/zone/:id`, plus `/trial*` and `/sidebarTrial*` design trials.
+- **superadmin-web**: everything under `/superadmin/*` — dashboard, users, public-users, map (full-viewport workspace page rendered outside the sidebar `Layout`), incidents, zones, audit, public-activity, domains, zone-categories, system, export, recycle-bin, x-archive-debug, `incident/:id`, `zone/:id`, `*` → `NotFoundPage`; console pages keep the sidebar shell.
+
+All three apps set per-route `document.title` via a `RouteTitle` component in their `App.jsx` (detail pages use the loaded incident/zone title) and ship an inline SVG favicon + meta description/theme-color in `index.html`.
 
 ---
 
@@ -337,7 +340,7 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
 
 - Pure React + CSS; no external UI component libraries.
 - Use the `@shared` alias for shared components, hooks, and constants.
-- Dark theme first; light theme is driven by CSS variables and `[data-theme="light"]`.
+- Dark theme first; light theme is driven by CSS variables and `[data-theme="light"]`. Token-only colors — never hardcode hex in components.
 - Two interface styles are supported via the `data-style` HTML attribute: `tactical` (default), `saas`.
 - Import shared styles in each app's `main.jsx`:
   ```js
@@ -346,6 +349,8 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
   ```
 - Each frontend wraps the app in the shared `ThemeProvider`.
 - Each frontend's `vite.config.js` includes a `copyMapAssetsPlugin` that copies `assets/map-style-*.json` and `assets/fonts/` into the app's `public/` at build/dev start — map styles and font glyphs are served as same-origin static files.
+- **Reduced motion**: all three apps honor OS `prefers-reduced-motion` AND a `.reduce-motion` HTML class via `design-tokens.css`, and each has a Settings-drawer "Reduce motion" switch persisted in `localStorage` (`geowatch_user_reduce_motion` / `geowatch_admin_reduce_motion` / `geowatch_superadmin_reduce_motion`, boot-applied in each `main.jsx`). Guard new animation with the shared `useReducedMotion` hook.
+- Typography: 10px floor for production labels; use the display scale vars and `.font-longform` (Inter) for long-form prose such as incident descriptions and About copy.
 
 ### Backend Conventions
 
@@ -368,9 +373,11 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
 
 - MapLibre positions markers via `translate3d` on the parent element — apply visual effects (scale, shadow) to a child element, never override the parent transform.
 - Split marker effects into separate `useEffect`s: one for create/remove/position (`[events]`), one for selection styling (`[selectedIncidentId]`).
+- Zone hover/click handlers must be bound ONCE per map (delegated bindings that read a `zonesRef` at event time) — rebinding per zone-set change causes stale-closure bugs. All three map components (`UserMap`, `AdminMap`, `SuperadminMap`) follow this pattern.
 - Smart viewport filtering: fetch without viewport first; if total count > 100, enable viewport-bounded fetching on pan/zoom, otherwise load everything.
-- Large-range gating (admin-web + user-web): ranges > 31 days or unbounded ("All time") withhold point incidents below zoom 6 (zones always load); at/above zoom 6 point fetches become viewport-bounded. Null date-range ends must never reach the list endpoint — translate to `1970-01-01`/`2099-12-31` (it defaults to "visible today" when dates are absent).
+- Large-range gating (all three map apps): ranges > 31 days or unbounded ("All time") withhold point incidents below zoom 6 (zones always load); at/above zoom 6 point fetches become viewport-bounded. Null date-range ends must never reach the list endpoint — translate to `1970-01-01`/`2099-12-31` (it defaults to "visible today" when dates are absent). All three topbars run the shared date-control family with a stateful LIVE/HISTORIC mode pill and a clock.
 - Date visibility: active incidents visible until `end_date`; resolved incidents get a 1-day grace period.
+- Point-incident list queries must pass `geometryType` — otherwise polygon zones arrive twice (once from the point query, once from the zone path).
 
 ---
 
@@ -407,7 +414,7 @@ npm run build:superadmin-web
 ./scripts/logs-geowatch.sh <service>
 ```
 
-The `scripts/verify-*.mjs` Playwright utilities can drive a headless browser against the running dev servers for visual/behavioral checks; they assume services are up and may need dev credentials (see gitignored `docs/dev-credentials.md`). Note: repeated login attempts can trip the auth rate limiter — allow a cooldown or reuse a long-lived token when running scripts repeatedly.
+The `scripts/verify-*.mjs` / `scripts/check-*.mjs` Playwright utilities can drive a headless browser against the running dev servers for visual/behavioral checks; they assume services are up and may need dev credentials (see gitignored `docs/dev-credentials.md`). Note: repeated login attempts can trip the auth rate limiter — allow a cooldown or reuse a long-lived token when running scripts repeatedly.
 
 If you add automated tests, place them in a `tests/` directory or `__tests__/` folders per workspace and update this section.
 
@@ -498,13 +505,19 @@ Read these files in order when starting on a task:
 
 ## 12. Current Focus and Known Issues
 
-### Active Work
+### Recently Completed (as of 2026-08-01)
 
-- **user-web `/map` layout port is complete and polished.** The public map now uses the finalized admin-web dashboard chrome: top bar with public nav + Google avatar, left rail/drawer, absolute-overlay right detail panel with collapse/reopen handle, Power Search full-viewport overlay, compact/focus modes, Settings-drawer auto-zoom toggle, and an admin-style ⌘K command palette with tabbed scopes (All/Incidents/Locations/Actions), recent incidents, public quick actions, footer shortcuts, and concise Nominatim location labels with working fly-to.
-- Key files: `src/user-web/src/pages/MapPage.jsx`, `src/user-web/src/components/Map/UserMap.jsx`, `src/user-web/src/components/Layout/UserCommandPalette.jsx`, and the `WorkspaceTopBar` / `WorkspaceRail` / `WorkspaceDrawer` / `PowerSearchPanel` components in `src/user-web/src/components/Layout/`.
-- The old flat command palette, `LiveActivityFeed`, `TickerBar`, `IncidentSidebar`, `MapControls`, and floating `LocationSearch` were removed from `/map` (some of those components still exist for other pages).
-- **DONE (2026-07-26):** the same workspace chrome is now ported to `superadmin-web` — `/superadmin/map` is a full-viewport workspace page (WorkspaceTopBar with Dashboard button + Super Admin pill + Add Incident/Add Zone, 8-item rail with drawers, Power Search overlay, ⌘K palette with Nominatim locations + console page-jump actions, absolute-overlay right panel) rendered outside the sidebar `Layout`; console pages keep the sidebar shell. Old map chrome (`MapControls`, floating `LocationSearch`, `DatePicker`, `MapLegend` overlay) removed. Smoke-tested via `scripts/verify-superadmin-workspace.mjs` (13/13).
-- **DONE (2026-07-31):** the smart selection camera (shared policy in `src/shared/utils/selectionCamera.js`) is now ported to `user-web` — `UserMap.jsx` uses the admin flyTo pattern (live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guard, `window.__geowatchUserMap` dev handle), and `MapPage.jsx` has `scheduleFlyTo` + live layout padding + deep-link processed-refs. Verified via `scripts/verify-smart-zoom-user.mjs` (15/15). Remaining follow-ups: browser smoke tests on user-web; console TopBar cleanup (dead search box/bell).
+- **Workspace chrome on all three maps.** user-web `/map`, admin-web `/*` (DashboardLayout), and superadmin-web `/superadmin/map` (full-viewport page rendered outside the sidebar `Layout`) all run the same map-first workspace: top bar, left rail/drawers, absolute-overlay right detail panel with collapse/reopen handle, Power Search full-viewport overlay, compact/focus modes, and a ⌘K command palette (tabbed scopes, recent incidents, Nominatim location fly-to; superadmin's palette also jumps to console pages).
+- **Smart selection camera on all three maps** (shared policy in `src/shared/utils/selectionCamera.js`): live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guards, deep-link processed-refs. Verified via `scripts/verify-smart-zoom*.mjs` (15/15 per app).
+- **Directory pages everywhere**: `/incidents` and `/zones` table directories in all three apps, built on the extracted shared `TableUI` components.
+- **Date-control family on all three topbars**: wired date range control, stateful LIVE/HISTORIC mode pill, clock, and large-range gating (see Map-Specific Gotchas).
+- **Incident placement mode + drawing toolbar 2.0 with circle zones** in admin-web and superadmin-web (stable toolbar width; click-click circle finish).
+- **Superadmin console TopBar rebuilt**: route breadcrumb, prominent Map button, live system-health dot (60s poll), real notifications bell (unread badge, paged dropdown, mark read/all, delete). The old dead search box is gone.
+- **Cross-app audit polish batch**: inline SVG favicon + meta + per-route `document.title` (RouteTitle) in all three apps; detail pages get skeleton loading + error cards (`DetailPageStates` per app); global `:focus-visible` focus rings; display typography scale + Inter long-form; light-mode accent tokens retinted to crimson derivatives; reduced-motion support end-to-end (media query + per-app Settings toggle + `useReducedMotion`).
+- **Incident-detail overhaul (shared package)**: silent SSE refetch (no more page unmount/selection reset); featured-evidence dedupe (`FeaturedCollapsedRow`); procedural `TargetingCard` hero replaces hotlinked Unsplash; hero composition + breadcrumb context bars; coherence pass aligning the package with workspace chrome (solid colors, mono hairline chips, no gradient titles/ken-burns).
+- **Deterministic Back navigation**: incident and zone detail pages in all three apps always return to the app map (no `navigate(-1)` heuristic); an extended return-view payload (dateRange/isLiveMode/selections/activeDrawer) restores full map context on mount. **user-web (2026-08-02)**: the payload camera (center/zoom/bearing/pitch/padding — all padding-aware) also rides in the Back URL via `src/user-web/src/utils/returnView.js` (`buildReturnMapUrl`), so the map mounts directly at the saved camera (`initialViewport` + mount-time snapshot skipFlyTo) with no re-flight — admin/superadmin port pending.
+- **user-web home**: hero map instrument HUD (live coords + in-view count), stats ledger band, and `useHomeData` hook consolidating home fetching to one `getIncidents` call (6 → 1 network calls); rebuilt About page; "off the map" 404 page.
+- **user-web map zone fixes**: single delegated zone event binding, zone dedupe (`geometryType` on point query), zones default-visible once taxonomy loads, ZoneDetailSidebar "Full details" id fix, zone Back context restore.
 
 ### Active Trial Routes (user-web)
 
@@ -518,7 +531,7 @@ Read these files in order when starting on a task:
 | `/trial/zone-sidebar-animations` | `ZoneSidebarAnimationTrialPage.jsx` | Sidebar mini-map pulse laboratory |
 | `/trial/zone-create` | `ZoneTrialCreatePage.jsx` | Polygon-incident creation sidebar trial |
 
-Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references. See `trialRoutes.md` for the full list.
+Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references. See `trialRoutes.md` for the full list (note: it lags slightly — `/trial/zone-create` is not listed there yet).
 
 ### Known Non-Blocking Issues
 

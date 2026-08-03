@@ -12564,3 +12564,8 @@ fix: ZoneDetailSidebar "Full details" invoked the raw handler with the click eve
 ## 📅 2026-08-01 — Module: user-web map — Zone detail Back restores context
 
 fix: zone Back flow verified end-to-end with the extended return-view (bug was upstream: the broken Full-details never saved a valid payload) — Back from /zone/:id restores historic date range and reopens the zone panel (10/10 in scripts/check-zone-map-fixes.mjs).
+
+
+## 📅 2026-08-02 — Module: user-web map — Instant camera restore on detail Back
+
+fix: Back from /incident/:id or /zone/:id no longer reloads the map at the default world view and re-flies to the selection — the return-view camera now rides in the Back URL (new utils/returnView.js buildReturnMapUrl), so MapPage mounts with viewport params present: initialViewport initializes the map directly at the saved camera (payload extended with padding/bearing/pitch — getCenter/getPadding are padding-aware, so framing is pixel-exact with the panel open) and the deep-link selection skips its flight via the mount-time snapshot. The initial deep-link easeTo is suppressed on return mounts (it would clobber the restored padding). Stale payloads whose camera differs from the URL are ignored (share-link safety). Build green.
