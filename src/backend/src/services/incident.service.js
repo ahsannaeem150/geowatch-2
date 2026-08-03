@@ -1,4 +1,5 @@
 import { query } from '../config/database.js';
+import { normalizeMediaUrl } from '../utils/media-url.js';
 
 const INCIDENT_COLUMNS = `
   i.id, i.title, i.description, i.latitude, i.longitude,
@@ -345,6 +346,17 @@ export async function getEventById(id) {
       [id]
     ),
   ]);
+
+  // Rebuild stored absolute media URLs on the current origin — legacy rows
+  // predate the 3000 → 3100 port move (see utils/media-url.js).
+  for (const source of sourcesResult.rows) {
+    source.archive_media_url = normalizeMediaUrl(source.archive_media_url);
+    source.archive_media_thumbnail_url = normalizeMediaUrl(source.archive_media_thumbnail_url);
+  }
+  for (const item of mediaResult.rows) {
+    item.file_url = normalizeMediaUrl(item.file_url);
+    item.thumbnail_url = normalizeMediaUrl(item.thumbnail_url);
+  }
 
   // Group sources and media by update_id for fast lookup
   const sourcesByUpdate = groupSourcesByUpdate(sourcesResult.rows);

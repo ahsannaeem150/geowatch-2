@@ -12613,3 +12613,8 @@ fix: collapsing the right detail panel left no way to reopen — the expand hand
 ## 📅 2026-08-02 — Modules: all apps/shared — Rail alignment
 
 refactor: user-web rail icons unified to the staff set (`incidents` → List, `active` → Radio); saved rail item loses its count badge everywhere (owner decision); WorkspaceRail hoisted to `src/shared/components/` (three byte-identical copies deleted, imports updated in all apps). All three builds green.
+
+
+## 📅 2026-08-02 — Module: backend — Blank media + X-archive images fixed
+
+fix: all uploaded media + X-archive snapshots rendered blank — legacy DB rows store absolute URLs minted at upload time with the old `http://localhost:3000` origin (port moved to 3100 on 07-31; port 3000 now squatted by an unrelated process → 404s). Static serving was never broken. New `utils/media-url.js` `normalizeMediaUrl` swaps the origin of any `/uploads/...` URL to the current `API_URL` at READ time, applied at all three SELECT sites (media.service listMediaByIncident, incident.service getEventById, source.service list). No DB writes; backend restarted, curl-verified 200s.

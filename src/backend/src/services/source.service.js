@@ -1,5 +1,6 @@
 import { query } from '../config/database.js';
 import { fetchOembedHtml } from '../utils/oembed.js';
+import { normalizeMediaUrl } from '../utils/media-url.js';
 import { ingestXPostSource } from './source-ingestion.service.js';
 
 export async function createEventSource(
@@ -178,5 +179,10 @@ export async function listXPostSources(filters = {}) {
      ORDER BY s.created_at DESC`,
     values
   );
+  // Rebuild stored absolute archive URLs on the current origin (see utils/media-url.js)
+  for (const row of result.rows) {
+    row.archive_media_url = normalizeMediaUrl(row.archive_media_url);
+    row.archive_media_thumbnail_url = normalizeMediaUrl(row.archive_media_thumbnail_url);
+  }
   return result.rows;
 }

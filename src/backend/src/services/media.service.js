@@ -1,4 +1,5 @@
 import { query } from '../config/database.js';
+import { normalizeMediaUrl } from '../utils/media-url.js';
 
 export async function listMediaByIncident(incidentId) {
   const result = await query(
@@ -10,7 +11,12 @@ export async function listMediaByIncident(incidentId) {
      ORDER BY pinned DESC, display_order ASC, created_at DESC`,
     [incidentId]
   );
-  return result.rows;
+  // Rebuild stored absolute URLs on the current origin (see utils/media-url.js)
+  return result.rows.map((row) => ({
+    ...row,
+    file_url: normalizeMediaUrl(row.file_url),
+    thumbnail_url: normalizeMediaUrl(row.thumbnail_url),
+  }));
 }
 
 export async function createMediaRecord(data) {

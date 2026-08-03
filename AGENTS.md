@@ -136,7 +136,7 @@ Core: `users` (staff), `public_users`, `domains`, `categories`, `incidents`, `so
 
 ## 4. Build and Development Commands
 
-All commands are run from the repository root unless noted.
+Run all commands from the repo root unless noted.
 
 ### Prerequisites
 
@@ -241,7 +241,7 @@ Build outputs go to each frontend's `dist/` directory. There is no backend build
 | User website | http://localhost:5173 | Public read-only + Google sign-in bookmarks |
 | Admin dashboard | http://localhost:5174 | Staff-only, protected by login |
 | Superadmin console | http://localhost:5175 | `super_admin` only |
-| Backend API | http://localhost:3100/api/v1 | Base path is `/api/v1` (port moved 3000 → 3100 permanently on 2026-07-31) |
+| Backend API | http://localhost:3100/api/v1 | Base path is `/api/v1` (moved 3000 → 3100 permanently on 2026-07-31; media URLs origin-normalized at read time — `src/backend/src/utils/media-url.js`) |
 | Martin tiles | http://localhost:8080 | Self-hosted `.mbtiles` |
 
 All three frontends talk to the backend over HTTP and SSE; only the backend talks to PostgreSQL. Martin serves tiles directly to the frontends.
@@ -505,10 +505,10 @@ Read in order when starting a task:
 - **Superadmin TopBar rebuilt**: breadcrumb, Map button, health dot, notifications bell (unread badge, paged dropdown, mark read/all/delete).
 - **Cross-app polish batch**: favicon + per-route titles (RouteTitle); detail skeleton/error states; `:focus-visible` rings; display typography + Inter long-form; crimson light accents; reduced-motion end-to-end.
 - **Incident-detail overhaul (shared)**: silent SSE refetch; featured-evidence dedupe; procedural `TargetingCard` hero; workspace-chrome coherence pass.
-- **Deterministic Back navigation + instant camera restore**: incident/zone detail and directory pages in all three apps return to the app map via `buildReturnMapUrl` (per-app `utils/returnView.js`); the return-view payload (camera incl. padding/bearing/pitch, dateRange/selections/activeDrawer) rides in the Back URL, so the map mounts at the exact saved camera with no re-flight.
+- **Deterministic Back navigation + instant camera restore**: incident/zone detail and directory pages in all three apps return to the app map via `buildReturnMapUrl` (per-app `utils/returnView.js`); the payload camera (incl. padding/bearing/pitch) + dateRange/selections/drawer rides in the Back URL, so the map mounts at the exact saved camera — no re-flight.
 - **CategoryMultiSelect (shared)** on all directory pages: domains-first accordion on `/incidents` (tri-state domain rows, drill-in categories, pinned chips, search ≥8, server-side `categorySlugs`), flat id-keyed fallback on `/zones`. Chips-scrollbar fix: `src/shared/styles/table-chips.css` (`.tui-chips-scroll` on `.tui-chips-bar`, main.jsx import). All directory pages render the shared detail-style topbar + breadcrumb (`opt1-*`) with Back chip + Map crumb; map topbars save the return-view payload on directory nav.
-- **user-web home**: hero map instrument HUD, stats ledger band, `useHomeData` hook (6 → 1 network calls); rebuilt About; 404 page.
-- **user-web map zone fixes**: delegated zone binding, zone dedupe (`geometryType`), zones default-visible, zone Full-details id fix + Back restore.
+- **user-web home**: hero map HUD, stats ledger band, `useHomeData` hook (6 → 1 network calls); rebuilt About; 404 page.
+- **user-web map zone fixes**: delegated zone binding, zone dedupe (`geometryType`), zones default-visible, Full-details + Back fixes.
 
 ### Active Trial Routes (user-web)
 
@@ -522,7 +522,7 @@ Read in order when starting a task:
 | `/trial/zone-sidebar-animations` | `ZoneSidebarAnimationTrialPage.jsx` | Sidebar mini-map pulse laboratory |
 | `/trial/zone-create` | `ZoneTrialCreatePage.jsx` | Polygon-incident creation sidebar trial |
 
-Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references. See `trialRoutes.md` for the full list (`/trial/zone-create` not listed there yet).
+Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references; full list in `trialRoutes.md` (`/trial/zone-create` not listed yet).
 
 ### Known Non-Blocking Issues
 
