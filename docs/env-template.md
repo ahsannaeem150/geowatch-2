@@ -52,7 +52,7 @@ GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
 ## Production (.env.production)
 
 NODE_ENV=production
-PORT=3000
+PORT=3100
 API_URL=https://api.geowatch.app
 
 DB_HOST=your_vps_ip_or_hostname

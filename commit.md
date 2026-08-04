@@ -12618,3 +12618,8 @@ refactor: user-web rail icons unified to the staff set (`incidents` → List, `a
 ## 📅 2026-08-02 — Module: backend — Blank media + X-archive images fixed
 
 fix: all uploaded media + X-archive snapshots rendered blank — legacy DB rows store absolute URLs minted at upload time with the old `http://localhost:3000` origin (port moved to 3100 on 07-31; port 3000 now squatted by an unrelated process → 404s). Static serving was never broken. New `utils/media-url.js` `normalizeMediaUrl` swaps the origin of any `/uploads/...` URL to the current `API_URL` at READ time, applied at all three SELECT sites (media.service listMediaByIncident, incident.service getEventById, source.service list). No DB writes; backend restarted, curl-verified 200s.
+
+
+## 📅 2026-08-02 — Module: backend/db — Port 3000 purged from data + docs
+
+chore: DB URLs migrated 3000 → 3100 (incident_media.file_url/thumbnail_url 38+38 rows, incidents.hero_image_url 1 row — zero remainders, curl-verified). Repo refs updated: env-template prod PORT, SUPERADMIN_GUIDE troubleshooting, stale comment in media.controller.js (nodemon auto-reloaded, health 200). Historical plan docs (storagePlan/superAdminPlan/polygonPlan/contextMenuPlan) deliberately left as-is. Port-3000 process (WhatsApp bridge) untouched per owner.

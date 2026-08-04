@@ -124,7 +124,7 @@ export async function deleteMedia(req, res) {
   }
 
   // Extract relative path from URL and delete from storage
-  // For local: URL is http://localhost:3000/uploads/incidents/{id}/{name}
+  // For local: URL is http://localhost:3100/uploads/incidents/{id}/{name}
   // We need to convert back to relative path: incidents/{id}/{name}
   const urlPath = new URL(record.file_url).pathname;
   const relativePath = urlPath.replace('/uploads/', '');

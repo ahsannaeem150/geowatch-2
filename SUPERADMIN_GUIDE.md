@@ -252,7 +252,7 @@ Will let you:
 | Problem | Solution |
 |:--------|:---------|
 | "Session expired" redirect | Log in again. Token expires after 24h. |
-| Dashboard numbers don't update | Check that the backend is running on port 3000 |
+| Dashboard numbers don't update | Check that the backend is running on port 3100 |
 | Audit log empty | Audit logging starts from when the feature was added. Earlier actions weren't recorded. |
 | Cannot delete a category | It has incidents attached. Reassign or delete those incidents first. |
 | Cannot delete a domain | It still has categories. Remove them first. |
