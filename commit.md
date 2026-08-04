@@ -12623,3 +12623,11 @@ fix: all uploaded media + X-archive snapshots rendered blank — legacy DB rows 
 ## 📅 2026-08-02 — Module: backend/db — Port 3000 purged from data + docs
 
 chore: DB URLs migrated 3000 → 3100 (incident_media.file_url/thumbnail_url 38+38 rows, incidents.hero_image_url 1 row — zero remainders, curl-verified). Repo refs updated: env-template prod PORT, SUPERADMIN_GUIDE troubleshooting, stale comment in media.controller.js (nodemon auto-reloaded, health 200). Historical plan docs (storagePlan/superAdminPlan/polygonPlan/contextMenuPlan) deliberately left as-is. Port-3000 process (WhatsApp bridge) untouched per owner.
+
+## 📅 2026-08-04 — Module: shared — Evidence drawer media: carousel → adaptive grid
+
+feat: timeline-update evidence drawer (incident + zone sidebars) no longer shows the 1–2-image carousel. New `mediaLayout="auto"` in shared `EvidenceBundle`: ≤4 media items → static 2-col grid, >4 → paged Twitter-style grid-carousel (both pre-existing layouts). Wired at both drawer call sites (`IncidentDetailSidebar`, `ZoneEvidenceView`; `wideCarousel` prop removed). Lightbox on click unchanged. Shared component → live in all three apps at once; all three builds green.
+
+## 📅 2026-08-04 — Module: shared — Evidence drawer follow-up fixes
+
+fix: (1) `mediaLayout="auto"` now always resolves to the Twitter mosaic (grid-carousel) — static 2-col grid dropped (3-image empty slot looked broken). (2) Zone-drawer lightbox clipped inside the 630px drawer + (3) incident-drawer click "doing nothing" — same root cause: Lightbox rendered inside/below the drawer (z 100 vs drawer 200/300). Lightbox now renders via createPortal to document.body with z-index 1000 → full-viewport overlay in every consumer at once. All three builds green.

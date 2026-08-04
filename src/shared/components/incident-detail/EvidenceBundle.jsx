@@ -257,13 +257,16 @@ export default function EvidenceBundle({
   const renderSection = (type, title) => {
     const items = sortedByType[type];
     if (!items?.length) return null;
+    // 'auto' always uses the paged mosaic — it handles 1–4 items natively
+    // (id-twitter-grid--1..--4) and pages beyond 4. Explicit layouts pass through.
+    const effectiveLayout = mediaLayout === 'auto' ? 'grid-carousel' : mediaLayout;
     const hasFeatured = items.some((item) => isFeatured(type, item));
     const hasPinned = items.some((item) => item.pinned);
     return (
       <div className="id-evidence-section" key={type}>
         <SectionTitle type={type} title={title} count={items.length} featured={hasFeatured} pinned={hasPinned} />
         {type === 'media' ? (
-          mediaLayout === 'grid' ? (
+          effectiveLayout === 'grid' ? (
             <div className="id-media-grid">
               {items.map((item) =>
                 isAdmin ? (
@@ -286,7 +289,7 @@ export default function EvidenceBundle({
                 )
               )}
             </div>
-          ) : mediaLayout === 'grid-carousel' ? (
+          ) : effectiveLayout === 'grid-carousel' ? (
             <GridCarousel
               items={items}
               pageSize={4}

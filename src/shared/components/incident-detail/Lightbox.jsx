@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icons } from './IncidentIcons.jsx';
 
 export default function Lightbox({ items, startIndex = 0, onClose }) {
@@ -29,7 +30,11 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
 
   if (!current) return null;
 
-  return (
+  // Rendered via portal to <body>: position:fixed must resolve against the
+  // viewport. Inside drawer/panel containers (transform animations, local
+  // stacking contexts) the overlay gets clipped or painted UNDER the drawer
+  // (.id-drawer z-200 / .zone-drawer z-300 vs .id-lightbox z-1000).
+  return createPortal(
     <div className="id-lightbox" onClick={onClose}>
       <button className="id-lightbox__close" aria-label="Close">
         ×
@@ -69,6 +74,7 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

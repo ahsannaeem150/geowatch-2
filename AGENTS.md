@@ -230,7 +230,7 @@ Build outputs go to each frontend's `dist/` directory. There is no backend build
 
 ### Scripts Directory
 
-`scripts/` also holds Playwright verification/screenshot utilities (`verify-*.mjs`, `screenshot-*.mjs`, `check-*.mjs`), one-off data backfills (`backfill-*.mjs`), and tile debugging pages — dev aids, not a test suite; most assume dev services are running.
+`scripts/` also holds Playwright verify/screenshot/check utilities, `backfill-*.mjs` data backfills, and tile debugging — dev aids, not a test suite; most assume dev services are running.
 
 ---
 
@@ -380,12 +380,13 @@ The media router uses `Router({ mergeParams: true })` because it is mounted at `
 - **Batch small tweaks** into one task instead of separate rounds.
 - **commit.md**: append a short 2–3 line summary per change — no detailed tables/sections.
 - Keep agent reports and user-facing replies terse.
+- **Agent delegation (2026-08-02)**: Kimi orchestrates (plan, precise briefs, build checks, terse reports); coder/explore subagents do file-heavy work in their own context. Agents never edit `commit.md`/`AGENTS.md`/`trialRoutes.md` (Kimi does docs). Ports: user-web first → owner tests → parallel admin/superadmin agents; sequence shared-file edits to avoid conflicts. Resume by id: agent-1 admin, agent-2 superadmin, agent-3 user-web/backend, agent-4 explore.
 
 **There are currently no automated tests in this repository.** No Jest, Vitest, Playwright test suites, or CI pipelines are configured for the project code. (`playwright` is a backend dependency but powers the screenshot/verification utilities in `scripts/`, not test automation.)
 
 ### Manual Verification Steps
 
-After making changes, run these commands to verify the project still builds and runs:
+After changes, verify the project builds and runs:
 
 ```bash
 # 1. Build each frontend to catch compile errors
@@ -404,7 +405,7 @@ npm run build:superadmin-web
 ./scripts/logs-geowatch.sh <service>
 ```
 
-The `scripts/verify-*.mjs` / `scripts/check-*.mjs` Playwright utilities can drive a headless browser against the running dev servers for visual/behavioral checks; they assume services are up and may need dev credentials (see gitignored `docs/dev-credentials.md`). Note: repeated login attempts can trip the auth rate limiter — allow a cooldown or reuse a long-lived token when running scripts repeatedly.
+The Playwright utilities drive headless browsers against running dev servers; they may need dev credentials (gitignored `docs/dev-credentials.md`). Repeated logins trip the auth rate limiter — allow cooldown or reuse a long-lived token.
 
 If you add automated tests, place them in `tests/` or `__tests__/` per workspace and update this section.
 
@@ -449,11 +450,7 @@ If you add automated tests, place them in `tests/` or `__tests__/` per workspace
 
 ### Production Checklist
 
-- Use strong, unique `JWT_SECRET` and `DB_PASSWORD`.
-- Run PostgreSQL behind a firewall; do not expose it to the internet.
-- Use HTTPS for all frontends and the API.
-- Set `STORAGE_PROVIDER=r2` and configure Cloudflare R2 credentials when moving off local disk.
-- Remove or restrict development CORS allowances.
+- Strong unique `JWT_SECRET`/`DB_PASSWORD`; PostgreSQL firewalled (never internet-exposed); HTTPS everywhere; `STORAGE_PROVIDER=r2` + R2 credentials off local disk; restrict dev CORS allowances.
 
 ---
 
@@ -484,7 +481,7 @@ There is **no automated CI/CD, Docker, or deployment pipeline** in this reposito
 
 Read in order when starting a task:
 
-1. `PROJECT.md` — Architecture, conventions, functional/non-functional requirements.
+1. `PROJECT.md` — Architecture, conventions, requirements.
 2. `commit.md` — Full build history; append every change.
 3. `docs/design-brief.md` — UI/UX direction.
 4. `docs/api-spec.md` — Backend API contract.
@@ -499,14 +496,14 @@ Read in order when starting a task:
 
 - **Workspace chrome on all three maps** (user-web `/map`, admin-web `/*`, superadmin-web `/superadmin/map`): top bar, left rail/drawers, absolute-overlay right detail panel with collapse handle, Power Search overlay, compact/focus modes, ⌘K palette (Nominatim fly-to; superadmin's also jumps to console pages).
 - **Smart selection camera on all three maps** (shared policy in `src/shared/utils/selectionCamera.js`): live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guards, deep-link processed-refs.
-- **Directory pages everywhere**: `/incidents` and `/zones` table directories in all three apps, built on shared `TableUI`.
+- **Directory pages everywhere**: `/incidents` + `/zones` tables in all three apps, on shared `TableUI`.
 - **Date-control family on all three topbars**: date range control, LIVE/HISTORIC pill, clock, large-range gating (see Map-Specific Gotchas).
 - **Incident placement mode + drawing toolbar 2.0 with circle zones** in admin-web and superadmin-web.
 - **Superadmin TopBar rebuilt**: breadcrumb, Map button, health dot, notifications bell (unread badge, paged dropdown, mark read/all/delete).
 - **Cross-app polish batch**: favicon + per-route titles (RouteTitle); detail skeleton/error states; `:focus-visible` rings; display typography + Inter long-form; crimson light accents; reduced-motion end-to-end.
 - **Incident-detail overhaul (shared)**: silent SSE refetch; featured-evidence dedupe; procedural `TargetingCard` hero; workspace-chrome coherence pass.
 - **Deterministic Back navigation + instant camera restore**: incident/zone detail and directory pages in all three apps return to the app map via `buildReturnMapUrl` (per-app `utils/returnView.js`); the payload camera (incl. padding/bearing/pitch) + dateRange/selections/drawer rides in the Back URL, so the map mounts at the exact saved camera — no re-flight.
-- **CategoryMultiSelect (shared)** on all directory pages: domains-first accordion on `/incidents` (tri-state domain rows, drill-in categories, pinned chips, search ≥8, server-side `categorySlugs`), flat id-keyed fallback on `/zones`. Chips-scrollbar fix: `src/shared/styles/table-chips.css` (`.tui-chips-scroll` on `.tui-chips-bar`, main.jsx import). All directory pages render the shared detail-style topbar + breadcrumb (`opt1-*`) with Back chip + Map crumb; map topbars save the return-view payload on directory nav.
+- **CategoryMultiSelect (shared)** on all directory pages: domains-first accordion on `/incidents` (tri-state rows, drill-in categories, pinned chips, search ≥8), flat id-keyed fallback on `/zones`. Chips-scrollbar fix: `src/shared/styles/table-chips.css` (`.tui-chips-scroll` on `.tui-chips-bar`, main.jsx import). All directory pages render the shared detail-style topbar + breadcrumb (`opt1-*`) with Back chip + Map crumb; map topbars save the return-view payload on directory nav.
 - **user-web home**: hero map HUD, stats ledger band, `useHomeData` hook (6 → 1 network calls); rebuilt About; 404 page.
 - **user-web map zone fixes**: delegated zone binding, zone dedupe (`geometryType`), zones default-visible, Full-details + Back fixes.
 

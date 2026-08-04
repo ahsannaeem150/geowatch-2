@@ -1327,7 +1327,6 @@ function ZoneEvidenceView({
   onArchiveSource,
   onEditUpdate,
   onDeleteUpdate,
-  wideCarousel,
   mediaLayout,
   autoScrollFeatured = true,
   showUpdateHeader = true,
@@ -1415,8 +1414,7 @@ function ZoneEvidenceView({
           onAutoCheck={onCheck}
           onArchiveSource={onArchiveSource}
           featuredItem={featuredItem}
-          mediaItemWidth={wideCarousel ? null : 300}
-          mediaLayout={mediaLayout}
+          mediaLayout={mediaLayout ?? 'auto'}
           autoScrollFeatured={autoScrollFeatured}
         />
       </div>
@@ -1468,7 +1466,6 @@ export function ZoneEvidenceDrawer({
             onClose={handleClose}
             onEditUpdate={onEditUpdate}
             onDeleteUpdate={onDeleteUpdate}
-            wideCarousel
             {...actions}
           />
         </div>
@@ -1509,7 +1506,6 @@ export function ZoneEvidenceModal({
             onClose={handleClose}
             onEditUpdate={onEditUpdate}
             onDeleteUpdate={onDeleteUpdate}
-            wideCarousel
             {...actions}
           />
         </div>

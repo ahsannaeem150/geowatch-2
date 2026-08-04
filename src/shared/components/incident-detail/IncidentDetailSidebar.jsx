@@ -1292,6 +1292,7 @@ export default function IncidentDetailSidebar({
                 onCheckSource={onCheckSource}
                 onAutoCheck={onAutoCheck}
                 featuredItem={featuredItems[drawerEvent.id] || drawerEvent.featuredItem}
+                mediaLayout="auto"
               />
             </div>
           </div>
