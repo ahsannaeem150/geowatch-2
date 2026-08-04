@@ -47,6 +47,7 @@ import { API_BASE_URL } from '@shared/constants.js';
 import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
 import DrawingToolbar from '../components/Map/DrawingToolbar.jsx';
+import PlacementToolbar from '../components/Map/PlacementToolbar.jsx';
 import ZoneForm from '../components/ZoneForm/ZoneForm.jsx';
 import IncidentDetailPanel from '../components/Map/IncidentDetailPanel.jsx';
 import WorkspaceTopBar from '../components/MapWorkspace/WorkspaceTopBar.jsx';
@@ -3315,31 +3316,13 @@ export default function MapPage() {
               />
             ) : null}
 
-            {/* Incident placement hint chip */}
+            {/* Incident placement toolbar */}
             {placementActive && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '12px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 20,
-                  padding: '8px 14px',
-                  background: 'var(--bg-surface)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
-                  boxShadow: 'var(--shadow-md)',
-                  pointerEvents: 'none',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {pointFormCoords
-                  ? 'Drag to adjust, or click elsewhere to move • Esc to cancel'
-                  : 'Click on the map to place the incident • Esc to cancel'}
-              </div>
+              <PlacementToolbar
+                markerCoords={pointFormCoords}
+                onClear={() => setPointFormCoords(null)}
+                onCancel={handlePointFormCancel}
+              />
             )}
 
             {/* Incident counter overlay — top left */}

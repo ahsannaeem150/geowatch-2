@@ -12631,3 +12631,11 @@ feat: timeline-update evidence drawer (incident + zone sidebars) no longer shows
 ## 📅 2026-08-04 — Module: shared — Evidence drawer follow-up fixes
 
 fix: (1) `mediaLayout="auto"` now always resolves to the Twitter mosaic (grid-carousel) — static 2-col grid dropped (3-image empty slot looked broken). (2) Zone-drawer lightbox clipped inside the 630px drawer + (3) incident-drawer click "doing nothing" — same root cause: Lightbox rendered inside/below the drawer (z 100 vs drawer 200/300). Lightbox now renders via createPortal to document.body with z-index 1000 → full-viewport overlay in every consumer at once. All three builds green.
+
+## 📅 2026-08-04 — Module: admin-web — Incident placement toolbar
+
+feat: incident placement mode no longer ESC-only. New `Map/PlacementToolbar.jsx` (cloned from DrawingToolbar's glass-pill shell, inline styles): MapPin tile + "Place incident" + live lat/lng readout (fixed-ch, parseFloat-safe), Clear-point button (MapPinOff, disabled until placed), danger-red Cancel wired straight to handleClosePanel, state-aware hint line. Replaces the old pointer-events-none hint chip in DashboardLayout; ESC two-stage behavior unchanged. Build green. Superadmin port pending owner test.
+
+## 📅 2026-08-04 — Module: superadmin-web — PlacementToolbar port
+
+feat: incident placement toolbar ported from admin-web (byte-identical `Map/PlacementToolbar.jsx` copy). Wired in MapPage.jsx: hint chip replaced, props mapped to superadmin state (pointFormCoords / setPointFormCoords / handlePointFormCancel — same semantics as Esc stage 2). ESC unchanged. Build green.

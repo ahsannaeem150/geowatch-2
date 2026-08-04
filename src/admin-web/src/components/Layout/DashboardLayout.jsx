@@ -17,6 +17,7 @@ import CreateIncidentSidebar from '../CreateIncidentSidebar/CreateIncidentSideba
 import { IncidentDetailSidebar, ZoneDetailSidebar, ZoneEditorSidebar } from '@shared';
 import CommandPalette from '../CommandPalette/CommandPalette.jsx';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
+import PlacementToolbar from '../Map/PlacementToolbar.jsx';
 import WorkspaceTopBar from '../MapWorkspace/WorkspaceTopBar.jsx';
 import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
 import WorkspaceDrawer from '../MapWorkspace/WorkspaceDrawer.jsx';
@@ -3354,31 +3355,13 @@ export default function DashboardLayout() {
             />
           )}
 
-          {/* Incident placement hint chip */}
+          {/* Incident placement toolbar */}
           {placementActive && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '12px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 20,
-                padding: '8px 14px',
-                background: 'var(--bg-surface)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '12px',
-                color: 'var(--text-secondary)',
-                boxShadow: 'var(--shadow-md)',
-                pointerEvents: 'none',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {markerCoords
-                ? 'Drag to adjust, or click elsewhere to move • Esc to cancel'
-                : 'Click on the map to place the incident • Esc to cancel'}
-            </div>
+            <PlacementToolbar
+              markerCoords={markerCoords}
+              onClear={() => setMarkerCoords(null)}
+              onCancel={handleClosePanel}
+            />
           )}
 
           {drawContextMenu && (
