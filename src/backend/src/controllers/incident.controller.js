@@ -67,6 +67,7 @@ export async function searchIncidentsController(req, res) {
     sourceTypes: req.query.sourceTypes,
     savedOnly: req.query.savedOnly,
     userId: req.query.savedOnly ? req.user?.id : undefined,
+    userRole: req.user?.role,
     sort: req.query.sort,
     limit: req.query.limit ? parseInt(req.query.limit, 10) : undefined,
     offset: req.query.offset ? parseInt(req.query.offset, 10) : undefined,

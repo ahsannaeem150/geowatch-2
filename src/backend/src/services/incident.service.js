@@ -145,7 +145,11 @@ function buildIncidentWhereClause(filters, options = {}) {
   }
 
   if (filters.savedOnly && filters.userId) {
-    conditions.push(`EXISTS (SELECT 1 FROM staff_saved_incidents ssi WHERE ssi.incident_id = i.id AND ssi.user_id = $${idx++})`);
+    if (filters.userRole === 'public_user') {
+      conditions.push(`EXISTS (SELECT 1 FROM user_saved_incidents usi WHERE usi.incident_id = i.id AND usi.user_id = $${idx++})`);
+    } else {
+      conditions.push(`EXISTS (SELECT 1 FROM staff_saved_incidents ssi WHERE ssi.incident_id = i.id AND ssi.user_id = $${idx++})`);
+    }
     params.push(filters.userId);
   }
 
@@ -219,8 +223,13 @@ export async function searchIncidents(filters) {
   const textParams = [];
 
   if (hasQuery) {
-    textConditions.push(`(${tsVectorExpr} @@ plainto_tsquery('english', $${idx++}) OR to_tsvector('english', COALESCE(eu.summary, '')) @@ plainto_tsquery('english', $${idx++}))`);
-    textParams.push(searchQuery, searchQuery);
+    // Prefix-tolerant substring matching alongside FTS so partial words
+    // (e.g. "khark" → "Kharkiv") match; FTS handles stemming/ranking.
+    const likePattern = `%${searchQuery.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
+    textConditions.push(
+      `(${tsVectorExpr} @@ plainto_tsquery('english', $${idx++}) OR to_tsvector('english', COALESCE(eu.summary, '')) @@ plainto_tsquery('english', $${idx++}) OR i.title ILIKE $${idx++} ESCAPE '\\' OR i.location_context ILIKE $${idx++} ESCAPE '\\' OR i.description ILIKE $${idx++} ESCAPE '\\')`
+    );
+    textParams.push(searchQuery, searchQuery, likePattern, likePattern, likePattern);
   }
 
   const searchWhere = textConditions.length > 0

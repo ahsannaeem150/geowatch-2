@@ -10,12 +10,14 @@ import {
   Clock,
   Radio,
   ChevronLeft,
+  Plus,
+  Hexagon,
+  Zap,
 } from 'lucide-react';
 import AdminMap from '../Map/AdminMap.jsx';
 import IncidentForm from '../IncidentForm/IncidentForm.jsx';
 import CreateIncidentSidebar from '../CreateIncidentSidebar/CreateIncidentSidebar.jsx';
-import { IncidentDetailSidebar, ZoneDetailSidebar, ZoneEditorSidebar } from '@shared';
-import CommandPalette from '../CommandPalette/CommandPalette.jsx';
+import { IncidentDetailSidebar, ZoneDetailSidebar, ZoneEditorSidebar, CommandPalette } from '@shared';
 import DrawingToolbar from '../Map/DrawingToolbar.jsx';
 import PlacementToolbar from '../Map/PlacementToolbar.jsx';
 import WorkspaceTopBar from '../MapWorkspace/WorkspaceTopBar.jsx';
@@ -2170,6 +2172,7 @@ export default function DashboardLayout() {
       source: 'search',
       lat: parseFloat(location.lat),
       lng: parseFloat(location.lng),
+      zoom: Number.isFinite(location.zoom) ? location.zoom : undefined,
       padding,
     });
     setMarkerCoords(null);
@@ -2336,6 +2339,40 @@ export default function DashboardLayout() {
   const toggleRightPanel = useCallback(() => {
     setRightPanelCollapsed((prev) => !prev);
   }, []);
+
+  // ─── Command palette selection ───
+  const handleCommandPaletteSelectIncident = useCallback(
+    (incident) => {
+      // The shared palette delivers points AND polygon zones — route each
+      // through the same selection path its map click uses.
+      const isPolygon = incident?.geometry_type === 'polygon' || incident?.geometryType === 'polygon';
+      if (isPolygon) {
+        handleZoneClick(incident, { source: 'command-palette' });
+      } else {
+        handleSearchSelect(incident, { source: 'command-palette' });
+      }
+    },
+    [handleZoneClick, handleSearchSelect]
+  );
+
+  const handleCommandPaletteOpenAdvanced = useCallback((initialQuery) => {
+    // The palette forwards its query (footer bridge / empty-state CTA) so
+    // Power Search opens with the search already populated.
+    if (typeof initialQuery === 'string' && initialQuery.trim()) {
+      setPsQuery(initialQuery.trim());
+    }
+    setPowerSearchMode(true);
+  }, []);
+
+  // Plain per-render array (not memoized): handleAddIncident is a fresh
+  // closure every render, and the shared palette re-filters on each keystroke
+  // anyway — memoizing would only risk capturing stale state.
+  const paletteActions = [
+    { id: 'add-incident', label: 'Add new incident', icon: Plus, hint: 'A', onSelect: () => handleAddIncident() },
+    { id: 'add-zone', label: 'Add new zone', icon: Hexagon, hint: 'Z', onSelect: handleAddZone },
+    { id: 'open-layers', label: 'Open layers panel', icon: Layers, hint: 'L', onSelect: () => handleDrawerSelect('layers') },
+    { id: 'toggle-focus', label: 'Toggle focus mode', icon: Zap, hint: 'F', onSelect: toggleFocusMode },
+  ];
 
   const handleEditFromDetail = (incident) => {
     // Edit-mode parity: show the incident's marker (draggable, two-way synced
@@ -3645,17 +3682,16 @@ export default function DashboardLayout() {
 
       {/* Command Palette */}
       <CommandPalette
-        isOpen={searchModalOpen}
+        open={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
         incidents={incidents}
         savedIds={savedIds}
-        onSelectIncident={handleSearchSelect}
+        actions={paletteActions}
+        onSelectIncident={handleCommandPaletteSelectIncident}
         onSelectLocation={handleSelectLocation}
-        onAddIncident={handleAddIncident}
-        onAddZone={handleAddZone}
-        onOpenLayers={() => setActiveDrawer('layers')}
-        onToggleFocusMode={toggleFocusMode}
-        onOpenAdvancedSearch={() => setPowerSearchMode(true)}
+        onOpenAdvanced={handleCommandPaletteOpenAdvanced}
+        recentsKey="geowatch_admin_command_palette_recents_v2"
+        legacyRecentsKey="geowatch_admin_command_palette_recents"
       />
 
       {/* Slide-in animation */}

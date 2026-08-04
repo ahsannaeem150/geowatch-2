@@ -12639,3 +12639,11 @@ feat: incident placement mode no longer ESC-only. New `Map/PlacementToolbar.jsx`
 ## 📅 2026-08-04 — Module: superadmin-web — PlacementToolbar port
 
 feat: incident placement toolbar ported from admin-web (byte-identical `Map/PlacementToolbar.jsx` copy). Wired in MapPage.jsx: hint chip replaced, props mapped to superadmin state (pointFormCoords / setPointFormCoords / handlePointFormCancel — same semantics as Esc stage 2). ESC unchanged. Build green.
+
+## 📅 2026-08-04 — Module: backend + user-web — Command palette search overhaul
+
+feat: backend — new public geocode proxy `GET /api/v1/geocode/search` (Nominatim server-side UA, 10-min in-memory cache, 5s timeout, 502 on upstream failure); `/incidents/search` gains ILIKE substring OR-group (title/location_context/description, escaped) alongside FTS — partial queries like "hormu" now match; `optionalAuthenticate` on /search + savedOnly joins `user_saved_incidents` for public_user JWTs (was silently dead). user-web palette: locations via proxy with error row; backend-fed incident+zone results merged with instant client filter (dedupe by id); new Zones scope + section headers; zone rows open zone sidebar + fly-to; loading/error rows; "Search all incidents ↵" bridge forwards query to Power Search. Curl-verified (cache warm 1ms); build green. Admin/superadmin ports pending owner test.
+
+## 📅 2026-08-04 — Module: shared — CommandPalette unified across all three apps
+
+refactor: user-web palette extracted to `src/shared/components/command-palette/` (props: open/onClose, incidents, savedIds, actions[{id,label,icon,hint,keywords,path,group,onSelect}], onSelectIncident covers points+zones, onSelectLocation, onOpenAdvanced, recentsKey/legacyRecentsKey, label overrides). user-web/admin-web/superadmin-web all switched; three divergent local copies deleted (incl. admin's hardcoded 6-entry location list). Staff maps wire zone rows to their map-click zone path; superadmin nav jumps preserved as grouped actions with path subtitles (shared ActionItem + group headers added for parity). All three builds green.

@@ -50,7 +50,7 @@ The code lives in a single npm-workspace monorepo. The database is PostgreSQL 16
 - Frontends: `react` ^18.3.1, `vite` ^5.3.1, `maplibre-gl` ^4.5.0 (user-web + admin-web), `react-router-dom` ^7.15.0, `date-fns` ^3.6.0
 - user-web extras: `framer-motion` ^12.40.0, `lucide-react` ^1.17.0
 - superadmin-web extras: `lucide-react` ^0.468.0
-- Note: `lucide-react` versions differ across workspaces and admin-web does not declare it directly — npm workspace hoisting makes the import resolve anyway. Do not "fix" this by adding dependencies without checking the lockfile behavior first.
+- Note: `lucide-react` versions differ across workspaces and admin-web doesn't declare it — hoisting resolves it anyway. Don't add it without checking the lockfile.
 
 ---
 
@@ -96,7 +96,7 @@ Each frontend imports shared code through the `@shared` Vite alias (`resolve.ali
 - `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`: display scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), `--font-longform` (Inter) for long-form prose, keyboard-only `:focus-visible` rings, reduced-motion suppression (media query + `.reduce-motion` class), `--border-strong`.
 - `constants.js` — Severity scale, event statuses, source types, user roles, verification statuses, API base URL, Martin URL.
 - `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
-- `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`, `CategoryMultiSelect`, `WorkspaceRail`.
+- `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`, `CategoryMultiSelect`, `WorkspaceRail`. `command-palette/` — shared ⌘K palette (backend-fed, per-app actions; all three apps).
 - `components/incident-detail/` — Shared incident detail package (sidebar + full page + evidence rail + timeline items + X-post list + source cards + procedural `TargetingCard` hero). Reused across all three frontends.
 - `components/zone/` — Shared zone/polygon detail components (`ZoneDetailSidebar`, `ZoneDetailPage`, `ZoneEditorSidebar`) plus trial-only styles/components.
 - `marker-builder.js`, `marker-icons.js` — Map marker generation helpers.
@@ -305,12 +305,13 @@ app.use('/api/v1/incidents/:id/sources/public', publicSourceRoutes);
 app.use('/api/v1/incidents/:id/sources', sourceRoutes);
 app.use('/api/v1/incidents/:id/media', mediaRoutes);
 app.use('/api/v1/zone-categories', zoneCategoryRoutes);
+app.use('/api/v1/geocode', geocodeRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/staff/recents', staffRecentRoutes);
 app.use('/api/v1/x-archive-debug', xArchiveDebugRoutes);
 ```
 
-The media router uses `Router({ mergeParams: true })` because it is mounted at `/api/v1/incidents/:id/media` — without it `req.params.id` is `undefined` and uploads fail with a Postgres NOT NULL violation. The same pattern applies to the other nested `:id` routers (timeline, sources).
+The media router (and the other nested `:id` routers — timeline, sources) uses `Router({ mergeParams: true })`; mounted at `/api/v1/incidents/:id/media`, without it `req.params.id` is `undefined` and uploads fail with a Postgres NOT NULL violation.
 
 ---
 
@@ -519,7 +520,7 @@ Read in order when starting a task:
 | `/trial/zone-sidebar-animations` | `ZoneSidebarAnimationTrialPage.jsx` | Sidebar mini-map pulse laboratory |
 | `/trial/zone-create` | `ZoneTrialCreatePage.jsx` | Polygon-incident creation sidebar trial |
 
-Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references; full list in `trialRoutes.md` (`/trial/zone-create` not listed yet).
+Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references; full list in `trialRoutes.md`.
 
 ### Known Non-Blocking Issues
 

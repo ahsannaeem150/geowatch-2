@@ -11,6 +11,20 @@ import {
   Clock,
   Settings,
   ChevronLeft,
+  Plus,
+  Hexagon,
+  Zap,
+  Search,
+  LayoutDashboard,
+  Users,
+  Globe,
+  Map as MapIcon,
+  ClipboardList,
+  Eye,
+  Trash2,
+  Tags,
+  Download,
+  Archive,
 } from 'lucide-react';
 import {
   getIncidents,
@@ -44,7 +58,7 @@ import {
   listAuditLogs,
 } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
-import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
+import { IncidentDetailSidebar, ZoneDetailSidebar, CommandPalette } from '@shared';
 import SuperadminMap from '../components/Map/SuperadminMap.jsx';
 import DrawingToolbar from '../components/Map/DrawingToolbar.jsx';
 import PlacementToolbar from '../components/Map/PlacementToolbar.jsx';
@@ -54,7 +68,6 @@ import WorkspaceTopBar from '../components/MapWorkspace/WorkspaceTopBar.jsx';
 import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
 import WorkspaceDrawer from '../components/MapWorkspace/WorkspaceDrawer.jsx';
 import PowerSearchPanel from '../components/PowerSearchPanel/PowerSearchPanel.jsx';
-import CommandPalette from '../components/CommandPalette/CommandPalette.jsx';
 import MapContextMenu from '@shared/components/MapContextMenu.jsx';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
@@ -2630,6 +2643,43 @@ export default function MapPage() {
     });
   }, []);
 
+  const handlePaletteOpenAdvanced = useCallback((initialQuery) => {
+    // The palette forwards its query (footer bridge / empty-state CTA) so
+    // Power Search opens with the search already populated.
+    if (typeof initialQuery === 'string' && initialQuery.trim()) {
+      setPsQuery(initialQuery.trim());
+    }
+    setPowerSearchMode(true);
+  }, []);
+
+  // Quick actions + console page jumps (the old palette's QUICK_ACTIONS and
+  // NAV_ACTIONS) for the shared palette's Actions scope. Nav rows carry their
+  // route as `path` (rendered as trailing mono text) and as keywords so
+  // typing a path still filters them in; `group` restores the old sub-group
+  // headers.
+  const paletteActions = useMemo(
+    () => [
+      { id: 'add-incident', label: 'Add new incident', icon: Plus, hint: 'I', group: 'Actions', onSelect: handleAddIncident },
+      { id: 'add-zone', label: 'Add new zone', icon: Hexagon, hint: 'Z', group: 'Actions', onSelect: handleAddZone },
+      { id: 'open-layers', label: 'Open layers panel', icon: Layers, hint: 'L', group: 'Actions', onSelect: () => handleDrawerSelect('layers') },
+      { id: 'toggle-focus', label: 'Toggle focus mode', icon: Zap, hint: 'F', group: 'Actions', onSelect: toggleFocusMode },
+      { id: 'open-power-search', label: 'Open power search', icon: Search, hint: 'P', group: 'Actions', onSelect: (action, query) => handlePaletteOpenAdvanced(query) },
+      { id: 'nav-dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/superadmin', keywords: '/superadmin', group: 'Go to page', onSelect: () => navigate('/superadmin') },
+      { id: 'nav-users', label: 'Staff Users', icon: Users, path: '/superadmin/users', keywords: '/superadmin/users', group: 'Go to page', onSelect: () => navigate('/superadmin/users') },
+      { id: 'nav-public-users', label: 'Public Users', icon: Globe, path: '/superadmin/public-users', keywords: '/superadmin/public-users', group: 'Go to page', onSelect: () => navigate('/superadmin/public-users') },
+      { id: 'nav-map', label: 'Map', icon: MapIcon, path: '/superadmin/map', keywords: '/superadmin/map', group: 'Go to page', onSelect: () => navigate('/superadmin/map') },
+      { id: 'nav-audit', label: 'System Activity', icon: ClipboardList, path: '/superadmin/audit', keywords: '/superadmin/audit', group: 'Go to page', onSelect: () => navigate('/superadmin/audit') },
+      { id: 'nav-public-activity', label: 'Public Activity', icon: Eye, path: '/superadmin/public-activity', keywords: '/superadmin/public-activity', group: 'Go to page', onSelect: () => navigate('/superadmin/public-activity') },
+      { id: 'nav-recycle-bin', label: 'Recycle Bin', icon: Trash2, path: '/superadmin/recycle-bin', keywords: '/superadmin/recycle-bin', group: 'Go to page', onSelect: () => navigate('/superadmin/recycle-bin') },
+      { id: 'nav-domains', label: 'Domains', icon: Tags, path: '/superadmin/domains', keywords: '/superadmin/domains', group: 'Go to page', onSelect: () => navigate('/superadmin/domains') },
+      { id: 'nav-zone-categories', label: 'Zone Categories', icon: Hexagon, path: '/superadmin/zone-categories', keywords: '/superadmin/zone-categories', group: 'Go to page', onSelect: () => navigate('/superadmin/zone-categories') },
+      { id: 'nav-system', label: 'System', icon: ActivityIcon, path: '/superadmin/system', keywords: '/superadmin/system', group: 'Go to page', onSelect: () => navigate('/superadmin/system') },
+      { id: 'nav-export', label: 'Export', icon: Download, path: '/superadmin/export', keywords: '/superadmin/export', group: 'Go to page', onSelect: () => navigate('/superadmin/export') },
+      { id: 'nav-x-archive-debug', label: 'X Archive Debug', icon: Archive, path: '/superadmin/x-archive-debug', keywords: '/superadmin/x-archive-debug', group: 'Go to page', onSelect: () => navigate('/superadmin/x-archive-debug') },
+    ],
+    [navigate, handleAddIncident, handleAddZone, handleDrawerSelect, toggleFocusMode, handlePaletteOpenAdvanced]
+  );
+
   const handleDismissContext = useCallback(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -3919,17 +3969,18 @@ export default function MapPage() {
 
       {/* Command palette */}
       <CommandPalette
-        isOpen={commandPaletteOpen}
+        open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         incidents={incidents}
         savedIds={savedIds}
+        actions={paletteActions}
         onSelectIncident={(incident) => handleSelectIncident(incident, { source: 'palette' })}
         onSelectLocation={handlePaletteSelectLocation}
-        onAddIncident={handleAddIncident}
-        onAddZone={handleAddZone}
-        onOpenLayers={() => handleDrawerSelect('layers')}
-        onToggleFocus={toggleFocusMode}
-        onOpenPowerSearch={() => setPowerSearchMode(true)}
+        onOpenAdvanced={handlePaletteOpenAdvanced}
+        recentsKey="geowatch_superadmin_command_palette_recents_v2"
+        legacyRecentsKey="geowatch_superadmin_command_palette_recents"
+        bridgeHint="Open Power Search with this query"
+        advancedLabel="Open power search"
       />
     </>
   );

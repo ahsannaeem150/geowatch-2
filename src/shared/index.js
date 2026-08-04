@@ -3,3 +3,4 @@ export { default as ZoneDetailSidebar } from './components/zone/ZoneDetailSideba
 export { default as ZoneDetailPage } from './components/zone/ZoneDetailPage.jsx';
 export { default as ZoneEditorSidebar } from './components/zone/ZoneEditorSidebar.jsx';
 export { default as RightPanelCollapseButton } from './components/RightPanelCollapseButton.jsx';
+export { default as CommandPalette } from './components/command-palette/CommandPalette.jsx';

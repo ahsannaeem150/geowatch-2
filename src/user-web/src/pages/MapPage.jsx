@@ -7,7 +7,9 @@ import {
   ChevronLeft,
   List,
   Radio,
+  Search,
   Settings,
+  Zap,
 } from 'lucide-react';
 import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
@@ -17,10 +19,9 @@ import WorkspaceTopBar from '../components/Layout/WorkspaceTopBar.jsx';
 import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
 import WorkspaceDrawer from '../components/Layout/WorkspaceDrawer.jsx';
 import PowerSearchPanel from '../components/Layout/PowerSearchPanel.jsx';
-import UserCommandPalette from '../components/Layout/UserCommandPalette.jsx';
 import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
 import MapContextMenu from '@shared/components/MapContextMenu.jsx';
-import { IncidentDetailSidebar, ZoneDetailSidebar } from '@shared';
+import { IncidentDetailSidebar, ZoneDetailSidebar, CommandPalette } from '@shared';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
 import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 import { useSignInModal } from '../contexts/SignInModalContext.jsx';
@@ -1589,9 +1590,30 @@ export default function MapPage() {
     setFocusMode((prev) => !prev);
   }, []);
 
-  const handleCommandPaletteOpenAdvanced = useCallback(() => {
+  const handleCommandPaletteOpenAdvanced = useCallback((initialQuery) => {
+    // The palette forwards its query (footer bridge / empty-state CTA) so
+    // Power Search opens with the search already populated.
+    if (typeof initialQuery === 'string' && initialQuery.trim()) {
+      setPsQuery(initialQuery.trim());
+    }
     setPowerSearchMode(true);
   }, []);
+
+  const paletteActions = useMemo(
+    () => [
+      { id: 'open-layers', label: 'Open layers panel', icon: Layers, hint: 'L', onSelect: handleCommandPaletteOpenLayers },
+      { id: 'open-saved', label: 'Open saved incidents', icon: Bookmark, hint: 'S', onSelect: handleCommandPaletteOpenSaved },
+      { id: 'toggle-focus', label: 'Toggle focus mode', icon: Zap, hint: 'F', onSelect: handleCommandPaletteToggleFocus },
+      {
+        id: 'open-advanced',
+        label: 'Open advanced search',
+        icon: Search,
+        hint: 'A',
+        onSelect: (action, query) => handleCommandPaletteOpenAdvanced(query),
+      },
+    ],
+    [handleCommandPaletteOpenLayers, handleCommandPaletteOpenSaved, handleCommandPaletteToggleFocus, handleCommandPaletteOpenAdvanced]
+  );
 
   // ─── Rail items ───
   const railItems = useMemo(
@@ -2119,17 +2141,17 @@ export default function MapPage() {
         )}
       </div>
 
-      <UserCommandPalette
-        isOpen={commandPaletteOpen}
+      <CommandPalette
+        open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         incidents={incidents}
         savedIds={savedIds}
+        actions={paletteActions}
         onSelectIncident={handleCommandPaletteSelectIncident}
         onSelectLocation={handleCommandPaletteSelectLocation}
-        onOpenLayers={handleCommandPaletteOpenLayers}
-        onOpenSaved={handleCommandPaletteOpenSaved}
-        onToggleFocusMode={handleCommandPaletteToggleFocus}
-        onOpenAdvancedSearch={handleCommandPaletteOpenAdvanced}
+        onOpenAdvanced={handleCommandPaletteOpenAdvanced}
+        recentsKey="geowatch_user_command_palette_recents_v2"
+        legacyRecentsKey="geowatch_user_command_palette_recents"
       />
     </div>
   );

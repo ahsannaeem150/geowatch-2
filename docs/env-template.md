@@ -26,6 +26,10 @@ BCRYPT_ROUNDS=12
 MARTIN_URL=http://localhost:8080
 MBTILES_PATH=/home/YOUR_USERNAME/GlassGhost/01-Projects/geowatch/assets/map.mbtiles
 
+# Geocode proxy (optional — defaults shown)
+NOMINATIM_URL=https://nominatim.openstreetmap.org/search
+GEOCODE_CONTACT_EMAIL=admin@geowatch.local
+
 USER_WEB_URL=http://localhost:5173
 ADMIN_WEB_URL=http://localhost:5174
 

@@ -29,7 +29,7 @@ const router = Router();
 
 // Public routes
 router.get('/', validateRequest(listIncidentsQuerySchema, 'query'), asyncHandler(getIncidents));
-router.get('/search', validateRequest(searchIncidentsQuerySchema, 'query'), asyncHandler(searchIncidentsController));
+router.get('/search', optionalAuthenticate, validateRequest(searchIncidentsQuerySchema, 'query'), asyncHandler(searchIncidentsController));
 
 // Superadmin recycle bin routes (must be before /:id to avoid "deleted" being parsed as an ID)
 router.get(
