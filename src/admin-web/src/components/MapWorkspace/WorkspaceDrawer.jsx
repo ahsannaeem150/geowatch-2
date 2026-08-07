@@ -7,9 +7,9 @@ import {
   Bell,
   Bookmark,
   Clock,
-  Check,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Filter,
   Info,
   Monitor,
@@ -25,7 +25,7 @@ import {
   ZapOff,
 } from 'lucide-react';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
-import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
+import { SEVERITY_SCALE } from '@shared/constants.js';
 import { useTheme } from '@shared/useTheme.js';
 import { useStyle } from '@shared/useStyle.js';
 import { getIncidentDomainColor, getDomainColor } from '@shared/utils/themeColors.js';
@@ -42,6 +42,12 @@ function timeAgo(dateValue, nowMs = Date.now()) {
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24) return `${diffH}h ago`;
   return `${Math.floor(diffH / 24)}d ago`;
+}
+
+// Compact variant for single-line meta rows: "15d" instead of "15d ago".
+// Post-processes timeAgo so all other consumers keep the long form.
+function timeAgoCompact(dateValue, nowMs) {
+  return timeAgo(dateValue, nowMs).replace(/ ago$/, '');
 }
 
 function LayerSection({ title, active, total, onShowAll, onHideAll, children }) {
@@ -181,14 +187,14 @@ function IncidentCard({ incident, onClick }) {
       onClick={() => onClick(incident)}
       style={{
         display: 'flex',
-        gap: 'calc(12px * var(--admin-ui-scale))',
-        padding: 'calc(14px * var(--admin-ui-scale))',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
         cursor: 'pointer',
-        transition: 'all 0.15s ease',
+        transition: 'border-color 0.15s ease, background 0.15s ease',
         overflow: 'hidden',
         flexShrink: 0,
         marginBottom: 'calc(8px * var(--admin-ui-scale))',
@@ -209,53 +215,54 @@ function IncidentCard({ incident, onClick }) {
           background: categoryColor,
           flexShrink: 0,
           alignSelf: 'stretch',
-          marginLeft: '-15px',
+          marginLeft: '-11px',
         }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
+        {/* Row 1: clamped title */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 'calc(10px * var(--admin-ui-scale))',
+            fontSize: 'calc(13px * var(--admin-ui-scale))',
+            fontWeight: 650,
+            color: 'var(--text-primary)',
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
         >
-          <div
+          {incident.title}
+        </div>
+        {/* Row 2: category micro-label left, compact time pinned right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span
             style={{
-              fontSize: 'calc(15px * var(--admin-ui-scale))',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              lineHeight: 1.35,
-              wordBreak: 'break-word',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              color: categoryColor,
             }}
           >
-            {incident.title}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'calc(6px * var(--admin-ui-scale))',
-            marginTop: 'calc(6px * var(--admin-ui-scale))',
-            fontSize: 'calc(12px * var(--admin-ui-scale))',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <MapPin size={13} color="var(--text-secondary)" />
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {location}
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'calc(10px * var(--admin-ui-scale))' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-            <span style={{ width: 'calc(7px * var(--admin-ui-scale))', height: 'calc(7px * var(--admin-ui-scale))', borderRadius: '50%', background: categoryColor }} />
+            {isZone && <Hexagon size={10} style={{ flexShrink: 0 }} />}
             {categoryName}
           </span>
-          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>{timeAgo(createdAt)}</span>
+          {createdAt && (
+            <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgoCompact(createdAt)}</span>
+          )}
+        </div>
+        {/* Row 3: location */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          <MapPin size={11} style={{ flexShrink: 0 }} />
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{location}</span>
         </div>
       </div>
     </div>
@@ -296,34 +303,52 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
           marginLeft: '-11px',
         }}
       />
-      <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(5px * var(--admin-ui-scale))' }}>
+      <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
+        {/* Row 1: clamped title */}
         <div
           onClick={() => onOpen(incident)}
           style={{
             fontSize: 'calc(13px * var(--admin-ui-scale))',
-            fontWeight: 700,
+            fontWeight: 650,
             color: 'var(--text-primary)',
-            lineHeight: 1.35,
-            wordBreak: 'break-word',
+            lineHeight: 1.3,
             cursor: 'pointer',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
         >
           {incident.title}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-          <MapPin size={11} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{location}</span>
-          <span>·</span>
-          <span>{timeAgo(createdAt, now)}</span>
-          {overdue && (
-            <>
-              <span>·</span>
+        {/* Row 2: category micro-label left, compact time + overdue flag pinned right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              color: categoryColor,
+            }}
+          >
+            {isZone && <Hexagon size={10} style={{ flexShrink: 0 }} />}
+            {categoryName}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {/* Fixed-width right-aligned time slot keeps 24H+ at the same x on
+                every card; overdue items are always "Xd" so 26px covers 1–3 digits */}
+            <span style={{ color: 'var(--text-muted)', minWidth: 'calc(26px * var(--admin-ui-scale))', textAlign: 'right' }}>{timeAgoCompact(createdAt, now)}</span>
+            {overdue && (
               <span
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 'calc(3px * var(--admin-ui-scale))',
-                  fontSize: 'calc(9px * var(--admin-ui-scale))',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
@@ -331,48 +356,46 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
                 }}
                 title="Active for more than 24 hours"
               >
-                <AlertCircle size={9} />
                 24h+
               </span>
-            </>
-          )}
+            )}
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-            <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: categoryColor }} />
-            {categoryName}
-          </span>
-          <SeverityBadge level={incident.severity} style={{ transform: 'scale(0.78)', transformOrigin: 'right center', flexShrink: 0 }} />
+        {/* Row 3: location left, ghost resolve button right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))', marginTop: 'calc(1px * var(--admin-ui-scale))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', minWidth: 0, fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <MapPin size={11} style={{ flexShrink: 0 }} />
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{location}</span>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onResolve(incident.id);
+            }}
+            style={{
+              flexShrink: 0,
+              padding: 'calc(2px * var(--admin-ui-scale)) calc(7px * var(--admin-ui-scale))',
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-muted)',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent)';
+              e.currentTarget.style.color = 'var(--accent-light)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-default)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
+          >
+            Resolve
+          </button>
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onResolve(incident.id);
-          }}
-          style={{
-            alignSelf: 'flex-start',
-            marginTop: 'calc(2px * var(--admin-ui-scale))',
-            padding: 'calc(3px * var(--admin-ui-scale)) calc(8px * var(--admin-ui-scale))',
-            background: 'var(--bg-input)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--text-primary)',
-            fontSize: 'calc(10px * var(--admin-ui-scale))',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--danger)';
-            e.currentTarget.style.color = 'var(--danger)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-default)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-        >
-          Resolve
-        </button>
       </div>
     </div>
   );
@@ -394,45 +417,44 @@ function ActivityMeta(type) {
   }
 }
 
-function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
-  const isUnseen = event.timestamp > activityLastSeenAt;
+function ActivityRow({ event, isUnseen, onOpen }) {
   const meta = ActivityMeta(event.type);
   const Icon = meta.icon;
+  const isZone = (event.geometryType || event.incident?.geometry_type) === 'polygon';
+  const title = event.incident?.title || event.title || meta.label;
+  const summary = event.update?.summary || null;
 
   return (
     <div
-      onClick={() => onSelectIncident(event.incidentId)}
+      onClick={() => onOpen(event)}
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 'calc(12px * var(--admin-ui-scale))',
-        padding: 'calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
         background: isUnseen ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
-        borderWidth: '1px 1px 1px 3px',
-        borderStyle: 'solid',
-        borderColor: `var(--border-default) var(--border-default) var(--border-default) ${isUnseen ? meta.color : 'var(--border-default)'}`,
+        border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
-        transition: 'all 0.15s ease',
+        transition: 'border-color 0.15s ease, background 0.15s ease',
         cursor: event.incidentId ? 'pointer' : 'default',
+        overflow: 'hidden',
+        flexShrink: 0,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderTopColor = 'var(--accent-light)';
-        e.currentTarget.style.borderRightColor = 'var(--accent-light)';
-        e.currentTarget.style.borderBottomColor = 'var(--accent-light)';
-        e.currentTarget.style.background = 'var(--bg-hover)';
+        e.currentTarget.style.borderColor = 'var(--accent-light)';
+        if (!isUnseen) e.currentTarget.style.background = 'var(--bg-hover)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderTopColor = 'var(--border-default)';
-        e.currentTarget.style.borderRightColor = 'var(--border-default)';
-        e.currentTarget.style.borderBottomColor = 'var(--border-default)';
+        e.currentTarget.style.borderColor = 'var(--border-default)';
         e.currentTarget.style.background = isUnseen ? 'var(--accent-subtle-bg)' : 'var(--bg-input)';
       }}
     >
+      {/* Slim per-type icon tile */}
       <div
         style={{
-          width: 'calc(30px * var(--admin-ui-scale))',
-          height: 'calc(30px * var(--admin-ui-scale))',
+          width: 'calc(22px * var(--admin-ui-scale))',
+          height: 'calc(22px * var(--admin-ui-scale))',
           borderRadius: 'var(--radius-sm)',
           background: meta.bg,
           color: meta.color,
@@ -442,114 +464,164 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
           flexShrink: 0,
         }}
       >
-        <Icon size={14} />
+        <Icon size={12} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--text-primary)' }}>
-          {event.incident?.title ? `${event.type === 'incident_created' ? 'New' : 'Update'}: ${event.incident.title}` : event.type}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(2px * var(--admin-ui-scale))' }}>
+        {/* Primary line: incident title */}
+        <div
+          style={{
+            fontSize: 'calc(12px * var(--admin-ui-scale))',
+            fontWeight: 650,
+            color: 'var(--text-primary)',
+            lineHeight: 1.3,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {title}
         </div>
-        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>
-          {meta.label} · {timeAgo(event.timestamp)}
-          {isUnseen && (
-            <span
-              style={{
-                marginLeft: 'calc(8px * var(--admin-ui-scale))',
-                padding: 'calc(1px * var(--admin-ui-scale)) calc(6px * var(--admin-ui-scale))',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 'calc(10px * var(--admin-ui-scale))',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                background: 'var(--alert-error-bg)',
-                color: 'var(--badge-red-text)',
-              }}
-            >
-              New
+        {/* Timeline update summary when the payload carries it */}
+        {summary && (
+          <div
+            style={{
+              fontSize: 'calc(11px * var(--admin-ui-scale))',
+              color: 'var(--text-muted)',
+              lineHeight: 1.35,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {summary}
+          </div>
+        )}
+        {/* Micro-label: event type + zone indication */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          <span>{meta.label}</span>
+          {isZone && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(3px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
+              · <Hexagon size={9} /> Zone
             </span>
           )}
         </div>
       </div>
-      {isUnseen && (
-        <span
-          style={{
-            width: 'calc(7px * var(--admin-ui-scale))',
-            height: 'calc(7px * var(--admin-ui-scale))',
-            borderRadius: '50%',
-            background: 'var(--danger)',
-            boxShadow: '0 0 0 0 var(--danger-glow)',
-            animation: 'gw-dot-pulse 1.5s ease-out infinite',
-            flexShrink: 0,
-          }}
-        />
-      )}
+      {/* Fixed right slot: compact time + subtle unseen pulse */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', flexShrink: 0 }}>
+        {isUnseen && (
+          <span
+            style={{
+              width: 'calc(6px * var(--admin-ui-scale))',
+              height: 'calc(6px * var(--admin-ui-scale))',
+              borderRadius: '50%',
+              background: 'var(--danger)',
+              boxShadow: '0 0 0 0 var(--danger-glow)',
+              animation: 'gw-dot-pulse 1.5s ease-out infinite',
+              flexShrink: 0,
+            }}
+          />
+        )}
+        <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{timeAgoCompact(event.timestamp)}</span>
+      </div>
     </div>
   );
+}
+
+function NotificationMeta(type) {
+  switch (type) {
+    case 'incident_created':
+      return { icon: AlertTriangle, color: 'var(--danger)' };
+    case 'timeline_added':
+    case 'timeline_updated':
+    case 'timeline_deleted':
+      return { icon: FileText, color: 'var(--warning)' };
+    case 'incident_resolved':
+      return { icon: CheckCircle2, color: 'var(--success)' };
+    case 'incident_updated':
+      return { icon: RefreshCw, color: 'var(--accent-light)' };
+    default:
+      return { icon: Bell, color: 'var(--text-secondary)' };
+  }
+}
+
+// Notification rows link to incidents via payload.incidentId or link_path
+// ("/incident/<uuid>") — resolve either to a plain incident id.
+function linkPathIncidentId(linkPath) {
+  if (typeof linkPath !== 'string') return null;
+  const m = linkPath.match(/\/incidents?\/([0-9a-f-]{36})/i);
+  return m ? m[1] : null;
 }
 
 function NotificationRow({ notification, onOpen, onMarkRead }) {
   const isUnread = !(notification.is_read || notification.read);
   const createdAt = notification.created_at || notification.createdAt;
+  const type = notification.type || '';
+  const payload = notification.payload || {};
+  const meta = NotificationMeta(type);
+  const Icon = meta.icon;
+  // incident_created rows accent with the severity color when the payload carries it
+  const sev = type === 'incident_created' ? SEVERITY_SCALE.find((s) => s.value === payload.severity) : null;
+  const accent = sev?.color || meta.color;
+  const body = notification.body || notification.message || notification.title;
+  const targetId = payload.incidentId ?? linkPathIncidentId(notification.link_path);
+
   return (
     <div
       onClick={() => {
         onMarkRead(notification.id);
-        if (notification.incident_id || notification.incidentId) {
-          onOpen(notification.incident_id || notification.incidentId);
-        }
+        if (targetId) onOpen(targetId);
       }}
       style={{
-        padding: 'calc(12px * var(--admin-ui-scale))',
-        background: isUnread ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
-        border: `1px solid ${isUnread ? 'var(--accent-subtle-border)' : 'var(--border-default)'}`,
-        borderRadius: 'var(--radius-sm)',
-        boxShadow: 'var(--shadow-sm)',
-        cursor: 'pointer',
         display: 'flex',
-        alignItems: 'flex-start',
         gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
+        background: isUnread ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-md)',
+        boxShadow: 'var(--shadow-sm)',
+        cursor: targetId ? 'pointer' : 'default',
+        overflow: 'hidden',
+        flexShrink: 0,
       }}
     >
-      <Bell
-        size={16}
-        color={isUnread ? 'var(--danger-light)' : 'var(--text-secondary)'}
-        style={{ flexShrink: 0, marginTop: 'calc(2px * var(--admin-ui-scale))' }}
+      <div
+        style={{
+          width: 'calc(2px * var(--admin-ui-scale))',
+          borderRadius: '2px',
+          background: accent,
+          flexShrink: 0,
+          alignSelf: 'stretch',
+          marginLeft: '-11px',
+        }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <Icon size={14} color={accent} style={{ flexShrink: 0, marginTop: 'calc(1px * var(--admin-ui-scale))' }} />
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(2px * var(--admin-ui-scale))' }}>
         <div
           style={{
             fontSize: 'calc(12px * var(--admin-ui-scale))',
-            fontWeight: isUnread ? 700 : 500,
+            fontWeight: isUnread ? 700 : 600,
             color: isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
+            lineHeight: 1.3,
           }}
         >
           {notification.title}
         </div>
-        <div style={{ fontSize: 'calc(12px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>{notification.message}</div>
-        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>{timeAgo(createdAt)}</div>
-      </div>
-      {isUnread && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMarkRead(notification.id);
-          }}
+        <div
           style={{
-            flexShrink: 0,
-            width: 'calc(24px * var(--admin-ui-scale))',
-            height: 'calc(24px * var(--admin-ui-scale))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'transparent',
+            fontSize: 'calc(11px * var(--admin-ui-scale))',
             color: 'var(--text-secondary)',
-            cursor: 'pointer',
+            lineHeight: 1.35,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
-          title="Mark read"
         >
-          <Check size={14} />
-        </button>
-      )}
+          {body}
+        </div>
+        <div style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>{timeAgoCompact(createdAt)}</div>
+      </div>
     </div>
   );
 }
@@ -560,6 +632,7 @@ function SavedRow({ incident, onOpen, onUnsave }) {
   const isZone = incident.geometry_type === 'polygon';
   const categoryColor = isZone ? incident.zone_category_color || '#6366f1' : getIncidentDomainColor(incident, theme);
   const categoryName = isZone ? incident.zone_category_name || 'Zone' : incident.domain_name || incident.category_name || incident.category || 'Unknown';
+  const location = incident.location_context || incident.location || 'Unknown location';
   const createdAt = incident.created_at || incident.createdAt;
 
   return (
@@ -572,6 +645,8 @@ function SavedRow({ incident, onOpen, onUnsave }) {
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
+        overflow: 'hidden',
+        flexShrink: 0,
       }}
     >
       <div
@@ -584,58 +659,107 @@ function SavedRow({ incident, onOpen, onUnsave }) {
           marginLeft: '-11px',
         }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
+        {/* Row 1: clamped title */}
         <div
           onClick={() => onOpen(incident)}
           style={{
             fontSize: 'calc(13px * var(--admin-ui-scale))',
-            fontWeight: 700,
+            fontWeight: 650,
             color: 'var(--text-primary)',
             cursor: 'pointer',
-            lineHeight: 1.35,
-            wordBreak: 'break-word',
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
         >
           {incident.title}
         </div>
-        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>
-          {categoryName} · {timeAgo(createdAt)}
+        {/* Row 2: category micro-label left, compact time pinned right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              color: categoryColor,
+            }}
+          >
+            {isZone && <Hexagon size={10} style={{ flexShrink: 0 }} />}
+            {categoryName}
+          </span>
+          <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgoCompact(createdAt)}</span>
+        </div>
+        {/* Row 3: location left, ghost unsave icon-button right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))', marginTop: 'calc(1px * var(--admin-ui-scale))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', minWidth: 0, fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <MapPin size={11} style={{ flexShrink: 0 }} />
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{location}</span>
+          </div>
+          <button
+            onClick={() => onUnsave(incident.id)}
+            title="Unsave"
+            style={{
+              flexShrink: 0,
+              width: 'calc(22px * var(--admin-ui-scale))',
+              height: 'calc(22px * var(--admin-ui-scale))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              background: 'transparent',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent)';
+              e.currentTarget.style.color = 'var(--accent-light)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-default)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
+          >
+            <Bookmark size={12} />
+          </button>
         </div>
       </div>
-      <button
-        onClick={() => onUnsave(incident.id)}
-        title="Unsave"
-        style={{
-          flexShrink: 0,
-          width: 'calc(26px * var(--admin-ui-scale))',
-          height: 'calc(26px * var(--admin-ui-scale))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-sm)',
-          background: 'transparent',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-        }}
-      >
-        <Bookmark size={14} />
-      </button>
     </div>
   );
 }
 
 function RecentRow({ recent, onOpen }) {
+  const { theme } = useTheme();
+  // Enriched recents carry the incident snapshot; fall back to payload for
+  // incidents deleted since they were viewed.
+  const incident = recent.incident || null;
   const payload = recent.payload || {};
-  const title = payload.title || 'Untitled incident';
-  const openedAt = recent.created_at || recent.createdAt;
+  const isZone = incident?.geometry_type === 'polygon';
+  const categoryColor = isZone ? incident.zone_category_color || '#6366f1' : getIncidentDomainColor(incident, theme);
+  const categoryName = isZone
+    ? incident.zone_category_name || 'Zone'
+    : incident?.domain_name || incident?.category_name || payload.domain_name || payload.category_name || 'Unknown';
+  const title = incident?.title || payload.title || 'Untitled incident';
+  const location = incident?.location_context || payload.location_context || null;
+  const viewedAt = recent.viewed_at || recent.occurred_at || recent.created_at || recent.createdAt;
 
   return (
     <div
-      onClick={() => onOpen({ id: payload.incidentId || recent.id, title })}
+      onClick={() => onOpen(recent)}
       style={{
         display: 'flex',
-        alignItems: 'center',
         gap: 'calc(10px * var(--admin-ui-scale))',
         padding: 'calc(10px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
@@ -643,6 +767,9 @@ function RecentRow({ recent, onOpen }) {
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
         cursor: 'pointer',
+        transition: 'border-color 0.15s ease, background 0.15s ease',
+        overflow: 'hidden',
+        flexShrink: 0,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'var(--accent-light)';
@@ -653,10 +780,64 @@ function RecentRow({ recent, onOpen }) {
         e.currentTarget.style.background = 'var(--bg-input)';
       }}
     >
-      <Clock size={16} color="var(--text-secondary)" />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
-        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(2px * var(--admin-ui-scale))' }}>viewed {timeAgo(openedAt)}</div>
+      <div
+        style={{
+          width: 'calc(2px * var(--admin-ui-scale))',
+          borderRadius: '2px',
+          background: categoryColor,
+          flexShrink: 0,
+          alignSelf: 'stretch',
+          marginLeft: '-11px',
+        }}
+      />
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(3px * var(--admin-ui-scale))' }}>
+        {/* Row 1: clamped title */}
+        <div
+          style={{
+            fontSize: 'calc(13px * var(--admin-ui-scale))',
+            fontWeight: 650,
+            color: 'var(--text-primary)',
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {title}
+        </div>
+        {/* Row 2: category micro-label left (zones clearly marked), viewed time right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              color: categoryColor,
+            }}
+          >
+            {isZone && <Hexagon size={10} style={{ flexShrink: 0 }} />}
+            {categoryName}
+          </span>
+          <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }} title="Last viewed">
+            {timeAgoCompact(viewedAt)}
+          </span>
+        </div>
+        {/* Row 3: location when known */}
+        {location && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <MapPin size={11} style={{ flexShrink: 0 }} />
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{location}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -781,26 +962,13 @@ function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, on
         >
           Active Incidents
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', whiteSpace: 'nowrap' }}>
+          <span style={{ color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>
           {overdueCount > 0 && (
-            <span
-              style={{
-                height: 'calc(18px * var(--admin-ui-scale))',
-                padding: '0 calc(7px * var(--admin-ui-scale))',
-                borderRadius: '999px',
-                background: 'var(--badge-red-bg)',
-                border: '1px solid var(--badge-red-bg)',
-                color: 'var(--badge-red-text)',
-                fontSize: 'calc(10px * var(--admin-ui-scale))',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              {overdueCount} 24h+
+            <span style={{ color: 'var(--badge-red-text)' }}>
+              · {overdueCount === activeIncidents.length ? 'all' : overdueCount} older than 24h
             </span>
           )}
-          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>
         </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
@@ -822,8 +990,10 @@ function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, on
   );
 }
 
-function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen, onSelectActivityIncident }) {
-  const unreadCount = activities.filter((a) => a.timestamp > activityLastSeenAt).length;
+function ActivityDrawer({ activities, activityLastSeenAt, activitySeenIds, onMarkAllActivitySeen, onSelectActivityIncident }) {
+  // Unseen iff newer than the lastSeen baseline AND not individually clicked-seen
+  const isUnseenRow = (a) => a.timestamp > activityLastSeenAt && !activitySeenIds?.has(a.id);
+  const unreadCount = activities.filter(isUnseenRow).length;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
@@ -871,10 +1041,10 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
         ) : (
           activities.map((event) => (
             <ActivityRow
-              key={`${event.type}-${event.timestamp}-${event.incidentId || Math.random()}`}
+              key={event.id || `${event.type}-${event.timestamp}-${event.incidentId || Math.random()}`}
               event={event}
-              activityLastSeenAt={activityLastSeenAt}
-              onSelectIncident={onSelectActivityIncident}
+              isUnseen={isUnseenRow(event)}
+              onOpen={onSelectActivityIncident}
             />
           ))
         )}
@@ -918,7 +1088,7 @@ function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNot
               cursor: 'pointer',
             }}
           >
-            Mark all read
+            Mark all as seen
           </button>
         )}
       </div>
@@ -1357,6 +1527,7 @@ export default function WorkspaceDrawer(props) {
           <ActivityDrawer
             activities={props.activities}
             activityLastSeenAt={props.activityLastSeenAt}
+            activitySeenIds={props.activitySeenIds}
             onMarkAllActivitySeen={props.onMarkAllActivitySeen}
             onSelectActivityIncident={props.onSelectActivityIncident}
           />

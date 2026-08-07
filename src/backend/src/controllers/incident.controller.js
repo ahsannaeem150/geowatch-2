@@ -13,6 +13,7 @@ import {
 } from '../services/incident.service.js';
 import { createEventSource } from '../services/source.service.js';
 import { createTimelineUpdate } from '../services/timeline.service.js';
+import { recordStaffRecent } from '../services/staff-recent.service.js';
 import { broadcastEvent } from '../utils/sse-broadcast.js';
 import { auditLog } from '../utils/audit-log.js';
 import { AUDIT_ACTIONS } from '../utils/audit-actions.js';
@@ -95,6 +96,17 @@ export async function getIncident(req, res) {
     auditLog(req, AUDIT_ACTIONS.PUBLIC_USER_INCIDENT_VIEWED, 'incident', req.params.id, {
       title: result.incident?.title || req.params.id,
     }, req.user, 'user', 'public_user');
+  }
+
+  // Record a staff recent on every staff detail view (fire-and-forget).
+  // The client only POSTs recents for point selections, so zone views would
+  // never land here otherwise; recordStaffRecent dedupes, so the client POST
+  // and this record collapse into a single row bumped to the top.
+  if (['admin', 'super_admin', 'viewer'].includes(req.user?.role) && result.incident) {
+    recordStaffRecent(req.user.id, 'incident', {
+      incidentId: result.incident.id,
+      title: result.incident.title,
+    }).catch(() => {});
   }
 
   res.apiSuccess(result);

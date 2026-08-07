@@ -26,6 +26,7 @@ import mediaRoutes from './src/routes/media.routes.js';
 import zoneCategoryRoutes from './src/routes/zone-category.routes.js';
 import notificationRoutes from './src/routes/notification.routes.js';
 import staffRecentRoutes from './src/routes/staff-recent.routes.js';
+import staffActivityRoutes from './src/routes/staff-activity.routes.js';
 import xArchiveDebugRoutes from './src/routes/x-archive-debug.routes.js';
 import geocodeRoutes from './src/routes/geocode.routes.js';
 import statsRoutes from './src/routes/stats.routes.js';
@@ -122,6 +123,7 @@ app.use('/api/v1/geocode', geocodeRoutes);
 app.use('/api/v1/stats', statsRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/staff/recents', staffRecentRoutes);
+app.use('/api/v1/staff/activity', staffActivityRoutes);
 app.use('/api/v1/x-archive-debug', xArchiveDebugRoutes);
 
 // ─── 404 Handler ───

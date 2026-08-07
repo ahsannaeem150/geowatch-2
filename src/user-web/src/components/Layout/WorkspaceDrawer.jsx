@@ -22,7 +22,6 @@ import {
   Hexagon,
 } from 'lucide-react';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
-import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
 import { useTheme } from '@shared/useTheme.js';
 import { useStyle } from '@shared/useStyle.js';
 import { getIncidentDomainColor, getDomainColor } from '@shared/utils/themeColors.js';
@@ -39,6 +38,20 @@ function timeAgo(dateValue, nowMs = Date.now()) {
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24) return `${diffH}h ago`;
   return `${Math.floor(diffH / 24)}d ago`;
+}
+
+// Compact variant for single-line meta rows: "15d" instead of "15d ago".
+// Post-processes timeAgo so all other consumers keep the long form.
+function timeAgoCompact(dateValue, nowMs) {
+  return timeAgo(dateValue, nowMs).replace(/ ago$/, '');
+}
+
+// "Mar 5" — used by the Saved row's fixed right slot.
+function formatShortDate(dateValue) {
+  if (!dateValue) return '';
+  const dateMs = typeof dateValue === 'number' ? dateValue : new Date(dateValue).getTime();
+  if (!Number.isFinite(dateMs)) return '';
+  return new Date(dateMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function LayerSection({ title, active, total, onShowAll, onHideAll, children }) {
@@ -164,8 +177,10 @@ function LayerRow({ data, active, theme, onToggle }) {
 
 function IncidentCard({ incident, onClick }) {
   const { theme } = useTheme();
-  const categoryColor = getIncidentDomainColor(incident, theme);
-  const categoryName = incident.domain_name || incident.category_name || incident.category || 'Unknown';
+  // Polygon incidents (zones) have no domain/category — use the zone category
+  const isZone = incident.geometry_type === 'polygon';
+  const categoryColor = isZone ? incident.zone_category_color || '#6b7280' : getIncidentDomainColor(incident, theme);
+  const categoryName = isZone ? incident.zone_category_name || 'Zone' : incident.domain_name || incident.category_name || incident.category || 'Unknown';
   const location = incident.location_context || incident.location || 'Unknown location';
   const createdAt = incident.created_at || incident.createdAt;
 
@@ -174,14 +189,14 @@ function IncidentCard({ incident, onClick }) {
       onClick={() => onClick(incident)}
       style={{
         display: 'flex',
-        gap: 'calc(12px * var(--admin-ui-scale))',
-        padding: 'calc(14px * var(--admin-ui-scale))',
+        gap: 'calc(10px * var(--admin-ui-scale))',
+        padding: 'calc(10px * var(--admin-ui-scale))',
         background: 'var(--bg-input)',
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
         cursor: 'pointer',
-        transition: 'all 0.15s ease',
+        transition: 'border-color 0.15s ease, background 0.15s ease',
         overflow: 'hidden',
         flexShrink: 0,
         marginBottom: 'calc(8px * var(--admin-ui-scale))',
@@ -202,53 +217,54 @@ function IncidentCard({ incident, onClick }) {
           background: categoryColor,
           flexShrink: 0,
           alignSelf: 'stretch',
-          marginLeft: '-15px',
+          marginLeft: '-11px',
         }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
+        {/* Row 1: clamped title */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 'calc(10px * var(--admin-ui-scale))',
+            fontSize: 'calc(13px * var(--admin-ui-scale))',
+            fontWeight: 650,
+            color: 'var(--text-primary)',
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
         >
-          <div
+          {incident.title}
+        </div>
+        {/* Row 2: category micro-label left, compact time pinned right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span
             style={{
-              fontSize: 'calc(15px * var(--admin-ui-scale))',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              lineHeight: 1.35,
-              wordBreak: 'break-word',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              color: categoryColor,
             }}
           >
-            {incident.title}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'calc(6px * var(--admin-ui-scale))',
-            marginTop: 'calc(6px * var(--admin-ui-scale))',
-            fontSize: 'calc(12px * var(--admin-ui-scale))',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <MapPin size={13} color="var(--text-secondary)" />
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {location}
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'calc(10px * var(--admin-ui-scale))' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-            <span style={{ width: 'calc(7px * var(--admin-ui-scale))', height: 'calc(7px * var(--admin-ui-scale))', borderRadius: '50%', background: categoryColor }} />
+            {isZone && <Hexagon size={10} style={{ flexShrink: 0 }} />}
             {categoryName}
           </span>
-          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>{timeAgo(createdAt)}</span>
+          {createdAt && (
+            <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgoCompact(createdAt)}</span>
+          )}
+        </div>
+        {/* Row 3: location */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          <MapPin size={11} style={{ flexShrink: 0 }} />
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{location}</span>
         </div>
       </div>
     </div>
@@ -257,10 +273,13 @@ function IncidentCard({ incident, onClick }) {
 
 function ActiveRow({ incident, now, onOpen }) {
   const { theme } = useTheme();
-  const categoryColor = getIncidentDomainColor(incident, theme);
-  const categoryName = incident.domain_name || incident.category_name || incident.category || 'Unknown';
+  // Polygon incidents (zones) have no domain/category — use the zone category
+  const isZone = incident.geometry_type === 'polygon';
+  const categoryColor = isZone ? incident.zone_category_color || '#6b7280' : getIncidentDomainColor(incident, theme);
+  const categoryName = isZone ? incident.zone_category_name || 'Zone' : incident.domain_name || incident.category_name || incident.category || 'Unknown';
   const location = incident.location_context || incident.location || 'Unknown location';
   const createdAt = incident.created_at || incident.createdAt;
+  const overdue = now - (typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime()) > 24 * 60 * 60 * 1000;
 
   return (
     <div
@@ -286,32 +305,98 @@ function ActiveRow({ incident, now, onOpen }) {
           marginLeft: '-11px',
         }}
       />
-      <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(5px * var(--admin-ui-scale))' }}>
+      <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
+        {/* Row 1: clamped title */}
         <div
           onClick={() => onOpen(incident)}
           style={{
             fontSize: 'calc(13px * var(--admin-ui-scale))',
-            fontWeight: 700,
+            fontWeight: 650,
             color: 'var(--text-primary)',
-            lineHeight: 1.35,
-            wordBreak: 'break-word',
+            lineHeight: 1.3,
             cursor: 'pointer',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
         >
           {incident.title}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-          <MapPin size={11} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{location}</span>
-          <span>·</span>
-          <span>{timeAgo(createdAt, now)}</span>
-        </div>
+        {/* Row 2: category micro-label left, compact time + overdue flag pinned right */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-            <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: categoryColor }} />
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              color: categoryColor,
+            }}
+          >
+            {isZone && <Hexagon size={10} style={{ flexShrink: 0 }} />}
             {categoryName}
           </span>
-          <SeverityBadge level={incident.severity} style={{ transform: 'scale(0.78)', transformOrigin: 'right center', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(5px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {/* Fixed-width right-aligned time slot keeps 24h+ at the same x on
+                every card; overdue items are always "Xd" so 26px covers 1–3 digits */}
+            <span style={{ color: 'var(--text-muted)', minWidth: 'calc(26px * var(--admin-ui-scale))', textAlign: 'right' }}>{timeAgoCompact(createdAt, now)}</span>
+            {overdue && (
+              <span
+                style={{
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  color: 'var(--badge-red-text)',
+                }}
+                title="Active for more than 24 hours"
+              >
+                24h+
+              </span>
+            )}
+          </div>
+        </div>
+        {/* Row 3: location left, ghost view button right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))', marginTop: 'calc(1px * var(--admin-ui-scale))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', minWidth: 0, fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <MapPin size={11} style={{ flexShrink: 0 }} />
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{location}</span>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(incident);
+            }}
+            style={{
+              flexShrink: 0,
+              padding: 'calc(2px * var(--admin-ui-scale)) calc(7px * var(--admin-ui-scale))',
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-muted)',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent)';
+              e.currentTarget.style.color = 'var(--accent-light)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-default)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
+          >
+            View
+          </button>
         </div>
       </div>
     </div>
@@ -453,6 +538,7 @@ function SavedRow({ incident, onOpen, onUnsave }) {
   const categoryName = isZone
     ? (incident.zone_category_name || 'Zone')
     : (incident.domain_name || incident.category_name || incident.category || 'Unknown');
+  const location = incident.location_context || incident.location || 'Unknown location';
   const createdAt = incident.created_at || incident.createdAt;
 
   return (
@@ -465,6 +551,8 @@ function SavedRow({ incident, onOpen, onUnsave }) {
         border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
+        overflow: 'hidden',
+        flexShrink: 0,
       }}
     >
       <div
@@ -477,43 +565,85 @@ function SavedRow({ incident, onOpen, onUnsave }) {
           marginLeft: '-11px',
         }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
+        {/* Row 1: clamped title */}
         <div
           onClick={() => onOpen(incident)}
           style={{
             fontSize: 'calc(13px * var(--admin-ui-scale))',
-            fontWeight: 700,
+            fontWeight: 650,
             color: 'var(--text-primary)',
             cursor: 'pointer',
-            lineHeight: 1.35,
-            wordBreak: 'break-word',
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
         >
           {incident.title}
         </div>
-        <div style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', marginTop: 'calc(4px * var(--admin-ui-scale))' }}>
-          {categoryName} · {timeAgo(createdAt)}
+        {/* Row 2: category micro-label left, saved date pinned right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              color: categoryColor,
+            }}
+          >
+            {isZone && <Hexagon size={10} style={{ flexShrink: 0 }} />}
+            {categoryName}
+          </span>
+          <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {incident.saved_at ? `Saved ${formatShortDate(incident.saved_at)}` : timeAgoCompact(createdAt)}
+          </span>
+        </div>
+        {/* Row 3: location left, ghost unsave icon-button right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))', marginTop: 'calc(1px * var(--admin-ui-scale))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', minWidth: 0, fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <MapPin size={11} style={{ flexShrink: 0 }} />
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{location}</span>
+          </div>
+          <button
+            onClick={() => onUnsave(incident.id)}
+            title="Unsave"
+            style={{
+              flexShrink: 0,
+              width: 'calc(22px * var(--admin-ui-scale))',
+              height: 'calc(22px * var(--admin-ui-scale))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              background: 'transparent',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent)';
+              e.currentTarget.style.color = 'var(--accent-light)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-default)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
+          >
+            <Bookmark size={12} />
+          </button>
         </div>
       </div>
-      <button
-        onClick={() => onUnsave(incident.id)}
-        title="Unsave"
-        style={{
-          flexShrink: 0,
-          width: 'calc(26px * var(--admin-ui-scale))',
-          height: 'calc(26px * var(--admin-ui-scale))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-sm)',
-          background: 'transparent',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-        }}
-      >
-        <Bookmark size={14} />
-      </button>
     </div>
   );
 }

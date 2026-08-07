@@ -12679,3 +12679,35 @@ fix: design-trial stylesheets applied globally in production (static route impor
 ## 📅 2026-08-07 — Module: all — Zone interaction bug family + Add-update light fix
 
 fix: THE recurring dead-zone bug root-caused — theme `setStyle()` diff strips runtime zone layers and MapLibre fires `styledata` not `style.load`, so recovery never ran (hover/click dead until refresh). Guarded restore (styledata+idle, zone-hit check) added in UserMap/AdminMap/SuperadminMap; Playwright-proven in all three. Active/Saved drawer zone rows: category "Unknown" fixed via zone_category_name/color (admin 3 rows, superadmin 3 rows, user-web Saved row + backend public saved-incident.service geometry_type/zone_category join); drawer zone clicks routed to the zone path (no more incident=<zoneId>/NaN fly-to). BUG D: URL zone= desync race fixed (viewport sync merges live window.location.search, admin+superadmin). handleZoneEditCancel function-as-state typo fixed (admin). Add update button white-on-white in light mode: shared light flatten rule now excludes the primary variant (+ hover rule) — admin crimson and superadmin indigo both proven legible. All builds green.
+
+## 📅 2026-08-08 — Module: admin-web + shared — Drawer card redesign + zone mini-map removal
+
+style: Active drawer header now clean `N total · N 24h+` (muted/red text, no glued pills); ActiveRow + SavedRow redesigned to 3 tight rows — 2-line clamped title with inline severity pill, single never-wrapping meta line (dot + category · location · compact "15d" time · 24H+ flag), small ghost Resolve/unsave buttons; ~30% shorter, wrap-proof by structure. Zone sidebar: animated PolygonMiniMap preview removed from shared ZoneDetailSidebar (sidebar flows badges → title → meter → stats; component kept for trials) — live in all three apps. Screenshots: temp_screenshots/drawer-redesign/. All builds green.
+
+## 📅 2026-08-08 — Module: admin-web — Drawer v2: fixed 24H+ slot + worded header
+
+style: Active drawer header now words — `N total · all older than 24h` (no cryptic "24h+" token); ActiveRow/SavedRow meta rows restructured space-between — dot+category·location ellipsis left, time + red 24H+ pinned to the right edge at identical x-position on every card (pixel-verified 400px across all cards incl. longest category names). Screenshots: temp_screenshots/drawer-redesign-v2/. Build green.
+
+## 📅 2026-08-08 — Module: admin-web — Drawer cards v3 (modern hierarchy)
+
+style: Active/Saved cards now 4-row hierarchy — clamped title + severity pill → category as its own tinted color-mix chip (no more category/location mixing) → dedicated muted location line → balanced footer (time + 24H+ left at fixed x — normalized time slot, pixel-verified identical across cards — ghost Resolve right, dead space gone). Screenshots: temp_screenshots/drawer-redesign-v3/. Build green.
+
+## 📅 2026-08-08 — Module: admin-web — Drawer cards v4 (borderless minimal)
+
+style: Active/Saved drawers now a borderless minimal list — card chrome (bg/border/radius/spine) removed, hairline dividers instead; 3 rows: clamped title + tiny severity dot+number (raw SEVERITY_SCALE color, tooltip) → colored micro-label category + muted Resolve text-button → location line with fixed right slot (time + 24H+, uniform x pixel-verified). Screenshots: temp_screenshots/drawer-redesign-v4/. Build green.
+
+## 📅 2026-08-08 — Module: admin-web — Drawer cards v5 (owner's final layout)
+
+style: card chrome + category-color left spine restored on the v4 minimal layout — row 1 title alone, row 2 category micro-label + time/24H+ pinned right (uniform x verified), row 3 location + ghost Resolve button; severity signal removed from drawer cards entirely (Active + Saved). Screenshots: temp_screenshots/drawer-redesign-v5/. Build green.
+
+## 📅 2026-08-08 — Module: admin-web + backend — Drawer overhaul (Batches A+B+C)
+
+feat/fix: backend — recents now include zones + enriched payload (categories/domains/zone_categories joins), server-side view-triggered recording with dedupe (getIncident), new `GET /api/v1/staff/activity` (audit-derived backfill, SSE-shape rows). admin drawers — NotificationRow bugs fixed (body renders via body→message→title; click navigates via payload.incidentId/link_path), type icons + severity-colored accents, per-row delete, SSE-debounced refetch; IncidentCard/ActivityRow/RecentRow all on v5 design (spine, clamped title, micro-labels, fixed right slots); recents show zones with Hexagon + zone category in zone color; activity drawer backfills history merged with live SSE (dedupe, cap 50). Flex-shrink collapse bug found+fixed. Screenshots: temp_screenshots/drawer-overhaul/. Build green.
+
+## 📅 2026-08-08 — Module: admin-web — Drawer refinements (seen-state, notif rework, zone glyph)
+
+feat: live activity rows get per-row seen state — click normalizes just that row (session Set + stable ids; badge/header counts exclude clicked rows). Notifications: per-row delete removed (records kept per owner), click-to-read model (unread highlighted, click → markRead persisted + normalize + navigate), header "Mark all as seen" (backend mark-all endpoint), redundant per-row ✓ dropped. Hexagon zone glyph ported to all drawer rows (IncidentCard/ActiveRow/SavedRow now show ⬡ zone-category in zone color like RecentRow/ActivityRow). Legacy duplicate staff_recents cleaned (7 rows). Screenshots: temp_screenshots/drawer-refine/. Build green.
+
+## 📅 2026-08-08 — Module: superadmin-web + user-web — Drawer overhaul port
+
+feat/style: superadmin — full drawer overhaul ported from admin (WorkspaceDrawer wholesale parity, audit-log footer kept): v5 cards on all rows, recents zones+enriched, activity seen-state + /staff/activity backfill (44 rows verified) merged with live SSE, incident_deleted SSE parity, notifications click-to-read + Mark all as seen + severity accents; Playwright smoke 11/11 pass. user-web — v5 card design on Active/Saved/viewport rows (zone glyph + zone colors, 24H+ flag, Saved date slot, ghost View/unsave buttons); read-only adaptations kept. Both builds green.

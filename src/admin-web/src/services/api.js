@@ -479,4 +479,7 @@ export const api = {
     if (type) qs.append('type', type);
     return request(`/staff/recents?${qs.toString()}`, { method: 'DELETE' });
   },
+
+  // Staff activity backfill (SSE feed history)
+  getStaffActivity: (limit = 50) => request(`/staff/activity?limit=${limit}`),
 };

@@ -749,6 +749,7 @@ export default function DashboardLayout() {
   const {
     notifications,
     unreadCount: notificationUnreadCount,
+    fetchNotifications,
     markRead: markNotificationRead,
     markAllRead: markAllNotificationsRead,
   } = useStaffNotifications();
@@ -779,10 +780,25 @@ export default function DashboardLayout() {
 
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
+  const [activityBackfill, setActivityBackfill] = useState([]);
+  // Session-level per-row seen: clicking one activity row clears only its
+  // highlight; the lastSeen baseline (localStorage) stays the coarse fallback.
+  const [activitySeenIds, setActivitySeenIds] = useState(() => new Set());
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
 
   const [newIncidentIds, setNewIncidentIds] = useState(new Set());
   const esRef = useRef(null);
+  const notifRefetchTimerRef = useRef(null);
+
+  // SSE pushes can create staff notifications server-side; refetch coalesced
+  // (one trailing fetch 2s after the last event in a burst).
+  const scheduleNotificationRefetch = useCallback(() => {
+    if (notifRefetchTimerRef.current) return;
+    notifRefetchTimerRef.current = setTimeout(() => {
+      notifRefetchTimerRef.current = null;
+      fetchNotifications();
+    }, 2000);
+  }, [fetchNotifications]);
 
   // ─── Domain Filters ───
   const [activeDomainFilter, setActiveDomainFilter] = useState(null);
@@ -1263,6 +1279,7 @@ export default function DashboardLayout() {
             }
 
             const activity = {
+              id: `live-${payload.type}-${payload.incidentId || payload.incident?.id || 'x'}-${ts}`,
               type: payload.type,
               incidentId: payload.incidentId || payload.incident?.id,
               incident: payload.incident || null,
@@ -1274,6 +1291,10 @@ export default function DashboardLayout() {
 
             return [activity, ...prev].slice(0, MAX_ACTIVITIES);
           });
+
+          // Staff notifications are created server-side off the same events;
+          // coalesce bursts into one trailing refetch.
+          scheduleNotificationRefetch();
 
           // If the activity is about an incident we know, refresh it in our list
           if (payload.incident) {
@@ -1359,12 +1380,57 @@ export default function DashboardLayout() {
 
     return () => {
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (notifRefetchTimerRef.current) {
+        clearTimeout(notifRefetchTimerRef.current);
+        notifRefetchTimerRef.current = null;
+      }
       if (esRef.current) {
         try { esRef.current.close(); } catch { /* ignore */ }
         esRef.current = null;
       }
     };
   }, []);
+
+  // One-time activity backfill: history behind the live SSE feed. A failed
+  // fetch silently leaves the drawer live-only (no retry loop).
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getStaffActivity(MAX_ACTIVITIES)
+      .then((res) => {
+        if (cancelled) return;
+        const rows = (res.data?.activity || [])
+          .map((a) => ({
+            id: a.id ?? `back-${a.type}-${a.incidentId}-${a.at}`,
+            type: a.type,
+            incidentId: a.incidentId,
+            incident: a.title ? { title: a.title, geometry_type: a.geometryType } : null,
+            update: null,
+            timestamp: new Date(a.at).getTime(),
+            isUnread: false,
+          }))
+          .filter((a) => a.type && Number.isFinite(a.timestamp));
+        setActivityBackfill(rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Live SSE rows stay on top; backfill fills history behind them. Dedupe by
+  // incident+type+minute so a live event hides its persisted twin. Cap 50.
+  const mergedActivities = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const a of [...activities, ...activityBackfill]) {
+      const key = `${a.incidentId}|${a.type}|${Math.floor(a.timestamp / 60000)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(a);
+    }
+    return out.sort((x, y) => y.timestamp - x.timestamp).slice(0, MAX_ACTIVITIES);
+  }, [activities, activityBackfill]);
 
   // Listen for incident deletion from detail panel and refresh list
   useEffect(() => {
@@ -1393,7 +1459,7 @@ export default function DashboardLayout() {
     );
   }, [lastSeenTimestamp]);
 
-  const unreadCount = activities.filter((a) => a.isUnread).length;
+  const unreadCount = activities.filter((a) => a.isUnread && !activitySeenIds.has(a.id)).length;
 
   // Auto-dismiss toast after 6 seconds
   useEffect(() => {
@@ -2556,6 +2622,23 @@ export default function DashboardLayout() {
     [handleSelectFromActivity]
   );
 
+  // Clicking a single activity row clears only ITS unseen highlight (session
+  // Set), then runs the normal open-incident action.
+  const handleSelectActivityRow = useCallback(
+    (event) => {
+      if (event?.id) {
+        setActivitySeenIds((prev) => {
+          if (prev.has(event.id)) return prev;
+          const next = new Set(prev);
+          next.add(event.id);
+          return next;
+        });
+      }
+      if (event?.incidentId) handleSelectFromActivity(event.incidentId);
+    },
+    [handleSelectFromActivity]
+  );
+
   const handleMarkAllRead = useCallback(() => {
     const nowTs = Date.now();
     setLastSeenTimestamp(nowTs);
@@ -2574,11 +2657,17 @@ export default function DashboardLayout() {
 
   const handleSelectRecent = useCallback(
     (recent) => {
-      if (recent?.id) {
-        handleSelectFromActivity(recent.id, null, { source: 'recent' });
+      const inc = recent?.incident;
+      const targetId = inc?.id ?? recent?.payload?.incidentId;
+      if (!targetId) return;
+      // Zones route through the zone path so the polygon panel + camera fit run
+      if (inc?.geometry_type === 'polygon') {
+        handleZoneClick(targetId, { source: 'recent' });
+      } else {
+        handleSelectFromActivity(targetId, null, { source: 'recent' });
       }
     },
-    [handleSelectFromActivity]
+    [handleSelectFromActivity, handleZoneClick]
   );
 
   // Save the full return context (camera + date range + selection) so a later
@@ -3168,10 +3257,11 @@ export default function DashboardLayout() {
             overdueCount={overdueIncidentCount}
             now={Date.now()}
             onResolveIncident={handleResolveFromDrawer}
-            activities={activities}
+            activities={mergedActivities}
             activityLastSeenAt={lastSeenTimestamp}
+            activitySeenIds={activitySeenIds}
             onMarkAllActivitySeen={handleMarkAllRead}
-            onSelectActivityIncident={handleSelectFromActivity}
+            onSelectActivityIncident={handleSelectActivityRow}
             notifications={notifications}
             notificationUnreadCount={notificationUnreadCount}
             onMarkNotificationRead={markNotificationRead}

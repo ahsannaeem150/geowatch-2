@@ -56,6 +56,7 @@ import {
   setFeatured,
   clearFeatured,
   listAuditLogs,
+  getStaffActivity,
 } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import { IncidentDetailSidebar, ZoneDetailSidebar, CommandPalette } from '@shared';
@@ -352,6 +353,7 @@ export default function MapPage() {
   const {
     notifications,
     unreadCount: notificationUnreadCount,
+    fetchNotifications,
     markRead: markNotificationRead,
     markAllRead: markAllNotificationsRead,
   } = useStaffNotifications();
@@ -361,7 +363,22 @@ export default function MapPage() {
 
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
+  const [activityBackfill, setActivityBackfill] = useState([]);
+  // Session-level per-row seen: clicking one activity row clears only its
+  // highlight; the lastSeen baseline (localStorage) stays the coarse fallback.
+  const [activitySeenIds, setActivitySeenIds] = useState(() => new Set());
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
+  const notifRefetchTimerRef = useRef(null);
+
+  // SSE pushes can create staff notifications server-side; refetch coalesced
+  // (one trailing fetch 2s after the last event in a burst).
+  const scheduleNotificationRefetch = useCallback(() => {
+    if (notifRefetchTimerRef.current) return;
+    notifRefetchTimerRef.current = setTimeout(() => {
+      notifRefetchTimerRef.current = null;
+      fetchNotifications();
+    }, 2000);
+  }, [fetchNotifications]);
 
   // ─── Activity inspector sidebar ───
   const [activitySidebarOpen, setActivitySidebarOpen] = useState(true);
@@ -632,9 +649,11 @@ export default function MapPage() {
     }).length;
   }, [activeIncidents]);
 
+  // Badge counts only live SSE rows still unread AND not individually
+  // clicked-seen; backfill history never counts (isUnread: false).
   const unreadCount = useMemo(
-    () => activities.filter((a) => a.timestamp > lastSeenTimestamp).length,
-    [activities, lastSeenTimestamp]
+    () => activities.filter((a) => a.isUnread && !activitySeenIds.has(a.id)).length,
+    [activities, activitySeenIds]
   );
 
   // Compute the padding MapLibre should apply so camera flights target the
@@ -829,11 +848,6 @@ export default function MapPage() {
         const payload = JSON.parse(e.data);
         if (!payload.type) return;
 
-        if (payload.type === 'incident_deleted') {
-          setIncidents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
-          return;
-        }
-
         // Live activity feed (dedupe rapid repeats of the same event)
         setActivities((prev) => {
           const last = prev[0];
@@ -848,16 +862,22 @@ export default function MapPage() {
           }
 
           const activity = {
+            id: `live-${payload.type}-${payload.incidentId || payload.incident?.id || 'x'}-${ts}`,
             type: payload.type,
             incidentId: payload.incidentId || payload.incident?.id,
             incident: payload.incident || null,
             update: payload.update || null,
             updateId: payload.updateId || null,
             timestamp: ts,
+            isUnread: true,
           };
 
           return [activity, ...prev].slice(0, MAX_ACTIVITIES);
         });
+
+        // Staff notifications are created server-side off the same events;
+        // coalesce bursts into one trailing refetch.
+        scheduleNotificationRefetch();
 
         if (payload.incident) {
           setIncidents((prev) => {
@@ -877,16 +897,88 @@ export default function MapPage() {
               .catch(() => {});
           }
         }
+
+        // Handle deletions (after the activity row so deletes appear in the feed)
+        if (payload.type === 'incident_deleted') {
+          setIncidents((prev) => prev.filter((ev) => ev.id !== payload.incidentId));
+
+          // If the deleted incident/zone is currently selected, close its panel
+          setSelectedIncident((prev) => (prev?.id === payload.incidentId ? null : prev));
+          setSelectedZoneId((prev) => (prev === payload.incidentId ? null : prev));
+          if (selectedIncident?.id === payload.incidentId) {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('incident');
+              next.delete('zone');
+              return next;
+            });
+          }
+        }
       } catch (err) {
         console.warn('[SSE] Failed to parse message:', err);
       }
     };
 
     return () => {
+      if (notifRefetchTimerRef.current) {
+        clearTimeout(notifRefetchTimerRef.current);
+        notifRefetchTimerRef.current = null;
+      }
       es.close();
       esRef.current = null;
     };
-  }, [selectedIncident?.id]);
+  }, [selectedIncident?.id, scheduleNotificationRefetch]);
+
+  // One-time activity backfill: history behind the live SSE feed. A failed
+  // fetch silently leaves the drawer live-only (no retry loop).
+  useEffect(() => {
+    let cancelled = false;
+    getStaffActivity(MAX_ACTIVITIES)
+      .then((res) => {
+        if (cancelled) return;
+        const rows = (res?.activity || [])
+          .map((a) => ({
+            id: a.id ?? `back-${a.type}-${a.incidentId}-${a.at}`,
+            type: a.type,
+            incidentId: a.incidentId,
+            incident: a.title ? { title: a.title, geometry_type: a.geometryType } : null,
+            geometryType: a.geometryType || null,
+            update: null,
+            timestamp: new Date(a.at).getTime(),
+            isUnread: false,
+          }))
+          .filter((a) => a.type && Number.isFinite(a.timestamp));
+        setActivityBackfill(rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Live SSE rows stay on top; backfill fills history behind them. Dedupe by
+  // incident+type+minute so a live event hides its persisted twin. Cap 50.
+  const mergedActivities = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const a of [...activities, ...activityBackfill]) {
+      const key = `${a.incidentId}|${a.type}|${Math.floor(a.timestamp / 60000)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(a);
+    }
+    return out.sort((x, y) => y.timestamp - x.timestamp).slice(0, MAX_ACTIVITIES);
+  }, [activities, activityBackfill]);
+
+  // Mark unread items based on lastSeenTimestamp
+  useEffect(() => {
+    setActivities((prev) =>
+      prev.map((a) => ({
+        ...a,
+        isUnread: a.timestamp > lastSeenTimestamp,
+      }))
+    );
+  }, [lastSeenTimestamp]);
 
   // Legend / layer handlers
   const handleToggleDomain = useCallback((slug) => {
@@ -2760,12 +2852,21 @@ export default function MapPage() {
     [incidents, handleSelectIncident]
   );
 
-  const handleSelectActivityIncident = useCallback(
-    (incidentId) => {
-      const activity = activities.find((a) => a.incidentId === incidentId);
-      selectIncidentById(incidentId, activity?.incident || null, 'activity');
+  // Clicking a single activity row clears only ITS unseen highlight (session
+  // Set), then runs the normal open-incident action.
+  const handleSelectActivityRow = useCallback(
+    (event) => {
+      if (event?.id) {
+        setActivitySeenIds((prev) => {
+          if (prev.has(event.id)) return prev;
+          const next = new Set(prev);
+          next.add(event.id);
+          return next;
+        });
+      }
+      if (event?.incidentId) selectIncidentById(event.incidentId, event.incident || null, 'activity');
     },
-    [activities, selectIncidentById]
+    [selectIncidentById]
   );
 
   const handleSelectNotificationIncident = useCallback(
@@ -2778,7 +2879,12 @@ export default function MapPage() {
 
   const handleSelectRecent = useCallback(
     (recent) => {
-      if (recent?.id) selectIncidentById(recent.id, null, 'recent');
+      const inc = recent?.incident;
+      const targetId = inc?.id ?? recent?.payload?.incidentId;
+      if (!targetId) return;
+      // Enriched recents carry geometry_type; selectIncidentById routes
+      // polygons through the zone path (camera fit + ?zone= deep link).
+      selectIncidentById(targetId, inc || null, 'recent');
     },
     [selectIncidentById]
   );
@@ -3074,10 +3180,11 @@ export default function MapPage() {
               activeIncidents={activeIncidents}
               overdueCount={overdueIncidentCount}
               onResolveIncident={handleResolveFromDrawer}
-              activities={activities}
+              activities={mergedActivities}
               activityLastSeenAt={lastSeenTimestamp}
+              activitySeenIds={activitySeenIds}
               onMarkAllActivitySeen={handleMarkAllRead}
-              onSelectActivityIncident={handleSelectActivityIncident}
+              onSelectActivityIncident={handleSelectActivityRow}
               notifications={notifications}
               notificationUnreadCount={notificationUnreadCount}
               onMarkNotificationRead={markNotificationRead}

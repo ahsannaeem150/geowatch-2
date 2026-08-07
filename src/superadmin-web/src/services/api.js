@@ -762,3 +762,9 @@ export function clearStaffRecents(type) {
   if (type) qs.append('type', type);
   return request(`/staff/recents?${qs.toString()}`, { method: 'DELETE' });
 }
+
+// ─── Staff Activity (SSE feed history backfill) ───
+
+export function getStaffActivity(limit = 50) {
+  return request(`/staff/activity?limit=${limit}`);
+}

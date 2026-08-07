@@ -5,7 +5,6 @@ import {
   VerificationBadge,
   StatusBadge,
   EffectiveWindowMeter,
-  PolygonMiniMap,
   ZoneStatGrid,
   ZoneActions,
   TimelineEvent,
@@ -140,8 +139,6 @@ export default function ZoneDetailSidebar({
           <h1 className="zone-title">{incident.title}</h1>
 
           <EffectiveWindowMeter startDate={incident.startDate} endDate={incident.endDate} />
-
-          <PolygonMiniMap geometry={incident.geometry} color={zoneColor} animated />
 
           <ZoneStatGrid
             areaSqM={incident.areaSqM ?? (incident.area_sq_m != null ? parseFloat(incident.area_sq_m) : null)}
