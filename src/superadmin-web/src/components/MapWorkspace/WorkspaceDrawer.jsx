@@ -329,7 +329,7 @@ function ActiveRow({ incident, now, onOpen, onResolve }) {
                 title="Active for more than 24 hours"
               >
                 <AlertCircle size={9} />
-                Overdue
+                24H+
               </span>
             </>
           )}
@@ -792,7 +792,7 @@ function ActiveDrawer({ activeIncidents, overdueCount, now, onSelectIncident, on
                 alignItems: 'center',
               }}
             >
-              {overdueCount} overdue
+              {overdueCount} 24h+
             </span>
           )}
           <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>

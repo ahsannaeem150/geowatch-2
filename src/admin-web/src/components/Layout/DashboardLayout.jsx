@@ -3269,6 +3269,7 @@ export default function DashboardLayout() {
             newIncidentIds={newIncidentIds}
             mapMode={mapMode}
             drawVertices={drawVertices}
+            drawAreaText={polygonAreaText}
             isPolygonClosed={isPolygonClosed}
             onDrawVertexAdd={handleDrawVertexAdd}
             onDrawClose={handleDrawClose}
@@ -3398,6 +3399,7 @@ export default function DashboardLayout() {
               markerCoords={markerCoords}
               onClear={() => setMarkerCoords(null)}
               onCancel={handleClosePanel}
+              rightPanelOpen={rightPanelVisible}
             />
           )}
 

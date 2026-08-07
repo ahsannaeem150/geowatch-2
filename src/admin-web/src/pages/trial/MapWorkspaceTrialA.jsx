@@ -1185,7 +1185,7 @@ export default function MapWorkspaceTrialA() {
                     alignItems: 'center',
                   }}
                 >
-                  {overdueIncidentCount} overdue
+                  {overdueIncidentCount} 24h+
                 </span>
               )}
               <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{activeIncidentCount} total</span>
@@ -1263,7 +1263,7 @@ export default function MapWorkspaceTrialA() {
                               title="Active for more than 24 hours"
                             >
                               <AlertCircle size={9} />
-                              Overdue
+                              24h+
                             </span>
                           </>
                         )}

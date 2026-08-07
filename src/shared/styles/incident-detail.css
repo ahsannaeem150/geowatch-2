@@ -140,6 +140,9 @@
   font: inherit;
   cursor: pointer;
   text-decoration: none;
+  /* Buttons default to text-align:center in the UA sheet, which centered the
+     title when it wrapped to multiple lines. */
+  text-align: left;
   transition: color 0.15s ease;
 }
 
@@ -2970,12 +2973,22 @@
   background: var(--bg-elevated) !important;
 }
 
+/* The admin design-trial stylesheet (SidebarTrial2Option1.css:519) leaks an
+   !important dark topbar background app-wide, with no light escape. Beat it
+   with higher specificity, scoped to light mode. */
+[data-theme="light"] .option1-root .opt1-topbar {
+  background: var(--bg-glass) !important;
+}
+
 [data-theme="light"] .option1-root .opt1-hero-bg {
   filter: brightness(0.9) saturate(1.05);
 }
 
 [data-theme="light"] .option1-root .opt1-hero-overlay {
-  background: linear-gradient(180deg, transparent 0%, transparent 40%, rgba(0, 0, 0, 0.45) 100%);
+  /* Stronger than the dark scrim's ramp start but same family — the light hero
+     keeps the image brighter (0.9 vs 0.55), so the gradient has to do more work
+     to keep title/meta/desc legible over satellite-style imagery. */
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0.85) 100%);
 }
 
 [data-theme="light"] .option1-root .opt1-hero-title {
@@ -2985,6 +2998,11 @@
   -webkit-text-fill-color: unset;
   background-clip: unset;
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .option1-root .opt1-hero-meta-item {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65), 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="light"] .option1-root .opt1-hero-desc {

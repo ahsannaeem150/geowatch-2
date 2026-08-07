@@ -78,7 +78,7 @@ export default function IncidentDetailOptionFXGallery() {
   const updates = TIMELINE.slice(1);
 
   return (
-    <div className="id-trial-page">
+    <div className="design-trial-scope id-trial-page">
       <div className="id-fake-map">
         <div className="id-fake-map-grid" />
         <div className="id-fake-map-markers">

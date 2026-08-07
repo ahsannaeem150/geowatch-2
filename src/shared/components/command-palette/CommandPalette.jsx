@@ -36,6 +36,15 @@ const DEFAULT_PLACEHOLDERS = {
   actions: 'Search commands…',
 };
 
+// Bridge row title per scope; '{query}' is interpolated at render time.
+const DEFAULT_BRIDGE_LABELS = {
+  all: 'Search all incidents for “{query}”',
+  incidents: 'Search all incidents for “{query}”',
+  zones: 'Search all zones for “{query}”',
+  locations: 'Search all locations for “{query}”',
+  actions: 'Search all incidents for “{query}”',
+};
+
 const DEFAULT_RECENTS_KEY = 'geowatch_command_palette_recents';
 
 /**
@@ -58,7 +67,9 @@ const DEFAULT_RECENTS_KEY = 'geowatch_command_palette_recents';
  * - recentsKey (string, default 'geowatch_command_palette_recents') — localStorage key
  * - legacyRecentsKey (string, optional) — migrated when recentsKey has no value yet
  * - placeholder (string, optional) — overrides every scope's input placeholder
- * - bridgeLabel (string, optional) — bridge row title; '{query}' is interpolated
+ * - bridgeLabel (string, optional) — bridge row title; '{query}' is interpolated.
+ *   Defaults follow the active scope (zones → "…all zones…", locations →
+ *   "…all locations…", otherwise incidents); an explicit value always wins.
  * - bridgeHint (string, optional) — bridge row subtitle
  * - advancedLabel (string, optional) — label for the advanced-search CTAs
  */
@@ -74,7 +85,7 @@ export default function CommandPalette({
   recentsKey = DEFAULT_RECENTS_KEY,
   legacyRecentsKey,
   placeholder,
-  bridgeLabel = 'Search all incidents for “{query}”',
+  bridgeLabel,
   bridgeHint = 'Open Power Search with this query',
   advancedLabel = 'Open advanced search',
 }) {
@@ -461,7 +472,8 @@ export default function CommandPalette({
   const showIncidentError = incidentScopes && backendError && !backendLoading;
   const showLocationError = locationScopes && locationError && !locationLoading;
 
-  const bridgeTitle = bridgeLabel.replace('{query}', query);
+  const bridgeTitle = (bridgeLabel ?? DEFAULT_BRIDGE_LABELS[scope] ?? DEFAULT_BRIDGE_LABELS.all)
+    .replace('{query}', query);
 
   if (!open) return null;
 

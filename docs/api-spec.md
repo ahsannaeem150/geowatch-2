@@ -537,6 +537,14 @@ Response: `{ data: { totalToday, uniqueUsers, actionBreakdown: { ... } } }`
 Access: `super_admin` only  
 Response: `{ data: { status: 'healthy'|'degraded'|'unhealthy', checks: { database: { status, latencyMs }, martin: { status }, sse: { status, clientCount } } } }`
 
+### GET /stats
+Access: Public  
+Response: `{ data: { sources } }` — `sources` = COUNT of `incident_sources` (attached evidence; powers the public "Data sources" stat).
+
+### GET /geocode/search?q=
+Access: Public  
+Server-side Nominatim proxy (proper User-Agent, 10-min in-memory cache, 5s timeout). Response: `{ data: [...] }` — raw Nominatim result array. 502 `GEOCODE_UNAVAILABLE` on upstream failure.
+
 ---
 
 ## SSE STREAM

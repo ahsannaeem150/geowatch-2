@@ -101,19 +101,20 @@ export default function AboutPage() {
     const fetchActive = api.getIncidents({ status: 'active' }).catch(() => fallback);
     const fetchToday = api.getIncidents({ dateFrom: today, dateTo: today }).catch(() => fallback);
     const fetchAll = api.getIncidents({}).catch(() => fallback);
+    // Real platform stat (COUNT of incident_sources); failure degrades to 0.
+    const fetchStats = api.getStats().catch(() => null);
 
-    Promise.all([fetchActive, fetchToday, fetchAll])
-      .then(([activeRes, todayRes, allRes]) => {
+    Promise.all([fetchActive, fetchToday, fetchAll, fetchStats])
+      .then(([activeRes, todayRes, allRes, statsRes]) => {
         const incidents = allRes.data?.incidents || [];
         const countries = new Set(
           incidents.map((i) => i.location_context?.split(',').pop()?.trim()).filter(Boolean)
         ).size;
-        const sourceNames = new Set(incidents.map((i) => i.source_name).filter(Boolean));
         setStats({
           active: activeRes.data?.count ?? 0,
           today: todayRes.data?.count ?? 0,
           countries,
-          sources: sourceNames.size,
+          sources: statsRes?.data?.sources ?? 0,
         });
       })
       .catch(() => {});

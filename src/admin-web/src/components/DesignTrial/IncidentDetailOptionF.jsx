@@ -827,7 +827,7 @@ export default function IncidentDetailOptionF({ mode = 'user', onOpenAudit, onVi
   const isReadOnly = isDeleted || isPurged;
 
   return (
-    <div className={`id-trial-page ${isSuper ? 'id-trial-page--superadmin' : ''} ${leftPanel ? 'has-left-panel' : ''}`}>
+    <div className={`design-trial-scope id-trial-page ${isSuper ? 'id-trial-page--superadmin' : ''} ${leftPanel ? 'has-left-panel' : ''}`}>
       {leftPanel}
       {!leftPanel && (
         <div className="id-fake-map">

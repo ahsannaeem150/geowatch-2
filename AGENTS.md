@@ -291,6 +291,7 @@ app.use('/uploads', express.static(UPLOAD_DIR, ...));     // static — before l
 app.use(generalLimiter);
 
 app.use('/api/v1', healthRoutes);
+app.use('/api/v1/stats', statsRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/auth/public', publicAuthRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -525,7 +526,7 @@ Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPos
 ### Known Non-Blocking Issues
 
 - Google Sign-In returns 403 on localhost due to unauthorized OAuth origin.
-- `XPostCompactList` has a DOM nesting warning (toolbar buttons inside a `<button>` summary) — fix belongs in `src/shared/components/incident-detail/XPostCompactList.jsx`.
+- `XPostCompactList` has a DOM nesting warning (toolbar buttons inside a `<button>` summary) — fix in `src/shared/components/incident-detail/XPostCompactList.jsx`.
 - Vite warns about JS chunks > 500 KB; code-splitting is post-MVP.
 - Backend login rate limiting can trigger after many consecutive test runs; allow a cooldown or reuse a long-lived token.
 

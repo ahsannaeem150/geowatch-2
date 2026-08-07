@@ -26,10 +26,13 @@ function fetchHomeData() {
   if (cachePromise) return cachePromise;
 
   cachePromise = (async () => {
-    const [incidentsRes, domainsRes, categoriesRes] = await Promise.all([
+    const [incidentsRes, domainsRes, categoriesRes, statsRes] = await Promise.all([
       api.getIncidents({}),
       api.getDomains().catch(() => ({ data: { domains: [] } })),
       api.getCategories().catch(() => ({ data: { categories: [] } })),
+      // Real platform stat (COUNT of incident_sources) — a failure degrades
+      // the "Data Sources" cell to 0 instead of breaking the whole page.
+      api.getStats().catch(() => null),
     ]);
 
     const incidents = incidentsRes.data?.incidents || [];
@@ -42,7 +45,7 @@ function fetchHomeData() {
     const countries = new Set(
       incidents.map((i) => i.location_context?.split(',').pop()?.trim()).filter(Boolean)
     ).size;
-    const sources = new Set(incidents.map((i) => i.source_name).filter(Boolean)).size;
+    const sources = statsRes?.data?.sources ?? 0;
 
     const domainCounts = {};
     activeIncidents.forEach((inc) => {

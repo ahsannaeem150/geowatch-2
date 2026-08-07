@@ -29,10 +29,29 @@ export const AUDIT_ACTION_COLORS = {
   source_added: '#22c55e',
   source_updated: '#f59e0b',
   source_deleted: '#ef4444',
+  source_pinned: '#f59e0b',
+  source_unpinned: '#f59e0b',
+  source_archived: '#6366f1',
+  source_unarchived: '#6366f1',
 
   timeline_added: '#22c55e',
   timeline_updated: '#f59e0b',
   timeline_deleted: '#ef4444',
+  timeline_featured_set: '#f59e0b',
+  timeline_featured_cleared: '#f59e0b',
+
+  media_uploaded: '#22c55e',
+  media_deleted: '#ef4444',
+  media_pinned: '#f59e0b',
+  media_unpinned: '#f59e0b',
+  media_caption_updated: '#f59e0b',
+  media_linked_to_update: '#f59e0b',
+
+  incident_hero_image_updated: '#f59e0b',
+
+  zone_created: '#22c55e',
+  zone_updated: '#f59e0b',
+  zone_deleted: '#ef4444',
 
   export_incidents: '#6366f1',
   export_sources: '#6366f1',
@@ -68,10 +87,29 @@ export const AUDIT_ACTION_LABELS = {
   source_added: 'Added',
   source_updated: 'Updated',
   source_deleted: 'Deleted',
+  source_pinned: 'Pinned',
+  source_unpinned: 'Unpinned',
+  source_archived: 'Archived',
+  source_unarchived: 'Unarchived',
 
   timeline_added: 'Added',
   timeline_updated: 'Updated',
   timeline_deleted: 'Deleted',
+  timeline_featured_set: 'Featured Set',
+  timeline_featured_cleared: 'Featured Cleared',
+
+  media_uploaded: 'Uploaded',
+  media_deleted: 'Deleted',
+  media_pinned: 'Pinned',
+  media_unpinned: 'Unpinned',
+  media_caption_updated: 'Caption Updated',
+  media_linked_to_update: 'Linked to Update',
+
+  incident_hero_image_updated: 'Hero Image Updated',
+
+  zone_created: 'Created',
+  zone_updated: 'Updated',
+  zone_deleted: 'Deleted',
 
   export_incidents: 'Export',
   export_sources: 'Export',
@@ -107,10 +145,29 @@ const AUDIT_ACTION_BADGE_VARS = {
   source_added: 'green',
   source_updated: 'amber',
   source_deleted: 'red',
+  source_pinned: 'amber',
+  source_unpinned: 'amber',
+  source_archived: 'blue',
+  source_unarchived: 'blue',
 
   timeline_added: 'green',
   timeline_updated: 'amber',
   timeline_deleted: 'red',
+  timeline_featured_set: 'amber',
+  timeline_featured_cleared: 'amber',
+
+  media_uploaded: 'green',
+  media_deleted: 'red',
+  media_pinned: 'amber',
+  media_unpinned: 'amber',
+  media_caption_updated: 'amber',
+  media_linked_to_update: 'amber',
+
+  incident_hero_image_updated: 'amber',
+
+  zone_created: 'green',
+  zone_updated: 'amber',
+  zone_deleted: 'red',
 
   export_incidents: 'blue',
   export_sources: 'blue',

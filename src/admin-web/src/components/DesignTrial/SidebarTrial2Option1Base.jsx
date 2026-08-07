@@ -1428,7 +1428,7 @@ export default function SidebarTrial2Option1Base({
 
   return (
     <div
-      className={`option1-root option1-root--${mode}`}
+      className={`design-trial-scope option1-root option1-root--${mode}`}
       data-theme={theme}
       data-role={mode}
       style={{

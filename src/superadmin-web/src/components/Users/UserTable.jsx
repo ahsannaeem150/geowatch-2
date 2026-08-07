@@ -21,6 +21,7 @@ function RoleBadge({ role }) {
         color: style.color,
         textTransform: 'uppercase',
         letterSpacing: '0.03em',
+        whiteSpace: 'nowrap',
       }}
     >
       {style.label}

@@ -270,7 +270,7 @@ export default function WorkspaceTopBar({
         {onOpenActiveDrawer && (
           <button
             onClick={onOpenActiveDrawer}
-            title={`${activeCount} active${overdueCount > 0 ? ` · ${overdueCount} overdue` : ''}`}
+            title={`${activeCount} active${overdueCount > 0 ? ` · ${overdueCount} 24h+` : ''}`}
             style={{
               display: 'flex',
               alignItems: 'center',

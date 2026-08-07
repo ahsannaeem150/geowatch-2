@@ -169,6 +169,8 @@ export default function RecycleBinPage() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Hidden when the bin is empty — a map deep-link is pointless with 0 deleted */}
+          {incidents.length > 0 && (
           <button
             onClick={() => navigate('/superadmin/map?ref=recyclebin')}
             style={{
@@ -189,6 +191,7 @@ export default function RecycleBinPage() {
             <Map size={14} />
             View on Map
           </button>
+          )}
           <button
             onClick={fetchDeleted}
             disabled={loading}

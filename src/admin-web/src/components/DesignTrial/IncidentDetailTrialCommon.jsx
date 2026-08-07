@@ -994,7 +994,9 @@ export function ArchiveLightbox({ post, onClose, portal = false }) {
       </div>
     </div>
   );
-  return portal && typeof document !== 'undefined' ? createPortal(content, document.body) : content;
+  return portal && typeof document !== 'undefined'
+    ? createPortal(<div className="design-trial-scope">{content}</div>, document.body)
+    : content;
 }
 
 /* ─── Compact X-post list (final Option 2) ─── */

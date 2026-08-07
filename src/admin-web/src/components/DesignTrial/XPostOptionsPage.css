@@ -4,7 +4,7 @@
    paginated list) remain. Both cards are sized to the real sidebar width.
    ───────────────────────────────────────────────────────────────────────────── */
 
-.xpo-page {
+.design-trial-scope.xpo-page {
   width: 100vw;
   min-height: 100vh;
   background: var(--bg-deep);
@@ -15,24 +15,24 @@
   box-sizing: border-box;
 }
 
-.xpo-header {
+.design-trial-scope .xpo-header {
   max-width: 1284px;
   margin: 0 auto 24px;
 }
 
-.xpo-header__title {
+.design-trial-scope .xpo-header__title {
   font-size: 22px;
   font-weight: 700;
   margin: 0 0 6px;
 }
 
-.xpo-header__desc {
+.design-trial-scope .xpo-header__desc {
   font-size: 13px;
   color: var(--text-secondary);
   margin: 0;
 }
 
-.xpo-grid {
+.design-trial-scope .xpo-grid {
   display: grid;
   grid-template-columns: repeat(2, 630px);
   gap: 24px;
@@ -40,7 +40,7 @@
   align-items: start;
 }
 
-.xpo-card {
+.design-trial-scope .xpo-card {
   width: 630px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
@@ -51,7 +51,7 @@
   box-sizing: border-box;
 }
 
-.xpo-card__title {
+.design-trial-scope .xpo-card__title {
   padding: 14px 16px;
   font-size: 12px;
   font-weight: 700;
@@ -62,7 +62,7 @@
   background: var(--bg-elevated);
 }
 
-.xpo-card__body {
+.design-trial-scope .xpo-card__body {
   padding: 16px;
   flex: 1;
   min-width: 0;
@@ -73,37 +73,37 @@
    so there is no empty space on either side.
    ───────────────────────────────────────────────────────────────────────────── */
 
-.xpo-deck__stage,
-.xpo-compact__embed {
+.design-trial-scope .xpo-deck__stage,
+.design-trial-scope .xpo-compact__embed {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.xpo-deck__stage .id-x-embed,
-.xpo-compact__embed .id-x-embed {
+.design-trial-scope .xpo-deck__stage .id-x-embed,
+.design-trial-scope .xpo-compact__embed .id-x-embed {
   display: inline-block;
   width: auto;
   margin: 0 auto;
 }
 
-.xpo-deck__stage .twitter-tweet,
-.xpo-compact__embed .twitter-tweet {
+.design-trial-scope .xpo-deck__stage .twitter-tweet,
+.design-trial-scope .xpo-compact__embed .twitter-tweet {
   width: auto !important;
   max-width: 100% !important;
   margin: 0 !important;
 }
 
 /* ─── Option 1: Tweet deck ─── */
-.xpo-deck {
+.design-trial-scope .xpo-deck {
   width: 100%;
 }
 
-.xpo-deck__stage {
+.design-trial-scope .xpo-deck__stage {
   padding: 8px 0 20px;
 }
 
-.xpo-deck__toolbar {
+.design-trial-scope .xpo-deck__toolbar {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -111,7 +111,7 @@
   margin-bottom: 14px;
 }
 
-.xpo-deck__nav {
+.design-trial-scope .xpo-deck__nav {
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -125,13 +125,13 @@
   transition: all 0.15s ease;
 }
 
-.xpo-deck__nav:hover {
+.design-trial-scope .xpo-deck__nav:hover {
   background: var(--bg-hover);
   border-color: var(--border-hover);
   transform: scale(1.08);
 }
 
-.xpo-deck__counter {
+.design-trial-scope .xpo-deck__counter {
   min-width: 54px;
   text-align: center;
   font-size: 12px;
@@ -140,7 +140,7 @@
   font-family: var(--font-mono);
 }
 
-.xpo-deck__thumbs {
+.design-trial-scope .xpo-deck__thumbs {
   display: flex;
   gap: 8px;
   overflow-x: auto;
@@ -149,20 +149,20 @@
   scrollbar-width: thin;
 }
 
-.xpo-deck__thumbs::-webkit-scrollbar {
+.design-trial-scope .xpo-deck__thumbs::-webkit-scrollbar {
   height: 4px;
 }
 
-.xpo-deck__thumbs::-webkit-scrollbar-track {
+.design-trial-scope .xpo-deck__thumbs::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.xpo-deck__thumbs::-webkit-scrollbar-thumb {
+.design-trial-scope .xpo-deck__thumbs::-webkit-scrollbar-thumb {
   background: var(--border-subtle);
   border-radius: var(--radius-pill);
 }
 
-.xpo-deck__thumb {
+.design-trial-scope .xpo-deck__thumb {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -179,17 +179,17 @@
   text-align: left;
 }
 
-.xpo-deck__thumb:hover {
+.design-trial-scope .xpo-deck__thumb:hover {
   background: var(--bg-hover);
   border-color: var(--border-hover);
 }
 
-.xpo-deck__thumb.active {
+.design-trial-scope .xpo-deck__thumb.active {
   background: var(--accent-subtle-bg);
   border-color: var(--accent-light);
 }
 
-.xpo-deck__thumb-avatar {
+.design-trial-scope .xpo-deck__thumb-avatar {
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -197,13 +197,13 @@
   flex-shrink: 0;
 }
 
-.xpo-deck__thumb-text {
+.design-trial-scope .xpo-deck__thumb-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.xpo-deck__thumb-name {
+.design-trial-scope .xpo-deck__thumb-name {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
@@ -212,7 +212,7 @@
   text-overflow: ellipsis;
 }
 
-.xpo-deck__thumb-handle {
+.design-trial-scope .xpo-deck__thumb-handle {
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -221,19 +221,19 @@
 }
 
 /* ─── Option 2: Compact paginated list ─── */
-.xpo-compact {
+.design-trial-scope .xpo-compact {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.xpo-compact__toolbar {
+.design-trial-scope .xpo-compact__toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.xpo-compact__search {
+.design-trial-scope .xpo-compact__search {
   flex: 1;
   min-width: 0;
   padding: 9px 12px;
@@ -247,16 +247,16 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.xpo-compact__search::placeholder {
+.design-trial-scope .xpo-compact__search::placeholder {
   color: var(--text-muted);
 }
 
-.xpo-compact__search:focus {
+.design-trial-scope .xpo-compact__search:focus {
   border-color: var(--accent-light);
   box-shadow: 0 0 0 2px rgba(159, 18, 57, 0.18);
 }
 
-.xpo-compact__collapse {
+.design-trial-scope .xpo-compact__collapse {
   padding: 9px 12px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
@@ -269,23 +269,23 @@
   flex-shrink: 0;
 }
 
-.xpo-compact__collapse:hover:not(:disabled) {
+.design-trial-scope .xpo-compact__collapse:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.xpo-compact__collapse:disabled {
+.design-trial-scope .xpo-compact__collapse:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.xpo-compact__list {
+.design-trial-scope .xpo-compact__list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.xpo-compact__item {
+.design-trial-scope .xpo-compact__item {
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-left: 3px solid transparent;
@@ -294,17 +294,17 @@
   transition: border-color 0.15s ease, background 0.15s ease, border-left-color 0.15s ease;
 }
 
-.xpo-compact__item:hover {
+.design-trial-scope .xpo-compact__item:hover {
   background: var(--bg-hover);
 }
 
-.xpo-compact__item.open {
+.design-trial-scope .xpo-compact__item.open {
   background: var(--bg-elevated);
   border-color: var(--border-hover);
   border-left-color: var(--accent-light);
 }
 
-.xpo-compact__summary {
+.design-trial-scope .xpo-compact__summary {
   width: 100%;
   display: flex;
   align-items: center;
@@ -318,7 +318,7 @@
   font-family: inherit;
 }
 
-.xpo-compact__avatar {
+.design-trial-scope .xpo-compact__avatar {
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -326,7 +326,7 @@
   flex-shrink: 0;
 }
 
-.xpo-compact__main {
+.design-trial-scope .xpo-compact__main {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -334,20 +334,20 @@
   gap: 2px;
 }
 
-.xpo-compact__top {
+.design-trial-scope .xpo-compact__top {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.xpo-compact__author-line {
+.design-trial-scope .xpo-compact__author-line {
   display: flex;
   align-items: baseline;
   gap: 6px;
   min-width: 0;
 }
 
-.xpo-compact__name {
+.design-trial-scope .xpo-compact__name {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
@@ -356,7 +356,7 @@
   text-overflow: ellipsis;
 }
 
-.xpo-compact__handle {
+.design-trial-scope .xpo-compact__handle {
   font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -364,7 +364,7 @@
   text-overflow: ellipsis;
 }
 
-.xpo-compact__time {
+.design-trial-scope .xpo-compact__time {
   margin-left: auto;
   font-size: 11px;
   color: var(--text-muted);
@@ -372,23 +372,23 @@
   white-space: nowrap;
 }
 
-.xpo-compact__chevron {
+.design-trial-scope .xpo-compact__chevron {
   font-size: 11px;
   color: var(--text-muted);
   flex-shrink: 0;
   transition: transform 0.15s ease;
 }
 
-.xpo-compact__item.open .xpo-compact__chevron {
+.design-trial-scope .xpo-compact__item.open .xpo-compact__chevron {
   transform: rotate(180deg);
 }
 
-.xpo-compact__embed {
+.design-trial-scope .xpo-compact__embed {
   padding: 6px 16px 18px;
   animation: xpo-fade-in 0.25s ease;
 }
 
-.xpo-compact__actions {
+.design-trial-scope .xpo-compact__actions {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -397,7 +397,7 @@
   flex-wrap: wrap;
 }
 
-.xpo-compact__action {
+.design-trial-scope .xpo-compact__action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -413,18 +413,18 @@
   transition: all 0.15s ease;
 }
 
-.xpo-compact__action:hover {
+.design-trial-scope .xpo-compact__action:hover {
   background: var(--bg-surface);
   color: var(--text-primary);
   border-color: var(--border-hover);
 }
 
-.xpo-compact__action svg {
+.design-trial-scope .xpo-compact__action svg {
   width: 13px;
   height: 13px;
 }
 
-.xpo-compact__empty {
+.design-trial-scope .xpo-compact__empty {
   padding: 28px;
   text-align: center;
   color: var(--text-muted);
@@ -433,7 +433,7 @@
   border-radius: var(--radius-md);
 }
 
-.xpo-compact__pagination {
+.design-trial-scope .xpo-compact__pagination {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -441,7 +441,7 @@
   padding-top: 4px;
 }
 
-.xpo-compact__page-btn {
+.design-trial-scope .xpo-compact__page-btn {
   padding: 7px 12px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
@@ -453,18 +453,18 @@
   transition: all 0.15s ease;
 }
 
-.xpo-compact__page-btn:hover:not(:disabled) {
+.design-trial-scope .xpo-compact__page-btn:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-primary);
   border-color: var(--border-hover);
 }
 
-.xpo-compact__page-btn:disabled {
+.design-trial-scope .xpo-compact__page-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.xpo-compact__page-info {
+.design-trial-scope .xpo-compact__page-info {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
@@ -485,7 +485,7 @@
 }
 
 /* ─── Archived tweet fallback (Option 2) ─── */
-.xpo-archive {
+.design-trial-scope .xpo-archive {
   position: relative;
   display: inline-block;
   width: auto;
@@ -494,7 +494,7 @@
   overflow: hidden;
 }
 
-.xpo-archive__badge {
+.design-trial-scope .xpo-archive__badge {
   position: absolute;
   top: 10px;
   right: 62px;
@@ -510,7 +510,7 @@
   z-index: 2;
 }
 
-.xpo-archive__img-btn {
+.design-trial-scope .xpo-archive__img-btn {
   display: block;
   width: 100%;
   padding: 0;
@@ -519,14 +519,14 @@
   cursor: pointer;
 }
 
-.xpo-archive__img-btn img {
+.design-trial-scope .xpo-archive__img-btn img {
   display: block;
   width: auto;
   max-width: 100%;
   height: auto;
 }
 
-.xpo-lightbox {
+.design-trial-scope .xpo-lightbox {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -538,7 +538,7 @@
   cursor: default;
 }
 
-.xpo-lightbox__close {
+.design-trial-scope .xpo-lightbox__close {
   position: absolute;
   top: 20px;
   right: 20px;
@@ -558,11 +558,11 @@
   transition: background 0.15s ease;
 }
 
-.xpo-lightbox__close:hover {
+.design-trial-scope .xpo-lightbox__close:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.xpo-lightbox__notice {
+.design-trial-scope .xpo-lightbox__notice {
   position: absolute;
   top: 70px;
   left: 50%;
@@ -579,7 +579,7 @@
   z-index: 2;
 }
 
-.xpo-lightbox__img {
+.design-trial-scope .xpo-lightbox__img {
   max-width: 90vw;
   max-height: 90vh;
   object-fit: contain;

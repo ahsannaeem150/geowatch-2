@@ -12647,3 +12647,31 @@ feat: backend — new public geocode proxy `GET /api/v1/geocode/search` (Nominat
 ## 📅 2026-08-04 — Module: shared — CommandPalette unified across all three apps
 
 refactor: user-web palette extracted to `src/shared/components/command-palette/` (props: open/onClose, incidents, savedIds, actions[{id,label,icon,hint,keywords,path,group,onSelect}], onSelectIncident covers points+zones, onSelectLocation, onOpenAdvanced, recentsKey/legacyRecentsKey, label overrides). user-web/admin-web/superadmin-web all switched; three divergent local copies deleted (incl. admin's hardcoded 6-entry location list). Staff maps wire zone rows to their map-click zone path; superadmin nav jumps preserved as grouped actions with path subtitles (shared ActionItem + group headers added for parity). All three builds green.
+
+## 📅 2026-08-04 — Module: superadmin-web — Detail pages out of console Layout
+
+fix: `/superadmin/incident/:id` + `/superadmin/zone/:id` moved out of the sidebar `Layout` group into the bare route group (like map + directories) — detail pages no longer render inside the console sidebar; they use the shared detail pages' own full-page chrome. No Layout dependency existed (no outlet context). Build green.
+
+## 📅 2026-08-04 — Module: db/data — Purge + production-grade demo dataset
+
+chore: full content purge (backup first: assets/backups/geowatch_dev_pre_purge_20260804_191246.sql + uploads tar) — incidents/updates/sources/media/saved/recents/notifications/recycle-bin zeroed, uploads/incidents emptied; users/categories kept. Seeded via real API (scripts/seed-production-dataset.mjs, admin+editor JWTs, zero 429s): 10 incidents + 5 polygon zones (Middle East/Pakistan focus), 39 updates, 37 sources, 26 real Wikimedia photos through the Sharp pipeline, 13 heroes, 4 resolved (incl. 30d-hidden + 1-day-grace test cases). Backdated via SQL for realistic timelines. All verifications pass (15× GET 200, media URLs 200, substring search hits).
+
+## 📅 2026-08-07 — Module: admin-web — Read-only UI sweep
+
+chore: added scripts/check-ui-sweep-admin.mjs (Playwright, read-only) + 67 verification screenshots in temp_screenshots/ui-sweep-admin/. Findings: placement-toolbar Cancel covered by open Create-incident panel, zone-detail hero title clipped under breadcrumb bar, draw-area readouts disagree (3.4k vs 3.8k km², "vertices"/"vertexes"), stale form coords after placement Clear. No app code changed.
+
+## 📅 2026-08-07 — Module: all — UI sweep fix batch (3 apps + shared)
+
+fix: user-web — "0 DATA SOURCES" stat: new public `GET /api/v1/stats` (counts incident_sources), home ledger + About wired (broken source_name derivation removed); back-restore zoom drift investigated with instrumented repro → proven sweep artifact, restore contract holds (scripts/repro-back-zoom-drift.mjs kept). admin-web — PlacementToolbar offsets half panel width when open (Cancel clickable), placement Clear syncs form coords, draw readouts unified (toolbar value + "vertices"). superadmin-web — same placement offset + clear-sync, ZoneForm area via shared geodesic helpers, 16 missing audit action labels/colors (MEDIA MEDIA UPLOADED dup), role badge nowrap. shared — zone AREA/PERIMETER dash fixed (pg numeric strings coerced + snake_case fallback), zone hero title clip fixed (specificity guard 620px), duplicate verification badge next to status select removed. OVERDUE verdict: createdAt>24h staleness flag, working as designed (11/11 correct vs seed ages). Breadcrumb "Map Map" dedupe on all 6 directory pages. All three builds green.
+
+## 📅 2026-08-07 — Module: all — Approved improvements batch + sidebar title fix
+
+feat/fix: palette bridge label now scope-aware ("Search all zones/locations…", prop override intact); light-theme incident hero meta contrast fixed (stronger scrim + text-shadow, light-scope only — zone hero N/A); user-web SSE no longer connects tokenless (no more anonymous 401 retry loop; map stream now actually passes ?token= after sign-in — previously never did); recycle-bin hides header View-on-Map when empty; "OVERDUE" label renamed "24H+" across admin+superadmin (rule unchanged; user-web never rendered it). BUG fix all webs: long incident titles centered on wrap in sidebar — `.id-summary__title-link` UA button default, now `text-align: left` (zone sidebar used h1, unaffected). All three builds green.
+
+## 📅 2026-08-07 — Module: shared — Light-mode topbar + zone button fixes
+
+fix: incident full-page topbar dark in light mode — root cause was admin trial CSS (`SidebarTrial2Option1.css`) leaking `.opt1-topbar` with `!important` onto the production page; shared light-scope override (higher specificity, token `--bg-glass`) neutralizes it in all apps. Zone sidebar non-primary buttons: light rule now also pins text color (white-on-white fragility class closed; current tree was already legible). All three builds green.
+
+## 📅 2026-08-07 — Module: admin-web — Trial CSS leak eliminated
+
+fix: design-trial stylesheets applied globally in production (static route imports + CreateIncidentSidebar importing trial files). All 4 trial CSS files (566 selectors) namespaced under `.design-trial-scope` on existing trial roots (+ portal wrapper for ArchiveLightbox); hybrid `IncidentDetailTrial.css` resolved by extracting the 6 create-panel rules into CreateIncidentSidebar's own CSS. Production `.id-*`/`.opt1-*` now render shared canonical styles only; trial pages pixel-identical. Build green.

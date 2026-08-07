@@ -3,23 +3,7 @@ import { format } from 'date-fns';
 import { Button } from '@shared/components/Button.jsx';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { useZoneCategories } from '@shared/hooks/useZoneCategories.js';
-
-function calculatePolygonArea(coords) {
-  if (coords.length < 3) return 0;
-  let area = 0;
-  for (let i = 0; i < coords.length; i++) {
-    const j = (i + 1) % coords.length;
-    area += coords[i][0] * coords[j][1];
-    area -= coords[j][0] * coords[i][1];
-  }
-  return Math.abs(area) / 2 * 111.32 * 111.32;
-}
-
-function formatArea(km2) {
-  if (km2 < 1) return `~${(km2 * 100).toFixed(1)} ha`;
-  if (km2 < 1000) return `~${km2.toFixed(1)} km²`;
-  return `~${(km2 / 1000).toFixed(1)}k km²`;
-}
+import { estimatePolygonAreaSqM, formatArea } from '@shared/utils/zoneGeometry.js';
 
 function ensureClosedRing(ring) {
   if (!ring || ring.length === 0) return ring;
@@ -77,7 +61,9 @@ export default function ZoneForm({
 
   const ring = geometry?.coordinates?.[0] ? ensureClosedRing(geometry.coordinates[0]) : [];
   const vertexCount = ring.length - (ring.length > 0 ? 1 : 0);
-  const areaKm2 = calculatePolygonArea(ring);
+  // Same estimator as the drawing toolbar (shared zoneGeometry) so the two
+  // readouts agree for the same shape; takes m², formats via shared formatArea.
+  const areaSqM = estimatePolygonAreaSqM(ring);
 
   const handleAddSource = () => {
     setSources([...sources, { sourceType: 'admin_note', sourceUrl: '', description: '' }]);
@@ -291,7 +277,7 @@ export default function ZoneForm({
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Area: </span>
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatArea(areaKm2)}</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatArea(areaSqM)}</span>
           </div>
         </div>
       </div>

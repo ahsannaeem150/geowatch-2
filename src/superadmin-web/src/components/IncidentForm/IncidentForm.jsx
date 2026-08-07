@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 
 const STATUS_OPTIONS = [
@@ -38,10 +38,20 @@ export default function IncidentForm({
 
   // Keep coords in sync when the map marker is placed/moved/dragged
   // (initialCoords changes from the map side, create and edit mode alike).
+  // When the marker is CLEARED (initialCoords goes non-null → null), clear the
+  // fields symmetrically — placement only ever fills lat/lng. The ref guard
+  // keeps edit mode's first render (initialCoords still null while MapPage's
+  // effect is about to set it) from wiping the initialData-derived values.
+  const hadCoordsRef = useRef(!!initialCoords);
   useEffect(() => {
     if (initialCoords) {
+      hadCoordsRef.current = true;
       setLatitude(initialCoords.lat.toFixed(6));
       setLongitude(initialCoords.lng.toFixed(6));
+    } else if (hadCoordsRef.current) {
+      hadCoordsRef.current = false;
+      setLatitude('');
+      setLongitude('');
     }
   }, [initialCoords]);
 

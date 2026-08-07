@@ -252,6 +252,7 @@ export const api = {
   getCategories: () => request('/categories'),
   getDomains: () => request('/categories/domains'),
   getZoneCategories: () => request('/zone-categories'),
+  getStats: () => request('/stats'),
 
   getIncidents: (params = {}) => {
     const qs = new URLSearchParams();

@@ -517,8 +517,8 @@ export default function ZoneDetailPage({
           <div className="zone-rail-card">
             <h3 className="zone-rail-card__title">Geometry</h3>
             <ZoneStatGrid
-              areaSqM={incident.areaSqM}
-              perimeterM={incident.perimeterM}
+              areaSqM={incident.areaSqM ?? (incident.area_sq_m != null ? parseFloat(incident.area_sq_m) : null)}
+              perimeterM={incident.perimeterM ?? (incident.perimeter_m != null ? parseFloat(incident.perimeter_m) : null)}
               geometry={incident.geometry}
               radiusM={incident.radiusM}
               geometryType={incident.geometryType}

@@ -721,10 +721,14 @@ export default function MapPage() {
 
   // ─── SSE Connection ───
   useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
+    // The stream endpoint requires auth — anonymous visitors would 401 and
+    // EventSource would retry forever, so don't connect without a session.
+    if (typeof EventSource === 'undefined' || !isAuthenticated) return;
 
+    const token = localStorage.getItem('geowatch_public_token');
     const url = `${API_BASE_URL}/incidents/stream`;
-    const es = new EventSource(url);
+    const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
+    const es = new EventSource(fullUrl);
     esRef.current = es;
 
     es.onopen = () => {
@@ -808,7 +812,7 @@ export default function MapPage() {
       es.close();
       esRef.current = null;
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // ─── Mark unread items based on lastSeenTimestamp ───
   useEffect(() => {

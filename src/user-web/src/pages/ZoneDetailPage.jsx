@@ -72,7 +72,9 @@ export default function ZoneDetailPage() {
 
   // SSE listener for live updates
   useEffect(() => {
-    if (typeof EventSource === 'undefined' || !id) return;
+    // The stream endpoint requires auth — skip entirely for anonymous
+    // visitors instead of 401-retrying.
+    if (typeof EventSource === 'undefined' || !id || !isAuthenticated) return;
 
     const token = localStorage.getItem('geowatch_public_token');
     const url = `${API_BASE_URL}/incidents/stream`;
@@ -141,7 +143,7 @@ export default function ZoneDetailPage() {
         esRef.current = null;
       }
     };
-  }, [id, fetchData, navigate]);
+  }, [id, fetchData, navigate, isAuthenticated]);
 
   useEffect(() => {
     if (!toast) return;

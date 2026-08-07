@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, MapPinOff, X } from 'lucide-react';
 
-export default function PlacementToolbar({ markerCoords = null, onClear, onCancel }) {
+export default function PlacementToolbar({ markerCoords = null, onClear, onCancel, centerOffsetPx = 0 }) {
   const btnBase = {
     display: 'flex',
     alignItems: 'center',
@@ -55,7 +55,10 @@ export default function PlacementToolbar({ markerCoords = null, onClear, onCance
       style={{
         position: 'absolute',
         top: '12px',
-        left: '50%',
+        // Shift the center left by half the open right-panel width so the
+        // panel (zIndex 70, overlays this toolbar's zIndex 20) never covers
+        // the Clear/Cancel buttons. 0 = plain center when the panel is closed.
+        left: centerOffsetPx ? `calc(50% - ${centerOffsetPx}px)` : '50%',
         transform: 'translateX(-50%)',
         zIndex: 20,
         display: 'flex',

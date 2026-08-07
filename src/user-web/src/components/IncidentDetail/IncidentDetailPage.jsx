@@ -5,10 +5,12 @@ import { api, mapIncidentForShared } from '../../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import { DetailLoadingSkeleton, DetailErrorState } from './DetailPageStates.jsx';
 import { buildReturnMapUrl } from '../../utils/returnView.js';
+import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
 
 export default function IncidentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = usePublicAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,7 +49,9 @@ export default function IncidentDetailPage() {
 
   // SSE listener for live updates
   useEffect(() => {
-    if (typeof EventSource === 'undefined' || !id) return;
+    // The stream endpoint requires auth — skip entirely for anonymous
+    // visitors instead of 401-retrying.
+    if (typeof EventSource === 'undefined' || !id || !isAuthenticated) return;
 
     const token = localStorage.getItem('geowatch_public_token');
     const url = `${API_BASE_URL}/incidents/stream`;
@@ -118,7 +122,7 @@ export default function IncidentDetailPage() {
         esRef.current = null;
       }
     };
-  }, [id, fetchData, navigate]);
+  }, [id, fetchData, navigate, isAuthenticated]);
 
   useEffect(() => {
     if (!toast) return;

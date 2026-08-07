@@ -82,7 +82,7 @@ const POSTS = [
 
 export default function XPostOptionsPage() {
   return (
-    <div className="xpo-page">
+    <div className="design-trial-scope xpo-page">
       <div className="xpo-header">
         <h1 className="xpo-header__title">X / Twitter post display options</h1>
         <p className="xpo-header__desc">

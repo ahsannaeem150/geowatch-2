@@ -122,10 +122,12 @@ function AppRoutes() {
       <Route path="/login" element={<RedirectIfAuthenticated />} />
 
       <Route element={<RequireSuperAdmin />}>
-        {/* Map workspace + table directories render bare (no sidebar layout) */}
+        {/* Map workspace, table directories + detail pages render bare (no sidebar layout) */}
         <Route path="/superadmin/map" element={<MapPage />} />
         <Route path="/superadmin/zones" element={<ZonesPage />} />
         <Route path="/superadmin/incidents" element={<IncidentsPage />} />
+        <Route path="/superadmin/incident/:id" element={<IncidentDetailPage />} />
+        <Route path="/superadmin/zone/:id" element={<ZoneDetailPage />} />
         <Route element={<Layout />}>
           <Route path="/superadmin" element={<DashboardPage />} />
           <Route path="/superadmin/users" element={<UsersPage />} />
@@ -138,8 +140,6 @@ function AppRoutes() {
           <Route path="/superadmin/export" element={<ExportPage />} />
           <Route path="/superadmin/recycle-bin" element={<RecycleBinPage />} />
           <Route path="/superadmin/x-archive-debug" element={<XArchiveDebugPage />} />
-          <Route path="/superadmin/incident/:id" element={<IncidentDetailPage />} />
-          <Route path="/superadmin/zone/:id" element={<ZoneDetailPage />} />
         </Route>
       </Route>
 

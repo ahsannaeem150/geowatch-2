@@ -3366,12 +3366,15 @@ export default function MapPage() {
               />
             ) : null}
 
-            {/* Incident placement toolbar */}
+            {/* Incident placement toolbar — center offset by half the open
+                right panel so the panel never covers Clear/Cancel (mirrors
+                RIGHT_PANEL_WIDTH × ui-scale in utils/mapPadding.js) */}
             {placementActive && (
               <PlacementToolbar
                 markerCoords={pointFormCoords}
                 onClear={() => setPointFormCoords(null)}
                 onCancel={handlePointFormCancel}
+                centerOffsetPx={isPanelOpen && !rightPanelCollapsed ? (630 * (compactMode ? 0.9 : 1)) / 2 : 0}
               />
             )}
 

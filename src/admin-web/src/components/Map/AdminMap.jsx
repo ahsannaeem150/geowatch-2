@@ -93,6 +93,7 @@ const AdminMap = forwardRef(function AdminMap({
   newIncidentIds = new Set(),
   mapMode = 'pan',
   drawVertices = [],
+  drawAreaText = null,
   isPolygonClosed = false,
   onDrawVertexAdd,
   onDrawClose,
@@ -2002,23 +2003,6 @@ const AdminMap = forwardRef(function AdminMap({
     };
   }, []);
 
-  // ─── Area calculator helper ───
-  const calculateDrawArea = () => {
-    if (drawVertices.length < 3) return 0;
-    const coords = isPolygonClosed
-      ? drawVertices
-      : drawVertices;
-    let area = 0;
-    for (let i = 0; i < coords.length; i++) {
-      const j = (i + 1) % coords.length;
-      area += coords[i][0] * coords[j][1];
-      area -= coords[j][0] * coords[i][1];
-    }
-    return Math.abs(area) / 2 * 111.32 * 111.32;
-  };
-
-  const drawAreaKm2 = mapMode === 'polygon' ? calculateDrawArea() : 0;
-
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
@@ -2052,17 +2036,11 @@ const AdminMap = forwardRef(function AdminMap({
           }}
         >
           <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {drawVertices.length} vertex{drawVertices.length !== 1 ? 'es' : ''}
+            {drawVertices.length} {drawVertices.length === 1 ? 'vertex' : 'vertices'}
           </span>
-          {drawVertices.length >= 3 && (
+          {drawAreaText && (
             <span style={{ marginLeft: '12px' }}>
-              Area: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                {drawAreaKm2 < 1
-                  ? `~${(drawAreaKm2 * 100).toFixed(1)} ha`
-                  : drawAreaKm2 < 1000
-                    ? `~${drawAreaKm2.toFixed(1)} km²`
-                    : `~${(drawAreaKm2 / 1000).toFixed(1)}k km²`}
-              </span>
+              Area: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{drawAreaText}</span>
             </span>
           )}
           <span style={{ marginLeft: '12px', color: 'var(--text-muted)', fontSize: '11px' }}>

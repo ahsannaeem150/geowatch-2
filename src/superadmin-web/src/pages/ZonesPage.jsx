@@ -311,14 +311,6 @@ export default function ZonesPage() {
               Map
             </button>
             <nav className="opt1-crumbs" aria-label="Breadcrumb">
-              <button
-                type="button"
-                className="opt1-crumbs__item tui-crumb-link"
-                onClick={() => navigate(buildReturnMapUrl())}
-              >
-                Map
-              </button>
-              <span className="opt1-crumbs__sep">›</span>
               <span className="opt1-crumbs__title">Zones</span>
             </nav>
           </div>

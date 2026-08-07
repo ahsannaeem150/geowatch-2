@@ -460,6 +460,13 @@ function StatValue({ text }) {
   );
 }
 
+// Postgres numerics arrive as strings and some callers pass them through
+// uncoerced; formatArea/formatLength require finite numbers, so coerce here.
+function toFiniteNumber(value) {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return Number.isFinite(num) ? num : null;
+}
+
 export function ZoneStatGrid({ areaSqM, perimeterM, geometry, radiusM, geometryType = 'polygon' }) {
   const ring = Array.isArray(geometry?.coordinates?.[0]) ? geometry.coordinates[0] : null;
   const vertices = useMemo(() => countVertices(ring), [ring]);
@@ -467,15 +474,15 @@ export function ZoneStatGrid({ areaSqM, perimeterM, geometry, radiusM, geometryT
   return (
     <div className="zone-stats-grid">
       <div className="zone-stat">
-        <StatValue text={formatArea(areaSqM)} />
+        <StatValue text={formatArea(toFiniteNumber(areaSqM))} />
         <div className="zone-stat__label">Area</div>
       </div>
       <div className="zone-stat">
-        <StatValue text={formatLength(perimeterM)} />
+        <StatValue text={formatLength(toFiniteNumber(perimeterM))} />
         <div className="zone-stat__label">{isCircle ? 'Circumference' : 'Perimeter'}</div>
       </div>
       <div className="zone-stat">
-        <StatValue text={isCircle ? formatLength(radiusM) : String(vertices)} />
+        <StatValue text={isCircle ? formatLength(toFiniteNumber(radiusM)) : String(vertices)} />
         <div className="zone-stat__label">{isCircle ? 'Radius' : 'Vertices'}</div>
       </div>
     </div>
@@ -796,7 +803,8 @@ export function TimelineEvent({
               </span>
             </div>
             <div className="zone-timeline-event__actions">
-              <VerificationBadge status={event.verificationStatus || 'unverified'} />
+              {/* The select already prints the current status — a VerificationBadge
+                  alongside it read "VERIFIED Verified". Badge intentionally omitted here. */}
               <div className="zone-timeline-event__select-wrap">
                 <select
                   className="zone-timeline-event__select"

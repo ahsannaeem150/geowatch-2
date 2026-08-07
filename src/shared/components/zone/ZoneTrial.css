@@ -1603,6 +1603,15 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* Clip guard: the absolutely-centered HUD stack (title + subtitle + countdown
+   + actions) is ~549px tall. In apps where the plain `.zh-hero` rule wins the
+   equal-specificity cascade (admin/superadmin), the hero shrank below the
+   content and `overflow: hidden` clipped the title's top line. Raise
+   specificity so the hero always fits the HUD content. */
+.zh-hero.zone-layout-b__hero--hud {
+  min-height: 620px;
+}
+
 .zh-hud-no-end {
   display: inline-flex;
   align-items: center;
@@ -1677,7 +1686,7 @@
 }
 
 @media (max-width: 980px) {
-  .zone-layout-b__hero--hud {
+  .zh-hero.zone-layout-b__hero--hud {
     height: auto;
     min-height: 520px;
     padding: 80px 0;
@@ -1696,7 +1705,7 @@
     padding: 12px 16px;
   }
 
-  .zone-layout-b__hero--hud {
+  .zh-hero.zone-layout-b__hero--hud {
     min-height: 480px;
   }
 
@@ -2238,6 +2247,10 @@
 [data-theme="light"] .zone-btn:not(.zone-btn--primary):not(.zone-btn--success):not(.zone-btn--danger) {
   background: var(--bg-primary);
   border-color: var(--border-default);
+  /* Pin the text color too — the background is forced white here, so inheriting
+     a light-valued --text-secondary from any scoped token pin would render
+     white-on-white (e.g. the zone sidebar "Add update" button). */
+  color: var(--text-secondary);
 }
 
 [data-theme="light"] .zone-mini-map--animated,

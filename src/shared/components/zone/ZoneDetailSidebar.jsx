@@ -144,8 +144,8 @@ export default function ZoneDetailSidebar({
           <PolygonMiniMap geometry={incident.geometry} color={zoneColor} animated />
 
           <ZoneStatGrid
-            areaSqM={incident.areaSqM}
-            perimeterM={incident.perimeterM}
+            areaSqM={incident.areaSqM ?? (incident.area_sq_m != null ? parseFloat(incident.area_sq_m) : null)}
+            perimeterM={incident.perimeterM ?? (incident.perimeter_m != null ? parseFloat(incident.perimeter_m) : null)}
             geometry={incident.geometry}
           />
 

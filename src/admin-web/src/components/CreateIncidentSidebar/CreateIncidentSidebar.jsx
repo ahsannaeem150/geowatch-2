@@ -10,7 +10,7 @@ import {
 import { api } from '../../services/api.js';
 import RightPanelCollapseButton from '@shared/components/RightPanelCollapseButton.jsx';
 import TargetingCard from '@shared/components/incident-detail/TargetingCard.jsx';
-import '../DesignTrial/IncidentDetailTrial.css';
+import './CreateIncidentSidebar.css';
 
 function dataUrlToFile(dataUrl, fileName = 'image.png') {
   const arr = dataUrl.split(',');
@@ -362,7 +362,15 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
 
   // Sync coordinates + location context from map double-click
   useEffect(() => {
-    if (!initialCoords) return;
+    if (!initialCoords) {
+      // Point cleared on the map — drop stale coords + context so the form
+      // can't be submitted with a point that no longer exists.
+      setLatitude('');
+      setLongitude('');
+      setLocationContext('');
+      setLocationLoading(false);
+      return;
+    }
     setLatitude(initialCoords.lat.toFixed(6));
     setLongitude(initialCoords.lng.toFixed(6));
     if (initialCoords.locationContext === undefined) {
