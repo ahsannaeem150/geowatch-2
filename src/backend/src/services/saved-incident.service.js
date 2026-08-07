@@ -7,14 +7,17 @@ const INCIDENT_COLUMNS = `
   i.location_context,
   i.category_id,
   i.verification_status,
+  i.geometry_type, i.zone_category_id,
   c.name AS category_name, c.slug AS category_slug,
-  d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color, d.light_color AS domain_light_color
+  d.name AS domain_name, d.slug AS domain_slug, d.color AS domain_color, d.light_color AS domain_light_color,
+  zc.name AS zone_category_name, zc.color AS zone_category_color, zc.icon AS zone_category_icon
 `;
 
 const INCIDENT_FROM = `
   FROM incidents i
   LEFT JOIN categories c ON i.category_id = c.id
   LEFT JOIN domains d ON c.domain_id = d.id
+  LEFT JOIN zone_categories zc ON i.zone_category_id = zc.id
 `;
 
 /**

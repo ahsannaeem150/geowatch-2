@@ -1,0 +1,24 @@
+// A2 regression: point-incident drawer rows must still route to handleEventClick.
+import { chromium } from 'playwright';
+const BASE = 'http://localhost:5174';
+const STATE = 'temp_screenshots/ui-sweep-admin/auth-state.json';
+const browser = await chromium.launch({ headless: true });
+const ctx = await browser.newContext({ storageState: STATE, viewport: { width: 1440, height: 900 } });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('PAGEERROR:', String(e).slice(0, 200)));
+await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
+await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForTimeout(5000);
+const centerBefore = await page.evaluate(() => { const c = window.__geowatchAdminMap.getCenter(); return [c.lng, c.lat]; });
+await page.click('button[title="Active"]');
+await page.waitForTimeout(1200);
+await page.locator('text=IED Blast Targets Police Patrol').first().click();
+await page.waitForTimeout(2500);
+const url = page.url();
+const centerAfter = await page.evaluate(() => { const c = window.__geowatchAdminMap.getCenter(); return [c.lng, c.lat]; });
+const moved = Math.abs(centerAfter[0] - centerBefore[0]) + Math.abs(centerAfter[1] - centerBefore[1]) > 1;
+console.log('url tail:', url.slice(-70));
+console.log('camera:', centerBefore, '→', centerAfter);
+console.log(url.includes('incident=') && !url.includes('zone=') && moved ? 'POINT ROW ROUTING OK' : '*** ROUTING FAIL ***');
+await browser.close();

@@ -941,8 +941,13 @@ export default function MapPage() {
       // from changing the saved map position on back-navigation.
       if (lat !== latParam || lng !== lngParam || z !== zoomParam) {
         setSearchParams(
-          (prev) => {
-            const next = new URLSearchParams(prev);
+          () => {
+            // Merge from the LIVE location, not the `prev` snapshot react-router
+            // hands the updater (it captures searchParams at render time). Move
+            // events from a selection-change flight can fire before React flushes
+            // the just-navigated ?zone=/?incident= param — merging the stale
+            // snapshot would clobber the new selection back to the old id.
+            const next = new URLSearchParams(window.location.search);
             next.set('lat', lat);
             next.set('lng', lng);
             next.set('zoom', z);
@@ -1047,10 +1052,17 @@ export default function MapPage() {
     }
 
     lastInAppSelectAtRef.current = performance.now();
+    // Polygon zones belong on the zone path (?zone=), matching handleZoneClick;
+    // writing ?incident= would deep-link them through the point-incident path.
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set('incident', incident.id);
-      next.delete('zone');
+      if (incident?.geometry_type === 'polygon') {
+        next.set('zone', incident.id);
+        next.delete('incident');
+      } else {
+        next.set('incident', incident.id);
+        next.delete('zone');
+      }
       return next;
     });
 

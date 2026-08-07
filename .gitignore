@@ -63,4 +63,5 @@ temp/
 *.tmp
 
 # Temporary screenshots generated during UI trials
-temp_screenshots/
+temp_screenshots
+temp_ss/

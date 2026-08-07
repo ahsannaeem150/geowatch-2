@@ -446,8 +446,13 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
 
 function SavedRow({ incident, onOpen, onUnsave }) {
   const { theme } = useTheme();
-  const categoryColor = getIncidentDomainColor(incident, theme);
-  const categoryName = incident.domain_name || incident.category_name || incident.category || 'Unknown';
+  // Saved rows can be polygon zones: those carry no domain/category — label
+  // them from the zone category (and its color) instead of falling to 'Unknown'.
+  const isZone = incident.geometry_type === 'polygon';
+  const categoryColor = isZone ? (incident.zone_category_color || '#6b7280') : getIncidentDomainColor(incident, theme);
+  const categoryName = isZone
+    ? (incident.zone_category_name || 'Zone')
+    : (incident.domain_name || incident.category_name || incident.category || 'Unknown');
   const createdAt = incident.created_at || incident.createdAt;
 
   return (

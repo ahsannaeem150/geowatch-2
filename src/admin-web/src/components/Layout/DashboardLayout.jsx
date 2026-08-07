@@ -1170,8 +1170,13 @@ export default function DashboardLayout() {
     if (center && Number.isFinite(zoom)) {
       setMapZoom(zoom);
       setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
+        () => {
+          // Merge from the LIVE location, not the `prev` snapshot react-router
+          // hands the updater (it captures searchParams at render time). Move
+          // events from a selection-change flight can fire before React flushes
+          // the just-navigated ?zone=/?incident= param — merging the stale
+          // snapshot would clobber the new selection back to the old id.
+          const next = new URLSearchParams(window.location.search);
           next.set('lat', center.lat.toFixed(6));
           next.set('lng', center.lng.toFixed(6));
           next.set('zoom', zoom.toFixed(2));
@@ -2046,10 +2051,10 @@ export default function DashboardLayout() {
   const handleZoneEditCancel = useCallback(() => {
     exitFocusMode();
     setEditingZoneId(null);
-    setEditingZoneVertices([exitFocusMode]);
-    setOriginalZoneVertices([exitFocusMode]);
+    setEditingZoneVertices([]);
+    setOriginalZoneVertices([]);
     setSelectedEditVertexIndex(null);
-    editHistoryRef.current = [exitFocusMode];
+    editHistoryRef.current = [];
     editHistoryIndexRef.current = -1;
     setPanelMode('detail');
     setRightPanelCollapsed(false);
@@ -3154,7 +3159,11 @@ export default function DashboardLayout() {
             onHideAllZones={handleHideAllZones}
             incidents={incidents}
             visibleIncidents={filteredIncidents}
-            onSelectIncident={(incident) => handleEventClick(incident, { source: 'drawer' })}
+            onSelectIncident={(incident) =>
+              incident.geometry_type === 'polygon'
+                ? handleZoneClick(incident, { source: 'drawer' })
+                : handleEventClick(incident, { source: 'drawer' })
+            }
             activeIncidents={activeIncidents}
             overdueCount={overdueIncidentCount}
             now={Date.now()}
@@ -3169,7 +3178,11 @@ export default function DashboardLayout() {
             onMarkAllNotificationsRead={markAllNotificationsRead}
             onSelectNotificationIncident={handleSelectFromNotification}
             savedIncidents={savedIncidents}
-            onSelectSavedIncident={(incident) => handleEventClick(incident, { source: 'drawer' })}
+            onSelectSavedIncident={(incident) =>
+              incident.geometry_type === 'polygon'
+                ? handleZoneClick(incident, { source: 'drawer' })
+                : handleEventClick(incident, { source: 'drawer' })
+            }
             onUnsaveIncident={unsaveIncident}
             recents={recents}
             onClearRecents={clearRecents}

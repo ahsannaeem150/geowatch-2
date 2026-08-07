@@ -604,6 +604,19 @@ const SuperadminMap = forwardRef(function SuperadminMap({
       setStyleVersion((v) => v + 1);
     });
 
+    // A diffed setStyle (theme switch) fires 'styledata' but NOT 'style.load',
+    // and the diff strips custom zone/draw layers. Restore via one guarded
+    // hook on both 'styledata' and 'idle' (idle = style fully committed);
+    // styleVersion bumps only when layers were actually stripped.
+    const restoreCustomLayers = () => {
+      if (!map.current || !map.current.isStyleLoaded()) return;
+      if (map.current.getLayer('zone-hit')) return;
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
+    };
+    map.current.on('styledata', restoreCustomLayers);
+    map.current.on('idle', restoreCustomLayers);
+
     // If the map is already loaded (cached style), add layers now
     if (map.current.loaded()) {
       ensureLayers(map.current);

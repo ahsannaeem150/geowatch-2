@@ -170,8 +170,9 @@ function LayerRow({ data, active, theme, onToggle }) {
 
 function IncidentCard({ incident, onClick }) {
   const { theme } = useTheme();
-  const categoryColor = getIncidentDomainColor(incident, theme);
-  const categoryName = incident.domain_name || incident.category_name || incident.category || 'Unknown';
+  const isZone = incident.geometry_type === 'polygon';
+  const categoryColor = isZone ? incident.zone_category_color || '#6366f1' : getIncidentDomainColor(incident, theme);
+  const categoryName = isZone ? incident.zone_category_name || 'Zone' : incident.domain_name || incident.category_name || incident.category || 'Unknown';
   const location = incident.location_context || incident.location || 'Unknown location';
   const createdAt = incident.created_at || incident.createdAt;
 
@@ -263,8 +264,9 @@ function IncidentCard({ incident, onClick }) {
 
 function ActiveRow({ incident, now, onOpen, onResolve }) {
   const { theme } = useTheme();
-  const categoryColor = getIncidentDomainColor(incident, theme);
-  const categoryName = incident.domain_name || incident.category_name || incident.category || 'Unknown';
+  const isZone = incident.geometry_type === 'polygon';
+  const categoryColor = isZone ? incident.zone_category_color || '#6366f1' : getIncidentDomainColor(incident, theme);
+  const categoryName = isZone ? incident.zone_category_name || 'Zone' : incident.domain_name || incident.category_name || incident.category || 'Unknown';
   const location = incident.location_context || incident.location || 'Unknown location';
   const createdAt = incident.created_at || incident.createdAt;
   const overdue = now - (typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime()) > 24 * 60 * 60 * 1000;
@@ -553,8 +555,9 @@ function NotificationRow({ notification, onOpen, onMarkRead }) {
 
 function SavedRow({ incident, onOpen, onUnsave }) {
   const { theme } = useTheme();
-  const categoryColor = getIncidentDomainColor(incident, theme);
-  const categoryName = incident.domain_name || incident.category_name || incident.category || 'Unknown';
+  const isZone = incident.geometry_type === 'polygon';
+  const categoryColor = isZone ? incident.zone_category_color || '#6366f1' : getIncidentDomainColor(incident, theme);
+  const categoryName = isZone ? incident.zone_category_name || 'Zone' : incident.domain_name || incident.category_name || incident.category || 'Unknown';
   const createdAt = incident.created_at || incident.createdAt;
 
   return (

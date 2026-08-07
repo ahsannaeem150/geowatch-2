@@ -624,6 +624,23 @@ const AdminMap = forwardRef(function AdminMap({
       setStyleVersion((v) => v + 1);
     });
 
+    // A diffed setStyle (e.g. the theme switch below) fires 'styledata' but
+    // NOT 'style.load', and the style diff strips the custom zone/draw
+    // layers — leaving zones un-hoverable/un-clickable until a page refresh.
+    // styledata can fire while the new style is still loading, so also hook
+    // 'idle' (fires once the style has fully committed). Both go through one
+    // guarded restore: it bumps styleVersion only when layers were actually
+    // stripped, so the data effects refill the fresh sources and ordinary
+    // idle events stay cheap no-ops.
+    const restoreCustomLayers = () => {
+      if (!map.current || !map.current.isStyleLoaded()) return;
+      if (map.current.getLayer('zone-hit')) return;
+      ensureLayers(map.current);
+      setStyleVersion((v) => v + 1);
+    };
+    map.current.on('styledata', restoreCustomLayers);
+    map.current.on('idle', restoreCustomLayers);
+
     // If the map is already loaded (cached style), add layers now
     if (map.current.loaded()) {
       ensureLayers(map.current);

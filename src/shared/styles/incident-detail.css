@@ -3075,7 +3075,7 @@
 [data-theme="light"] .id-latest,
 [data-theme="light"] .id-update-card,
 [data-theme="light"] .id-summary__desc,
-[data-theme="light"] .id-admin-bar__btn,
+[data-theme="light"] .id-admin-bar__btn:not(.id-admin-bar__btn--primary),
 [data-theme="light"] .id-stat-tile,
 [data-theme="light"] .id-summary-meta {
   background: var(--bg-primary);
@@ -3087,6 +3087,16 @@
 [data-theme="light"] .id-update-card:hover,
 [data-theme="light"] .id-admin-bar__btn:hover {
   border-color: var(--border-hover);
+}
+
+/* The --primary variant (staff "Add update") keeps white text by design; the
+   whitewash above killed its accent background and rendered white-on-white.
+   Excluded from the flatten, it stays filled accent like every other primary
+   button in light mode. This hover rule must sit AFTER the general light
+   hover block above — equal specificity, so source order decides the border. */
+[data-theme="light"] .id-admin-bar__btn--primary:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
 }
 
 [data-theme="light"] .id-admin-bar,
