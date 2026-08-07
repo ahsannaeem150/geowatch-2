@@ -1235,18 +1235,6 @@ export default function IncidentDetailSidebar({
 
               {isAdmin && !isReadOnly && (
                 <div className="id-drawer-admin">
-                  <Select
-                    value={drawerEvent.verification || drawerEvent.verificationStatus}
-                    onChange={(e) => onEditUpdate?.(drawerEvent.id, { verification: e.target.value })}
-                    style={{ maxWidth: 140, padding: '5px 9px', fontSize: 12 }}
-                    disabled={isReadOnly}
-                  >
-                    {Object.keys(VERIFICATION).map((k) => (
-                      <option key={k} value={k}>
-                        {VERIFICATION[k].label}
-                      </option>
-                    ))}
-                  </Select>
                   <button
                     type="button"
                     className="id-drawer-admin__btn"

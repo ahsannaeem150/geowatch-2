@@ -24,7 +24,6 @@ import {
   Star,
   Pencil,
   Trash2,
-  ChevronDown,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { format, formatDistanceToNowStrict, intervalToDuration } from 'date-fns';
@@ -41,6 +40,10 @@ import Lightbox from '@shared/components/incident-detail/Lightbox.jsx';
 import { countSources, sourceCounts, sortPinned } from '@shared/components/incident-detail/IncidentUtils.js';
 import { Icons } from '@shared/components/incident-detail/IncidentIcons.jsx';
 import { ArticleCard, AdminNoteCard } from '@shared/components/incident-detail/SourceCards.jsx';
+// Aliased: this file already exports a local VerificationBadge (zone header look);
+// the incident-detail badge is used for timeline/evidence rows so they match
+// the incident drawer exactly.
+import { VerificationBadge as IncidentVerificationBadge } from '@shared/components/incident-detail/IncidentBadges.jsx';
 import { XEmbed, ArchivedPost, ArchiveLightbox } from '@shared/components/incident-detail/XPostCompactList.jsx';
 import { VERIFICATION_CONFIG } from '@shared/constants.js';
 
@@ -754,7 +757,6 @@ export function TimelineEvent({
   isActive = false,
   onEditUpdate,
   onDeleteUpdate,
-  onVerificationChange,
   onFeature,
 }) {
   const total = countSources(event.sources);
@@ -803,25 +805,9 @@ export function TimelineEvent({
               </span>
             </div>
             <div className="zone-timeline-event__actions">
-              {/* The select already prints the current status — a VerificationBadge
-                  alongside it read "VERIFIED Verified". Badge intentionally omitted here. */}
-              <div className="zone-timeline-event__select-wrap">
-                <select
-                  className="zone-timeline-event__select"
-                  value={event.verificationStatus || 'unverified'}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    onVerificationChange?.(event.id, e.target.value);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <option value="unverified">Unverified</option>
-                  <option value="verified">Verified</option>
-                  <option value="disputed">Disputed</option>
-                  <option value="debunked">Debunked</option>
-                </select>
-                <ChevronDown size={12} className="zone-timeline-event__select-icon" />
-              </div>
+              {/* Verification is read-only here (same badge as the incident
+                  drawer); it changes only via the Edit update form. */}
+              <IncidentVerificationBadge status={event.verificationStatus || event.verification} />
               <button
                 type="button"
                 className="zone-timeline-event__btn"
@@ -1386,6 +1372,8 @@ function ZoneEvidenceView({
               <span className="zone-update-header__date">
                 {format(new Date(event.updateDate), 'MMM d, h:mm a')}
               </span>
+              {/* Read-only verification badge — same look as the incident drawer */}
+              <IncidentVerificationBadge status={event.verificationStatus || event.verification} />
               <h4 className="zone-update-header__title">{event.summary || 'Update'}</h4>
             </div>
             {(onEditUpdate || onDeleteUpdate) && (

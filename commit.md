@@ -12711,3 +12711,7 @@ feat: live activity rows get per-row seen state — click normalizes just that r
 ## 📅 2026-08-08 — Module: superadmin-web + user-web — Drawer overhaul port
 
 feat/style: superadmin — full drawer overhaul ported from admin (WorkspaceDrawer wholesale parity, audit-log footer kept): v5 cards on all rows, recents zones+enriched, activity seen-state + /staff/activity backfill (44 rows verified) merged with live SSE, incident_deleted SSE parity, notifications click-to-read + Mark all as seen + severity accents; Playwright smoke 11/11 pass. user-web — v5 card design on Active/Saved/viewport rows (zone glyph + zone colors, 24H+ flag, Saved date slot, ghost View/unsave buttons); read-only adaptations kept. Both builds green.
+
+## 📅 2026-08-08 — Module: shared — Verification UI consistency + zone drawer offset fix
+
+feat/fix: instant-change verification dropdowns removed from zone timeline cards (they were silently broken — wrong payload key) and from the incident update drawer; verification status is now a read-only badge everywhere (zone cards + zone evidence drawer + incident drawer), changeable only via the Edit Update forms (field already existed both sides). Zone evidence drawer CSS fixed — trial chrome `top: 56px` + `max-width: 630px` leaked into production; now absolute-anchored flush full-height in the sidebar like the incident drawer. Shared-only change, propagates to all three apps; no per-app handler changes needed. All builds green.

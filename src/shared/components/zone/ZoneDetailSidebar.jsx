@@ -77,11 +77,6 @@ export default function ZoneDetailSidebar({
     }
   };
 
-  const handleVerificationChange = (eventId, status) => {
-    if (!isAdmin) return;
-    onEditUpdate?.(eventId, { verificationStatus: status });
-  };
-
   const handleAddUpdateSave = (form) => {
     if (!isAdmin) return;
     onAddUpdate?.(form);
@@ -262,7 +257,6 @@ export default function ZoneDetailSidebar({
                   variant="sidebar"
                   onEditUpdate={onEditUpdate}
                   onDeleteUpdate={onDeleteUpdate}
-                  onVerificationChange={handleVerificationChange}
                   onFeature={handleFeature}
                 />
               ))}

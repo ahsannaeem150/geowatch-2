@@ -409,11 +409,6 @@ export default function ZoneDetailPage({
     }
   };
 
-  const handleVerificationChange = (eventId, status) => {
-    if (!isAdmin) return;
-    onEditUpdate?.(eventId, { verificationStatus: status });
-  };
-
   const handleInfoSubmit = async ({ payload }) => {
     setSubmitting(true);
     try {
@@ -476,7 +471,6 @@ export default function ZoneDetailPage({
                 isActive={event.id === selectedEventId}
                 onEditUpdate={onEditUpdate}
                 onDeleteUpdate={onDeleteUpdate}
-                onVerificationChange={handleVerificationChange}
                 onFeature={handleFeature}
               />
             </div>

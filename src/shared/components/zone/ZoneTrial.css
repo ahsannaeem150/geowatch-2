@@ -767,26 +767,28 @@
 }
 
 /* ───────────────── Drawer (sidebar) ───────────────── */
+/* Anchored absolute inside the sidebar aside (like the incident drawer) —
+   full height, flush to the panel, not the leaked 56px trial topbar. */
 .zone-drawer-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(3px);
-  z-index: 300;
+  z-index: 199;
   animation: fadeIn 0.2s ease;
 }
 
 .zone-drawer {
-  position: fixed;
-  top: 56px;
+  position: absolute;
+  top: 0;
   right: 0;
   bottom: 0;
   width: 100%;
-  max-width: 630px;
   background: var(--bg-surface);
   border-left: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
+  z-index: 200;
   animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
