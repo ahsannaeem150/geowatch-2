@@ -16,6 +16,7 @@ import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
 import { api } from '../../services/api.js';
 import TopBarDateControl from './TopBarDateControl.jsx';
 import TopBarModePill from './TopBarModePill.jsx';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 
 function getInitials(user) {
   const full = user?.fullName || user?.full_name || '';
@@ -259,31 +260,24 @@ export default function WorkspaceTopBar({
               fontFamily: 'inherit',
             }}
           >
-            <div
+            <BrandLogo
+              variant="mark"
+              height={32}
               style={{
-                width: 'calc(28px * var(--admin-ui-scale))',
-                height: 'calc(28px * var(--admin-ui-scale))',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 'calc(12px * var(--admin-ui-scale))',
-                fontWeight: 700,
-                color: 'var(--text-on-accent)',
-                boxShadow: '0 0 20px var(--accent-glow-strong)',
+                height: 'calc(32px * var(--admin-ui-scale))',
                 flexShrink: 0,
-                animation: brandPulse ? 'wt-brand-pulse 1.1s ease-in-out infinite' : 'none',
+                borderRadius: 'var(--radius-md)',
+                // Logo blue (--brand-1 #22d3ee) — moves to a token in the colors phase.
+                filter: 'drop-shadow(0 0 6px rgba(34, 211, 238, 0.45))',
               }}
-            >
-              I
-            </div>
+            />
             <span
               style={{
                 fontSize: 'calc(15px * var(--admin-ui-scale))',
                 fontWeight: 700,
-                color: 'var(--text-primary)',
                 letterSpacing: '-0.3px',
+                color: 'var(--text-primary)',
+                whiteSpace: 'nowrap',
               }}
             >
               IntelMap24
@@ -761,13 +755,6 @@ export default function WorkspaceTopBar({
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes wt-brand-pulse {
-          0%, 100% { box-shadow: 0 0 20px var(--accent-glow-strong); }
-          50% { box-shadow: 0 0 34px var(--accent-glow-strong), 0 0 14px var(--accent-light); }
-        }
-      `}</style>
     </header>
   );
 }

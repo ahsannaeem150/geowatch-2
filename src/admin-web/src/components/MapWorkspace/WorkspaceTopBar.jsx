@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import TopBarDateControl from './TopBarDateControl.jsx';
 import TopBarModePill from './TopBarModePill.jsx';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 import {
   Hexagon,
   Plus,
@@ -115,24 +116,17 @@ export default function WorkspaceTopBar({
       {/* Left: brand + search */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))' }}>
-          <div
+          <BrandLogo
+            variant="mark"
+            height={32}
             style={{
-              width: 'calc(28px * var(--admin-ui-scale))',
-              height: 'calc(28px * var(--admin-ui-scale))',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 'calc(12px * var(--admin-ui-scale))',
-              fontWeight: 700,
-              color: 'var(--text-on-accent)',
-              boxShadow: '0 0 20px var(--accent-glow-strong)',
+              height: 'calc(32px * var(--admin-ui-scale))',
               flexShrink: 0,
+              borderRadius: 'var(--radius-md)',
+              // Logo blue (--brand-1 #22d3ee) — moves to a token in the colors phase.
+              filter: 'drop-shadow(0 0 6px rgba(34, 211, 238, 0.45))',
             }}
-          >
-            I
-          </div>
+          />
           <span
             style={{
               fontSize: 'calc(15px * var(--admin-ui-scale))',

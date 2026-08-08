@@ -26,6 +26,7 @@ import CategoryMultiSelect from '@shared/components/CategoryMultiSelect.jsx';
 import { useCategories } from '@shared/hooks/useCategories.js';
 import { useTheme } from '@shared/useTheme.js';
 import { getBadgeColors } from '@shared/utils/themeColors.js';
+import BrandLogo from '../components/Brand/BrandLogo.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import TableDropdown from '../components/TableUI/TableDropdown.jsx';
 import TableDateFilter, { ALL_TIME_FILTER, getDateFilterLabel } from '../components/TableUI/TableDateFilter.jsx';
@@ -313,7 +314,7 @@ export default function IncidentsPage() {
       <header className="tui-topbar">
         <div className="tui-topbar-left">
           <div className="tui-brand">
-            <div className="tui-brand-mark">I</div>
+            <BrandLogo variant="mark" height={24} />
             <span className="tui-brand-name">IntelMap24</span>
             <span className="tui-brand-pill">Incidents</span>
           </div>

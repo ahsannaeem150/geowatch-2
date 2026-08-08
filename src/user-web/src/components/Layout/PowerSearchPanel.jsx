@@ -29,6 +29,7 @@ import { SEVERITY_SCALE } from '@shared/constants.js';
 import { getSeverityBadgeColors, getDomainColor, getIncidentDomainColor, getBadgeColors } from '@shared/utils/themeColors.js';
 import { useTheme } from '@shared/useTheme.js';
 import { formatDistanceToNow } from 'date-fns';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 
 const STATUSES = ['active', 'resolved'];
 const STATUS_META = {
@@ -474,22 +475,15 @@ function TopBar({ query, onQueryChange, onClose, compactMode }) {
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))', minWidth: 'calc(140px * var(--admin-ui-scale))' }}>
-        <div
+        <BrandLogo
+          variant="full"
+          tag={false}
+          height={30}
           style={{
-            width: 'calc(26px * var(--admin-ui-scale))',
-            height: 'calc(26px * var(--admin-ui-scale))',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 'calc(12px * var(--admin-ui-scale))',
-            fontWeight: 700,
-            color: 'var(--text-on-accent)',
+            height: 'calc(30px * var(--admin-ui-scale))',
+            flexShrink: 0,
           }}
-        >
-          I
-        </div>
+        />
         <div>
           <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>Power Search</div>
           <div style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>Explore everything</div>

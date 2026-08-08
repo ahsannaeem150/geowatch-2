@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Button } from '@shared/components/Button.jsx';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
@@ -64,6 +65,9 @@ export default function LoginPage() {
             background: 'var(--accent-light)',
           }}
         />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          <BrandLogo variant="full" height={40} />
+        </div>
         <h1
           style={{
             fontSize: 'var(--text-h2)',

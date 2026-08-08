@@ -7,6 +7,7 @@ import DatePicker from '../DatePicker/DatePicker.jsx';
 import { api } from '../../services/api.js';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { useStyle } from '@shared/useStyle.js';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 import { Palette, Hexagon } from 'lucide-react';
 
 function StyleToggle() {
@@ -233,23 +234,17 @@ export default function TopBar({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
+          <BrandLogo
+            variant="mark"
+            height={28}
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              fontWeight: 700,
-              color: '#f2f2f2',
-              boxShadow: '0 0 20px var(--accent-glow-strong)',
+              height: '28px',
+              flexShrink: 0,
+              borderRadius: 'var(--radius-md)',
+              // Logo blue (--brand-1 #22d3ee) — moves to a token in the colors phase.
+              filter: 'drop-shadow(0 0 6px rgba(34, 211, 238, 0.45))',
             }}
-          >
-            I
-          </div>
+          />
           <h1
             style={{
               fontSize: '17px',

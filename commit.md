@@ -12731,3 +12731,39 @@ fix: home hero particle dots painted pure black (canvas ignored the invalid `var
 ## 📅 2026-08-08 — Module: all — Full rebrand GeoWatch → IntelMap24
 
 chore: complete rebrand. Brand string `IntelMap24` everywhere (3× index.html titles/meta/OG, route titles, topbars, Header/Footer, login pages, SignInModal, HeroSection, AboutPage, BootSequence `INTELMAP24 v1.0.4`); title format `IntelMap24 - Conflict Monitor`. Nominatim UAs → `IntelMap24/1.0 (https://intelmap24.com)`. All ~35 localStorage/session keys `geowatch_*` → `intelmap24_*` (dev-stage, no shims — expect re-login). Package names + lockfile (`npm install` synced), scripts renamed `*-intelmap24.sh` (~40 dev utilities swept), map-style names, DB renamed `intelmap24_dev` + role `intelmap24_user` (live-verified via /health + /categories). Brand glyphs G→I (superadmin split `IntelMap`+`24`). Kept intentionally: favicons (logo phase), seed emails, repo dir name, map-style internal ids, backup dump, credential values. Docs swept (PROJECT/readme/docs/*.md/AGENTS.md). All builds green.
+
+## 📅 2026-08-08 — Module: user-web — IntelMap24 logo integration
+
+feat: new logo integrated — public/brand/ assets (lockup dark + new light variant recolored via sanctioned CSS vars only, favicon tile), shared BrandLogo component (full/mark variants, auto theme swap via useTheme, <img> not inline to protect SVG vars). Integrated: index.html favicon link, Header (32px), Footer (40px), WorkspaceTopBar mark + text, PowerSearchPanel mark, SignInModal lockup. Blue scheme kept; geometry untouched. Screenshots: temp_screenshots/logo-integration/. Build green.
+
+## 📅 2026-08-08 — Module: user-web — Logo sizing + favicon fixes
+
+fix: favicon invisible in tab — PNG fallbacks generated (16/32/apple-touch-180, Chromium-rasterized; ImageMagick can't render the gradient) + ?v=1 cache-bust in index.html. New no-tagline lockup variants (viewBox-crop only, 437x75 — zero geometry edits) so the wordmark renders ~2x larger at the same height: Header 40px, map WorkspaceTopBar now full lockup 36px (mark tile + plain text removed; pulse glow moved to drop-shadow), PowerSearchPanel 30px, SignInModal 40px, Footer 44px with tagline. Honest note: at 16px the favicon mark reads as a dark navy tile with a faint 24 — inherent to the geometry; crisp at 32px+. Screenshots: temp_screenshots/logo-fix/. Build green.
+
+## 📅 2026-08-08 — Module: user-web — Header/logo sizes + favicon zoom
+
+style/fix: home Header now matches footer treatment (full lockup with tagline, 44px — was notag 40, too big). Map WorkspaceTopBar lockup 36→32px, pulse glow + keyframes removed (owner request). Favicon artwork scaled 1.6x via wrapper <g transform> (paths untouched) — "24" now legible at 16/32px; PNG fallbacks regenerated via scripts/rasterize-favicon.mjs. Build green.
+
+## 📅 2026-08-08 — Module: user-web — Favicon final sizing
+
+style: favicon artwork re-centered on tile center (was offset right — caused right-edge touch at 1.75x) and set to 1.6x with symmetric ~21px margins; cache-bust ?v=3, PNGs regenerated. Build green.
+
+## 📅 2026-08-08 — Module: user-web — Map topbar brand revert to mark + text
+
+style: map WorkspaceTopBar back to mark design (owner preference over full lockup): 26px "24" tile with subtle static drop-shadow glow + "IntelMap" text label (15px/700). No pulse animation. Build green.
+
+## 📅 2026-08-08 — Module: user-web — Topbar mark refinement
+
+style: new intelmap24-mark.svg for topbar use (original generous margins at 1.0x, corners rx 52→36 — favicon keeps the 1.6x zoom); map topbar text now "IntelMap24" matching admin-web exactly (15px/700/-0.3px). Build green.
+
+## 📅 2026-08-08 — Module: user-web — Topbar mark bigger + favicon centered
+
+style/fix: topbar mark 26→32px with blue glow (logo --brand-1 cyan, token pending colors phase); new intelmap24-mark.svg (1.0x margins, rx 36) for topbar; text "IntelMap24" matching admin (15px/700/-0.3px). Favicon: "24" glyphs now centered on tile center (was collectively centered with the blip, shifting 24 left ~18px) — dot stays as bottom-right badge accent; ?v=4, PNGs regenerated. Build green.
+
+## 📅 2026-08-08 — Module: user-web — Favicon dot removed
+
+style: red blip removed from favicon (invisible at tab sizes anyway) — clean centered "24" now; ?v=5, PNGs regenerated. Topbar mark keeps its dot (visible at that size). Build green.
+
+## 📅 2026-08-08 — Module: admin-web + superadmin-web — Logo port
+
+feat: IntelMap24 logo ported to admin + superadmin (9 brand assets + BrandLogo component per app, verbatim from user-web finals). admin: favicon links, map WorkspaceTopBar mark 32px + blue glow (text kept), Layout TopBar mark 28px, LoginPage full lockup above heading. superadmin: favicon links, map topbar mark + glow, IncidentsPage/ZonesPage tui-brand-mark tiles → BrandLogo mark 24px; console Sidebar + LoginPage split IntelMap/24 text kept (console identity). Both builds green. Reminder recorded in AGENTS.md: recolor brand SVGs via internal vars when final colors land.

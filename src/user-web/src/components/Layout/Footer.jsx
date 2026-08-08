@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { API_BASE_URL } from '@shared/constants.js';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 
 export default function Footer() {
   // Live backend health — polled from the public /health endpoint
@@ -71,27 +72,8 @@ export default function Footer() {
           zIndex: 1,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: 'var(--text-on-accent)',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            I
-          </div>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            IntelMap24
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <BrandLogo variant="full" height={44} />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>

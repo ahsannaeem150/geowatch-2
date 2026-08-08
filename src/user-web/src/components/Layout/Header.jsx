@@ -7,6 +7,7 @@ import ThemeToggle from '@shared/components/ThemeToggle.jsx';
 import { useStyle } from '@shared/useStyle.js';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
 import { api } from '../../services/api.js';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 
 const STYLES = [
   { key: 'tactical', label: 'Tac', short: 'T' },
@@ -144,27 +145,8 @@ export default function Header() {
       }}
     >
       {/* Logo */}
-      <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div
-          style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: 'var(--text-on-accent)',
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          I
-        </div>
-        <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-          IntelMap24
-        </span>
+      <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+        <BrandLogo variant="full" height={44} />
       </Link>
 
       {/* Nav — absolutely centered so unequal side-cluster widths (logged-in

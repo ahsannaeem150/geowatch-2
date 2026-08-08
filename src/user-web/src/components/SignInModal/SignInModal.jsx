@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { usePublicAuth } from '../../contexts/PublicAuthContext.jsx';
 import GoogleSignInButton from '../GoogleSignInButton/GoogleSignInButton.jsx';
+import BrandLogo from '../Brand/BrandLogo.jsx';
 
 export default function SignInModal({ onClose }) {
   const { login, isAuthenticated } = usePublicAuth();
@@ -70,6 +71,10 @@ export default function SignInModal({ onClose }) {
           >
             <X size={18} />
           </button>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <BrandLogo variant="full" height={40} />
         </div>
 
         <h2
