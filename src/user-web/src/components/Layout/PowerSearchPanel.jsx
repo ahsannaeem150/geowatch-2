@@ -1499,7 +1499,6 @@ const IncidentCard = React.forwardRef(function IncidentCard(
       ? VERIFICATION_CONFIG[incident.verification_status]
       : null;
 
-  const statusDotColor = status.status === 'active' ? 'var(--success)' : 'var(--text-muted)';
   const accentColor = isZone
     ? incident.zone_category_color || 'var(--accent-light)'
     : getIncidentDomainColor(incident, theme);
@@ -1640,9 +1639,13 @@ const IncidentCard = React.forwardRef(function IncidentCard(
           >
             <Clock size={9} />
             {timeAgoLabel(incident.created_at)}
-            <span style={{ margin: '0 1px' }}>·</span>
-            <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: statusDotColor, flexShrink: 0 }} />
-            {status.label}
+            {status.status === 'active' && (
+              <>
+                <span style={{ margin: '0 1px' }}>·</span>
+                <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
+                Active
+              </>
+            )}
           </span>
         </div>
 

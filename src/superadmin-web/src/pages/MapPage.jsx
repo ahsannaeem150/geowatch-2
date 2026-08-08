@@ -98,6 +98,7 @@ const DEFAULT_PS_FILTERS = {
   dateTo: '',
   domainSlugs: [],
   categorySlugs: [],
+  zoneCategoryIds: [],
   severities: [],
   statuses: [],
   verificationStatuses: [],
@@ -338,7 +339,7 @@ export default function MapPage() {
   const [powerSearchMode, setPowerSearchMode] = useState(false);
   const [psQuery, setPsQuery] = useState('');
   const [psFilters, setPsFilters] = useState(DEFAULT_PS_FILTERS);
-  const [psSort, setPsSort] = useState('relevance');
+  const [psSort, setPsSort] = useState('newest');
   const [psResults, setPsResults] = useState([]);
   const [psTotal, setPsTotal] = useState(0);
   const [psLoading, setPsLoading] = useState(false);
@@ -630,6 +631,17 @@ export default function MapPage() {
     if (zoneCategories.length === 0) return polygonIncidents;
     return polygonIncidents.filter((i) => activeZoneIds.has(String(i.zone_category_id)));
   }, [polygonIncidents, zoneCategories.length, activeZoneIds]);
+
+  // Drawer list combines points + polygon zones (visiblePolygonIncidents already
+  // respects the Layers zone-category toggles), sorted newest first.
+  const drawerIncidents = useMemo(() => {
+    const points = filteredIncidents.filter((i) => i.geometry_type !== 'polygon');
+    return [...points, ...visiblePolygonIncidents].sort((a, b) => {
+      const aT = new Date(a.created_at || a.createdAt || 0).getTime();
+      const bT = new Date(b.created_at || b.createdAt || 0).getTime();
+      return bT - aT;
+    });
+  }, [filteredIncidents, visiblePolygonIncidents]);
 
   const visibleDomainSlugs = useMemo(
     () => new Set(domains.map((d) => d.slug).filter((slug) => !activeDomainFilters.has(slug))),
@@ -2918,6 +2930,7 @@ export default function MapPage() {
           dateTo: psFilters.dateTo || undefined,
           domainSlugs: psFilters.domainSlugs.length ? psFilters.domainSlugs : undefined,
           categorySlugs: psFilters.categorySlugs.length ? psFilters.categorySlugs : undefined,
+          zoneCategoryIds: psFilters.zoneCategoryIds.length ? psFilters.zoneCategoryIds : undefined,
           severities: psFilters.severities.length ? psFilters.severities : undefined,
           statuses: psFilters.statuses.length ? psFilters.statuses : undefined,
           verificationStatuses: psFilters.verificationStatuses.length ? psFilters.verificationStatuses : undefined,
@@ -2990,7 +3003,7 @@ export default function MapPage() {
   const handleResetPowerSearchFilters = useCallback(() => {
     setPsFilters(DEFAULT_PS_FILTERS);
     setPsQuery('');
-    setPsSort('relevance');
+    setPsSort('newest');
   }, []);
 
   // ─── Keyboard shortcuts: ⌘K palette, ESC layers ───
@@ -3175,7 +3188,8 @@ export default function MapPage() {
               onHideAllDomains={handleHideAllDomains}
               onShowAllZones={handleShowAllZones}
               onHideAllZones={handleHideAllZones}
-              visibleIncidents={filteredIncidents}
+              visibleIncidents={drawerIncidents}
+              selectedIncidentId={selectedIncident?.id || null}
               onSelectIncident={(incident) => handleSelectIncident(incident, { source: 'drawer' })}
               activeIncidents={activeIncidents}
               overdueCount={overdueIncidentCount}
@@ -3957,6 +3971,7 @@ export default function MapPage() {
               savedIds={savedIds}
               domains={psDomains}
               categories={psCategories}
+              selectedIncidentId={selectedIncident?.id || null}
               onSelectIncident={handlePowerSearchSelect}
               onToggleSaved={handleToggleSavedPowerSearch}
               onResetFilters={handleResetPowerSearchFilters}

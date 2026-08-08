@@ -600,9 +600,10 @@ export default function DashboardLayout() {
     verificationStatuses: [],
     sourceTypes: [],
     geometryTypes: [],
+    zoneCategoryIds: [],
     savedOnly: false,
   });
-  const [psSort, setPsSort] = useState('relevance');
+  const [psSort, setPsSort] = useState('newest');
   const [psResults, setPsResults] = useState([]);
   const [psTotal, setPsTotal] = useState(0);
   const [psLoading, setPsLoading] = useState(false);
@@ -827,6 +828,26 @@ export default function DashboardLayout() {
     () => filteredIncidents.filter((i) => i.geometry_type !== 'polygon'),
     [filteredIncidents]
   );
+
+  // Drawer lists combine points + polygon zones (visiblePolygonIncidents
+  // respects the Layers zone-category toggles). Map markers keep points-only.
+  const activeZoneIds = useMemo(
+    () => new Set(zoneCategories.filter((z) => activeZoneSlugs.has(z.slug)).map((z) => String(z.id))),
+    [zoneCategories, activeZoneSlugs]
+  );
+
+  const visiblePolygonIncidents = useMemo(() => {
+    if (!showZones) return [];
+    return polygonIncidents.filter((i) => activeZoneIds.has(String(i.zone_category_id)));
+  }, [polygonIncidents, showZones, activeZoneIds]);
+
+  const drawerIncidents = useMemo(() => {
+    return [...pointIncidents, ...visiblePolygonIncidents].sort((a, b) => {
+      const aT = new Date(a.created_at || a.createdAt || 0).getTime();
+      const bT = new Date(b.created_at || b.createdAt || 0).getTime();
+      return bT - aT;
+    });
+  }, [pointIncidents, visiblePolygonIncidents]);
 
   // Live area readout for the drawing toolbar.
   const polygonAreaText = useMemo(() => {
@@ -2267,6 +2288,7 @@ export default function DashboardLayout() {
           verificationStatuses: psFilters.verificationStatuses.length ? psFilters.verificationStatuses : undefined,
           sourceTypes: psFilters.sourceTypes.length ? psFilters.sourceTypes : undefined,
           geometryTypes: psFilters.geometryTypes.length ? psFilters.geometryTypes : undefined,
+          zoneCategoryIds: psFilters.zoneCategoryIds.length ? psFilters.zoneCategoryIds : undefined,
           savedOnly: psFilters.savedOnly ? true : undefined,
           sort: sortApi,
           limit: PAGE_SIZE,
@@ -2336,8 +2358,10 @@ export default function DashboardLayout() {
       verificationStatuses: [],
       sourceTypes: [],
       geometryTypes: [],
+      zoneCategoryIds: [],
       savedOnly: false,
     });
+    setPsSort('newest');
   }, []);
 
   const handleToggleSavedPowerSearch = useCallback(
@@ -3247,7 +3271,8 @@ export default function DashboardLayout() {
             onShowAllZones={handleShowAllZones}
             onHideAllZones={handleHideAllZones}
             incidents={incidents}
-            visibleIncidents={filteredIncidents}
+            visibleIncidents={drawerIncidents}
+            selectedIncidentId={selectedIncident?.id || null}
             onSelectIncident={(incident) =>
               incident.geometry_type === 'polygon'
                 ? handleZoneClick(incident, { source: 'drawer' })
@@ -3303,6 +3328,8 @@ export default function DashboardLayout() {
             savedIds={savedIds}
             domains={psDomains}
             categories={psCategories}
+            zoneCategories={zoneCategories}
+            selectedIncidentId={selectedIncident?.id || null}
             onSelectIncident={handlePowerSearchSelect}
             onToggleSaved={handleToggleSavedPowerSearch}
             onResetFilters={handleResetPowerSearchFilters}

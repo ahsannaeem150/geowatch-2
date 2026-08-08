@@ -505,9 +505,19 @@ export default function MapPage() {
 
   const visibleIncidents = pointIncidents;
 
+  // Drawer lists combine points + polygon zones (polygonIncidents already
+  // respects the Layers zone-category toggles). Map markers keep points-only.
+  const drawerIncidents = useMemo(() => {
+    return [...pointIncidents, ...polygonIncidents].sort((a, b) => {
+      const aT = new Date(a.created_at || a.createdAt || 0).getTime();
+      const bT = new Date(b.created_at || b.createdAt || 0).getTime();
+      return bT - aT;
+    });
+  }, [pointIncidents, polygonIncidents]);
+
   const activeIncidents = useMemo(() => {
-    return pointIncidents.filter((i) => i.status === 'active');
-  }, [pointIncidents]);
+    return [...pointIncidents, ...polygonIncidents].filter((i) => i.status === 'active');
+  }, [pointIncidents, polygonIncidents]);
 
 
 
@@ -1711,7 +1721,8 @@ export default function MapPage() {
             onHideAllDomains={handleHideAllDomains}
             onShowAllZones={handleShowAllZones}
             onHideAllZones={handleHideAllZones}
-            visibleIncidents={visibleIncidents}
+            visibleIncidents={drawerIncidents}
+            selectedIncidentId={selectedIncident?.id || null}
             onSelectIncident={handleSelectIncident}
             activeIncidents={activeIncidents}
 

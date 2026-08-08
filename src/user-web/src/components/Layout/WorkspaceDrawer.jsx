@@ -175,7 +175,7 @@ function LayerRow({ data, active, theme, onToggle }) {
   );
 }
 
-function IncidentCard({ incident, onClick }) {
+function IncidentCard({ incident, selected, onClick }) {
   const { theme } = useTheme();
   // Polygon incidents (zones) have no domain/category — use the zone category
   const isZone = incident.geometry_type === 'polygon';
@@ -191,8 +191,8 @@ function IncidentCard({ incident, onClick }) {
         display: 'flex',
         gap: 'calc(10px * var(--admin-ui-scale))',
         padding: 'calc(10px * var(--admin-ui-scale))',
-        background: 'var(--bg-input)',
-        border: '1px solid var(--border-default)',
+        background: selected ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
+        border: `1px solid ${selected ? 'var(--accent-light)' : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
         cursor: 'pointer',
@@ -202,10 +202,12 @@ function IncidentCard({ incident, onClick }) {
         marginBottom: 'calc(8px * var(--admin-ui-scale))',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--accent-light)';
+        if (selected) return;
+        e.currentTarget.style.borderColor = 'var(--border-hover)';
         e.currentTarget.style.background = 'var(--bg-hover)';
       }}
       onMouseLeave={(e) => {
+        if (selected) return;
         e.currentTarget.style.borderColor = 'var(--border-default)';
         e.currentTarget.style.background = 'var(--bg-input)';
       }}
@@ -214,7 +216,7 @@ function IncidentCard({ incident, onClick }) {
         style={{
           width: 'calc(2px * var(--admin-ui-scale))',
           borderRadius: '2px',
-          background: categoryColor,
+          background: selected ? 'var(--accent-light)' : categoryColor,
           flexShrink: 0,
           alignSelf: 'stretch',
           marginLeft: '-11px',
@@ -271,7 +273,7 @@ function IncidentCard({ incident, onClick }) {
   );
 }
 
-function ActiveRow({ incident, now, onOpen }) {
+function ActiveRow({ incident, selected, now, onOpen }) {
   const { theme } = useTheme();
   // Polygon incidents (zones) have no domain/category — use the zone category
   const isZone = incident.geometry_type === 'polygon';
@@ -287,8 +289,8 @@ function ActiveRow({ incident, now, onOpen }) {
         display: 'flex',
         gap: 'calc(10px * var(--admin-ui-scale))',
         padding: 'calc(10px * var(--admin-ui-scale))',
-        background: 'var(--bg-input)',
-        border: '1px solid var(--border-default)',
+        background: selected ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
+        border: `1px solid ${selected ? 'var(--accent-light)' : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
         flexShrink: 0,
@@ -299,7 +301,7 @@ function ActiveRow({ incident, now, onOpen }) {
         style={{
           width: 'calc(2px * var(--admin-ui-scale))',
           borderRadius: '2px',
-          background: categoryColor,
+          background: selected ? 'var(--accent-light)' : categoryColor,
           flexShrink: 0,
           alignSelf: 'stretch',
           marginLeft: '-11px',
@@ -438,7 +440,7 @@ function PlusIcon(props) {
   );
 }
 
-function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
+function ActivityRow({ event, activityLastSeenAt, selected, onSelectIncident }) {
   const isUnseen = event.timestamp > activityLastSeenAt;
   const meta = ActivityMeta(event.type);
   const Icon = meta.icon;
@@ -451,22 +453,26 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
         alignItems: 'center',
         gap: 'calc(12px * var(--admin-ui-scale))',
         padding: 'calc(10px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale))',
-        background: isUnseen ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
+        background: selected || isUnseen ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
         borderWidth: '1px 1px 1px 3px',
         borderStyle: 'solid',
-        borderColor: `var(--border-default) var(--border-default) var(--border-default) ${isUnseen ? meta.color : 'var(--border-default)'}`,
+        borderColor: selected
+          ? 'var(--accent-light)'
+          : `var(--border-default) var(--border-default) var(--border-default) ${isUnseen ? meta.color : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
         transition: 'all 0.15s ease',
         cursor: event.incidentId ? 'pointer' : 'default',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderTopColor = 'var(--accent-light)';
-        e.currentTarget.style.borderRightColor = 'var(--accent-light)';
-        e.currentTarget.style.borderBottomColor = 'var(--accent-light)';
+        if (selected) return;
+        e.currentTarget.style.borderTopColor = 'var(--border-hover)';
+        e.currentTarget.style.borderRightColor = 'var(--border-hover)';
+        e.currentTarget.style.borderBottomColor = 'var(--border-hover)';
         e.currentTarget.style.background = 'var(--bg-hover)';
       }}
       onMouseLeave={(e) => {
+        if (selected) return;
         e.currentTarget.style.borderTopColor = 'var(--border-default)';
         e.currentTarget.style.borderRightColor = 'var(--border-default)';
         e.currentTarget.style.borderBottomColor = 'var(--border-default)';
@@ -529,7 +535,7 @@ function ActivityRow({ event, activityLastSeenAt, onSelectIncident }) {
   );
 }
 
-function SavedRow({ incident, onOpen, onUnsave }) {
+function SavedRow({ incident, selected, onOpen, onUnsave }) {
   const { theme } = useTheme();
   // Saved rows can be polygon zones: those carry no domain/category — label
   // them from the zone category (and its color) instead of falling to 'Unknown'.
@@ -547,8 +553,8 @@ function SavedRow({ incident, onOpen, onUnsave }) {
         display: 'flex',
         gap: 'calc(10px * var(--admin-ui-scale))',
         padding: 'calc(10px * var(--admin-ui-scale))',
-        background: 'var(--bg-input)',
-        border: '1px solid var(--border-default)',
+        background: selected ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
+        border: `1px solid ${selected ? 'var(--accent-light)' : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-sm)',
         overflow: 'hidden',
@@ -559,7 +565,7 @@ function SavedRow({ incident, onOpen, onUnsave }) {
         style={{
           width: 'calc(2px * var(--admin-ui-scale))',
           borderRadius: '2px',
-          background: categoryColor,
+          background: selected ? 'var(--accent-light)' : categoryColor,
           flexShrink: 0,
           alignSelf: 'stretch',
           marginLeft: '-11px',
@@ -718,7 +724,7 @@ function LayersDrawer({
   );
 }
 
-function IncidentsDrawer({ visibleIncidents, onSelectIncident }) {
+function IncidentsDrawer({ visibleIncidents, selectedIncidentId, onSelectIncident }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: 'calc(12px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale)) 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -730,16 +736,16 @@ function IncidentsDrawer({ visibleIncidents, onSelectIncident }) {
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale)) calc(18px * var(--admin-ui-scale))' }}>
         {visibleIncidents.length === 0 ? (
-          <EmptyState icon={AlertCircle} title="No incidents visible." />
+          <EmptyState icon={AlertCircle} title="No incidents or zones in view." />
         ) : (
-          visibleIncidents.map((incident) => <IncidentCard key={incident.id} incident={incident} onClick={onSelectIncident} />)
+          visibleIncidents.map((incident) => <IncidentCard key={incident.id} incident={incident} selected={incident.id === selectedIncidentId} onClick={onSelectIncident} />)
         )}
       </div>
     </div>
   );
 }
 
-function ActiveDrawer({ activeIncidents, now, onSelectIncident }) {
+function ActiveDrawer({ activeIncidents, selectedIncidentId, now, onSelectIncident }) {
   const sorted = [...activeIncidents].sort((a, b) => {
     const aT = a.created_at || a.createdAt;
     const bT = b.created_at || b.createdAt;
@@ -771,12 +777,13 @@ function ActiveDrawer({ activeIncidents, now, onSelectIncident }) {
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
         {sorted.length === 0 ? (
-          <EmptyState icon={CheckCircle2} title="No active incidents." />
+          <EmptyState icon={CheckCircle2} title="No active incidents or zones." />
         ) : (
           sorted.map((incident) => (
             <ActiveRow
               key={incident.id}
               incident={incident}
+              selected={incident.id === selectedIncidentId}
               now={now}
               onOpen={onSelectIncident}
             />
@@ -787,7 +794,7 @@ function ActiveDrawer({ activeIncidents, now, onSelectIncident }) {
   );
 }
 
-function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen, onSelectActivityIncident }) {
+function ActivityDrawer({ activities, activityLastSeenAt, selectedIncidentId, onMarkAllActivitySeen, onSelectActivityIncident }) {
   const unreadCount = activities.filter((a) => a.timestamp > activityLastSeenAt).length;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -839,6 +846,7 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
               key={`${event.type}-${event.timestamp}-${event.incidentId || Math.random()}`}
               event={event}
               activityLastSeenAt={activityLastSeenAt}
+              selected={event.incidentId != null && event.incidentId === selectedIncidentId}
               onSelectIncident={onSelectActivityIncident}
             />
           ))
@@ -848,7 +856,7 @@ function ActivityDrawer({ activities, activityLastSeenAt, onMarkAllActivitySeen,
   );
 }
 
-function SavedDrawer({ savedIncidents, onSelectSavedIncident, onUnsaveIncident }) {
+function SavedDrawer({ savedIncidents, selectedIncidentId, onSelectSavedIncident, onUnsaveIncident }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))', borderBottom: '1px solid var(--border-default)' }}>
@@ -871,7 +879,7 @@ function SavedDrawer({ savedIncidents, onSelectSavedIncident, onUnsaveIncident }
           </EmptyState>
         ) : (
           savedIncidents.map((incident) => (
-            <SavedRow key={incident.id} incident={incident} onOpen={onSelectSavedIncident} onUnsave={onUnsaveIncident} />
+            <SavedRow key={incident.id} incident={incident} selected={incident.id === selectedIncidentId} onOpen={onSelectSavedIncident} onUnsave={onUnsaveIncident} />
           ))
         )}
       </div>
@@ -1178,7 +1186,7 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabl
 
 const drawerTitles = {
   layers: 'Map Layers',
-  incidents: 'Incidents in Viewport',
+  incidents: 'In Viewport',
   active: 'Active Incidents',
   activity: 'Live Activity',
   saved: 'Saved',
@@ -1197,11 +1205,12 @@ export default function WorkspaceDrawer(props) {
       case 'layers':
         return <LayersDrawer {...props} />;
       case 'incidents':
-        return <IncidentsDrawer visibleIncidents={props.visibleIncidents} onSelectIncident={props.onSelectIncident} />;
+        return <IncidentsDrawer visibleIncidents={props.visibleIncidents} selectedIncidentId={props.selectedIncidentId} onSelectIncident={props.onSelectIncident} />;
       case 'active':
         return (
           <ActiveDrawer
             activeIncidents={props.activeIncidents}
+            selectedIncidentId={props.selectedIncidentId}
             now={now}
             onSelectIncident={props.onSelectIncident}
           />
@@ -1211,6 +1220,7 @@ export default function WorkspaceDrawer(props) {
           <ActivityDrawer
             activities={props.activities}
             activityLastSeenAt={props.activityLastSeenAt}
+            selectedIncidentId={props.selectedIncidentId}
             onMarkAllActivitySeen={props.onMarkAllActivitySeen}
             onSelectActivityIncident={props.onSelectActivityIncident}
           />
@@ -1219,6 +1229,7 @@ export default function WorkspaceDrawer(props) {
         return (
           <SavedDrawer
             savedIncidents={props.savedIncidents}
+            selectedIncidentId={props.selectedIncidentId}
             onSelectSavedIncident={props.onSelectSavedIncident}
             onUnsaveIncident={props.onUnsaveIncident}
           />
