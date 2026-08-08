@@ -8,6 +8,10 @@ import '@shared/styles/table-chips.css';
 import { ThemeProvider } from '@shared/theme-context.jsx';
 import { PublicAuthProvider } from './contexts/PublicAuthContext.jsx';
 import { SignInModalProvider } from './contexts/SignInModalContext.jsx';
+import { applyTokenPreview } from '@shared/utils/themePreview.js';
+
+// Token preview (?tokens= / sessionStorage) — must run before first paint
+applyTokenPreview();
 
 // Apply the persisted reduce-motion preference before first paint
 try {

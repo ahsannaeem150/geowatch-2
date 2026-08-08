@@ -9,6 +9,7 @@ import {
   Hexagon,
   Activity,
   Download,
+  Palette,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { path: '/superadmin/zone-categories', label: 'Zone Categories', icon: Hexagon },
   { path: '/superadmin/system', label: 'System', icon: Activity },
   { path: '/superadmin/export', label: 'Export', icon: Download },
+  { path: '/superadmin/theme-lab', label: 'Theme Lab', icon: Palette },
   { path: '/superadmin/x-archive-debug', label: 'X Archive Debug', icon: Archive },
 ];
 

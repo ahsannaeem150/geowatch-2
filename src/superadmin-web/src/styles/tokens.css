@@ -24,11 +24,11 @@
   --primary-glow: var(--navy-400);
 
   /* Superadmin accent — referenced by shared incident-detail styles
-     (indigo accent for the superadmin console context) */
-  --sa-accent: #6366f1;
-  --sa-accent-light: #818cf8;
-  --sa-accent-glow: rgba(99, 102, 241, 0.25);
-  --sa-accent-strong: rgba(99, 102, 241, 0.55);
+     (synced to the turquoise brand accent) */
+  --sa-accent: #0e4f4a;
+  --sa-accent-light: #14b8a6;
+  --sa-accent-glow: rgba(20, 184, 166, 0.25);
+  --sa-accent-strong: rgba(20, 184, 166, 0.55);
 
   /* Background layers */
   --bg-deep: #05050a;

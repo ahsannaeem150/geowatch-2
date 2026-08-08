@@ -241,8 +241,7 @@ export default function TopBar({
               height: '28px',
               flexShrink: 0,
               borderRadius: 'var(--radius-md)',
-              // Logo blue (--brand-1 #22d3ee) — moves to a token in the colors phase.
-              filter: 'drop-shadow(0 0 6px rgba(34, 211, 238, 0.45))',
+              filter: 'drop-shadow(0 0 6px var(--accent-glow-strong))',
             }}
           />
           <h1

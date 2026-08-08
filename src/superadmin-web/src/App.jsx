@@ -13,6 +13,7 @@ import DomainsPage from './pages/DomainsPage.jsx';
 import ZoneCategoriesPage from './pages/ZoneCategoriesPage.jsx';
 import SystemPage from './pages/SystemPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
+import ThemeLabPage from './pages/ThemeLabPage.jsx';
 import RecycleBinPage from './pages/RecycleBinPage.jsx';
 import XArchiveDebugPage from './pages/XArchiveDebugPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
@@ -138,6 +139,7 @@ function AppRoutes() {
           <Route path="/superadmin/zone-categories" element={<ZoneCategoriesPage />} />
           <Route path="/superadmin/system" element={<SystemPage />} />
           <Route path="/superadmin/export" element={<ExportPage />} />
+          <Route path="/superadmin/theme-lab" element={<ThemeLabPage />} />
           <Route path="/superadmin/recycle-bin" element={<RecycleBinPage />} />
           <Route path="/superadmin/x-archive-debug" element={<XArchiveDebugPage />} />
         </Route>
@@ -163,6 +165,7 @@ const ROUTE_TITLES = [
   { match: /^\/superadmin\/zone-categories$/, title: 'Zone Categories — Superadmin' },
   { match: /^\/superadmin\/system$/, title: 'System — Superadmin' },
   { match: /^\/superadmin\/export$/, title: 'Export — Superadmin' },
+  { match: /^\/superadmin\/theme-lab$/, title: 'Theme Lab — Superadmin' },
   { match: /^\/superadmin\/recycle-bin$/, title: 'Recycle Bin — Superadmin' },
   { match: /^\/superadmin\/incident\//, title: 'Incident — Superadmin' },
   { match: /^\/superadmin\/zone\//, title: 'Zone — Superadmin' },

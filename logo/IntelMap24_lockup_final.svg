@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="437" height="109" viewBox="0 0 437 109">
 <style>
 :root{
-  --text:#0f172a;   /* wordmark "IntelMap" — dark slate for light backgrounds */
-  --brand-1:#0e4f4a;/* "24" gradient start */
-  --brand-2:#14b8a6;/* "24" gradient end   */
-  --alert:#0f172a;  /* live blip dot        */
-  --muted:#64748b;  /* tagline              */
+  --text:#f8fafc;   /* wordmark "IntelMap" */
+  --brand-1:#22d3ee;/* "24" gradient start */
+  --brand-2:#0284c7;/* "24" gradient end   */
+  --alert:#f87171;  /* live blip dot        */
+  --muted:#94a3b8;  /* tagline              */
   --bg:#0b1424;     /* favicon tile bg      */
 }
 </style>

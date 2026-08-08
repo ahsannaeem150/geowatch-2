@@ -120,7 +120,7 @@ export default function WorkspaceTopBar({
               height: 'calc(32px * var(--admin-ui-scale))',
               flexShrink: 0,
               borderRadius: 'var(--radius-md)',
-              filter: 'drop-shadow(0 0 6px rgba(34, 211, 238, 0.45))',
+              filter: 'drop-shadow(0 0 6px var(--accent-glow-strong))',
             }}
           />
           <span

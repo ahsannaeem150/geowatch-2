@@ -12767,3 +12767,27 @@ style: red blip removed from favicon (invisible at tab sizes anyway) — clean c
 ## 📅 2026-08-08 — Module: admin-web + superadmin-web — Logo port
 
 feat: IntelMap24 logo ported to admin + superadmin (9 brand assets + BrandLogo component per app, verbatim from user-web finals). admin: favicon links, map WorkspaceTopBar mark 32px + blue glow (text kept), Layout TopBar mark 28px, LoginPage full lockup above heading. superadmin: favicon links, map topbar mark + glow, IncidentsPage/ZonesPage tui-brand-mark tiles → BrandLogo mark 24px; console Sidebar + LoginPage split IntelMap/24 text kept (console identity). Both builds green. Reminder recorded in AGENTS.md: recolor brand SVGs via internal vars when final colors land.
+
+## 📅 2026-08-08 — Module: superadmin-web + shared — Theme Lab color playground
+
+feat: new /superadmin/theme-lab page — dark/light base pickers with derived-ramp recipes mirroring design-tokens.css, per-token advanced overrides, 5 presets (Crimson/Logo Blue/Emerald/Amber/Violet), live whole-app preview, component preview panel, cross-app preview links (?tokens= base64url), Finalize export panel (literal CSS blocks + --sa-accent ramp + logo var suggestions). Shared utils/themePreview.js boot snippet in all 3 main.jsx — applies URL/session token overrides + floating "THEME PREVIEW" badge with clear. Drafts persist in localStorage. Screenshots: temp_screenshots/theme-lab/ (blue preset verified applying across apps, severity/verification untouched). All builds green.
+
+## 📅 2026-08-08 — Module: superadmin-web — Theme Lab presets expansion
+
+feat: 8 new Theme Lab presets (13 total) — template-derived from owner's references: Mint Slate, Glacier Blue, Dusty Rose, Orchid Purple, Midnight Navy; tactical picks: Radar Green, Signal Orange, Steel Mono. Hover tooltips note each inspiration. Screenshots: temp_screenshots/theme-lab/4-5. Build green.
+
+## 📅 2026-08-08 — Module: superadmin-web — Pure Mono preset
+
+feat: Theme Lab 14th preset — Pure Mono (#0a0a0a/#f5f5f5, zero-hue black & white). Build green.
+
+## 📅 2026-08-08 — Module: superadmin-web — Dark-shade Theme Lab presets
+
+feat: 6 more presets (20 total) — deep-shaded pairs in the crimson spirit (both shades dark, work on both themes): Deep Navy, Petrol Teal, Deep Forest, Deep Plum, Deep Bronze, Ink Slate. Build green.
+
+## 📅 2026-08-08 — Module: superadmin-web — 6 more Theme Lab presets
+
+feat: presets now 26 total — Lilac, Lavender, Burgundy, Pine Green, Olive, Turquoise (deep-shade tuned). Build green.
+
+## 📅 2026-08-08 — Module: all — Turquoise rebrand applied (FINAL colors)
+
+feat/style: owner-selected Turquoise (#0e4f4a/#14b8a6) applied everywhere. design-tokens.css BRAND ACCENT blocks (dark+light) now turquoise with derived tints/glows/gradients; superadmin --sa-accent* synced (indigo ramp gone, navy console palette kept). Brand SVGs recolored via internal vars: favicon black tile + turquoise 24 + white dot (dot re-added), mark same, lockups gradient turquoise with theme-matched dots (dark #f8fafc / light #0f172a). Topbar mark glows now tokenized (var(--accent-glow-strong), cyan rgba gone). Favicon PNGs regenerated, links ?v=6. All builds green. Rebrand complete: name + logo + colors.

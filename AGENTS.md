@@ -93,7 +93,7 @@ geowatch/
 
 Each frontend imports shared code through the `@shared` Vite alias (`resolve.alias` in each `vite.config.js`).
 
-- `design-tokens.css` — Dark-first CSS variable system (Crimson Seal theme) with light-mode overrides via `[data-theme="light"]`: display scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), `--font-longform` (Inter) for long-form prose, keyboard-only `:focus-visible` rings, reduced-motion suppression (media query + `.reduce-motion` class), `--border-strong`.
+- `design-tokens.css` — Dark-first CSS variable system (Turquoise theme) with light-mode overrides via `[data-theme="light"]`: display scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), `--font-longform` (Inter) for long-form prose, keyboard-only `:focus-visible` rings, reduced-motion suppression (media query + `.reduce-motion` class), `--border-strong`.
 - `constants.js` — Severity scale, event statuses, source types, user roles, verification statuses, API base URL, Martin URL.
 - `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
 - `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`, `CategoryMultiSelect`, `WorkspaceRail`. `command-palette/` — shared ⌘K palette (backend-fed, per-app actions; all three apps).
