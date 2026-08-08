@@ -31,14 +31,14 @@ export default function ParticleCanvas() {
 
     // Canvas can't resolve var(); snapshot the accent color's RGB channels once
     // at mount. A theme toggle won't re-read this until reload — acceptable.
-    const accentHex = getCssVar('--accent-light', '#9f1239');
+    const accentHex = getCssVar('--accent-light', '#14b8a6');
     const accentMatch = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(accentHex.trim());
     const accentRGB = accentMatch
       ? `${parseInt(accentMatch[1], 16)}, ${parseInt(accentMatch[2], 16)}, ${parseInt(accentMatch[3], 16)}`
-      : '159, 18, 57';
+      : '20, 184, 166';
 
     // Particle dot fill — same var() limitation; snapshot once at mount.
-    const particleFill = getCssVar('--accent-subtle-border', 'rgba(159, 18, 57, 0.25)');
+    const particleFill = getCssVar('--accent-subtle-border', 'rgba(20, 184, 166, 0.25)');
 
     class Particle {
       constructor() {

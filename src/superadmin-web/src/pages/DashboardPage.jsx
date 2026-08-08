@@ -209,16 +209,16 @@ export default function DashboardPage() {
               gap: 6,
               padding: '8px 14px',
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-default)',
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
+              border: 'none',
+              background: 'var(--sa-accent)',
+              color: '#fff',
               fontSize: 13,
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--sa-accent-light)'; e.currentTarget.style.boxShadow = '0 4px 14px var(--sa-accent-glow)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--sa-accent)'; e.currentTarget.style.boxShadow = 'none'; }}
           >
             <UserPlus size={15} />
             Create user
@@ -231,16 +231,16 @@ export default function DashboardPage() {
               gap: 6,
               padding: '8px 14px',
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-default)',
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
+              border: 'none',
+              background: 'var(--sa-accent)',
+              color: '#fff',
               fontSize: 13,
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--sa-accent-light)'; e.currentTarget.style.boxShadow = '0 4px 14px var(--sa-accent-glow)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--sa-accent)'; e.currentTarget.style.boxShadow = 'none'; }}
           >
             <Download size={15} />
             Export
@@ -275,7 +275,7 @@ export default function DashboardPage() {
           label="Total Users"
           value={metrics.totalUsers}
           icon={Users}
-          color="var(--navy-400)"
+          color="var(--sa-accent-light)"
           loading={loading}
           onClick={() => navigate('/superadmin/users')}
         />

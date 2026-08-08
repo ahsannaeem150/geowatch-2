@@ -61,13 +61,13 @@ export default function ZoneCategoriesPage() {
             padding: '10px 18px',
             borderRadius: 'var(--radius-sm)',
             border: 'none',
-            background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+            background: 'var(--sa-accent)',
             color: '#fff',
             fontSize: 14,
             fontWeight: 600,
             fontFamily: 'var(--font-sans)',
             cursor: 'pointer',
-            boxShadow: '0 4px 14px var(--alert-info-border)',
+            boxShadow: '0 4px 14px var(--sa-accent-glow)',
           }}
         >
           <Plus size={16} /> New Zone Category
@@ -96,9 +96,9 @@ export default function ZoneCategoriesPage() {
             style={{
               padding: '10px 18px',
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-default)',
-              background: 'var(--bg-hover)',
-              color: 'var(--text-primary)',
+              border: 'none',
+              background: 'var(--sa-accent)',
+              color: '#fff',
               fontSize: 14,
               fontWeight: 600,
               cursor: 'pointer',

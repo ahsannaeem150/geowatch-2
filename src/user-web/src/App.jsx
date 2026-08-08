@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from './components/Layout/Header.jsx';
@@ -11,13 +11,17 @@ import ZonesPage from './pages/ZonesPage.jsx';
 import IncidentDetailPage from './components/IncidentDetail/IncidentDetailPage.jsx';
 import ZoneDetailPage from './pages/ZoneDetailPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
-import ZoneTrialSidebarPage from './pages/ZoneTrialSidebarPage.jsx';
-import ZoneTrialLayoutB from './pages/ZoneTrialLayoutB.jsx';
-import ZoneTrialMeterPage from './pages/ZoneTrialMeterPage.jsx';
-import ZoneStylesTrialPage from './pages/ZoneStylesTrialPage.jsx';
-import ZoneHeroesTrialPage from './pages/ZoneHeroesTrialPage.jsx';
-import ZoneSidebarAnimationTrialPage from './pages/ZoneSidebarAnimationTrialPage.jsx';
-import ZoneTrialCreatePage from './pages/ZoneTrialCreatePage.jsx';
+
+// Trial pages are lazy-loaded so Vite code-splits their local CSS with the
+// chunk: stale trial styles only load on /trial/* and can't leak global class
+// overrides (e.g. .zone-btn--primary) into production pages.
+const ZoneTrialSidebarPage = lazy(() => import('./pages/ZoneTrialSidebarPage.jsx'));
+const ZoneTrialLayoutB = lazy(() => import('./pages/ZoneTrialLayoutB.jsx'));
+const ZoneTrialMeterPage = lazy(() => import('./pages/ZoneTrialMeterPage.jsx'));
+const ZoneStylesTrialPage = lazy(() => import('./pages/ZoneStylesTrialPage.jsx'));
+const ZoneHeroesTrialPage = lazy(() => import('./pages/ZoneHeroesTrialPage.jsx'));
+const ZoneSidebarAnimationTrialPage = lazy(() => import('./pages/ZoneSidebarAnimationTrialPage.jsx'));
+const ZoneTrialCreatePage = lazy(() => import('./pages/ZoneTrialCreatePage.jsx'));
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -73,23 +77,25 @@ function AnimatedRoutes() {
         transition={pageTransition}
         style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
       >
-        <Routes location={location}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/incidents" element={<IncidentsPage />} />
-          <Route path="/zones" element={<ZonesPage />} />
-          <Route path="/incident/:id" element={<IncidentDetailPage />} />
-          <Route path="/zone/:id" element={<ZoneDetailPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/trial/zone-sidebar" element={<ZoneTrialSidebarPage />} />
-          <Route path="/trial/zone" element={<ZoneTrialLayoutB />} />
-          <Route path="/trial/zone-meter" element={<ZoneTrialMeterPage />} />
-          <Route path="/trial/zone-styles" element={<ZoneStylesTrialPage />} />
-          <Route path="/trial/zone-heroes" element={<ZoneHeroesTrialPage />} />
-          <Route path="/trial/zone-sidebar-animations" element={<ZoneSidebarAnimationTrialPage />} />
-          <Route path="/trial/zone-create" element={<ZoneTrialCreatePage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <Suspense fallback={null}>
+          <Routes location={location}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/incidents" element={<IncidentsPage />} />
+            <Route path="/zones" element={<ZonesPage />} />
+            <Route path="/incident/:id" element={<IncidentDetailPage />} />
+            <Route path="/zone/:id" element={<ZoneDetailPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/trial/zone-sidebar" element={<ZoneTrialSidebarPage />} />
+            <Route path="/trial/zone" element={<ZoneTrialLayoutB />} />
+            <Route path="/trial/zone-meter" element={<ZoneTrialMeterPage />} />
+            <Route path="/trial/zone-styles" element={<ZoneStylesTrialPage />} />
+            <Route path="/trial/zone-heroes" element={<ZoneHeroesTrialPage />} />
+            <Route path="/trial/zone-sidebar-animations" element={<ZoneSidebarAnimationTrialPage />} />
+            <Route path="/trial/zone-create" element={<ZoneTrialCreatePage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
       </motion.div>
     </AnimatePresence>
   );

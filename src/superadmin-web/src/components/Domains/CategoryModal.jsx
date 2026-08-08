@@ -256,14 +256,14 @@ export default function CategoryModal({ category, domains, onClose, onSaved }) {
               padding: '12px',
               borderRadius: 'var(--radius-sm)',
               border: 'none',
-              background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+              background: 'var(--sa-accent)',
               color: '#fff',
               fontSize: 14,
               fontWeight: 600,
               fontFamily: 'var(--font-sans)',
               cursor: isLoading || schemaError ? 'not-allowed' : 'pointer',
               opacity: isLoading || schemaError ? 0.7 : 1,
-              boxShadow: '0 4px 14px var(--alert-info-border)',
+              boxShadow: '0 4px 14px var(--sa-accent-glow)',
             }}
           >
             {isLoading ? 'Saving…' : isEdit ? 'Update Category' : 'Create Category'}

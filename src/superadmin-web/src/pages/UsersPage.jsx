@@ -197,16 +197,16 @@ export default function UsersPage() {
             padding: '10px 18px',
             borderRadius: 'var(--radius-sm)',
             border: 'none',
-            background: 'linear-gradient(135deg, var(--navy-600), var(--navy-700))',
+            background: 'var(--sa-accent)',
             color: '#fff',
             fontSize: 13,
             fontWeight: 600,
             cursor: 'pointer',
             fontFamily: 'var(--font-sans)',
-            boxShadow: '0 4px 14px var(--alert-info-border)',
+            boxShadow: '0 4px 14px var(--sa-accent-glow)',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.4)')}
-          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = '0 4px 14px var(--alert-info-border)')}
+          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 6px 20px var(--sa-accent-strong)')}
+          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = '0 4px 14px var(--sa-accent-glow)')}
         >
           <Plus size={16} />
           Create user
