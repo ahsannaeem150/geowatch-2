@@ -12715,3 +12715,7 @@ feat/style: superadmin — full drawer overhaul ported from admin (WorkspaceDraw
 ## 📅 2026-08-08 — Module: shared — Verification UI consistency + zone drawer offset fix
 
 feat/fix: instant-change verification dropdowns removed from zone timeline cards (they were silently broken — wrong payload key) and from the incident update drawer; verification status is now a read-only badge everywhere (zone cards + zone evidence drawer + incident drawer), changeable only via the Edit Update forms (field already existed both sides). Zone evidence drawer CSS fixed — trial chrome `top: 56px` + `max-width: 630px` leaked into production; now absolute-anchored flush full-height in the sidebar like the incident drawer. Shared-only change, propagates to all three apps; no per-app handler changes needed. All builds green.
+
+## 📅 2026-08-08 — Module: shared — Timeline card action parity (zone + incident)
+
+feat/fix: incident timeline cards (Update + InitialReport) now carry admin-only mini pencil/trash icons (EventModal edit, confirm+delete, stopPropagation'd) matching zone card style; zone cards: verification badge now visible to all users (icons stay admin-gated), Inspect ghost button always available (was evidence-only), click cursor unconditional; incident drawer delete now confirms + closes drawer (was stale-open); zone evidence rail header badge unified to incident style. Shared-only — propagates to all three apps. All builds green.

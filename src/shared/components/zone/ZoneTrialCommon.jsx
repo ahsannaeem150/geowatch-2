@@ -788,7 +788,7 @@ export function TimelineEvent({
         {!isLast && <div className="zone-timeline-event__stem" />}
       </div>
       <div
-        className={`zone-timeline-event__content ${hasEvidence || isRail ? 'zone-timeline-event--clickable' : ''} ${
+        className={`zone-timeline-event__content zone-timeline-event--clickable ${
           isActive ? 'zone-timeline-event--active' : ''
         } ${isRail ? 'zone-timeline-event--rail' : ''}`}
         onClick={() => onOpenEvidence?.(event)}
@@ -832,9 +832,12 @@ export function TimelineEvent({
         )}
 
         {!isAdmin && (
-          <div className="zone-timeline-event__date">
-            <Calendar size={12} />
-            {format(new Date(event.updateDate), 'MMM d, h:mm a')}
+          <div className="zone-timeline-event__top">
+            <div className="zone-timeline-event__date">
+              <Calendar size={12} />
+              {format(new Date(event.updateDate), 'MMM d, h:mm a')}
+            </div>
+            <IncidentVerificationBadge status={event.verificationStatus || event.verification} />
           </div>
         )}
 
@@ -851,7 +854,7 @@ export function TimelineEvent({
             onOpenDrawer={onOpenEvidence}
           />
         )}
-        {!isRail && !featured && hasEvidence && (
+        {!isRail && !featured && (
           <ZoneTwitterMediaGrid
             sources={event.sources}
             onMediaClick={(items, idx) => setLightbox({ items, idx })}
@@ -905,7 +908,7 @@ export function ZoneEvidenceRail({
               {format(new Date(event.updateDate), 'MMM d, h:mm a')} · {total} evidence items
             </div>
           </div>
-          <VerificationBadge status={event.verificationStatus || 'unverified'} />
+          <IncidentVerificationBadge status={event.verificationStatus || 'unverified'} />
         </div>
 
         {featured && (

@@ -786,10 +786,13 @@ function TwitterMediaGrid({ sources, onMediaClick, onOpenDrawer }) {
   );
 }
 
-function InitialReportCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
+function InitialReportCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox, onEditEvent, onDeleteEvent }) {
   return (
     <div className="id-latest" onClick={() => onOpenDrawer(event, 'all')}>
-      <UpdateHeader event={event} />
+      <UpdateHeader
+        event={event}
+        actions={isAdmin ? <UpdateAdminActions event={event} onEdit={onEditEvent} onDelete={onDeleteEvent} /> : null}
+      />
       <h3 className="id-update-card__title">{event.summary}</h3>
       <p className="id-update-card__text">{event.details}</p>
       {isAdmin && !featuredItem && <FeatureTrigger event={event} onSetFeature={onSetFeature} />}
@@ -809,11 +812,14 @@ function InitialReportCard({ event, isAdmin, featuredItem, onSetFeature, onClear
   );
 }
 
-function UpdateCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox }) {
+function UpdateCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature, onOpenDrawer, onOpenLightbox, onEditEvent, onDeleteEvent }) {
   return (
     <div className="id-update-card" onClick={() => onOpenDrawer(event, 'all')}>
       <div className="id-update-card__body">
-        <UpdateHeader event={event} />
+        <UpdateHeader
+          event={event}
+          actions={isAdmin ? <UpdateAdminActions event={event} onEdit={onEditEvent} onDelete={onDeleteEvent} /> : null}
+        />
         <h3 className="id-update-card__title">{event.summary}</h3>
         <p className="id-update-card__text">
           {event.details?.length > 130 ? event.details.slice(0, 130) + '…' : event.details}
@@ -833,6 +839,37 @@ function UpdateCard({ event, isAdmin, featuredItem, onSetFeature, onClearFeature
         )}
       </div>
     </div>
+  );
+}
+
+function UpdateAdminActions({ event, onEdit, onDelete }) {
+  return (
+    <>
+      <button
+        type="button"
+        className="id-icon-btn"
+        title="Edit"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit?.(event);
+        }}
+      >
+        {Icons.edit}
+      </button>
+      <button
+        type="button"
+        className="id-icon-btn id-icon-btn--danger"
+        title="Delete"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (window.confirm('Delete this update? This cannot be undone.')) {
+            onDelete?.(event.id);
+          }
+        }}
+      >
+        {Icons.trash}
+      </button>
+    </>
   );
 }
 
@@ -1178,6 +1215,8 @@ export default function IncidentDetailSidebar({
                   onClearFeature={() => clearFeaturedItem(initialReport.id)}
                   onOpenDrawer={openDrawer}
                   onOpenLightbox={openLightbox}
+                  onEditEvent={(ev) => setModal({ type: 'event', event: ev })}
+                  onDeleteEvent={onDeleteUpdate}
                 />
               </TimelineItem>
             </>
@@ -1194,6 +1233,8 @@ export default function IncidentDetailSidebar({
                 onClearFeature={() => clearFeaturedItem(event.id)}
                 onOpenDrawer={openDrawer}
                 onOpenLightbox={openLightbox}
+                onEditEvent={(ev) => setModal({ type: 'event', event: ev })}
+                onDeleteEvent={onDeleteUpdate}
               />
             </TimelineItem>
           ))}
@@ -1246,7 +1287,12 @@ export default function IncidentDetailSidebar({
                   <button
                     type="button"
                     className="id-drawer-admin__btn id-drawer-admin__btn--danger"
-                    onClick={() => onDeleteUpdate?.(drawerEvent.id)}
+                    onClick={() => {
+                      if (window.confirm('Delete this update? This cannot be undone.')) {
+                        onDeleteUpdate?.(drawerEvent.id);
+                        closeDrawer();
+                      }
+                    }}
                     disabled={isReadOnly}
                   >
                     {Icons.trash} Delete

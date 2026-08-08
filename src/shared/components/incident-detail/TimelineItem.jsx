@@ -17,7 +17,7 @@ export function TimelineItem({ event, index, total, children }) {
   );
 }
 
-export function UpdateHeader({ event }) {
+export function UpdateHeader({ event, actions = null }) {
   const typeColor = event.type === 'report' ? 'var(--accent-light)' : 'var(--text-muted)';
   const typeLabel = event.type === 'report' ? 'Initial report' : 'Update';
   return (
@@ -39,8 +39,9 @@ export function UpdateHeader({ event }) {
       <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
         · {relativeTime(event.timestamp || event.updateDate)}
       </span>
-      <span style={{ marginLeft: 'auto' }}>
+      <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <VerificationBadge status={event.verification || event.verificationStatus} />
+        {actions}
       </span>
     </div>
   );
