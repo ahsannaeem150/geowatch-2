@@ -12791,3 +12791,7 @@ feat: presets now 26 total — Lilac, Lavender, Burgundy, Pine Green, Olive, Tur
 ## 📅 2026-08-08 — Module: all — Turquoise rebrand applied (FINAL colors)
 
 feat/style: owner-selected Turquoise (#0e4f4a/#14b8a6) applied everywhere. design-tokens.css BRAND ACCENT blocks (dark+light) now turquoise with derived tints/glows/gradients; superadmin --sa-accent* synced (indigo ramp gone, navy console palette kept). Brand SVGs recolored via internal vars: favicon black tile + turquoise 24 + white dot (dot re-added), mark same, lockups gradient turquoise with theme-matched dots (dark #f8fafc / light #0f172a). Topbar mark glows now tokenized (var(--accent-glow-strong), cyan rgba gone). Favicon PNGs regenerated, links ?v=6. All builds green. Rebrand complete: name + logo + colors.
+
+## 📅 2026-08-08 — Module: shared + user-web + admin/superadmin — Post-rebrand fixes
+
+fix/style: (1) Zone sidebar top section now a card wrapper matching incident sidebar (.zone-summary card recipe, gutters 24→20px); FULL DETAILS is primary accent, crimson hover #b91c44 removed; zone button sizes match incident sidebar (scoped to .zone-summary). (2) user-web light mode: map topbar logo glow now visible (light-only drop-shadow 8px/0.55, token untouched); home LIVE MONITORING chip gets dark HUD pill treatment in light mode. (3) admin + superadmin favicons: white dot circle removed, PNGs regenerated (new scripts/rasterize-favicon-admin-superadmin.mjs), icon links ?v=7; user-web favicon untouched (dot approved). All builds green.

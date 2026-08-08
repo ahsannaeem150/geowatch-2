@@ -98,8 +98,15 @@
 }
 
 /* ───────────────── Zone summary card ───────────────── */
+/* Card chrome mirrors the incident sidebar's .id-summary (margin/bg/border/radius). */
 .zone-summary {
-  padding: 22px 24px 18px;
+  position: relative;
+  margin: 20px;
+  padding: 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
   animation: fadeInUp 0.5s ease both;
 }
 
@@ -427,15 +434,16 @@
 }
 
 .zone-btn--primary {
-  background: var(--accent-light);
-  border-color: var(--accent-light);
-  color: #fff;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-light) 25%, transparent);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .zone-btn--primary:hover {
-  background: #b91c44;
-  border-color: #b91c44;
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+  color: var(--text-on-accent);
   box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-light) 35%, transparent);
 }
 
@@ -445,9 +453,35 @@
   background: rgba(245, 158, 11, 0.08);
 }
 
+/* Header-section buttons match the incident sidebar's metrics (id-btn):
+   13px non-uppercase, no hover lift. Scoped to .zone-summary so drawers,
+   modals, and trial layouts keep their existing .zone-btn look. */
+.zone-summary .zone-btn {
+  padding: 10px 14px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.zone-summary .zone-btn:hover {
+  transform: none;
+}
+
+/* Admin action bar mirrors id-admin-bar__btn (smaller utility buttons). */
+.zone-summary .zone-admin-actions .zone-btn {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+/* Inside the card the action row needs no bottom margin — the card's
+   padding closes the section (matches .id-summary__actions). */
+.zone-summary .zone-actions {
+  margin-bottom: 0;
+}
+
 /* ───────────────── Section titles ───────────────── */
 .zone-section-title {
-  padding: 0 24px;
+  padding: 0 20px;
   margin: 26px 0 14px;
   font-size: 11px;
   font-weight: 700;
@@ -458,7 +492,7 @@
 
 /* ───────────────── Timeline events ───────────────── */
 .zone-timeline {
-  padding: 0 24px;
+  padding: 0 20px;
 }
 
 .zone-timeline-event {

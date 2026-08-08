@@ -117,6 +117,15 @@
   color: var(--accent-light);
 }
 
+/* Light theme — the accent-tinted chip washes out on the light hero map.
+   Give it a deliberate dark HUD treatment (mirrors .home-hero-hud); the
+   --accent-light text and red dot stay legible on the dark translucent bg. */
+[data-theme="light"] .home-badge {
+  background: rgba(7, 9, 13, 0.72);
+  border-color: rgba(20, 184, 166, 0.45);
+  box-shadow: 0 2px 14px rgba(15, 23, 42, 0.28);
+}
+
 /* Headline */
 .home-headline {
   font-size: clamp(48px, 10vw, 96px);

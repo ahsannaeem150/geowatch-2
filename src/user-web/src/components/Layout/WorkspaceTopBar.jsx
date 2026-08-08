@@ -263,11 +263,11 @@ export default function WorkspaceTopBar({
             <BrandLogo
               variant="mark"
               height={32}
+              className="wt-brand-mark"
               style={{
                 height: 'calc(32px * var(--admin-ui-scale))',
                 flexShrink: 0,
                 borderRadius: 'var(--radius-md)',
-                filter: 'drop-shadow(0 0 6px var(--accent-glow-strong))',
               }}
             />
             <span
@@ -754,6 +754,13 @@ export default function WorkspaceTopBar({
           )}
         </div>
       </div>
+
+      {/* Brand-mark glow — token-based by default; light theme needs a stronger
+          stop (its --accent-glow-strong is too faint to read as a glow). */}
+      <style>{`
+        .wt-brand-mark { filter: drop-shadow(0 0 6px var(--accent-glow-strong)); }
+        [data-theme="light"] .wt-brand-mark { filter: drop-shadow(0 0 8px rgba(20, 184, 166, 0.55)); }
+      `}</style>
     </header>
   );
 }
