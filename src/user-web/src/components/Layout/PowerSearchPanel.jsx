@@ -23,13 +23,12 @@ import {
   Hexagon,
   Settings2,
 } from 'lucide-react';
-import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
-import { Badge } from '@shared/components/Badge.jsx';
-import { SEVERITY_SCALE } from '@shared/constants.js';
+import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import { getSeverityBadgeColors, getDomainColor, getIncidentDomainColor, getBadgeColors } from '@shared/utils/themeColors.js';
 import { useTheme } from '@shared/useTheme.js';
+import { useZoneCategories } from '@shared/hooks/useZoneCategories.js';
 import { formatDistanceToNow } from 'date-fns';
-import BrandLogo from '../Brand/BrandLogo.jsx';
+import BrandHomeLink from './BrandHomeLink.jsx';
 
 const STATUSES = ['active', 'resolved'];
 const STATUS_META = {
@@ -70,12 +69,6 @@ const FILTER_RAIL_WIDTH = 'var(--admin-ps-filter-width)';
 const FILTER_RAIL_COLLAPSED = 'var(--admin-ps-filter-collapsed)';
 const RESULTS_RAIL_WIDTH = 'var(--admin-ps-results-width)';
 
-function formatDateInput(ms) {
-  if (!ms) return '';
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 function timeAgoLabel(dateValue) {
   if (!dateValue) return '';
   const d = new Date(dateValue);
@@ -101,6 +94,9 @@ export default function PowerSearchPanel({
   savedIds,
   domains,
   categories,
+  selectedIncidentId = null,
+  isAuthenticated = false,
+  onSignInRequest,
   onSelectIncident,
   onToggleSaved,
   onResetFilters,
@@ -125,7 +121,7 @@ export default function PowerSearchPanel({
     ? onResultsCollapsedChange
     : setInternalResultsCollapsed;
 
-  const savedSet = useMemo(() => (savedIds instanceof Set ? savedIds : new Set(savedIds || [])), [savedIds]);
+  const { categories: zoneCategories } = useZoneCategories();
 
   function getDomainState(slug, prev = filters) {
     const domain = domains.find((d) => d.slug === slug);
@@ -203,6 +199,15 @@ export default function PowerSearchPanel({
     updateFilters({ ...filters, categorySlugs: nextCategorySlugs });
   }
 
+  function toggleZoneCategory(id) {
+    updateFilters({
+      ...filters,
+      zoneCategoryIds: filters.zoneCategoryIds.includes(id)
+        ? filters.zoneCategoryIds.filter((z) => z !== id)
+        : [...filters.zoneCategoryIds, id],
+    });
+  }
+
   function toggleStatus(status) {
     updateFilters({
       ...filters,
@@ -262,6 +267,7 @@ export default function PowerSearchPanel({
 
   const activeFilterCount = useMemo(() => {
     let count = filters.domainSlugs.length + filters.categorySlugs.length + filters.statuses.length;
+    count += filters.zoneCategoryIds.length;
     count += filters.verificationStatuses.length;
     count += filters.sourceTypes.length;
     if (filters.severities.length) count += 1;
@@ -307,6 +313,15 @@ export default function PowerSearchPanel({
             categorySlugs: filters.categorySlugs.filter((s) => !domain.categories.some((c) => c.slug === s)),
           });
         },
+      });
+    });
+    filters.zoneCategoryIds.forEach((id) => {
+      const zc = zoneCategories.find((z) => z.id === id);
+      chips.push({
+        id: `zc-${id}`,
+        label: zc?.name || `Zone category ${id}`,
+        color: zc?.color,
+        onRemove: () => toggleZoneCategory(id),
       });
     });
     if (filters.severities.length) {
@@ -358,7 +373,7 @@ export default function PowerSearchPanel({
       chips.push({ id: 'saved', label: 'Saved only', onRemove: () => updateFilters({ ...filters, savedOnly: false }) });
     }
     return chips;
-  }, [filters, domains, theme]);
+  }, [filters, domains, zoneCategories, theme]);
 
   if (!isOpen) return null;
 
@@ -390,8 +405,12 @@ export default function PowerSearchPanel({
           onToggleCollapse={() => setFilterCollapsedState((p) => !p)}
           filters={filters}
           domains={domains}
+          zoneCategories={zoneCategories}
+          isAuthenticated={isAuthenticated}
+          onSignInRequest={onSignInRequest}
           onToggleDomain={toggleDomain}
           onToggleCategory={toggleCategory}
+          onToggleZoneCategory={toggleZoneCategory}
           onToggleStatus={toggleStatus}
           onToggleVerification={toggleVerification}
           onToggleSourceType={toggleSourceType}
@@ -411,8 +430,8 @@ export default function PowerSearchPanel({
           totalIncidents={total}
           hasMore={hasMore}
           onLoadMore={onLoadMore}
-          savedIds={savedSet}
-          selectedIncidentId={null}
+          savedIds={savedIds}
+          selectedIncidentId={selectedIncidentId}
           onSelectIncident={onSelectIncident}
           onToggleSaved={onToggleSaved}
           loading={loading}
@@ -443,19 +462,6 @@ export default function PowerSearchPanel({
   );
 }
 
-const INITIAL_FILTERS = {
-  dateFrom: '',
-  dateTo: '',
-  domainSlugs: [],
-  categorySlugs: [],
-  severities: [],
-  statuses: [],
-  verificationStatuses: [],
-  sourceTypes: [],
-  geometryTypes: [],
-  savedOnly: false,
-};
-
 function TopBar({ query, onQueryChange, onClose, compactMode }) {
   return (
     <header
@@ -474,19 +480,12 @@ function TopBar({ query, onQueryChange, onClose, compactMode }) {
         <ArrowLeft size={15} />
       </button>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(8px * var(--admin-ui-scale))', minWidth: 'calc(140px * var(--admin-ui-scale))' }}>
-        <BrandLogo
-          variant="full"
-          tag={false}
-          height={30}
-          style={{
-            height: 'calc(30px * var(--admin-ui-scale))',
-            flexShrink: 0,
-          }}
-        />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))', minWidth: 'calc(140px * var(--admin-ui-scale))' }}>
+        <BrandHomeLink markHeight={30} />
+        <div style={{ width: 'calc(1px * var(--admin-ui-scale))', height: 'calc(20px * var(--admin-ui-scale))', background: 'var(--border-subtle)', flexShrink: 0 }} />
         <div>
-          <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>Power Search</div>
-          <div style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>Explore everything</div>
+          <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Power Search</div>
+          <div style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Explore everything</div>
         </div>
       </div>
 
@@ -678,8 +677,12 @@ function FilterRail({
   onToggleCollapse,
   filters,
   domains,
+  zoneCategories,
+  isAuthenticated,
+  onSignInRequest,
   onToggleDomain,
   onToggleCategory,
+  onToggleZoneCategory,
   onToggleStatus,
   onToggleVerification,
   onToggleSourceType,
@@ -795,12 +798,41 @@ function FilterRail({
             gap: 'calc(10px * var(--admin-ui-scale))',
           }}
         >
+          <FilterSection title="Type" icon={Hexagon} defaultOpen>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'calc(6px * var(--admin-ui-scale))' }}>
+              {GEOMETRY_TYPES.map((g) => {
+                const active = filters.geometryTypes.includes(g.value);
+                return (
+                  <button
+                    key={g.value}
+                    onClick={() => onToggleGeometryType(g.value)}
+                    style={{
+                      padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
+                      fontSize: 'calc(11px * var(--admin-ui-scale))',
+                      fontWeight: 700,
+                      color: active ? 'var(--text-on-accent)' : 'var(--text-secondary)',
+                      background: active ? 'var(--accent-light)' : 'var(--bg-input)',
+                      border: `1px solid ${active ? 'var(--accent-light)' : 'var(--border-default)'}`,
+                      borderRadius: 'var(--radius-pill)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {g.label}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
           <FilterSection title="Date range" icon={Calendar} defaultOpen>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
               <input type="date" value={filters.dateFrom} onChange={(e) => onSetDateFrom(e.target.value)} style={smallInputStyle} />
               <input type="date" value={filters.dateTo} onChange={(e) => onSetDateTo(e.target.value)} style={smallInputStyle} />
             </div>
           </FilterSection>
+
+          <RailGroupLabel>Incident filters</RailGroupLabel>
 
           <FilterSection title="Domains & Categories" icon={Tags} defaultOpen scrollable>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(2px * var(--admin-ui-scale))' }}>
@@ -963,6 +995,78 @@ function FilterRail({
               })}
             </div>
           </FilterSection>
+
+          <RailGroupLabel>Zone filters</RailGroupLabel>
+
+          <FilterSection title="Zone categories" icon={Hexagon} defaultOpen>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(3px * var(--admin-ui-scale))' }}>
+              {zoneCategories.length === 0 && (
+                <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  No zone categories
+                </span>
+              )}
+              {zoneCategories.map((zc) => {
+                const active = filters.zoneCategoryIds.includes(zc.id);
+                const color = zc.color || 'var(--accent-light)';
+                return (
+                  <label
+                    key={zc.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'calc(8px * var(--admin-ui-scale))',
+                      padding: 'calc(5px * var(--admin-ui-scale)) calc(7px * var(--admin-ui-scale))',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <input type="checkbox" checked={active} onChange={() => onToggleZoneCategory(zc.id)} style={{ display: 'none' }} />
+                    <span
+                      style={{
+                        width: 'calc(12px * var(--admin-ui-scale))',
+                        height: 'calc(12px * var(--admin-ui-scale))',
+                        borderRadius: '3px',
+                        border: `1.5px solid ${active ? color : 'var(--border-hover)'}`,
+                        background: active ? color : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.15s ease',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {active && <Check size={8} color="var(--text-on-accent)" strokeWidth={3} />}
+                    </span>
+                    <span
+                      style={{
+                        width: 'calc(7px * var(--admin-ui-scale))',
+                        height: 'calc(7px * var(--admin-ui-scale))',
+                        borderRadius: '50%',
+                        background: color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: 'calc(11px * var(--admin-ui-scale))',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {zc.name}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <RailGroupLabel>State</RailGroupLabel>
 
           <FilterSection title="Severity" icon={Star} defaultOpen>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(3px * var(--admin-ui-scale))' }}>
@@ -1131,36 +1235,18 @@ function FilterRail({
             </div>
           </FilterSection>
 
-          <FilterSection title="Geometry" icon={Hexagon}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'calc(6px * var(--admin-ui-scale))' }}>
-              {GEOMETRY_TYPES.map((g) => {
-                const active = filters.geometryTypes.includes(g.value);
-                return (
-                  <button
-                    key={g.value}
-                    onClick={() => onToggleGeometryType(g.value)}
-                    style={{
-                      padding: 'calc(5px * var(--admin-ui-scale)) calc(10px * var(--admin-ui-scale))',
-                      fontSize: 'calc(11px * var(--admin-ui-scale))',
-                      fontWeight: 700,
-                      color: active ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                      background: active ? 'var(--accent-light)' : 'var(--bg-input)',
-                      border: `1px solid ${active ? 'var(--accent-light)' : 'var(--border-default)'}`,
-                      borderRadius: 'var(--radius-pill)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {g.label}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
           <FilterSection title="Options" icon={Settings2} defaultOpen>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-              <ToggleRow label="Saved only" checked={filters.savedOnly} onChange={onToggleSavedOnly} />
+              <ToggleRow
+                label="Saved only"
+                checked={filters.savedOnly}
+                onChange={isAuthenticated ? onToggleSavedOnly : () => onSignInRequest?.()}
+              />
+              {!isAuthenticated && (
+                <div style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', lineHeight: 1.4, padding: '0 calc(2px * var(--admin-ui-scale))' }}>
+                  Sign in to use the saved filter.
+                </div>
+              )}
             </div>
           </FilterSection>
 
@@ -1176,7 +1262,7 @@ function FilterRail({
 
 function SortDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
-  const active = SORT_OPTIONS.find((o) => o.key === value) || SORT_OPTIONS[0];
+  const active = SORT_OPTIONS.find((o) => o.key === value) || SORT_OPTIONS.find((o) => o.key === 'newest');
   const ref = useRef(null);
 
   useEffect(() => {
@@ -1404,12 +1490,19 @@ const IncidentCard = React.forwardRef(function IncidentCard(
   ref
 ) {
   const { theme } = useTheme();
+  const isZone = incident.geometry_type === 'polygon';
   const status = STATUS_META[incident.status] || STATUS_META.active;
-  const verification = VERIFICATION_STATUSES.find((v) => v.value === incident.verification_status) || VERIFICATION_STATUSES[0];
   const sev = SEVERITY_SCALE.find((s) => s.value === incident.severity) || SEVERITY_SCALE[2];
   const sevColors = getSeverityBadgeColors(sev.color, theme);
+  const verification =
+    incident.verification_status && incident.verification_status !== 'unverified'
+      ? VERIFICATION_CONFIG[incident.verification_status]
+      : null;
 
   const statusDotColor = status.status === 'active' ? 'var(--success)' : 'var(--text-muted)';
+  const accentColor = isZone
+    ? incident.zone_category_color || 'var(--accent-light)'
+    : getIncidentDomainColor(incident, theme);
 
   return (
     <div
@@ -1419,7 +1512,7 @@ const IncidentCard = React.forwardRef(function IncidentCard(
         position: 'relative',
         display: 'flex',
         gap: 'calc(8px * var(--admin-ui-scale))',
-        padding: 'calc(9px * var(--admin-ui-scale))',
+        padding: 'calc(8px * var(--admin-ui-scale)) calc(9px * var(--admin-ui-scale))',
         background: selected ? 'var(--accent-subtle-bg)' : 'var(--bg-input)',
         border: `1px solid ${selected ? 'var(--accent-light)' : 'var(--border-default)'}`,
         borderRadius: 'var(--radius-md)',
@@ -1442,7 +1535,7 @@ const IncidentCard = React.forwardRef(function IncidentCard(
           top: 0,
           bottom: 0,
           width: 'calc(2px * var(--admin-ui-scale))',
-          background: selected ? 'var(--accent-light)' : getIncidentDomainColor(incident, theme),
+          background: selected ? 'var(--accent-light)' : accentColor,
           opacity: selected ? 1 : 0.7,
         }}
       />
@@ -1450,8 +1543,21 @@ const IncidentCard = React.forwardRef(function IncidentCard(
       <div style={{ width: 'calc(6px * var(--admin-ui-scale))', flexShrink: 0 }} />
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'calc(5px * var(--admin-ui-scale))' }}>
+        {/* Row 1: title (2-line clamp) + save */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-          <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, wordBreak: 'break-word' }}>
+          <div
+            style={{
+              fontSize: 'calc(13px * var(--admin-ui-scale))',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              lineHeight: 1.3,
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
             {incident.title}
           </div>
           <button
@@ -1480,65 +1586,155 @@ const IncidentCard = React.forwardRef(function IncidentCard(
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)' }}>
-          <MapPin size={9} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{incident.location_context}</span>
-          <span style={{ margin: '0 3px' }}>·</span>
-          <Clock size={9} />
-          <span>{timeAgoLabel(incident.created_at)}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(4px * var(--admin-ui-scale))' }}>
+        {/* Row 2: classification (domain / zone category) + time & status */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          {isZone ? (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'calc(4px * var(--admin-ui-scale))',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                color: accentColor,
+                minWidth: 0,
+              }}
+            >
+              <Hexagon size={9} style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {incident.zone_category_name || 'Zone'}
+              </span>
+            </span>
+          ) : (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'calc(4px * var(--admin-ui-scale))',
+                fontSize: 'calc(10px * var(--admin-ui-scale))',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                color: accentColor,
+                minWidth: 0,
+              }}
+            >
+              <span style={{ width: 'calc(4px * var(--admin-ui-scale))', height: 'calc(4px * var(--admin-ui-scale))', borderRadius: '50%', background: accentColor, flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {incident.domain_name || 'Incident'}
+              </span>
+            </span>
+          )}
           <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 'calc(4px * var(--admin-ui-scale))',
               fontSize: 'calc(10px * var(--admin-ui-scale))',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              color: 'var(--text-secondary)',
+              color: 'var(--text-muted)',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ width: 'calc(4px * var(--admin-ui-scale))', height: 'calc(4px * var(--admin-ui-scale))', borderRadius: '50%', background: getIncidentDomainColor(incident, theme), flexShrink: 0 }} />
-            {incident.domain_name}
+            <Clock size={9} />
+            {timeAgoLabel(incident.created_at)}
+            <span style={{ margin: '0 1px' }}>·</span>
+            <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: statusDotColor, flexShrink: 0 }} />
+            {status.label}
           </span>
+        </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', flexWrap: 'wrap' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 'calc(4px * var(--admin-ui-scale))',
-                padding: 'calc(1px * var(--admin-ui-scale)) calc(5px * var(--admin-ui-scale))',
-                borderRadius: 'var(--radius-sm)',
-                background: sevColors.background,
-                border: sevColors.border,
-                fontSize: 'calc(10px * var(--admin-ui-scale))',
-                fontWeight: 700,
-                color: sevColors.color,
-              }}
-            >
-              <span style={{ width: 'calc(4px * var(--admin-ui-scale))', height: 'calc(4px * var(--admin-ui-scale))', borderRadius: '50%', background: sevColors.color, flexShrink: 0 }} />
-              {sev.value} {sev.label}
+        {/* Row 3: location + severity/verification badges */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'calc(8px * var(--admin-ui-scale))' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'calc(4px * var(--admin-ui-scale))',
+              fontSize: 'calc(10px * var(--admin-ui-scale))',
+              color: 'var(--text-muted)',
+              minWidth: 0,
+            }}
+          >
+            <MapPin size={9} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{incident.location_context}</span>
+          </span>
+          {(!isZone || verification) && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', flexShrink: 0 }}>
+              {!isZone && (
+                <span
+                  title={`Severity ${sev.value} · ${sev.label}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: 'calc(1px * var(--admin-ui-scale)) calc(5px * var(--admin-ui-scale))',
+                    borderRadius: 'var(--radius-sm)',
+                    background: sevColors.background,
+                    border: sevColors.border,
+                    fontSize: 'calc(10px * var(--admin-ui-scale))',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono)',
+                    color: sevColors.color,
+                  }}
+                >
+                  S{sev.value}
+                </span>
+              )}
+              {verification && (
+                <span
+                  title={verification.label}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 'calc(14px * var(--admin-ui-scale))',
+                    height: 'calc(14px * var(--admin-ui-scale))',
+                    borderRadius: '50%',
+                    border: `1px solid ${verification.color}`,
+                    color: verification.color,
+                    fontSize: 'calc(9px * var(--admin-ui-scale))',
+                    fontWeight: 800,
+                  }}
+                >
+                  {verification.icon}
+                </span>
+              )}
             </span>
-
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-              <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: statusDotColor, flexShrink: 0 }} />
-              {status.label}
-            </span>
-
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))', fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>
-              <span style={{ width: 'calc(5px * var(--admin-ui-scale))', height: 'calc(5px * var(--admin-ui-scale))', borderRadius: '50%', background: verification.color, flexShrink: 0 }} />
-              {verification.label}
-            </span>
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 });
+
+function RailGroupLabel({ children }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'calc(8px * var(--admin-ui-scale))',
+        padding: 'calc(2px * var(--admin-ui-scale)) calc(2px * var(--admin-ui-scale)) 0',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 'calc(9px * var(--admin-ui-scale))',
+          fontWeight: 800,
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          color: 'var(--text-muted)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {children}
+      </span>
+      <span style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
+    </div>
+  );
+}
 
 function FilterSection({ title, icon: Icon, defaultOpen = false, scrollable = false, children }) {
   const [open, setOpen] = useState(defaultOpen);

@@ -42,6 +42,7 @@ const GATE_ZOOM = 6;
 const DEFAULT_PS_FILTERS = {
   domainSlugs: [],
   categorySlugs: [],
+  zoneCategoryIds: [],
   statuses: ['active'],
   verificationStatuses: [],
   sourceTypes: [],
@@ -1435,6 +1436,7 @@ export default function MapPage() {
           q: psQuery.trim(),
           domainSlugs: psFilters.domainSlugs,
           categorySlugs: psFilters.categorySlugs,
+          zoneCategoryIds: psFilters.zoneCategoryIds,
           statuses: psFilters.statuses,
           verificationStatuses: psFilters.verificationStatuses,
           sourceTypes: psFilters.sourceTypes,
@@ -2133,6 +2135,9 @@ export default function MapPage() {
             savedIds={savedIds}
             domains={psDomains}
             categories={categories}
+            selectedIncidentId={selectedIncident?.id || null}
+            isAuthenticated={isAuthenticated}
+            onSignInRequest={openSignInModal}
             onSelectIncident={handlePowerSearchSelect}
             onToggleSaved={handleToggleSavedPowerSearch}
             onResetFilters={handleResetPowerSearchFilters}

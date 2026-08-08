@@ -82,11 +82,12 @@ function buildIncidentWhereClause(filters, options = {}) {
     params.push(filters.categoryId);
   }
   if (Array.isArray(filters.categorySlugs) && filters.categorySlugs.length > 0) {
-    conditions.push(`c.slug = ANY($${idx++})`);
+    // Polygon zones have no incident category — keep them unless a zone-category filter is set
+    conditions.push(`(i.geometry_type = 'polygon' OR c.slug = ANY($${idx++}))`);
     params.push(filters.categorySlugs);
   }
   if (Array.isArray(filters.domainSlugs) && filters.domainSlugs.length > 0) {
-    conditions.push(`d.slug = ANY($${idx++})`);
+    conditions.push(`(i.geometry_type = 'polygon' OR d.slug = ANY($${idx++}))`);
     params.push(filters.domainSlugs);
   }
   if (filters.zoneCategoryId) {
