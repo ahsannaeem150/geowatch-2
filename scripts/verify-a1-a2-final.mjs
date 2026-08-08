@@ -14,7 +14,7 @@ const page = await ctx.newPage();
 page.on('pageerror', (e) => pageErrors.push(String(e).slice(0, 200)));
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
 // ─── Open the Active drawer ───
@@ -38,11 +38,11 @@ const a1Ok = !!rowInfo && rowInfo.label === 'NOTMAR';
 console.log(`### A1 label: "${rowInfo?.label}" (expect NOTMAR) dot=${rowInfo?.dotBg} ${a1Ok ? 'OK' : '*** FAIL ***'}`);
 
 // ─── A2: click the zone row ───
-const centerBefore = await page.evaluate(() => { const c = window.__geowatchAdminMap.getCenter(); return [c.lng, c.lat]; });
+const centerBefore = await page.evaluate(() => { const c = window.__intelmap24AdminMap.getCenter(); return [c.lng, c.lat]; });
 await page.locator('text=High-Risk Transit Corridor').first().click();
 await page.waitForTimeout(2500);
 const url = page.url();
-const centerAfter = await page.evaluate(() => { const c = window.__geowatchAdminMap.getCenter(); return [c.lng, c.lat]; });
+const centerAfter = await page.evaluate(() => { const c = window.__intelmap24AdminMap.getCenter(); return [c.lng, c.lat]; });
 const hasZoneParam = url.includes('zone=') && !url.includes('incident=');
 const moved = Math.abs(centerAfter[0] - centerBefore[0]) + Math.abs(centerAfter[1] - centerBefore[1]) > 2;
 // zone sidebar markers in admin mode: "Edit Shape" button or zone detail content
@@ -56,7 +56,7 @@ const a2Ok = hasZoneParam && moved;
 
 // ─── Regression: zone hover still alive after the drawer click ───
 const hover = await page.evaluate(() => {
-  const m = window.__geowatchAdminMap;
+  const m = window.__intelmap24AdminMap;
   return { layer: !!m.getLayer('zone-hit'), n: (m.getSource('zones')?._data?.features || []).length };
 });
 console.log('### post-click zone layer:', JSON.stringify(hover));

@@ -884,7 +884,7 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabl
   // boot-time application happens in main.jsx, this switch owns live toggling.
   const [reduceMotion, setReduceMotion] = useState(() => {
     try {
-      return localStorage.getItem('geowatch_user_reduce_motion') === 'true';
+      return localStorage.getItem('intelmap24_user_reduce_motion') === 'true';
     } catch {
       return false;
     }
@@ -893,7 +893,7 @@ function SettingsDrawer({ theme, style, onToggleTheme, onSetStyle, autoZoomEnabl
     setReduceMotion((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('geowatch_user_reduce_motion', String(next));
+        localStorage.setItem('intelmap24_user_reduce_motion', String(next));
       } catch {}
       document.documentElement.classList.toggle('reduce-motion', next);
       return next;

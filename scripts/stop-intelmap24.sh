@@ -1,6 +1,6 @@
 #!/bin/bash
-# Stop GeoWatch services
-# Usage: ./scripts/stop-geowatch.sh [service1 service2 ...]
+# Stop IntelMap24 services
+# Usage: ./scripts/stop-intelmap24.sh [service1 service2 ...]
 #   Services: martin backend admin-web user-web superadmin-web
 #   Default (no args): stops all services
 
@@ -76,7 +76,7 @@ stop_service() {
   fi
 }
 
-echo -e "${CYAN}Stopping GeoWatch services...${NC}"
+echo -e "${CYAN}Stopping IntelMap24 services...${NC}"
 
 for svc in martin backend admin-web user-web superadmin-web; do
   if should_stop "$svc"; then

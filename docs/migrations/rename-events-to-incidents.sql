@@ -1,5 +1,5 @@
 -- Migration: Rename events → incidents
--- Run as: sudo -u postgres psql -d geowatch_dev -f docs/migrations/rename-events-to-incidents.sql
+-- Run as: sudo -u postgres psql -d intelmap24_dev -f docs/migrations/rename-events-to-incidents.sql
 
 -- ============================================
 -- 1. RENAME TABLES
@@ -60,6 +60,6 @@ CREATE TRIGGER update_incidents_updated_at
 -- ============================================
 -- 7. GRANT PERMISSIONS (re-apply for app user)
 -- ============================================
-GRANT SELECT, INSERT, UPDATE, DELETE ON incidents TO geowatch_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON incident_sources TO geowatch_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON incident_updates TO geowatch_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON incidents TO intelmap24_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON incident_sources TO intelmap24_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON incident_updates TO intelmap24_user;

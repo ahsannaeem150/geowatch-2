@@ -1,5 +1,5 @@
 const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
-const USER_AGENT = 'GeoWatch/1.0 (https://geowatch.local)';
+const USER_AGENT = 'IntelMap24/1.0 (https://intelmap24.com)';
 
 /**
  * Reverse geocode lat/lng to a human-readable location context.

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 /**
  * useReducedMotion — true when the user prefers reduced motion, via EITHER
  * the OS media query or the manual app toggle (`.reduce-motion` on <html>,
- * persisted as geowatch_user_reduce_motion in localStorage). Reacts live to
+ * persisted as intelmap24_user_reduce_motion in localStorage). Reacts live to
  * both sources.
  */
 function computeReduced() {

@@ -1,4 +1,4 @@
-# GeoWatch Environment Variables Template
+# IntelMap24 Environment Variables Template
 
 ## Instructions
 1. Copy this file to .env.development and .env.production
@@ -15,8 +15,8 @@ API_URL=http://localhost:3100
 
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=geowatch_dev
-DB_USER=geowatch_user
+DB_NAME=intelmap24_dev
+DB_USER=intelmap24_user
 DB_PASSWORD=your_secure_password_here
 
 JWT_SECRET=your_super_secret_random_string_min_32_chars
@@ -28,7 +28,6 @@ MBTILES_PATH=/home/YOUR_USERNAME/GlassGhost/01-Projects/geowatch/assets/map.mbti
 
 # Geocode proxy (optional — defaults shown)
 NOMINATIM_URL=https://nominatim.openstreetmap.org/search
-GEOCODE_CONTACT_EMAIL=admin@geowatch.local
 
 USER_WEB_URL=http://localhost:5173
 ADMIN_WEB_URL=http://localhost:5174
@@ -41,7 +40,7 @@ TWITTER_OEMBED_URL=https://publish.twitter.com/oembed
 # File Storage — local for dev, R2 for production
 STORAGE_PROVIDER=local              # 'local' | 'r2'
 UPLOAD_DIR=./uploads                # Local disk path (dev only)
-# R2_BUCKET=geowatch-media          # R2 bucket name (production)
+# R2_BUCKET=intelmap24-media          # R2 bucket name (production)
 # R2_ENDPOINT=https://...           # R2 S3-compatible endpoint
 # R2_ACCESS_KEY_ID=...              # R2 API token
 # R2_SECRET_ACCESS_KEY=...          # R2 API secret
@@ -57,22 +56,22 @@ GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
 
 NODE_ENV=production
 PORT=3100
-API_URL=https://api.geowatch.app
+API_URL=https://api.intelmap24.com
 
 DB_HOST=your_vps_ip_or_hostname
 DB_PORT=5432
-DB_NAME=geowatch_prod
-DB_USER=geowatch_user
+DB_NAME=intelmap24_prod
+DB_USER=intelmap24_user
 DB_PASSWORD=your_very_secure_password_here
 
 JWT_SECRET=your_production_secret_min_64_chars_random
 JWT_EXPIRES_IN=7d
 BCRYPT_ROUNDS=12
 
-MARTIN_URL=https://tiles.geowatch.app
+MARTIN_URL=https://tiles.intelmap24.com
 
-USER_WEB_URL=https://geowatch.app
-ADMIN_WEB_URL=https://admin.geowatch.app
+USER_WEB_URL=https://intelmap24.com
+ADMIN_WEB_URL=https://admin.intelmap24.com
 
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=200

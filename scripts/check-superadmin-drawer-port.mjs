@@ -37,7 +37,7 @@ async function main() {
 
   await page.goto(`${BASE}/superadmin/map`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(
-    () => window.__geowatchSuperadminMap && window.__geowatchSuperadminMap.isStyleLoaded(),
+    () => window.__intelmap24SuperadminMap && window.__intelmap24SuperadminMap.isStyleLoaded(),
     { timeout: 20000 }
   );
   await sleep(1500); // let backfill + notifications land

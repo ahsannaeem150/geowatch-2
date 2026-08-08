@@ -5,7 +5,7 @@ const STATE = 'temp_screenshots/ui-sweep-admin/auth-state.json';
 
 async function pickPixels(page, want = 3) {
   return page.evaluate((want) => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     const feats = m.getSource('zones')?._data?.features || [];
@@ -51,14 +51,14 @@ const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR:', String(e).slice(0, 200)));
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
 // (a) FRESH LOAD: fly to Hormuz, click; then fly to Waziristan, click
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [56, 26.5], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [56, 26.5], zoom: 6.5 }));
 await page.waitForTimeout(1500);
 await clickZoneAndReport(page, 'fresh/Hormuz  ', await pickPixels(page));
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
 await page.waitForTimeout(1500);
 await clickZoneAndReport(page, 'fresh/Waziristan', await pickPixels(page));
 
@@ -67,10 +67,10 @@ await page.click('button[title="Settings"]');
 await page.waitForTimeout(900);
 await page.locator('button[title="Switch to light mode"], button[title="Switch to dark mode"]').first().click();
 await page.waitForTimeout(2500);
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [56, 26.5], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [56, 26.5], zoom: 6.5 }));
 await page.waitForTimeout(1500);
 await clickZoneAndReport(page, 'light/Hormuz  ', await pickPixels(page));
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
 await page.waitForTimeout(1500);
 await clickZoneAndReport(page, 'light/Waziristan', await pickPixels(page));
 

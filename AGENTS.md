@@ -1,12 +1,12 @@
-# GeoWatch — Agent Guide
+# IntelMap24 — Agent Guide
 
-> This file is written for AI coding agents. Read it first when working on GeoWatch. It describes the project's architecture, conventions, commands, and gotchas (2026-08-02).
+> This file is written for AI coding agents. Read it first when working on IntelMap24. It describes the project's architecture, conventions, commands, and gotchas (2026-08-02).
 
 ---
 
 ## 1. Project Overview
 
-**GeoWatch** is a map-based global conflict and major-events visualization platform — a tactical intelligence dashboard with a premium newsroom aesthetic. The platform has three web frontends and one shared backend:
+**IntelMap24** is a map-based global conflict and major-events visualization platform — a tactical intelligence dashboard with a premium newsroom aesthetic. The platform has three web frontends and one shared backend:
 
 - **user-web** (`:5173`) — Public website: home page, interactive `/map` explorer, incident/zone directory pages and detail pages, about page, 404 page. Read-only plus Google sign-in for saving/bookmarking incidents.
 - **admin-web** (`:5174`) — Internal staff dashboard for creating and curating incidents, timeline updates, sources, media, and polygon zones (map-first workspace + incidents/zones directory pages).
@@ -39,10 +39,10 @@ The code lives in a single npm-workspace monorepo. The database is PostgreSQL 16
 
 ### Workspace Packages
 
-- `src/backend` — `geowatch-backend`
-- `src/user-web` — `geowatch-user-web`
-- `src/admin-web` — `geowatch-admin-web`
-- `src/superadmin-web` — `geowatch-superadmin-web`
+- `src/backend` — `intelmap24-backend`
+- `src/user-web` — `intelmap24-user-web`
+- `src/admin-web` — `intelmap24-admin-web`
+- `src/superadmin-web` — `intelmap24-superadmin-web`
 
 ### Key Dependency Versions (from each workspace's `package.json`)
 
@@ -161,7 +161,7 @@ npm run setup:martin
 sudo -u postgres psql -f docs/database-schema.sql
 
 # Seed sample data (superadmin + sample incidents)
-sudo -u postgres psql -d geowatch_dev -f seeds.sql
+sudo -u postgres psql -d intelmap24_dev -f seeds.sql
 ```
 
 Incremental schema changes live in `docs/migrations/` (numbered SQL files plus a few older named ones). Apply them in order when setting up an existing database.
@@ -183,17 +183,17 @@ cp src/backend/.env.example src/backend/.env.development
 
 ```bash
 # Start all five services (Martin + backend + three frontends)
-./scripts/start-geowatch.sh
+./scripts/start-intelmap24.sh
 
 # Start without opening the browser
-./scripts/start-geowatch.sh --no-browser
+./scripts/start-intelmap24.sh --no-browser
 
 # Start individual services
-./scripts/start-geowatch.sh martin
-./scripts/start-geowatch.sh backend
-./scripts/start-geowatch.sh admin-web
-./scripts/start-geowatch.sh user-web
-./scripts/start-geowatch.sh superadmin-web
+./scripts/start-intelmap24.sh martin
+./scripts/start-intelmap24.sh backend
+./scripts/start-intelmap24.sh admin-web
+./scripts/start-intelmap24.sh user-web
+./scripts/start-intelmap24.sh superadmin-web
 ```
 
 The launcher writes logs and PID files to `logs/` and opens the admin dashboard in a browser unless `--no-browser` is passed.
@@ -201,11 +201,11 @@ The launcher writes logs and PID files to `logs/` and opens the admin dashboard 
 ### Stop / Status / Logs
 
 ```bash
-./scripts/stop-geowatch.sh              # Stop all services
-./scripts/stop-geowatch.sh backend      # Stop one service
-./scripts/status-geowatch.sh            # Check which services are running
-./scripts/logs-geowatch.sh              # Tail all logs
-./scripts/logs-geowatch.sh backend      # Tail one service log
+./scripts/stop-intelmap24.sh              # Stop all services
+./scripts/stop-intelmap24.sh backend      # Stop one service
+./scripts/status-intelmap24.sh            # Check which services are running
+./scripts/logs-intelmap24.sh              # Tail all logs
+./scripts/logs-intelmap24.sh backend      # Tail one service log
 ```
 
 ### Manual Dev Commands (without the launcher)
@@ -333,6 +333,7 @@ The media router (and the other nested `:id` routers — timeline, sources) uses
 - Pure React + CSS; no external UI component libraries.
 - Use the `@shared` alias for shared components, hooks, and constants.
 - Dark theme first; light theme is driven by CSS variables and `[data-theme="light"]`. Token-only colors — never hardcode hex in components.
+- **Color tokens are the single source of truth**: accent values live in one marked `/* === BRAND ACCENT === */` block per theme at the top of `design-tokens.css` (rebrand = edit that block only). Severity/verification colors are `--sev-*`/`--ver-*` tokens — JS uses `'var(--sev-N)'` strings in inline styles, or `getCssVar()` (`src/shared/utils/cssVar.js`) for canvas/hex-math contexts (`themeColors.js` `resolveColor()` already resolves them). superadmin-web owns `src/styles/tokens.css` (navy console palette + `--sa-accent*` indigo ramp, which shared CSS references with hex fallbacks). Never hardcode brand/severity hex in production files.
 - Two interface styles are supported via the `data-style` HTML attribute: `tactical` (default), `saas`.
 - Import shared styles in each app's `main.jsx`:
   ```js
@@ -341,7 +342,7 @@ The media router (and the other nested `:id` routers — timeline, sources) uses
   ```
 - Each frontend wraps the app in the shared `ThemeProvider`.
 - Each frontend's `vite.config.js` includes a `copyMapAssetsPlugin` that copies `assets/map-style-*.json` and `assets/fonts/` into the app's `public/` at build/dev start — map styles and font glyphs are served as same-origin static files.
-- **Reduced motion**: all three apps honor OS `prefers-reduced-motion` AND a `.reduce-motion` HTML class via `design-tokens.css`; each has a Settings-drawer "Reduce motion" switch persisted in `localStorage` (`geowatch_{user,admin,superadmin}_reduce_motion`, boot-applied in each `main.jsx`). Guard new animation with the shared `useReducedMotion` hook.
+- **Reduced motion**: all three apps honor OS `prefers-reduced-motion` AND a `.reduce-motion` HTML class via `design-tokens.css`; each has a Settings-drawer "Reduce motion" switch persisted in `localStorage` (`intelmap24_{user,admin,superadmin}_reduce_motion`, boot-applied in each `main.jsx`). Guard new animation with the shared `useReducedMotion` hook.
 - Typography: 10px floor for production labels; use the display scale vars and `.font-longform` (Inter) for long-form prose such as incident descriptions and About copy.
 
 ### Backend Conventions
@@ -397,14 +398,14 @@ npm run build:admin-web
 npm run build:superadmin-web
 
 # 2. Restart services and smoke-test the affected app
-./scripts/stop-geowatch.sh
-./scripts/start-geowatch.sh
+./scripts/stop-intelmap24.sh
+./scripts/start-intelmap24.sh
 
 # 3. Check service status
-./scripts/status-geowatch.sh
+./scripts/status-intelmap24.sh
 
 # 4. Tail logs if a service fails
-./scripts/logs-geowatch.sh <service>
+./scripts/logs-intelmap24.sh <service>
 ```
 
 The Playwright utilities drive headless browsers against running dev servers; they may need dev credentials (gitignored `docs/dev-credentials.md`). Repeated logins trip the auth rate limiter — allow cooldown or reuse a long-lived token.
@@ -463,7 +464,7 @@ There is **no automated CI/CD, Docker, or deployment pipeline** in this reposito
 ### Current Dev Deployment
 
 - Local Pop!_OS workstation.
-- Services launched via `scripts/start-geowatch.sh`.
+- Services launched via `scripts/start-intelmap24.sh`.
 - Logs and PID files written to `logs/`.
 
 ### Planned Production Architecture
@@ -494,34 +495,13 @@ Read in order when starting a task:
 
 ## 12. Current Focus and Known Issues
 
-### Recently Completed (as of 2026-08-02)
+### Recently Completed
 
-- **Workspace chrome on all three maps** (user-web `/map`, admin-web `/*`, superadmin-web `/superadmin/map`): top bar, left rail/drawers, absolute-overlay right detail panel with collapse handle, Power Search overlay, compact/focus modes, ⌘K palette (Nominatim fly-to; superadmin's also jumps to console pages).
-- **Smart selection camera on all three maps** (shared policy in `src/shared/utils/selectionCamera.js`): live `getMapPadding`, comfort-fit zones, easeTo pan-only, repeat guards, deep-link processed-refs.
-- **Directory pages everywhere**: `/incidents` + `/zones` tables in all three apps, on shared `TableUI`.
-- **Date-control family on all three topbars**: date range control, LIVE/HISTORIC pill, clock, large-range gating (see Map-Specific Gotchas).
-- **Incident placement mode + drawing toolbar 2.0 with circle zones** in admin-web and superadmin-web.
-- **Superadmin TopBar rebuilt**: breadcrumb, Map button, health dot, notifications bell (unread badge, paged dropdown, mark read/all/delete).
-- **Cross-app polish batch**: favicon + per-route titles (RouteTitle); detail skeleton/error states; `:focus-visible` rings; display typography + Inter long-form; crimson light accents; reduced-motion end-to-end.
-- **Incident-detail overhaul (shared)**: silent SSE refetch; featured-evidence dedupe; procedural `TargetingCard` hero; workspace-chrome coherence pass.
-- **Deterministic Back navigation + instant camera restore**: incident/zone detail and directory pages in all three apps return to the app map via `buildReturnMapUrl` (per-app `utils/returnView.js`); the payload camera (incl. padding/bearing/pitch) + dateRange/selections/drawer rides in the Back URL, so the map mounts at the exact saved camera — no re-flight.
-- **CategoryMultiSelect (shared)** on all directory pages: domains-first accordion on `/incidents` (tri-state rows, drill-in categories, pinned chips, search ≥8), flat id-keyed fallback on `/zones`. Chips-scrollbar fix: `src/shared/styles/table-chips.css` (`.tui-chips-scroll` on `.tui-chips-bar`, main.jsx import). All directory pages render the shared detail-style topbar + breadcrumb (`opt1-*`) with Back chip + Map crumb; map topbars save the return-view payload on directory nav.
-- **user-web home**: hero map HUD, stats ledger band, `useHomeData` hook (6 → 1 network calls); rebuilt About; 404 page.
-- **user-web map zone fixes**: delegated zone binding, zone dedupe (`geometryType`), zones default-visible, Full-details + Back fixes.
+Workspace chrome on all three maps (top bar, rail/drawers, right detail panel, Power Search, ⌘K palette), smart selection camera (`src/shared/utils/selectionCamera.js`), directory pages on shared `TableUI` + CategoryMultiSelect, date-control family, placement mode + drawing toolbar 2.0, deterministic Back navigation with instant camera restore (per-app `utils/returnView.js`), incident-detail overhaul (silent SSE refetch, `TargetingCard` hero), drawer overhaul (v5 cards, activity seen-state/backfill, notification click-to-read), shared ⌘K palette, timeline-card action parity (badge + admin mini edit/delete + Inspect; verification changeable only via Edit forms). Full history: `commit.md`.
 
 ### Active Trial Routes (user-web)
 
-| Route | File | Purpose |
-|:--|:--|:--|
-| `/trial/zone-sidebar` | `ZoneTrialSidebarPage.jsx` | 630 px sidebar with polygon preview, full meter, and per-update evidence drawer |
-| `/trial/zone` | `ZoneTrialLayoutB.jsx` | Full-page zone layout trial with customized HUD hero |
-| `/trial/zone-meter` | `ZoneTrialMeterPage.jsx` | Meter component laboratory |
-| `/trial/zone-styles` | `ZoneStylesTrialPage.jsx` | Shape + treatment gallery |
-| `/trial/zone-heroes` | `ZoneHeroesTrialPage.jsx` | Hero header laboratory |
-| `/trial/zone-sidebar-animations` | `ZoneSidebarAnimationTrialPage.jsx` | Sidebar mini-map pulse laboratory |
-| `/trial/zone-create` | `ZoneTrialCreatePage.jsx` | Polygon-incident creation sidebar trial |
-
-Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references; full list in `trialRoutes.md`.
+User-web trial routes: `/trial/zone-sidebar`, `/trial/zone`, `/trial/zone-meter`, `/trial/zone-styles`, `/trial/zone-heroes`, `/trial/zone-sidebar-animations`, `/trial/zone-create`. Admin-web also keeps incident/sidebar trials (`/trial`, `/sidebarTrial*`, `/xPostOptions`, `/incident-trial/*`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options`) as read-only design references; full list with file mappings in `trialRoutes.md`.
 
 ### Known Non-Blocking Issues
 
@@ -563,4 +543,4 @@ When handed a task:
 
 ---
 
-*This guide reflects the actual state of the GeoWatch repository. Update it when the architecture, stack, or conventions change.*
+*This guide reflects the actual state of the IntelMap24 repository. Update it when the architecture, stack, or conventions change.*

@@ -73,7 +73,7 @@ export default function LoginPage() {
             letterSpacing: '-0.5px',
           }}
         >
-          GeoWatch Admin
+          IntelMap24 Admin
         </h1>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: 'var(--text-caption)' }}>
           Tactical Intelligence Dashboard

@@ -15,7 +15,7 @@ export default function NotFoundPage() {
   const reduced = useReducedMotion();
 
   useEffect(() => {
-    document.title = 'Page not found — GeoWatch';
+    document.title = 'Page not found — IntelMap24';
   }, []);
 
   const rise = (delay) =>

@@ -1,9 +1,24 @@
-/* GeoWatch Design Tokens — Crimson Seal */
+/* IntelMap24 Design Tokens — Crimson Seal */
 /* Shared by user-web, admin-web, and superadmin-web */
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
+  /* === BRAND ACCENT ===
+     Crimson Seal brand color — the single swap point for a rebrand.
+     Groups every accent-related declaration: the accent ramp, brand tints,
+     focus color, and the brand-tinted background gradient. */
+  --accent: #5a011c;
+  --accent-light: #9f1239;
+  --accent-glow: rgba(90, 1, 28, 0.35);
+  --accent-glow-strong: rgba(159, 18, 57, 0.55);
+  --accent-subtle-bg: rgba(159, 18, 57, 0.08);
+  --accent-subtle-border: rgba(159, 18, 57, 0.25);
+  --accent-hover-bg: rgba(159, 18, 57, 0.15);
+  --border-focus: #9f1239;
+  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, var(--bg-deep) 55%);
+  /* === /BRAND ACCENT === */
+
   /* ─── Backgrounds ─── */
   --bg-deep: #050505;
   --bg-surface: #0a0a0c;
@@ -19,19 +34,12 @@
   --border-default: rgba(148, 163, 184, 0.12);
   --border-hover: #34343a;
   --border-strong: #34343a;
-  --border-focus: #9f1239;
 
   /* ─── Text ─── */
   --text-primary: #f2f2f2;
   --text-secondary: #9ca3af;
   --text-muted: #8b919b;
   --text-on-accent: #ffffff;
-
-  /* ─── Accent — Deep Maroon ─── */
-  --accent: #5a011c;
-  --accent-light: #9f1239;
-  --accent-glow: rgba(90, 1, 28, 0.35);
-  --accent-glow-strong: rgba(159, 18, 57, 0.55);
 
   /* ─── Semantic ─── */
   --danger: #dc2626;
@@ -43,6 +51,12 @@
   --success-glow: rgba(34, 197, 94, 0.35);
   --info: #3b82f6;
   --info-glow: rgba(59, 130, 246, 0.35);
+
+  /* ─── Verification Status ─── */
+  --ver-unverified: #9ca3af;
+  --ver-verified: #22c55e;
+  --ver-disputed: #f59e0b;
+  --ver-debunked: #ef4444;
 
   /* ─── Badge & Pill Colors (Dark Mode) ─── */
   --badge-blue-bg: rgba(37, 99, 235, 0.15);
@@ -67,11 +81,6 @@
   --alert-warning-border: rgba(245, 158, 11, 0.2);
   --alert-info-bg: rgba(59, 130, 246, 0.08);
   --alert-info-border: rgba(59, 130, 246, 0.2);
-
-  /* ─── Accent / Brand Tint Colors (Dark Mode) ─── */
-  --accent-subtle-bg: rgba(159, 18, 57, 0.08);
-  --accent-subtle-border: rgba(159, 18, 57, 0.25);
-  --accent-hover-bg: rgba(159, 18, 57, 0.15);
 
   /* ─── Hover & Interactive States ─── */
   --hover-subtle: rgba(255, 255, 255, 0.03);
@@ -135,9 +144,6 @@
   --radius-xl: 16px;
   --radius-pill: 999px;
 
-  /* ─── Background Gradient ─── */
-  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, #1a0a0e 0%, var(--bg-deep) 55%);
-
   /* ─── Shadows ─── */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
@@ -154,6 +160,20 @@
 
 /* ─── Light Theme Overrides ─── */
 [data-theme="light"] {
+  /* === BRAND ACCENT ===
+     Same crimson brand on light — glows softened; tints alpha-solidified
+     on white (7% bg / 20% border / 12% hover), mirroring the dark rgba ramp. */
+  --accent: #5a011c;
+  --accent-light: #9f1239;
+  --accent-glow: rgba(90, 1, 28, 0.12);
+  --accent-glow-strong: rgba(159, 18, 57, 0.2);
+  --accent-subtle-bg: #f8eef1;
+  --accent-subtle-border: #ecd0d7;
+  --accent-hover-bg: #f4e3e7;
+  --border-focus: #9f1239;
+  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, #f0e8ea 0%, var(--bg-deep) 55%);
+  /* === /BRAND ACCENT === */
+
   /* Backgrounds — clean SaaS light palette */
   --bg-deep: #ffffff;
   --bg-surface: #f9fafb;
@@ -169,18 +189,11 @@
   --border-default: #c3c9d1;
   --border-hover: #b6bcc6;
   --border-strong: #b6bcc6;
-  --border-focus: #9f1239;
 
   /* Text — high contrast, readable gray scale */
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-muted: #525c6b;
-
-  /* Accent — same colors, softer glows on light backgrounds */
-  --accent: #5a011c;
-  --accent-light: #9f1239;
-  --accent-glow: rgba(90, 1, 28, 0.12);
-  --accent-glow-strong: rgba(159, 18, 57, 0.2);
 
   /* Semantic — same colors, softer glows */
   --danger: #dc2626;
@@ -192,6 +205,12 @@
   --success-glow: rgba(22, 163, 74, 0.15);
   --info: #2563eb;
   --info-glow: rgba(37, 99, 235, 0.15);
+
+  /* ─── Verification Status — same hues as dark (single source: design tokens) ─── */
+  --ver-unverified: #9ca3af;
+  --ver-verified: #22c55e;
+  --ver-disputed: #f59e0b;
+  --ver-debunked: #ef4444;
 
   /* ─── Badge & Pill Colors (Light Mode) ───
      Solid opaque tints — NEVER transparent rgba on white.
@@ -219,13 +238,6 @@
   --alert-info-bg: #eff6ff;
   --alert-info-border: #bfdbfe;
 
-  /* ─── Accent / Brand Tint Colors (Light Mode) ───
-     Solid crimson tints — #9f1239 alpha-solidified on white
-     (7% bg / 20% border / 12% hover), mirroring the dark rgba ramp. */
-  --accent-subtle-bg: #f8eef1;
-  --accent-subtle-border: #ecd0d7;
-  --accent-hover-bg: #f4e3e7;
-
   /* ─── Hover & Interactive States ─── */
   --hover-subtle: rgba(0, 0, 0, 0.02);
   --hover-default: rgba(0, 0, 0, 0.04);
@@ -240,9 +252,6 @@
   --sev-3: #c2410c;
   --sev-4: #b91c1c;
   --sev-5: #991b1b;
-
-  /* ─── Background Gradient — subtle warm tint on light */
-  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, #f0e8ea 0%, var(--bg-deep) 55%);
 
   /* ─── Shadows — lighter but still present on white */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -264,7 +273,7 @@
 }
 
 :focus-visible {
-  outline: 2px solid var(--border-focus, #9f1239);
+  outline: 2px solid var(--border-focus, var(--accent-light));
   outline-offset: 2px;
 }
 

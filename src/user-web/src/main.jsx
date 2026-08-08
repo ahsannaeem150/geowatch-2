@@ -11,7 +11,7 @@ import { SignInModalProvider } from './contexts/SignInModalContext.jsx';
 
 // Apply the persisted reduce-motion preference before first paint
 try {
-  if (localStorage.getItem('geowatch_user_reduce_motion') === 'true') {
+  if (localStorage.getItem('intelmap24_user_reduce_motion') === 'true') {
     document.documentElement.classList.add('reduce-motion');
   }
 } catch {}

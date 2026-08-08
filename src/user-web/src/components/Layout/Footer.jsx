@@ -87,10 +87,10 @@ export default function Footer() {
               fontFamily: 'var(--font-mono)',
             }}
           >
-            G
+            I
           </div>
           <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            GeoWatch
+            IntelMap24
           </span>
         </div>
 
@@ -149,7 +149,7 @@ export default function Footer() {
           Real-time conflict intelligence. Data sourced from open channels and verified reports.
         </p>
         <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '8px 0 0', fontFamily: 'var(--font-mono)' }}>
-          © 2026 GeoWatch
+          © 2026 IntelMap24
         </p>
       </div>
     </footer>

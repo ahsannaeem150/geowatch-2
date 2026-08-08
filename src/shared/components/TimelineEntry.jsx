@@ -194,10 +194,10 @@ export default function TimelineEntry({
                     textTransform: 'uppercase',
                     letterSpacing: '1px',
                     color: 'var(--accent-light)',
-                    background: 'rgba(159, 18, 57, 0.12)',
+                    background: 'color-mix(in srgb, var(--accent-light) 12%, transparent)',
                     padding: '2px 8px',
                     borderRadius: '4px',
-                    border: '1px solid rgba(159, 18, 57, 0.25)',
+                    border: '1px solid color-mix(in srgb, var(--accent-light) 25%, transparent)',
                   }}
                 >
                   Latest
@@ -291,9 +291,9 @@ export default function TimelineEntry({
                     textDecoration: 'none',
                     marginBottom: '12px',
                     padding: '6px 12px',
-                    background: 'rgba(159, 18, 57, 0.08)',
+                    background: 'color-mix(in srgb, var(--accent-light) 8%, transparent)',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(159, 18, 57, 0.18)',
+                    border: '1px solid color-mix(in srgb, var(--accent-light) 18%, transparent)',
                   }}
                 >
                   <span>🔗</span>

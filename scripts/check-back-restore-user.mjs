@@ -19,7 +19,7 @@ const page = await browser.newPage({ viewport: { width: 1700, height: 900 } });
 
 await page.goto(`${USER_BASE}/map`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await sleep(3000);
 
 // ─── Pick "Last 30 days" (exits live mode) ───
@@ -56,7 +56,7 @@ check('setup: detail page opened', page.url().includes(`/incident/${selectedId}`
 // ─── Back → map must restore full context ───
 await page.locator('button.opt1-back-link').first().click();
 await page.waitForSelector('.maplibregl-canvas', { timeout: 15000 });
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 15000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 15000 });
 await sleep(3000); // return-view restore + refetch with restored range + selection
 
 const pillClass = await page.locator('.tbm').getAttribute('class');

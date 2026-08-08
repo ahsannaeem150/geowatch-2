@@ -1,6 +1,6 @@
 #!/bin/bash
-# Start all GeoWatch services and optionally open the browser
-# Usage: ./scripts/start-geowatch.sh [--no-browser] [service1 service2 ...]
+# Start all IntelMap24 services and optionally open the browser
+# Usage: ./scripts/start-intelmap24.sh [--no-browser] [service1 service2 ...]
 #   Services: martin backend admin-web user-web superadmin-web
 #   Default (no args): starts all services
 
@@ -109,7 +109,7 @@ EOF
 }
 
 echo -e "${CYAN}========================================${NC}"
-echo -e "${CYAN}     GeoWatch Launcher${NC}"
+echo -e "${CYAN}     IntelMap24 Launcher${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 
@@ -187,7 +187,7 @@ fi
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  GeoWatch is live!${NC}"
+echo -e "${GREEN}  IntelMap24 is live!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "  ${CYAN}User Website:${NC}       http://localhost:5173"
@@ -197,15 +197,15 @@ echo -e "  ${CYAN}Backend API:${NC}        http://localhost:3100"
 echo -e "  ${CYAN}Martin Tiles:${NC}       http://localhost:8080"
 echo ""
 echo -e "  ${YELLOW}Logs:${NC}    ./logs/"
-echo -e "  ${YELLOW}Status:${NC}  ./scripts/status-geowatch.sh"
-echo -e "  ${YELLOW}Stop:${NC}    ./scripts/stop-geowatch.sh"
-echo -e "  ${YELLOW}Tail:${NC}    ./scripts/logs-geowatch.sh"
+echo -e "  ${YELLOW}Status:${NC}  ./scripts/status-intelmap24.sh"
+echo -e "  ${YELLOW}Stop:${NC}    ./scripts/stop-intelmap24.sh"
+echo -e "  ${YELLOW}Tail:${NC}    ./scripts/logs-intelmap24.sh"
 echo ""
 echo -e "  ${YELLOW}Start individual:${NC}"
-echo -e "    ./scripts/start-geowatch.sh martin"
-echo -e "    ./scripts/start-geowatch.sh backend"
-echo -e "    ./scripts/start-geowatch.sh admin-web"
-echo -e "    ./scripts/start-geowatch.sh user-web"
-echo -e "    ./scripts/start-geowatch.sh superadmin-web"
+echo -e "    ./scripts/start-intelmap24.sh martin"
+echo -e "    ./scripts/start-intelmap24.sh backend"
+echo -e "    ./scripts/start-intelmap24.sh admin-web"
+echo -e "    ./scripts/start-intelmap24.sh user-web"
+echo -e "    ./scripts/start-intelmap24.sh superadmin-web"
 echo ""
 echo -e "${GREEN}========================================${NC}"

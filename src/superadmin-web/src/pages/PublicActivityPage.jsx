@@ -81,7 +81,7 @@ export default function PublicActivityPage() {
       user_agent: log.user_agent || '',
     }));
     const timestamp = new Date().toISOString().slice(0, 10);
-    exportToCsv(rows, `geowatch-public-activity-${timestamp}.csv`);
+    exportToCsv(rows, `intelmap24-public-activity-${timestamp}.csv`);
   };
 
   const handleUserClick = (userId) => {

@@ -27,9 +27,9 @@ import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 import { useSignInModal } from '../contexts/SignInModalContext.jsx';
 import { computeMapPadding, computeOuterContainerPadding } from '../utils/mapPadding.js';
 
-const LS_KEY = 'geowatch_last_seen';
-const LS_COMPACT = 'geowatch_user_compact_mode';
-const LS_AUTO_ZOOM = 'geowatch_user_auto_zoom';
+const LS_KEY = 'intelmap24_last_seen';
+const LS_COMPACT = 'intelmap24_user_compact_mode';
+const LS_AUTO_ZOOM = 'intelmap24_user_auto_zoom';
 const MAX_ACTIVITIES = 50;
 const RIGHT_PANEL_TRANSITION_MS = 250;
 const PS_PAGE_SIZE = 25;
@@ -137,7 +137,7 @@ export default function MapPage() {
   const returnViewRef = useRef(undefined);
   if (returnViewRef.current === undefined) {
     try {
-      const raw = sessionStorage.getItem('geowatch_user_return_view');
+      const raw = sessionStorage.getItem('intelmap24_user_return_view');
       returnViewRef.current = raw ? JSON.parse(raw) : null;
     } catch {
       returnViewRef.current = null;
@@ -725,14 +725,14 @@ export default function MapPage() {
     // EventSource would retry forever, so don't connect without a session.
     if (typeof EventSource === 'undefined' || !isAuthenticated) return;
 
-    const token = localStorage.getItem('geowatch_public_token');
+    const token = localStorage.getItem('intelmap24_public_token');
     const url = `${API_BASE_URL}/incidents/stream`;
     const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
     const es = new EventSource(fullUrl);
     esRef.current = es;
 
     es.onopen = () => {
-      console.log('[SSE] Connected to GeoWatch stream');
+      console.log('[SSE] Connected to IntelMap24 stream');
     };
 
     es.onmessage = (e) => {
@@ -965,7 +965,7 @@ export default function MapPage() {
   // so a later Back — from a full-page detail view OR a directory page —
   // restores the map exactly as left. Detail navigation passes the target
   // selection explicitly; without one the current panel selection is saved.
-  // Sets the `geowatch_user_returning` latch the mount-time restore effect
+  // Sets the `intelmap24_user_returning` latch the mount-time restore effect
   // consumes. No-op until the map instance exists (map not ready).
   const saveMapReturnView = useCallback(
     (selection) => {
@@ -981,7 +981,7 @@ export default function MapPage() {
       // (center, zoom, bearing, pitch, padding) lets the map remount at
       // the exact framing the user left — no flight, no refit.
       sessionStorage.setItem(
-        'geowatch_user_return_view',
+        'intelmap24_user_return_view',
         JSON.stringify({
           lat: center.lat,
           lng: center.lng,
@@ -996,7 +996,7 @@ export default function MapPage() {
           activeDrawer,
         })
       );
-      sessionStorage.setItem('geowatch_user_returning', '1');
+      sessionStorage.setItem('intelmap24_user_returning', '1');
     },
     [selectedIncident, dateRange.from, dateRange.to, isLiveMode, activeDrawer]
   );
@@ -1022,7 +1022,7 @@ export default function MapPage() {
             { replace: true }
           );
         } else {
-          sessionStorage.setItem('geowatch_user_returning', '1');
+          sessionStorage.setItem('intelmap24_user_returning', '1');
         }
         navigate(isZone ? `/zone/${incidentId}` : `/incident/${incidentId}`);
       };
@@ -1043,10 +1043,10 @@ export default function MapPage() {
   // effects (skipFlyTo via the mount-time viewport snapshot) — no duplicated
   // selection logic. Missing fields (older payloads) degrade to viewport-only.
   useEffect(() => {
-    if (sessionStorage.getItem('geowatch_user_returning') !== '1') return;
-    sessionStorage.removeItem('geowatch_user_returning');
-    const raw = sessionStorage.getItem('geowatch_user_return_view');
-    sessionStorage.removeItem('geowatch_user_return_view');
+    if (sessionStorage.getItem('intelmap24_user_returning') !== '1') return;
+    sessionStorage.removeItem('intelmap24_user_returning');
+    const raw = sessionStorage.getItem('intelmap24_user_return_view');
+    sessionStorage.removeItem('intelmap24_user_return_view');
     if (!raw) return;
     try {
       const payload = JSON.parse(raw);
@@ -2154,8 +2154,8 @@ export default function MapPage() {
         onSelectIncident={handleCommandPaletteSelectIncident}
         onSelectLocation={handleCommandPaletteSelectLocation}
         onOpenAdvanced={handleCommandPaletteOpenAdvanced}
-        recentsKey="geowatch_user_command_palette_recents_v2"
-        legacyRecentsKey="geowatch_user_command_palette_recents"
+        recentsKey="intelmap24_user_command_palette_recents_v2"
+        legacyRecentsKey="intelmap24_user_command_palette_recents"
       />
     </div>
   );

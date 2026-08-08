@@ -49,7 +49,7 @@ export default function IncidentDetailPage() {
   useEffect(() => {
     if (typeof EventSource === 'undefined' || !id) return;
 
-    const token = localStorage.getItem('geowatch_token');
+    const token = localStorage.getItem('intelmap24_token');
     const url = `${API_BASE_URL}/incidents/stream`;
     const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
 
@@ -355,7 +355,7 @@ export default function IncidentDetailPage() {
 
   const handleBack = useCallback(() => {
     // Deterministic: always return to the workspace map. When a saved
-    // return-view exists (geowatch_admin_return_view), the camera rides in the
+    // return-view exists (intelmap24_admin_return_view), the camera rides in the
     // Back URL so DashboardLayout mounts directly at the saved view — the
     // panel-selection restore skips its flight entirely. history.length counts
     // the whole session (external links, redirects, same-page entries), which

@@ -12,12 +12,12 @@ page.on('pageerror', (e) => pageErrors.push(String(e).slice(0, 250)));
 page.on('console', (m) => { if (m.type() === 'error') pageErrors.push('console: ' + m.text().slice(0, 200)); });
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
 async function pickPixel() {
   return page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     for (const f of m.getSource('zones')?._data?.features || []) {
@@ -39,7 +39,7 @@ async function pickPixel() {
   });
 }
 
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [56, 26.5], zoom: 6.0 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [56, 26.5], zoom: 6.0 }));
 await page.waitForTimeout(1200);
 const px = await pickPixel();
 await page.mouse.click(px.x, px.y);
@@ -49,7 +49,7 @@ console.log('zone opened:', await page.evaluate(() => new URLSearchParams(locati
 const editBtn = page.locator('button:has-text("Edit Shape"), button:has-text("Edit shape")').first();
 await editBtn.click();
 await page.waitForTimeout(1200);
-const editing = await page.evaluate(() => !!window.__geowatchAdminMap.getSource('edit-vertices')?._data?.features?.length);
+const editing = await page.evaluate(() => !!window.__intelmap24AdminMap.getSource('edit-vertices')?._data?.features?.length);
 console.log('edit mode entered (vertices rendered):', editing);
 await page.screenshot({ timeout: 8000, animations: 'disabled', path: `${SHOTS}/edit-cancel-editing.png` }).catch(() => {});
 
@@ -59,8 +59,8 @@ await page.waitForTimeout(1200);
 await page.screenshot({ timeout: 8000, animations: 'disabled', path: `${SHOTS}/edit-cancel-after.png` }).catch(() => {});
 const after = await page.evaluate(() => ({
   zoneParam: new URLSearchParams(location.search).get('zone'),
-  editVerts: (window.__geowatchAdminMap.getSource('edit-vertices')?._data?.features || []).length,
-  hitLayer: !!window.__geowatchAdminMap.getLayer('zone-hit'),
+  editVerts: (window.__intelmap24AdminMap.getSource('edit-vertices')?._data?.features || []).length,
+  hitLayer: !!window.__intelmap24AdminMap.getLayer('zone-hit'),
 }));
 console.log('after cancel:', JSON.stringify(after));
 
@@ -68,7 +68,7 @@ console.log('after cancel:', JSON.stringify(after));
 const px2 = await pickPixel();
 await page.mouse.move(px2.x, px2.y, { steps: 4 });
 await page.waitForTimeout(400);
-const cursor = await page.evaluate(() => window.__geowatchAdminMap.getCanvas().style.cursor);
+const cursor = await page.evaluate(() => window.__intelmap24AdminMap.getCanvas().style.cursor);
 console.log('post-cancel hover cursor:', cursor);
 
 console.log('errors:', pageErrors.slice(0, 10));

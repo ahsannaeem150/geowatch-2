@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SEVERITY_SCALE } from '@shared/constants.js';
+import { getCssVar } from '@shared/utils/cssVar.js';
 import { format } from 'date-fns';
 
 export default function SearchDropdown({
@@ -58,11 +59,10 @@ export default function SearchDropdown({
   const getSeverityColor = (severity) => {
     const s = SEVERITY_SCALE.find((x) => x.value === severity);
     if (!s) return 'var(--text-muted)';
-    if (severity >= 5) return '#dc2626';
-    if (severity >= 4) return '#f87171';
-    if (severity >= 3) return '#fb923c';
-    if (severity >= 2) return '#fbbf24';
-    return '#4ade80';
+    // Resolved to a concrete hex — callers string-concat an alpha suffix (`...40`).
+    // Fallbacks mirror the dark --sev-* ramp (design-tokens.css).
+    const SEV_HEX = { 1: '#4ade80', 2: '#fbbf24', 3: '#fb923c', 4: '#f87171', 5: '#dc2626' };
+    return getCssVar(`--sev-${severity}`, SEV_HEX[severity]);
   };
 
   const highlightText = (text, query) => {

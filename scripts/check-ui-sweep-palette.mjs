@@ -24,7 +24,7 @@ async function shot(name, wait = 0) {
 
 await page.goto(`${BASE}/map`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await sleep(3200);
 
 await page.keyboard.press('Control+k');

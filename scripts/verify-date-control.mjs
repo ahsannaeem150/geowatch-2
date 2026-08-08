@@ -77,14 +77,14 @@ async function main() {
     incidentRequests.map((u) => Object.fromEntries(new URL(u).searchParams.entries()));
 
   await page.goto(`${ADMIN_BASE}/login`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate((t) => localStorage.setItem('geowatch_token', t), token);
+  await page.evaluate((t) => localStorage.setItem('intelmap24_token', t), token);
   await page.goto(`${ADMIN_BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
   await sleep(1500);
 
   const jumpTo = (zoom, center) =>
     page.evaluate(
-      ([z, c]) => window.__geowatchAdminMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
+      ([z, c]) => window.__intelmap24AdminMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
       [zoom, center]
     );
   const openDatePanel = async () => {

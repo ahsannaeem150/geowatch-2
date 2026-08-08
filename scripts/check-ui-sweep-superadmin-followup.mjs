@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GeoWatch superadmin-web UI sweep — FOLLOW-UP for sections whose selectors
+ * IntelMap24 superadmin-web UI sweep — FOLLOW-UP for sections whose selectors
  * missed in check-ui-sweep-superadmin.mjs. READ-ONLY (placement/drawing end
  * in Cancel; login POST is the only allowed write).
  *
@@ -54,16 +54,16 @@ async function section(name, fn) {
 async function gotoMap(qs = '') {
   await page.goto(`${BASE}/superadmin/map${qs}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
   await sleep(3200);
 }
 async function flyTo(lng, lat, zoom) {
-  await page.evaluate(([a, b, z]) => window.__geowatchSuperadminMap.jumpTo({ center: [a, b], zoom: z }), [lng, lat, zoom]);
+  await page.evaluate(([a, b, z]) => window.__intelmap24SuperadminMap.jumpTo({ center: [a, b], zoom: z }), [lng, lat, zoom]);
   await sleep(1100);
 }
 async function clickMapAt(lng, lat) {
   const pt = await page.evaluate(([a, b]) => {
-    const p = window.__geowatchSuperadminMap.project([a, b]);
+    const p = window.__intelmap24SuperadminMap.project([a, b]);
     return { x: p.x, y: p.y };
   }, [lng, lat]);
   await page.mouse.click(pt.x, pt.y);
@@ -177,17 +177,17 @@ await section('placement-drawing-v2', async () => {
 // ═══ E. Light theme ═══
 await section('light-theme-v2', async () => {
   await ensureAuth();
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'light'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'light'));
   await page.goto(`${BASE}/superadmin`, { waitUntil: 'domcontentloaded' });
   await sleep(2600);
   console.log('  light dashboard url:', page.url());
   await shot('light-dashboard');
   await page.goto(`${BASE}/superadmin/map`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
   await sleep(3600);
   await shot('light-map');
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'dark'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'dark'));
 });
 
 console.log('\n═══ MUTATION TRIPWIRE (expect empty) ═══');

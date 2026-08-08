@@ -14,7 +14,7 @@ const VIEWPORT = { width: 1440, height: 900 };
 
 async function setTheme(page, theme) {
   await page.evaluate((t) => {
-    localStorage.setItem('geowatch-theme', t);
+    localStorage.setItem('intelmap24-theme', t);
   }, theme);
 }
 

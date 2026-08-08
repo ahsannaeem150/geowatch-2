@@ -1,0 +1,209 @@
+/* ============================================
+   IntelMap24 Console — Superadmin Web
+   Global Design Tokens (Navy Blue Accent Theme)
+   ============================================ */
+
+:root {
+  /* Navy Blue Primary Palette */
+  --navy-50: #eff6ff;
+  --navy-100: #dbeafe;
+  --navy-200: #bfdbfe;
+  --navy-300: #93c5fd;
+  --navy-400: #60a5fa;
+  --navy-500: #3b82f6;
+  --navy-600: #2563eb;
+  --navy-700: #1d4ed8;
+  --navy-800: #1e40af;
+  --navy-900: #1e3a8a;
+
+  /* Console-specific overrides */
+  --primary: var(--navy-600);
+  --primary-hover: var(--navy-700);
+  --primary-dark: var(--navy-800);
+  --primary-light: var(--navy-500);
+  --primary-glow: var(--navy-400);
+
+  /* Superadmin accent — referenced by shared incident-detail styles
+     (indigo accent for the superadmin console context) */
+  --sa-accent: #6366f1;
+  --sa-accent-light: #818cf8;
+  --sa-accent-glow: rgba(99, 102, 241, 0.25);
+  --sa-accent-strong: rgba(99, 102, 241, 0.55);
+
+  /* Background layers */
+  --bg-deep: #05050a;
+  --bg-base: #08080f;
+  --bg-surface: #0c0c14;
+  --bg-elevated: #0f0f1a;
+  --bg-hover: #131322;
+  --bg-active: #1a1a2e;
+
+  /* Text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-disabled: #475569;
+
+  /* Borders */
+  --border-subtle: rgba(148, 163, 184, 0.08);
+  --border-default: rgba(148, 163, 184, 0.12);
+  --border-strong: rgba(148, 163, 184, 0.2);
+
+  /* Status colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #f43f5e;
+  --info: var(--navy-400);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.15);
+
+  /* Badge & Pill Colors (Dark Mode) */
+  --badge-blue-bg: rgba(37, 99, 235, 0.15);
+  --badge-blue-text: #60a5fa;
+  --badge-amber-bg: rgba(245, 158, 11, 0.15);
+  --badge-amber-text: #fbbf24;
+  --badge-green-bg: rgba(16, 185, 129, 0.15);
+  --badge-green-text: #34d399;
+  --badge-red-bg: rgba(244, 63, 94, 0.15);
+  --badge-red-text: #fb7185;
+  --badge-purple-bg: rgba(139, 92, 246, 0.15);
+  --badge-purple-text: #a78bfa;
+  --badge-gray-bg: rgba(100, 116, 139, 0.15);
+  --badge-gray-text: #94a3b8;
+
+  /* Alert & Banner Colors (Dark Mode) */
+  --alert-error-bg: rgba(244, 63, 94, 0.08);
+  --alert-error-border: rgba(244, 63, 94, 0.2);
+  --alert-success-bg: rgba(16, 185, 129, 0.08);
+  --alert-success-border: rgba(16, 185, 129, 0.2);
+  --alert-warning-bg: rgba(245, 158, 11, 0.08);
+  --alert-warning-border: rgba(245, 158, 11, 0.2);
+  --alert-info-bg: rgba(37, 99, 235, 0.08);
+  --alert-info-border: rgba(37, 99, 235, 0.2);
+
+  /* Hover & Interactive States */
+  --hover-subtle: rgba(255, 255, 255, 0.03);
+  --hover-default: rgba(255, 255, 255, 0.05);
+  --hover-strong: rgba(255, 255, 255, 0.08);
+
+  /* Backdrop */
+  --backdrop: rgba(0, 0, 0, 0.5);
+
+  /* Typography */
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* Spacing */
+  --sidebar-width: 220px;
+  --sidebar-collapsed: 64px;
+  --topbar-height: 56px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+
+  /* Background gradient — default (Tactical) */
+  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, rgba(37, 99, 235, 0.08) 0%, var(--bg-deep) 55%);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+}
+
+/* ─── Light Theme Overrides for Superadmin ─── */
+[data-theme="light"] {
+  /* Backgrounds — gray page, white cards */
+  --bg-deep: #f3f4f6;
+  --bg-base: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f3f4f6;
+  --bg-active: #e5e7eb;
+  --bg-glass: rgba(255, 255, 255, 0.92);
+
+  /* Text — dark slate for comfortable reading */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
+
+  /* Borders — visible on white */
+  --border-subtle: #e5e7eb;
+  --border-default: #d1d5db;
+  --border-strong: #9ca3af;
+
+  /* Shadows — lighter but perceptible on white */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.08);
+
+  /* Status colors — slightly deeper for light backgrounds */
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #e11d48;
+  --info: #2563eb;
+
+  /* Primary accent — navy stays but glows softer */
+  --primary: var(--navy-600);
+  --primary-hover: var(--navy-700);
+  --primary-dark: var(--navy-800);
+  --primary-light: var(--navy-500);
+  --primary-glow: var(--navy-400);
+
+  /* Badge & Pill Colors (Light Mode)
+     Solid opaque tints with dark text — NEVER transparent on white */
+  --badge-blue-bg: #dbeafe;
+  --badge-blue-text: #1e40af;
+  --badge-amber-bg: #fef3c7;
+  --badge-amber-text: #92400e;
+  --badge-green-bg: #d1fae5;
+  --badge-green-text: #065f46;
+  --badge-red-bg: #ffe4e6;
+  --badge-red-text: #9f1239;
+  --badge-purple-bg: #ede9fe;
+  --badge-purple-text: #5b21b6;
+  --badge-gray-bg: #f1f5f9;
+  --badge-gray-text: #475569;
+
+  /* Alert & Banner Colors (Light Mode) */
+  --alert-error-bg: #fef2f2;
+  --alert-error-border: #fecaca;
+  --alert-success-bg: #f0fdf4;
+  --alert-success-border: #bbf7d0;
+  --alert-warning-bg: #fffbeb;
+  --alert-warning-border: #fde68a;
+  --alert-info-bg: #eff6ff;
+  --alert-info-border: #bfdbfe;
+
+  /* Hover & Interactive States */
+  --hover-subtle: rgba(15, 23, 42, 0.02);
+  --hover-default: rgba(15, 23, 42, 0.04);
+  --hover-strong: rgba(15, 23, 42, 0.08);
+
+  /* Backdrop */
+  --backdrop: rgba(0, 0, 0, 0.4);
+
+  /* Background gradient — Light */
+  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, rgba(37, 99, 235, 0.04) 0%, var(--bg-deep) 55%);
+}
+
+/* ─── SaaS Interface Style ─── */
+[data-style="saas"] {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, rgba(37, 99, 235, 0.06) 0%, var(--bg-deep) 55%);
+}
+
+[data-style="saas"][data-theme="light"] {
+  --bg-gradient: radial-gradient(ellipse 80% 55% at 50% -5%, rgba(37, 99, 235, 0.03) 0%, var(--bg-deep) 55%);
+}

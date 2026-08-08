@@ -10,8 +10,8 @@ import TargetingCard from './TargetingCard.jsx';
 
 const ROLE_META = {
   user: { label: 'Public view', color: 'var(--accent-light)', accent: 'var(--accent)', accentLight: 'var(--accent-light)' },
-  admin: { label: 'Admin', color: '#9f1239', accent: '#5a011c', accentLight: '#9f1239' },
-  superadmin: { label: 'Superadmin', color: '#9f1239', accent: '#5a011c', accentLight: '#9f1239' },
+  admin: { label: 'Admin', color: 'var(--accent-light)', accent: 'var(--accent)', accentLight: 'var(--accent-light)' },
+  superadmin: { label: 'Superadmin', color: 'var(--accent-light)', accent: 'var(--accent)', accentLight: 'var(--accent-light)' },
 };
 
 function toDatetimeLocal(iso) {
@@ -248,7 +248,7 @@ function Hero({ incident, heroImage, mode }) {
           className="opt1-hero-bg"
           latitude={incident.latitude}
           longitude={incident.longitude}
-          color={incident.domainColor || incident.categoryColor || '#9f1239'}
+          color={incident.domainColor || incident.categoryColor || 'var(--accent-light)'}
           hasOverlay
         />
       )}

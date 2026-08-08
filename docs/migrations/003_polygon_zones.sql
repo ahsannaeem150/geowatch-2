@@ -1,7 +1,7 @@
 -- ============================================
--- GeoWatch: Polygon Zones Foundation (Phase 1)
+-- IntelMap24: Polygon Zones Foundation (Phase 1)
 -- ============================================
--- Run this as: sudo -u postgres psql -d geowatch_dev -f 003_polygon_zones.sql
+-- Run this as: sudo -u postgres psql -d intelmap24_dev -f 003_polygon_zones.sql
 --
 -- This script:
 -- 1. Adds geometry_type to incidents and widens geom to GEOMETRY(Geometry, 4326)
@@ -99,8 +99,8 @@ DROP TABLE IF EXISTS zones CASCADE;
 -- ============================================
 -- 4. PERMISSIONS
 -- ============================================
-GRANT SELECT, INSERT, UPDATE, DELETE ON zone_categories TO geowatch_user;
-GRANT USAGE, SELECT ON SEQUENCE zone_categories_id_seq TO geowatch_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON zone_categories TO intelmap24_user;
+GRANT USAGE, SELECT ON SEQUENCE zone_categories_id_seq TO intelmap24_user;
 
 -- ============================================
 -- VERIFY

@@ -10,7 +10,7 @@ const pageErrors = [];
 
 async function pickPixel(page) {
   return page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     for (const f of m.getSource('zones')?._data?.features || []) {
@@ -37,7 +37,7 @@ async function pickPixel(page) {
 
 async function hoverProbe(page, label) {
   const d = await page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     return { layer: !!m.getLayer('zone-hit'), src: !!m.getSource('zones'), n: (m.getSource('zones')?._data?.features || []).length };
   });
   const t = await pickPixel(page);
@@ -46,7 +46,7 @@ async function hoverProbe(page, label) {
   await page.waitForTimeout(250);
   await page.mouse.move(t.x, t.y, { steps: 5 });
   await page.waitForTimeout(450);
-  const cursor = await page.evaluate(() => window.__geowatchAdminMap.getCanvas().style.cursor);
+  const cursor = await page.evaluate(() => window.__intelmap24AdminMap.getCanvas().style.cursor);
   const ok = d.layer && d.n > 0 && cursor === 'pointer';
   console.log(`### ${label}: ${JSON.stringify(d)} hover "${t.name}" → cursor="${cursor}" ${ok ? 'OK' : '*** DEAD ***'}`);
   try { await page.screenshot({ timeout: 8000, animations: 'disabled', path: `${SHOTS}/bugc-${label.replace(/\W+/g, '-').toLowerCase()}.png` }); } catch {}
@@ -59,9 +59,9 @@ const page = await ctx.newPage();
 page.on('pageerror', (e) => pageErrors.push(String(e).slice(0, 200)));
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [50, 28], zoom: 5.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [50, 28], zoom: 5.5 }));
 await page.waitForTimeout(800);
 
 const r0 = await hoverProbe(page, 'baseline-hover');

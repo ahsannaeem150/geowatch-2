@@ -11,12 +11,12 @@ page.on('request', (req) => {
   mutations.push(`${m} ${req.url()}`);
 });
 await page.goto('http://localhost:5175/superadmin/map', { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
 await sleep(3000);
-await page.evaluate(() => window.__geowatchSuperadminMap.jumpTo({ center: [56.5, 26.5], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24SuperadminMap.jumpTo({ center: [56.5, 26.5], zoom: 6.5 }));
 await sleep(1000);
 const clickAt = async (lng, lat) => {
-  const p = await page.evaluate(([a, b]) => { const q = window.__geowatchSuperadminMap.project([a, b]); return { x: q.x, y: q.y }; }, [lng, lat]);
+  const p = await page.evaluate(([a, b]) => { const q = window.__intelmap24SuperadminMap.project([a, b]); return { x: q.x, y: q.y }; }, [lng, lat]);
   await page.mouse.click(p.x, p.y);
 };
 // 1) placement: place then cancel via the FORM Cancel (real user path)

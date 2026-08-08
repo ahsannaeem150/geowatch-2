@@ -1,18 +1,21 @@
 import { format, formatDistanceToNow } from 'date-fns';
 
+// Colors are CSS tokens (design-tokens.css --sev-*/--ver-*) — single source of truth.
+// var() strings work in inline styles; JS doing hex math must resolve via getCssVar()
+// (themeColors.js badge helpers do this internally via resolveColor).
 export const SEVERITY_LABELS = {
-  1: { label: 'Minor', color: '#4ade80' },
-  2: { label: 'Low', color: '#fbbf24' },
-  3: { label: 'Moderate', color: '#fb923c' },
-  4: { label: 'High', color: '#f87171' },
-  5: { label: 'Critical', color: '#dc2626' },
+  1: { label: 'Minor', color: 'var(--sev-1)' },
+  2: { label: 'Low', color: 'var(--sev-2)' },
+  3: { label: 'Moderate', color: 'var(--sev-3)' },
+  4: { label: 'High', color: 'var(--sev-4)' },
+  5: { label: 'Critical', color: 'var(--sev-5)' },
 };
 
 export const VERIFICATION = {
-  verified: { label: 'Verified', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-  unverified: { label: 'Unverified', color: '#9ca3af', bg: 'rgba(156,163,175,0.12)' },
-  disputed: { label: 'Disputed', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-  debunked: { label: 'Debunked', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+  verified: { label: 'Verified', color: 'var(--ver-verified)', bg: 'color-mix(in srgb, var(--ver-verified) 12%, transparent)' },
+  unverified: { label: 'Unverified', color: 'var(--ver-unverified)', bg: 'color-mix(in srgb, var(--ver-unverified) 12%, transparent)' },
+  disputed: { label: 'Disputed', color: 'var(--ver-disputed)', bg: 'color-mix(in srgb, var(--ver-disputed) 12%, transparent)' },
+  debunked: { label: 'Debunked', color: 'var(--ver-debunked)', bg: 'color-mix(in srgb, var(--ver-debunked) 12%, transparent)' },
 };
 
 export const SOURCE_TYPE_LABELS = {

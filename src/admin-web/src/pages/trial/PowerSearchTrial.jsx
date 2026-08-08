@@ -432,7 +432,7 @@ export default function PowerSearchTrial() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `geowatch-search-${formatDateInput(Date.now())}.csv`;
+    a.download = `intelmap24-search-${formatDateInput(Date.now())}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

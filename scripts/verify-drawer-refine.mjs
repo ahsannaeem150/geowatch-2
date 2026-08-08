@@ -11,7 +11,7 @@ const browser = await chromium.launch({ headless: true });
 const ctx = await browser.newContext({ storageState: STATE, viewport: { width: 1440, height: 900 } });
 // Backdate the lastSeen baseline 4 days so backfilled activity rows render unseen
 await ctx.addInitScript(() => {
-  localStorage.setItem('geowatch_admin_last_seen', String(Date.now() - 4 * 24 * 3600 * 1000));
+  localStorage.setItem('intelmap24_admin_last_seen', String(Date.now() - 4 * 24 * 3600 * 1000));
 });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR:', String(e).slice(0, 200)));

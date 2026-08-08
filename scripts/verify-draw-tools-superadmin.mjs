@@ -61,7 +61,7 @@ async function main() {
   // NOTE: SSE keeps a connection open — use domcontentloaded, not networkidle.
   await page.goto(`${SUPER_BASE}/superadmin/map`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
   await page.waitForTimeout(3000);
   check('map loaded with dev debug handle', true);
 
@@ -76,7 +76,7 @@ async function main() {
   await page.waitForTimeout(400);
 
   const hintArmed = await page.locator('text=Click on the map to place the incident').isVisible().catch(() => false);
-  const cursor = await page.evaluate(() => window.__geowatchSuperadminMap.getCanvas().style.cursor);
+  const cursor = await page.evaluate(() => window.__intelmap24SuperadminMap.getCanvas().style.cursor);
   check('Add Incident → placement armed (hint chip + crosshair)', hintArmed && cursor === 'crosshair',
     `hint=${hintArmed} cursor="${cursor}"`);
 
@@ -114,7 +114,7 @@ async function main() {
   const hintGone = !(await page.locator('text=Drag to adjust, or click elsewhere to move').isVisible().catch(() => false));
   const markerStays = (await page.locator('.maplibregl-marker').count()) >= markerCount1;
   const formOpen = await page.locator('h2:has-text("Create Incident")').isVisible().catch(() => false);
-  const cursorAfter = await page.evaluate(() => window.__geowatchSuperadminMap.getCanvas().style.cursor);
+  const cursorAfter = await page.evaluate(() => window.__intelmap24SuperadminMap.getCanvas().style.cursor);
   check('Esc → disarmed (hint hidden, marker + form stay, cursor normal)',
     hintGone && markerStays && formOpen && cursorAfter !== 'crosshair',
     `hintGone=${hintGone} markerStays=${markerStays} formOpen=${formOpen} cursor="${cursorAfter}"`);
@@ -197,7 +197,7 @@ async function main() {
   await page.waitForTimeout(800);
   const readoutCircle = await page.locator('text=Draw zone').locator('..').textContent();
   const ringInfo = await page.evaluate(() => {
-    const src = window.__geowatchSuperadminMap.getSource('draw-preview');
+    const src = window.__intelmap24SuperadminMap.getSource('draw-preview');
     const data = src?._data || src?.data;
     const poly = (data?.features || []).find((f) => f.geometry?.type === 'Polygon');
     return { ringLen: poly ? poly.geometry.coordinates[0].length : 0 };

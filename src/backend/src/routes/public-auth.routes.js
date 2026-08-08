@@ -8,7 +8,7 @@ import {
 
 const router = Router();
 
-// Public: Exchange Google ID token for GeoWatch JWT
+// Public: Exchange Google ID token for IntelMap24 JWT
 router.post('/google', asyncHandler(googleAuthController));
 
 // Protected: Get current public user profile

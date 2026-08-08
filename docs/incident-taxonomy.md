@@ -1,4 +1,4 @@
-# GeoWatch Incident Taxonomy
+# IntelMap24 Incident Taxonomy
 
 > **Status:** Draft — pending review before implementation.
 > 

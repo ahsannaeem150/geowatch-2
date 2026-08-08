@@ -7,11 +7,11 @@ const ctx = await browser.newContext({ storageState: STATE, viewport: { width: 1
 const page = await ctx.newPage();
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 await page.evaluate(() => {
   window.__ev = [];
-  const m = window.__geowatchAdminMap;
+  const m = window.__intelmap24AdminMap;
   const t0 = performance.now();
   for (const ev of ['styledata', 'style.load', 'idle', 'data', 'render']) {
     m.on(ev, () => {

@@ -8,7 +8,7 @@ const page = await ctx.newPage();
 page.on('console', (m) => { if (m.text().startsWith('[trace]')) console.log(m.text().slice(0, 400)); });
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
 await page.evaluate(() => {
@@ -30,7 +30,7 @@ await page.evaluate(() => {
 
 async function pickPixel(nameLike) {
   return page.evaluate((nameLike) => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     for (const f of m.getSource('zones')?._data?.features || []) {
@@ -53,7 +53,7 @@ async function pickPixel(nameLike) {
 }
 
 // Step 1: open Hormuz panel
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [56, 26.5], zoom: 6.0 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [56, 26.5], zoom: 6.0 }));
 await page.waitForTimeout(1200);
 const hz = await pickPixel('Hormuz');
 await page.mouse.click(hz.x, hz.y);
@@ -62,7 +62,7 @@ console.log('[trace] --- panel now open, param:', await page.evaluate(() => new 
 
 // Step 2: trace the Waziristan click
 await page.evaluate(() => { window.__traceOn = true; });
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.0 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.0 }));
 await page.waitForTimeout(1500);
 const wz = await pickPixel('Waziristan');
 console.log('[trace] --- clicking Waziristan at', Math.round(wz.x), Math.round(wz.y));

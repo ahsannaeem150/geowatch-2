@@ -11,9 +11,9 @@ page.on('request', (req) => {
   mutations.push(`${m} ${req.url()}`);
 });
 await page.goto('http://localhost:5175/superadmin/map', { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
 await sleep(3200);
-await page.evaluate(() => window.__geowatchSuperadminMap.jumpTo({ center: [56.5, 26.5], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24SuperadminMap.jumpTo({ center: [56.5, 26.5], zoom: 6.5 }));
 await sleep(1000);
 await page.locator('button:has-text("Add Incident")').first().click();
 await sleep(1400);
@@ -34,7 +34,7 @@ console.log('FIX1 hit-test:', JSON.stringify(hit));
 await page.screenshot({ path: 'temp_screenshots/ui-sweep-superadmin/74-fix1-toolbar-offset.png' });
 
 // place a point, then Clear via the toolbar button (now clickable)
-const p = await page.evaluate(() => { const q = window.__geowatchSuperadminMap.project([56.9, 26.2]); return { x: q.x, y: q.y }; });
+const p = await page.evaluate(() => { const q = window.__intelmap24SuperadminMap.project([56.9, 26.2]); return { x: q.x, y: q.y }; });
 await page.mouse.click(p.x, p.y);
 await sleep(1200);
 const filled = await page.evaluate(() => {

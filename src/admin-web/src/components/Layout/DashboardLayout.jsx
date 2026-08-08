@@ -51,7 +51,7 @@ const SORT_OPTIONS_PS = [
   { key: 'severity-asc', label: 'Severity · Low to high', api: 'severity_asc' },
   { key: 'name', label: 'Name A–Z', api: 'name_asc' },
 ];
-const LS_KEY = 'geowatch_admin_last_seen';
+const LS_KEY = 'intelmap24_admin_last_seen';
 
 function getLastSeen() {
   const raw = localStorage.getItem(LS_KEY);
@@ -167,7 +167,7 @@ export default function DashboardLayout() {
   const returnViewRef = useRef(undefined);
   if (returnViewRef.current === undefined) {
     try {
-      const raw = sessionStorage.getItem('geowatch_admin_return_view');
+      const raw = sessionStorage.getItem('intelmap24_admin_return_view');
       returnViewRef.current = raw ? JSON.parse(raw) : null;
     } catch {
       returnViewRef.current = null;
@@ -310,10 +310,10 @@ export default function DashboardLayout() {
   // skipped via the mount-time saved-viewport snapshot) — no duplicated
   // selection logic. Missing fields (older payloads) degrade to viewport-only.
   useEffect(() => {
-    if (sessionStorage.getItem('geowatch_admin_returning') !== '1') return;
-    sessionStorage.removeItem('geowatch_admin_returning');
-    const raw = sessionStorage.getItem('geowatch_admin_return_view');
-    sessionStorage.removeItem('geowatch_admin_return_view');
+    if (sessionStorage.getItem('intelmap24_admin_returning') !== '1') return;
+    sessionStorage.removeItem('intelmap24_admin_returning');
+    const raw = sessionStorage.getItem('intelmap24_admin_return_view');
+    sessionStorage.removeItem('intelmap24_admin_return_view');
     if (!raw) return;
     try {
       const payload = JSON.parse(raw);
@@ -546,7 +546,7 @@ export default function DashboardLayout() {
   // Compact mode toggle (persisted)
   const [compactMode, setCompactMode] = useState(() => {
     try {
-      return localStorage.getItem('geowatch_admin_compact_mode') === 'true';
+      return localStorage.getItem('intelmap24_admin_compact_mode') === 'true';
     } catch {
       return false;
     }
@@ -555,7 +555,7 @@ export default function DashboardLayout() {
     setCompactMode((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('geowatch_admin_compact_mode', String(next));
+        localStorage.setItem('intelmap24_admin_compact_mode', String(next));
       } catch {}
       return next;
     });
@@ -564,7 +564,7 @@ export default function DashboardLayout() {
   // Auto-zoom on selection toggle (persisted)
   const [autoZoomEnabled, setAutoZoomEnabled] = useState(() => {
     try {
-      const saved = localStorage.getItem('geowatch_admin_auto_zoom');
+      const saved = localStorage.getItem('intelmap24_admin_auto_zoom');
       return saved === null ? true : saved === 'true';
     } catch {
       return true;
@@ -574,7 +574,7 @@ export default function DashboardLayout() {
     setAutoZoomEnabled((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('geowatch_admin_auto_zoom', String(next));
+        localStorage.setItem('intelmap24_admin_auto_zoom', String(next));
       } catch {}
       return next;
     });
@@ -1237,7 +1237,7 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
 
-    const token = localStorage.getItem('geowatch_token');
+    const token = localStorage.getItem('intelmap24_token');
     const url = `${API_BASE_URL}/incidents/stream`;
     const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
 
@@ -1257,7 +1257,7 @@ export default function DashboardLayout() {
 
       es.onopen = () => {
         reconnectAttempt = 0;
-        console.log('[SSE] Admin connected to GeoWatch stream');
+        console.log('[SSE] Admin connected to IntelMap24 stream');
       };
 
       es.onmessage = (e) => {
@@ -1809,7 +1809,7 @@ export default function DashboardLayout() {
       next.delete('zone');
       return next;
     });
-    sessionStorage.removeItem('geowatch_admin_selected_zone');
+    sessionStorage.removeItem('intelmap24_admin_selected_zone');
   };
   const handleDeleteIncident = useCallback(async (id) => {
     try {
@@ -2674,7 +2674,7 @@ export default function DashboardLayout() {
   // Back — from a full-page detail view OR a directory page — restores the map
   // exactly as left. Detail navigation passes the target selection explicitly;
   // without one the current panel selection is saved. Sets the
-  // `geowatch_admin_returning` latch the mount-time restore effect consumes.
+  // `intelmap24_admin_returning` latch the mount-time restore effect consumes.
   // No-op until the map instance exists (map not ready).
   const saveMapReturnView = useCallback(
     (selection) => {
@@ -2701,8 +2701,8 @@ export default function DashboardLayout() {
         selectedIncidentId: selId && !selIsZone ? selId : null,
         selectedZoneId: selId && selIsZone ? selId : null,
       };
-      sessionStorage.setItem('geowatch_admin_return_view', JSON.stringify(view));
-      sessionStorage.setItem('geowatch_admin_returning', '1');
+      sessionStorage.setItem('intelmap24_admin_return_view', JSON.stringify(view));
+      sessionStorage.setItem('intelmap24_admin_returning', '1');
     },
     [selectedIncident, dateRange.from, dateRange.to, isLiveMode]
   );
@@ -2779,7 +2779,7 @@ export default function DashboardLayout() {
           { replace: true }
         );
       } else {
-        sessionStorage.setItem('geowatch_admin_returning', '1');
+        sessionStorage.setItem('intelmap24_admin_returning', '1');
       }
       navigate(`/${isZone ? 'zone' : 'incident'}/${selectedIncident.id}`);
     };
@@ -3795,8 +3795,8 @@ export default function DashboardLayout() {
         onSelectIncident={handleCommandPaletteSelectIncident}
         onSelectLocation={handleSelectLocation}
         onOpenAdvanced={handleCommandPaletteOpenAdvanced}
-        recentsKey="geowatch_admin_command_palette_recents_v2"
-        legacyRecentsKey="geowatch_admin_command_palette_recents"
+        recentsKey="intelmap24_admin_command_palette_recents_v2"
+        legacyRecentsKey="intelmap24_admin_command_palette_recents"
       />
 
       {/* Slide-in animation */}

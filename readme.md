@@ -1,8 +1,8 @@
-# GeoWatch
+# IntelMap24
 
 > Map-based global conflict and major events visualization platform.
 
-GeoWatch is a tactical intelligence dashboard that displays real-world incidents on an interactive dark-themed map. It combines a premium newsroom aesthetic with powerful geospatial tooling to help users explore events, filter by date and category, and dive into detailed timelines with credible source-backed updates.
+IntelMap24 is a tactical intelligence dashboard that displays real-world incidents on an interactive dark-themed map. It combines a premium newsroom aesthetic with powerful geospatial tooling to help users explore events, filter by date and category, and dive into detailed timelines with credible source-backed updates.
 
 ---
 
@@ -64,10 +64,10 @@ geowatch/
 │   ├── dev-credentials.md
 │   └── migrations/           # SQL migration scripts
 ├── scripts/
-│   ├── start-geowatch.sh     # One-command launcher
-│   ├── stop-geowatch.sh
-│   ├── status-geowatch.sh
-│   ├── logs-geowatch.sh
+│   ├── start-intelmap24.sh     # One-command launcher
+│   ├── stop-intelmap24.sh
+│   ├── status-intelmap24.sh
+│   ├── logs-intelmap24.sh
 │   └── download-martin.sh
 ├── seeds.sql                 # Sample data for development
 ├── srs.docx                  # Software Requirements Specification
@@ -99,7 +99,7 @@ This downloads the Martin binary (~35MB) to `tools/martin`. It is **not** commit
 ```bash
 # Create database and user (requires postgres role)
 sudo -u postgres psql -f docs/database-schema.sql
-sudo -u postgres psql -d geowatch_dev -f seeds.sql
+sudo -u postgres psql -d intelmap24_dev -f seeds.sql
 ```
 
 ### 3. Install Dependencies
@@ -119,7 +119,7 @@ cp src/backend/.env.example src/backend/.env.development
 
 ```bash
 # Start Martin + Backend + Admin Web + User Web + Superadmin Web
-./scripts/start-geowatch.sh
+./scripts/start-intelmap24.sh
 ```
 
 This launches all five services in the background, opens the admin dashboard in your default browser, and writes logs to `./logs/`.
@@ -136,16 +136,16 @@ This launches all five services in the background, opens the admin dashboard in 
 
 ```bash
 # Stop all services
-./scripts/stop-geowatch.sh
+./scripts/stop-intelmap24.sh
 
 # Check service status
-./scripts/status-geowatch.sh
+./scripts/status-intelmap24.sh
 
 # View recent logs from all services
-./scripts/logs-geowatch.sh
+./scripts/logs-intelmap24.sh
 
 # Watch a specific service log live
-./scripts/logs-geowatch.sh backend
+./scripts/logs-intelmap24.sh backend
 ```
 
 **Manual start (if you prefer separate terminals):**
@@ -256,7 +256,7 @@ Full spec: [`docs/api-spec.md`](docs/api-spec.md)
 
 ## Design Philosophy
 
-GeoWatch is **not** a generic maps clone. It is a tactical intelligence dashboard meets premium newsroom aesthetic — think Bloomberg Terminal + modern dark-mode SaaS.
+IntelMap24 is **not** a generic maps clone. It is a tactical intelligence dashboard meets premium newsroom aesthetic — think Bloomberg Terminal + modern dark-mode SaaS.
 
 - **Dark mode first** (deep charcoal `#050505`)
 - **Crimson Seal accent** (`#5a011c` / `#9f1239`)

@@ -40,7 +40,7 @@ export default function ZoneDetailPage() {
 
   // Document title from the loaded zone
   useEffect(() => {
-    if (data?.incident?.title) document.title = `${data.incident.title} — GeoWatch`;
+    if (data?.incident?.title) document.title = `${data.incident.title} — IntelMap24`;
   }, [data?.incident?.title]);
 
   // Redirect non-zone incidents to the point incident view
@@ -76,7 +76,7 @@ export default function ZoneDetailPage() {
     // visitors instead of 401-retrying.
     if (typeof EventSource === 'undefined' || !id || !isAuthenticated) return;
 
-    const token = localStorage.getItem('geowatch_public_token');
+    const token = localStorage.getItem('intelmap24_public_token');
     const url = `${API_BASE_URL}/incidents/stream`;
     const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
 
@@ -158,7 +158,7 @@ export default function ZoneDetailPage() {
 
   const handleBack = useCallback(() => {
     // Deterministic: always return to the map. When a saved return-view exists
-    // (geowatch_user_return_view), the camera rides in the Back URL so MapPage
+    // (intelmap24_user_return_view), the camera rides in the Back URL so MapPage
     // mounts directly at the saved view — the panel-selection restore skips
     // its flight entirely. history.length is untrustworthy — it counts the
     // whole session (external links, redirects, same-page entries), which made

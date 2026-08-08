@@ -83,7 +83,7 @@ function Reticle({ className }) {
 }
 
 const MISSION_LINES = [
-  'GeoWatch is a real-time conflict',
+  'IntelMap24 is a real-time conflict',
   'intelligence platform that monitors',
   'and maps global incidents as they unfold.',
 ];

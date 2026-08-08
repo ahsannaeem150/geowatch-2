@@ -1,7 +1,7 @@
 -- ============================================
--- GeoWatch: Incident Detail Evidence Model (Phase 1)
+-- IntelMap24: Incident Detail Evidence Model (Phase 1)
 -- ============================================
--- Run this as: sudo -u postgres psql -d geowatch_dev -f 005_incident_detail_evidence.sql
+-- Run this as: sudo -u postgres psql -d intelmap24_dev -f 005_incident_detail_evidence.sql
 --
 -- 1. Adds per-update evidence linkage (update_id on sources/media).
 -- 2. Adds curation primitives: pinned, featured per update, hero image.

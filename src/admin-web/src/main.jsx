@@ -9,7 +9,7 @@ import { ThemeProvider } from '@shared/theme-context.jsx';
 
 // Apply the persisted reduce-motion preference before first paint
 try {
-  if (localStorage.getItem('geowatch_admin_reduce_motion') === 'true') {
+  if (localStorage.getItem('intelmap24_admin_reduce_motion') === 'true') {
     document.documentElement.classList.add('reduce-motion');
   }
 } catch {}

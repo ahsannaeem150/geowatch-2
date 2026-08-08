@@ -1,7 +1,7 @@
 -- ============================================
--- GeoWatch: Zone Category Foreign Key (Phase 3)
+-- IntelMap24: Zone Category Foreign Key (Phase 3)
 -- ============================================
--- Run this as: sudo -u postgres psql -d geowatch_dev -f 004_zone_category_foreign_key.sql
+-- Run this as: sudo -u postgres psql -d intelmap24_dev -f 004_zone_category_foreign_key.sql
 --
 -- Adds zone_category_id to incidents so polygon zones can reference
 -- the zone_categories taxonomy independently from marker categories.
@@ -21,8 +21,8 @@ ALTER TABLE incidents
 
 CREATE INDEX IF NOT EXISTS idx_incidents_zone_category_id ON incidents(zone_category_id);
 
-GRANT SELECT, UPDATE, INSERT, REFERENCES ON zone_categories TO geowatch_user;
-GRANT SELECT, INSERT, UPDATE ON incidents TO geowatch_user;
+GRANT SELECT, UPDATE, INSERT, REFERENCES ON zone_categories TO intelmap24_user;
+GRANT SELECT, INSERT, UPDATE ON incidents TO intelmap24_user;
 
 -- ============================================
 -- VERIFY

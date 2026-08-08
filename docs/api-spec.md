@@ -1,8 +1,8 @@
-# GeoWatch API Specification
+# IntelMap24 API Specification
 
 ## Base URL
 - Development: http://localhost:3100/api/v1
-- Production: https://api.geowatch.app/api/v1
+- Production: https://api.intelmap24.com/api/v1
 
 ## Response Format
 All responses follow this structure:

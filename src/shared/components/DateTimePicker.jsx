@@ -232,7 +232,7 @@ export default function DateTimePicker({ value, onChange, placeholder = 'Select 
                     background: selected
                       ? 'var(--accent-light)'
                       : today
-                      ? 'rgba(159, 18, 57, 0.1)'
+                      ? 'color-mix(in srgb, var(--accent-light) 10%, transparent)'
                       : 'transparent',
                     color: selected
                       ? 'var(--bg-deep)'
@@ -246,7 +246,7 @@ export default function DateTimePicker({ value, onChange, placeholder = 'Select 
                     if (!selected) e.currentTarget.style.background = 'var(--bg-hover)';
                   }}
                   onMouseLeave={(e) => {
-                    if (!selected) e.currentTarget.style.background = today ? 'rgba(159, 18, 57, 0.1)' : 'transparent';
+                    if (!selected) e.currentTarget.style.background = today ? 'color-mix(in srgb, var(--accent-light) 10%, transparent)' : 'transparent';
                   }}
                 >
                   {format(day, 'd')}

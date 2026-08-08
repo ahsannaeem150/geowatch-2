@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useMemo, forwardRef, useImperativeH
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
+import { getCssVar } from '@shared/utils/cssVar.js';
 import { buildMarkerElement, updateMarkerSelection } from '@shared/marker-builder.js';
 import { useTheme } from '@shared/useTheme.js';
 import ZoneSvgOverlay from '@shared/components/ZoneSvgOverlay.jsx';
@@ -535,7 +536,7 @@ const AdminMap = forwardRef(function AdminMap({
 
     // Expose map instance in dev so verification scripts can read zoom/center.
     if (import.meta.env.DEV) {
-      window.__geowatchAdminMap = map.current;
+      window.__intelmap24AdminMap = map.current;
     }
 
     map.current.on('dblclick', (e) => {
@@ -672,7 +673,7 @@ const AdminMap = forwardRef(function AdminMap({
       tempMarker.current?.remove();
       popupRef.current?.remove();
       if (import.meta.env.DEV) {
-        delete window.__geowatchAdminMap;
+        delete window.__intelmap24AdminMap;
       }
       map.current?.remove();
     };
@@ -956,7 +957,7 @@ const AdminMap = forwardRef(function AdminMap({
           closeButton: false,
           closeOnClick: false,
           offset: 12,
-          className: 'geowatch-popup',
+          className: 'intelmap24-popup',
         })
           .setLngLat([parseFloat(data.longitude), parseFloat(data.latitude)])
           .setHTML(buildPopupHTML(data, true))
@@ -2080,7 +2081,7 @@ const AdminMap = forwardRef(function AdminMap({
           0% { transform: scale(0.8); opacity: 0.7; }
           100% { transform: scale(2.2); opacity: 0; }
         }
-        .geowatch-popup .maplibregl-popup-content {
+        .intelmap24-popup .maplibregl-popup-content {
           background: var(--bg-surface);
           color: var(--text-primary);
           border-radius: var(--radius-md);
@@ -2090,7 +2091,7 @@ const AdminMap = forwardRef(function AdminMap({
           font-family: var(--font-sans);
           max-width: 280px;
         }
-        .geowatch-popup .maplibregl-popup-tip {
+        .intelmap24-popup .maplibregl-popup-tip {
           border-top-color: var(--bg-surface);
         }
       `}</style>
@@ -2103,6 +2104,12 @@ export default AdminMap;
 function buildPopupHTML(incident, isAdmin) {
   const vCfg = incident.verification_status ? VERIFICATION_CONFIG[incident.verification_status] : null;
   const sevCfg = SEVERITY_SCALE.find((s) => s.value === incident.severity) || SEVERITY_SCALE[2];
+  // Popup HTML string-concats an alpha suffix onto colors, so token colors are
+  // resolved to concrete hexes (fallbacks mirror the dark --sev-*/--ver-* ramp).
+  const SEV_HEX = { 1: '#4ade80', 2: '#fbbf24', 3: '#fb923c', 4: '#f87171', 5: '#dc2626' };
+  const VER_HEX = { unverified: '#9ca3af', verified: '#22c55e', disputed: '#f59e0b', debunked: '#ef4444' };
+  const sevColor = getCssVar(`--sev-${sevCfg.value}`, SEV_HEX[sevCfg.value]);
+  const verColor = vCfg ? getCssVar(`--ver-${incident.verification_status}`, VER_HEX[incident.verification_status]) : null;
   const dateStr = incident.start_date
     ? format(new Date(incident.start_date), 'MMM d, yyyy · h:mm a')
     : '';
@@ -2126,10 +2133,10 @@ function buildPopupHTML(incident, isAdmin) {
         <span style="font-size: 10px; font-weight: 700; color: ${incident.domain_color || '#6b7280'}; background: ${(incident.domain_color || '#6b7280') + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
           ${incident.domain_name || 'Unknown'}
         </span>
-        <span style="font-size: 10px; font-weight: 700; color: ${sevCfg.color}; background: ${sevCfg.color + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+        <span style="font-size: 10px; font-weight: 700; color: ${sevColor}; background: ${sevColor + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
           ${sevCfg.label}
         </span>
-        ${vCfg ? `<span style="font-size: 10px; font-weight: 700; color: ${vCfg.color}; background: ${vCfg.color + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">${vCfg.icon} ${vCfg.label}</span>` : ''}
+        ${vCfg ? `<span style="font-size: 10px; font-weight: 700; color: ${verColor}; background: ${verColor + '15'}; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">${vCfg.icon} ${vCfg.label}</span>` : ''}
       </div>
       <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">
         ${escapeHtml(incident.title)}

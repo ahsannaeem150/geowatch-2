@@ -20,7 +20,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
 // Skip the boot sequence; count incident-list network calls
-await page.addInitScript(() => sessionStorage.setItem('geowatch_booted', 'true'));
+await page.addInitScript(() => sessionStorage.setItem('intelmap24_booted', 'true'));
 const incidentReqs = [];
 page.on('request', (req) => {
   if (req.url().includes('/incidents?') || req.url().match(/\/incidents$|\?/)) {

@@ -72,7 +72,7 @@ export default function SystemActivityPage() {
       user_agent: log.user_agent || '',
     }));
     const timestamp = new Date().toISOString().slice(0, 10);
-    exportToCsv(rows, `geowatch-audit-${timestamp}.csv`);
+    exportToCsv(rows, `intelmap24-audit-${timestamp}.csv`);
   };
 
   const handleUserClick = (userId) => {

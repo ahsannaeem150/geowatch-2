@@ -131,7 +131,7 @@ export default function WorkspaceTopBar({
               flexShrink: 0,
             }}
           >
-            G
+            I
           </div>
           <span
             style={{
@@ -141,7 +141,7 @@ export default function WorkspaceTopBar({
               letterSpacing: '-0.3px',
             }}
           >
-            GeoWatch
+            IntelMap24
           </span>
           <span
             style={{

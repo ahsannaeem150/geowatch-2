@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, Eye, EyeOff, Hexagon } from 'lucide-react';
 import { getMarkerIcon } from '../marker-icons.js';
 
-const LS_KEY = 'geowatch_legend_collapsed';
+const LS_KEY = 'intelmap24_legend_collapsed';
 
 export default function MapLegend({
   domains = [],

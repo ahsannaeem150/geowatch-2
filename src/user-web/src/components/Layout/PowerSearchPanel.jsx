@@ -488,7 +488,7 @@ function TopBar({ query, onQueryChange, onClose, compactMode }) {
             color: 'var(--text-on-accent)',
           }}
         >
-          G
+          I
         </div>
         <div>
           <div style={{ fontSize: 'calc(13px * var(--admin-ui-scale))', fontWeight: 700, color: 'var(--text-primary)' }}>Power Search</div>

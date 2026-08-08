@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 
-const THEME_KEY = 'geowatch-theme';
-const STYLE_KEY = 'geowatch-style';
+const THEME_KEY = 'intelmap24-theme';
+const STYLE_KEY = 'intelmap24-style';
 const SUPPORTED_STYLES = ['tactical', 'saas'];
 const DEFAULT_STYLE = 'tactical';
 

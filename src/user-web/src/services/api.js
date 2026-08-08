@@ -210,7 +210,7 @@ export function mapIncidentForShared(data) {
 }
 
 function getToken() {
-  return localStorage.getItem('geowatch_public_token');
+  return localStorage.getItem('intelmap24_public_token');
 }
 
 async function request(path, options = {}) {

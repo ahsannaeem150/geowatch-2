@@ -12,16 +12,16 @@ const centroid = ring.reduce((a, [lng, lat]) => [a[0] + lng / ring.length, a[1] 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 await page.goto('http://localhost:5173/map', { waitUntil: 'domcontentloaded', timeout: 60000 });
-await page.waitForFunction(() => window.__geowatchUserMap?.getLayer('zone-hit'), null, { timeout: 30000 });
+await page.waitForFunction(() => window.__intelmap24UserMap?.getLayer('zone-hit'), null, { timeout: 30000 });
 
 // Aim the map at the zone and let data settle
 await page.evaluate(([lng, lat]) => {
-  window.__geowatchUserMap.jumpTo({ center: [lng, lat], zoom: 9 });
+  window.__intelmap24UserMap.jumpTo({ center: [lng, lat], zoom: 9 });
 }, centroid);
 await page.waitForTimeout(2500);
 
 const hitTest = () => page.evaluate(([lng, lat]) => {
-  const m = window.__geowatchUserMap;
+  const m = window.__intelmap24UserMap;
   const pt = m.project([lng, lat]);
   return {
     layerPresent: !!m.getLayer('zone-hit'),
@@ -34,7 +34,7 @@ const before = await hitTest();
 console.log('BEFORE setStyle:', JSON.stringify(before));
 
 // Exactly what the theme-change effect does (UserMap.jsx:636)
-await page.evaluate(() => window.__geowatchUserMap.setStyle('/map-style-light.json'));
+await page.evaluate(() => window.__intelmap24UserMap.setStyle('/map-style-light.json'));
 await page.waitForTimeout(2500);
 
 const after = await hitTest();

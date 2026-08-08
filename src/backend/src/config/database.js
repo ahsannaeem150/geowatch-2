@@ -4,8 +4,8 @@ const { Pool } = pg;
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'geowatch_dev',
-  user: process.env.DB_USER || 'geowatch_user',
+  database: process.env.DB_NAME || 'intelmap24_dev',
+  user: process.env.DB_USER || 'intelmap24_user',
   password: process.env.DB_PASSWORD || '',
   max: 20,
   idleTimeoutMillis: 30000,

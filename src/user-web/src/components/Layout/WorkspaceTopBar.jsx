@@ -72,7 +72,7 @@ export default function WorkspaceTopBar({
   const navClusterRef = useRef(null);
   const revealTimerRef = useRef(null);
   const hideTimerRef = useRef(null);
-  const PEEK_KEY = 'geowatch_user_nav_peeked';
+  const PEEK_KEY = 'intelmap24_user_nav_peeked';
   const markPeeked = useCallback(() => {
     try { localStorage.setItem(PEEK_KEY, '1'); } catch {}
   }, []);
@@ -246,7 +246,7 @@ export default function WorkspaceTopBar({
           <button
             type="button"
             onClick={() => navigate('/')}
-            title="GeoWatch home — hover for navigation"
+            title="IntelMap24 home — hover for navigation"
             aria-expanded={navOpen}
             style={{
               display: 'flex',
@@ -276,7 +276,7 @@ export default function WorkspaceTopBar({
                 animation: brandPulse ? 'wt-brand-pulse 1.1s ease-in-out infinite' : 'none',
               }}
             >
-              G
+              I
             </div>
             <span
               style={{
@@ -286,7 +286,7 @@ export default function WorkspaceTopBar({
                 letterSpacing: '-0.3px',
               }}
             >
-              GeoWatch
+              IntelMap24
             </span>
           </button>
 

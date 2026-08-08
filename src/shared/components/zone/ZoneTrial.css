@@ -1,4 +1,4 @@
-/* GeoWatch — Zone UI trial styles (user-web) */
+/* IntelMap24 — Zone UI trial styles (user-web) */
 
 /* ───────────────── Base / tokens ───────────────── */
 :root {
@@ -42,7 +42,7 @@
 
 @keyframes borderGlow {
   0%, 100% { border-color: var(--zone-glass-border); }
-  50% { border-color: rgba(159, 18, 57, 0.35); }
+  50% { border-color: color-mix(in srgb, var(--accent-light) 35%, transparent); }
 }
 
 /* ───────────────── Sidebar trial layout ───────────────── */
@@ -430,13 +430,13 @@
   background: var(--accent-light);
   border-color: var(--accent-light);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(159, 18, 57, 0.25);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-light) 25%, transparent);
 }
 
 .zone-btn--primary:hover {
   background: #b91c44;
   border-color: #b91c44;
-  box-shadow: 0 6px 20px rgba(159, 18, 57, 0.35);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-light) 35%, transparent);
 }
 
 .zone-btn--save.saved {

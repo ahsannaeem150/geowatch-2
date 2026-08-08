@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { parseCoordinates } from '../../utils/parseCoordinates.js';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-const USER_AGENT = 'GeoWatch/1.0 (https://geowatch.local)';
+const USER_AGENT = 'IntelMap24/1.0 (https://intelmap24.com)';
 
 const TYPE_LABELS = {
   city: 'City',

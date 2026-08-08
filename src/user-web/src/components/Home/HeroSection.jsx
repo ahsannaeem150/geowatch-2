@@ -33,7 +33,7 @@ export default function HeroSection() {
 
         <FadeIn delay={500}>
           <p className="home-subheadline">
-            Track conflicts, protests, and disasters as they unfold. GeoWatch monitors
+            Track conflicts, protests, and disasters as they unfold. IntelMap24 monitors
             global incidents so you can understand the story behind the headlines.
           </p>
         </FadeIn>
@@ -46,7 +46,7 @@ export default function HeroSection() {
             </Link>
             <Link to="/about" className="home-cta home-cta--secondary">
               <Info size={16} strokeWidth={2.5} />
-              About GeoWatch
+              About IntelMap24
             </Link>
           </div>
         </FadeIn>

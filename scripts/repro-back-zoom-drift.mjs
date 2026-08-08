@@ -11,11 +11,11 @@ p.on('console', (m) => {
 });
 
 await p.goto(`${BASE}/map`, { waitUntil: 'domcontentloaded' });
-await p.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await p.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await sleep(2500);
 
 const patch = () => p.evaluate(() => {
-  const m = window.__geowatchUserMap;
+  const m = window.__intelmap24UserMap;
   if (!m || m.__camPatched) return;
   m.__camPatched = true;
   for (const fn of ['flyTo', 'easeTo', 'jumpTo', 'setZoom', 'fitBounds', 'setPadding']) {
@@ -30,7 +30,7 @@ await patch();
 
 const cam = async (label) => {
   const c = await p.evaluate(() => {
-    const m = window.__geowatchUserMap;
+    const m = window.__intelmap24UserMap;
     const c = m.getCenter();
     return { lng: +c.lng.toFixed(4), lat: +c.lat.toFixed(4), zoom: +m.getZoom().toFixed(3), pad: m.getPadding() };
   });
@@ -38,11 +38,11 @@ const cam = async (label) => {
 };
 
 // Same as sweep: fly to 56.3,26.6 z7, then select tanker via the drawer
-await p.evaluate(() => window.__geowatchUserMap.jumpTo({ center: [56.3, 26.6], zoom: 7 }));
+await p.evaluate(() => window.__intelmap24UserMap.jumpTo({ center: [56.3, 26.6], zoom: 7 }));
 await sleep(800);
 await cam('after jumpTo');
 // Canvas click at the projected point (sweep did this; it "missed" the marker)
-const pt = await p.evaluate(() => window.__geowatchUserMap.project([56.3, 26.6]));
+const pt = await p.evaluate(() => window.__intelmap24UserMap.project([56.3, 26.6]));
 await p.mouse.click(pt.x, pt.y);
 await sleep(2500);
 await cam('after canvas click');
@@ -57,7 +57,7 @@ await fullBtn.click();
 await sleep(2500);
 console.log('detail url:', p.url());
 await p.locator('button.opt1-back-link').first().click();
-await p.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await p.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await patch();
 await cam('back t+0');
 await sleep(2000);

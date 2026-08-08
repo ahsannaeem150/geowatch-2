@@ -1,4 +1,4 @@
--- GeoWatch Seed Data
+-- IntelMap24 Seed Data
 -- Run this after executing database-schema.sql
 -- WARNING: This inserts a development super_admin with a known password.
 -- Change the password before production use.

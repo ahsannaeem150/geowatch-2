@@ -14,7 +14,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width, height: 800 } });
   await page.goto('http://localhost:5174/login', { waitUntil: 'load' });
-  await page.evaluate((t) => localStorage.setItem('geowatch_token', t), token);
+  await page.evaluate((t) => localStorage.setItem('intelmap24_token', t), token);
   await page.goto('http://localhost:5174/', { waitUntil: 'load' });
   await page.waitForSelector('.dashboard-layout', { timeout: 15000 });
   await page.waitForTimeout(1500);

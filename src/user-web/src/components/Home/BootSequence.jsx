@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 const LINES = [
-  { text: 'GEOWATCH v1.0.4', status: 'ok', delay: 0 },
+  { text: 'INTELMAP24 v1.0.4', status: 'ok', delay: 0 },
   { text: 'ESTABLISHING UPLINK', status: 'ok', delay: 180 },
   { text: 'AGGREGATING SOURCE FEEDS', status: 'ok', delay: 360 },
   { text: 'MONITORING 6 COUNTRIES', status: 'active', delay: 540 },

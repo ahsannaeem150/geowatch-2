@@ -17,7 +17,7 @@ async function shot(page, name) {
 // Return up to `want` distinct zones with an unoccluded hit pixel each.
 async function pickZonePixels(page, want = 3) {
   return page.evaluate((want) => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     const feats = m.getSource('zones')?._data?.features || [];
@@ -56,7 +56,7 @@ async function pickZonePixels(page, want = 3) {
 
 async function diag(page, label) {
   const d = await page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     return {
       layer: !!m.getLayer('zone-hit'),
       src: !!m.getSource('zones'),
@@ -81,7 +81,7 @@ async function probe(page, label, pixels, clickIdx = 0) {
   await page.waitForTimeout(250);
   await page.mouse.move(hov.x, hov.y, { steps: 5 });
   await page.waitForTimeout(450);
-  const cursor = await page.evaluate(() => window.__geowatchAdminMap.getCanvas().style.cursor);
+  const cursor = await page.evaluate(() => window.__intelmap24AdminMap.getCanvas().style.cursor);
 
   const target = pixels[clickIdx] || pixels[0];
   await page.mouse.click(target.x, target.y);
@@ -102,11 +102,11 @@ page.on('console', (msg) => { if (msg.type() === 'error') pageErrors.push('conso
 
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
 // Fly out so multiple zones are visible at once
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [45, 30], zoom: 4.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [45, 30], zoom: 4.5 }));
 await page.waitForTimeout(800);
 
 let pixels = await pickZonePixels(page, 3);
@@ -136,7 +136,7 @@ await probe(page, 'after-theme-dark', pixels, 0);
 // ─── Decisive click test: param currently holds zone A; fly to a different
 // region and click zone B — the param must SWITCH ids ───
 const idBefore = await page.evaluate(() => new URLSearchParams(location.search).get('zone'));
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
 await page.waitForTimeout(900);
 const pixelsB = (await pickZonePixels(page, 3)).filter((p) => p.id !== idBefore);
 if (!pixelsB.length) {

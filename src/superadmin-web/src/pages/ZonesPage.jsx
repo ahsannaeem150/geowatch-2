@@ -322,8 +322,8 @@ export default function ZonesPage() {
       <header className="tui-topbar">
         <div className="tui-topbar-left">
           <div className="tui-brand">
-            <div className="tui-brand-mark">G</div>
-            <span className="tui-brand-name">GeoWatch</span>
+            <div className="tui-brand-mark">I</div>
+            <span className="tui-brand-name">IntelMap24</span>
             <span className="tui-brand-pill">Zones</span>
           </div>
           <span className="tui-total">

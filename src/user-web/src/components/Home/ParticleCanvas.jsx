@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { getCssVar } from '@shared/utils/cssVar.js';
 
 export default function ParticleCanvas() {
   const canvasRef = useRef(null);
@@ -27,6 +28,17 @@ export default function ParticleCanvas() {
     const CONNECTION_DISTANCE = 140;
     const MOUSE_DISTANCE = 180;
     const MOUSE_REPULSION = 0.5;
+
+    // Canvas can't resolve var(); snapshot the accent color's RGB channels once
+    // at mount. A theme toggle won't re-read this until reload — acceptable.
+    const accentHex = getCssVar('--accent-light', '#9f1239');
+    const accentMatch = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(accentHex.trim());
+    const accentRGB = accentMatch
+      ? `${parseInt(accentMatch[1], 16)}, ${parseInt(accentMatch[2], 16)}, ${parseInt(accentMatch[3], 16)}`
+      : '159, 18, 57';
+
+    // Particle dot fill — same var() limitation; snapshot once at mount.
+    const particleFill = getCssVar('--accent-subtle-border', 'rgba(159, 18, 57, 0.25)');
 
     class Particle {
       constructor() {
@@ -72,7 +84,7 @@ export default function ParticleCanvas() {
       draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'var(--accent-subtle-border)';
+        ctx.fillStyle = particleFill;
         ctx.fill();
       }
     }
@@ -96,7 +108,7 @@ export default function ParticleCanvas() {
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(159, 18, 57, ${opacity})`;
+            ctx.strokeStyle = `rgba(${accentRGB}, ${opacity})`;
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }

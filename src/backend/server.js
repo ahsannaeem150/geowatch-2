@@ -134,7 +134,7 @@ app.use(errorHandler);
 
 // ─── Start Server ───
 app.listen(PORT, () => {
-  console.log(`🚀 GeoWatch API running on http://localhost:${PORT}`);
+  console.log(`🚀 IntelMap24 API running on http://localhost:${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
 });

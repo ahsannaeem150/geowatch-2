@@ -67,8 +67,8 @@ export default function LoginPage() {
               letterSpacing: '-0.02em',
             }}
           >
-            <span style={{ color: 'var(--text-primary)' }}>Geo</span>
-            <span className="console-gradient-text">Watch</span>
+            <span style={{ color: 'var(--text-primary)' }}>IntelMap</span>
+            <span className="console-gradient-text">24</span>
             <span style={{ color: 'var(--text-primary)' }}> Console</span>
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
@@ -247,7 +247,7 @@ export default function LoginPage() {
             color: 'var(--text-disabled)',
           }}
         >
-          GeoWatch Platform Control Tower · v1.0.0
+          IntelMap24 Platform Control Tower · v1.0.0
         </p>
       </div>
     </div>

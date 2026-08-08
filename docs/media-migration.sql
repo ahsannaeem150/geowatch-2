@@ -1,5 +1,5 @@
 -- Migration: Add incident_media table for file uploads
--- Run: sudo -u postgres psql -d geowatch_dev -f docs/media-migration.sql
+-- Run: sudo -u postgres psql -d intelmap24_dev -f docs/media-migration.sql
 
 CREATE TABLE IF NOT EXISTS incident_media (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Check which GeoWatch services are running
-# Usage: ./scripts/status-geowatch.sh
+# Check which IntelMap24 services are running
+# Usage: ./scripts/status-intelmap24.sh
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOGS_DIR="$PROJECT_ROOT/logs"
@@ -31,7 +31,7 @@ service_url() {
 }
 
 echo -e "${CYAN}========================================${NC}"
-echo -e "${CYAN}  GeoWatch Service Status${NC}"
+echo -e "${CYAN}  IntelMap24 Service Status${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 

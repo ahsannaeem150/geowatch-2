@@ -1651,7 +1651,7 @@
 
 @keyframes idPulse {
   0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow-strong); }
-  50% { box-shadow: 0 0 0 6px rgba(159, 18, 57, 0); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent-light) 0%, transparent); }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1799,13 +1799,16 @@
   text-overflow: ellipsis;
 }
 
-/* ─── Superadmin theme overrides ─── */
+/* ─── Superadmin theme overrides ───
+   Accent vars come from superadmin-web's own token file (--sa-accent*), which
+   that app defines globally; the indigo hex fallbacks below keep the shared
+   stylesheet rendering identically wherever --sa-accent* is not defined. */
 .id-trial-page--superadmin,
 .id-sidebar--superadmin {
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --accent-glow: rgba(99, 102, 241, 0.25);
-  --accent-glow-strong: rgba(99, 102, 241, 0.55);
+  --accent: var(--sa-accent, #6366f1);
+  --accent-light: var(--sa-accent-light, #818cf8);
+  --accent-glow: var(--sa-accent-glow, rgba(99, 102, 241, 0.25));
+  --accent-glow-strong: var(--sa-accent-glow-strong, rgba(99, 102, 241, 0.55));
 }
 
 .id-trial-page--superadmin .id-summary::before,
@@ -3147,8 +3150,8 @@
 /* Role accent overrides (hard-coded cyan replacements) */
 .option1-root--admin,
 .option1-root--superadmin {
-  --role-color: #5a011c;
-  --role-color-light: #9f1239;
+  --role-color: var(--accent);
+  --role-color-light: var(--accent-light);
 }
 
 .option1-root--admin .opt1-event--active,
@@ -3877,7 +3880,7 @@
 
 .id-x-compact__search:focus {
   border-color: var(--accent-light);
-  box-shadow: 0 0 0 2px rgba(159, 18, 57, 0.18);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-light) 18%, transparent);
 }
 
 .id-x-compact__collapse {

@@ -34,7 +34,7 @@ async function main() {
 
   // Set token so the dashboard is authenticated.
   await page.goto(`${ADMIN_URL}/login`, { waitUntil: 'load', timeout: 15000 });
-  await page.evaluate((t) => localStorage.setItem('geowatch_token', t), token);
+  await page.evaluate((t) => localStorage.setItem('intelmap24_token', t), token);
 
   // Open dashboard with an incident pre-selected (right panel) and left drawer open.
   await page.goto(`${ADMIN_URL}/?incident=${incident.id}`, { waitUntil: 'load', timeout: 15000 });

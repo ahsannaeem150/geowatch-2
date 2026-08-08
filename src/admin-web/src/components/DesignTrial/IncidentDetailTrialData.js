@@ -22,7 +22,7 @@ export const INCIDENT = {
   updatedAt: '2026-06-13T23:20:00Z',
   createdBy: 'u1',
   createdByName: 'System Administrator',
-  createdByEmail: 'admin@geowatch.local',
+  createdByEmail: 'admin@intelmap24.local',
   createdByRole: 'superadmin',
   resolvedAt: null,
   resolvedBy: null,

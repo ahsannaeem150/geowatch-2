@@ -111,7 +111,7 @@ const ROUTE_TITLES = [
   { match: /^\/incident\//, title: 'Incident — Admin' },
   { match: /^\/zone\//, title: 'Zone — Admin' },
   { match: /^\/$/, title: 'Map — Admin' },
-  { match: /.*/, title: 'GeoWatch Admin' },
+  { match: /.*/, title: 'IntelMap24 Admin' },
 ];
 
 function RouteTitle() {

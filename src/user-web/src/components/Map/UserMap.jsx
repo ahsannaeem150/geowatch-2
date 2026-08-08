@@ -217,7 +217,7 @@ const UserMap = forwardRef(function UserMap({
 
     // Expose map instance in dev so verification scripts can read zoom/center.
     if (import.meta.env.DEV) {
-      window.__geowatchUserMap = map.current;
+      window.__intelmap24UserMap = map.current;
     }
 
     const reportViewport = () => {
@@ -328,7 +328,7 @@ const UserMap = forwardRef(function UserMap({
       markers.current.forEach((m) => m.remove());
       ghostMarkerRef.current?.remove();
       if (import.meta.env.DEV) {
-        delete window.__geowatchUserMap;
+        delete window.__intelmap24UserMap;
       }
       map.current?.remove();
       map.current = null;
@@ -710,7 +710,7 @@ const UserMap = forwardRef(function UserMap({
           closeButton: false,
           closeOnClick: false,
           offset: 12,
-          className: 'geowatch-popup',
+          className: 'intelmap24-popup',
         })
           .setLngLat([parseFloat(data.longitude), parseFloat(data.latitude)])
           .setHTML(buildPopupHTML(data, theme))
@@ -820,7 +820,7 @@ const UserMap = forwardRef(function UserMap({
           0% { transform: scale(0.8); opacity: 0.7; }
           100% { transform: scale(2.2); opacity: 0; }
         }
-        .geowatch-popup .maplibregl-popup-content {
+        .intelmap24-popup .maplibregl-popup-content {
           background: var(--bg-surface);
           color: var(--text-primary);
           border-radius: var(--radius-md);
@@ -830,7 +830,7 @@ const UserMap = forwardRef(function UserMap({
           font-family: var(--font-sans);
           max-width: 280px;
         }
-        .geowatch-popup .maplibregl-popup-tip {
+        .intelmap24-popup .maplibregl-popup-tip {
           border-top-color: var(--bg-surface);
         }
       `}</style>

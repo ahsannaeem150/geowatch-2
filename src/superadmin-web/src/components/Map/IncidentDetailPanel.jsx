@@ -15,6 +15,7 @@ import {
   VERIFICATION_CONFIG,
   SOURCE_TYPES,
 } from '@shared/constants.js';
+import { getCssVar } from '@shared/utils/cssVar.js';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   ArrowLeft,
@@ -231,6 +232,12 @@ export default function IncidentDetailPanel({
   const catColor = inc.domain_color || '#6b7280';
   const vCfg = inc.verification_status ? VERIFICATION_CONFIG[inc.verification_status] : null;
   const sev = SEVERITY_SCALE.find((s) => s.value === inc.severity) || SEVERITY_SCALE[2];
+  // The Badge component string-concats an alpha suffix onto its color, so token
+  // colors are resolved to concrete hexes (dark --sev-*/--ver-* fallbacks).
+  const SEV_HEX = { 1: '#4ade80', 2: '#fbbf24', 3: '#fb923c', 4: '#f87171', 5: '#dc2626' };
+  const VER_HEX = { unverified: '#9ca3af', verified: '#22c55e', disputed: '#f59e0b', debunked: '#ef4444' };
+  const sevColor = getCssVar(`--sev-${sev.value}`, SEV_HEX[sev.value]);
+  const verColor = vCfg ? getCssVar(`--ver-${inc.verification_status}`, VER_HEX[inc.verification_status]) : null;
 
   const adminBaseUrl = typeof window !== 'undefined'
     ? window.location.origin.replace(':5175', ':5174')
@@ -370,9 +377,9 @@ export default function IncidentDetailPanel({
           {/* Badges */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Badge color={catColor}>{inc.domain_name || 'Unknown'}</Badge>
-            <Badge color={sev.color}>{sev.label}</Badge>
+            <Badge color={sevColor}>{sev.label}</Badge>
             {vCfg && (
-              <Badge color={vCfg.color}>
+              <Badge color={verColor}>
                 {vCfg.icon} {vCfg.label}
               </Badge>
             )}

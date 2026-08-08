@@ -4,9 +4,9 @@ const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, s
 const page = await ctx.newPage();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 await page.goto('http://localhost:5175/superadmin/map', { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
 await sleep(3000);
-await page.evaluate(() => window.__geowatchSuperadminMap.jumpTo({ center: [56.5, 26.5], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24SuperadminMap.jumpTo({ center: [56.5, 26.5], zoom: 6.5 }));
 await sleep(1000);
 await page.locator('button:has-text("Add Incident")').first().click();
 await sleep(1200);

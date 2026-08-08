@@ -81,13 +81,13 @@ async function section(name, fn) {
 async function gotoMap(suffix = '') {
   await page.goto(`${BASE}/superadmin/map${suffix}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
   await sleep(3200);
 }
 
 async function flyTo(lng, lat, zoom) {
   await page.evaluate(
-    ([lng, lat, zoom]) => window.__geowatchSuperadminMap.jumpTo({ center: [lng, lat], zoom }),
+    ([lng, lat, zoom]) => window.__intelmap24SuperadminMap.jumpTo({ center: [lng, lat], zoom }),
     [lng, lat, zoom]
   );
   await sleep(1600);
@@ -96,7 +96,7 @@ async function flyTo(lng, lat, zoom) {
 async function clickMapAt(lng, lat) {
   const pt = await page.evaluate(
     ([lng, lat]) => {
-      const p = window.__geowatchSuperadminMap.project([lng, lat]);
+      const p = window.__intelmap24SuperadminMap.project([lng, lat]);
       return { x: p.x, y: p.y };
     },
     [lng, lat]
@@ -106,7 +106,7 @@ async function clickMapAt(lng, lat) {
 
 const camBefore = () =>
   page.evaluate(() => {
-    const m = window.__geowatchSuperadminMap;
+    const m = window.__intelmap24SuperadminMap;
     const c = m.getCenter();
     return { lng: c.lng, lat: c.lat, zoom: m.getZoom() };
   });
@@ -533,16 +533,16 @@ await section('placement-drawing', async () => {
 // ═══ 10. Light theme spot-check ═══
 await section('light-theme', async () => {
   await page.goto(`${BASE}/superadmin`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'light'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'light'));
   await page.reload({ waitUntil: 'domcontentloaded' });
   await sleep(2600);
   await shot('light-dashboard');
   await page.goto(`${BASE}/superadmin/map`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 20000 });
   await sleep(3400);
   await shot('light-map');
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'dark'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'dark'));
 });
 
 console.log('\n═══ CONSOLE ERRORS/WARNINGS ═══');

@@ -1,4 +1,4 @@
--- GeoWatch Verification Standardization Migration
+-- IntelMap24 Verification Standardization Migration
 -- Incidents and timeline updates are the only entities with verification status.
 -- Per-source verification is removed; legacy confirmed/contested values are retired.
 

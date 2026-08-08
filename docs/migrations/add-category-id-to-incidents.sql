@@ -1,5 +1,5 @@
 -- ============================================
--- GeoWatch: Add category_id to incidents & zones
+-- IntelMap24: Add category_id to incidents & zones
 -- ============================================
 -- Run this as: postgres superuser
 --

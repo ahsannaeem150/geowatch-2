@@ -1,4 +1,4 @@
--- GeoWatch source account metadata and X post archiving support
+-- IntelMap24 source account metadata and X post archiving support
 -- Adds a reusable account table for external sources (X, news, etc.)
 -- and extra columns on incident_sources for account linkage,
 -- archive reason, and availability checks.

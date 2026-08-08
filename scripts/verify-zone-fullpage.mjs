@@ -15,7 +15,7 @@ const ZONE_ID = 'c25ec8cd-e9b9-4880-8c6c-67f999b02e06';
 
 async function setTheme(page, theme) {
   await page.evaluate((t) => {
-    localStorage.setItem('geowatch-theme', t);
+    localStorage.setItem('intelmap24-theme', t);
   }, theme);
 }
 

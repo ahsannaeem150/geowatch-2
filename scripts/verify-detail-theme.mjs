@@ -15,7 +15,7 @@ const INCIDENT_ID = '4f3e3ac6-f1c1-4afb-8bac-d6f33ec0133d';
 
 async function setTheme(page, theme) {
   await page.evaluate((t) => {
-    localStorage.setItem('geowatch-theme', t);
+    localStorage.setItem('intelmap24-theme', t);
   }, theme);
 }
 

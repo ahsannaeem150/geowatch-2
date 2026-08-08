@@ -13,7 +13,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   await page.goto('http://localhost:5174/login', { waitUntil: 'load' });
-  await page.evaluate((t) => localStorage.setItem('geowatch_token', t), token);
+  await page.evaluate((t) => localStorage.setItem('intelmap24_token', t), token);
   await page.goto('http://localhost:5174/incidents', { waitUntil: 'load' });
   await page.waitForSelector('.tui-table tbody tr.tui-row', { timeout: 15000 });
 

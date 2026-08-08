@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
  * verify-date-control-superadmin.mjs — superadmin port of the date-control
  * family checks: TopBarModePill (live ticking clock / amber historic),
  * TopBarDateControl wiring, large-range gating, slim labels.
- * Uses superadmin_token + /superadmin/map + window.__geowatchSuperadminMap.
+ * Uses superadmin_token + /superadmin/map + window.__intelmap24SuperadminMap.
  */
 
 const API_BASE = 'http://localhost:3100/api/v1';
@@ -56,12 +56,12 @@ async function main() {
   await page.goto(`${SA_BASE}/login`, { waitUntil: 'domcontentloaded' });
   await page.evaluate((t) => localStorage.setItem('superadmin_token', t), token);
   await page.goto(`${SA_BASE}/superadmin/map`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !!window.__geowatchSuperadminMap, { timeout: 25000 });
+  await page.waitForFunction(() => !!window.__intelmap24SuperadminMap, { timeout: 25000 });
   await sleep(1800);
 
   const jumpTo = (zoom, center) =>
     page.evaluate(
-      ([z, c]) => window.__geowatchSuperadminMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
+      ([z, c]) => window.__intelmap24SuperadminMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
       [zoom, center]
     );
   const openDatePanel = async () => {

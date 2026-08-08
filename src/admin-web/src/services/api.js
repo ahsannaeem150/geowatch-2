@@ -2,7 +2,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3100/api/v1';
 import { estimatePolygonAreaSqM, estimatePolygonPerimeterM } from '@shared/utils/zoneGeometry.js';
 
 function getToken() {
-  return localStorage.getItem('geowatch_token');
+  return localStorage.getItem('intelmap24_token');
 }
 
 async function request(path, options = {}) {

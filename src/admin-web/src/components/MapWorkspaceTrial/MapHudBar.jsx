@@ -155,7 +155,7 @@ export default function MapHudBar({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={styles.brand}>
           <div style={styles.logo}>G</div>
-          <span style={styles.brandText}>GeoWatch</span>
+          <span style={styles.brandText}>IntelMap24</span>
           <span style={styles.rolePill}>Admin</span>
         </div>
 
@@ -418,7 +418,7 @@ export default function MapHudBar({
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    admin@geowatch.local
+                    admin@intelmap24.local
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                     <span

@@ -64,7 +64,7 @@ async function getVisibleMapCenter(page) {
 
 async function getMapZoom(page) {
   return page.evaluate(() => {
-    const map = window.__geowatchAdminMap;
+    const map = window.__intelmap24AdminMap;
     return map ? map.getZoom() : null;
   });
 }

@@ -765,7 +765,7 @@ export default function CreateIncidentSidebar({ initialCoords, onSuccess, onCanc
                   compact
                   latitude={latitude}
                   longitude={longitude}
-                  color={domains.find((d) => String(d.id) === String(domainId))?.color || '#9f1239'}
+                  color={domains.find((d) => String(d.id) === String(domainId))?.color || 'var(--accent-light)'}
                   label=""
                 />
               </div>

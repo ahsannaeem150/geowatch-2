@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start Martin tile server for GeoWatch
+# Start Martin tile server for IntelMap24
 # Usage: ./scripts/start-martin.sh
 
 set -e

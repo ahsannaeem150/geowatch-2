@@ -12719,3 +12719,15 @@ feat/fix: instant-change verification dropdowns removed from zone timeline cards
 ## 📅 2026-08-08 — Module: shared — Timeline card action parity (zone + incident)
 
 feat/fix: incident timeline cards (Update + InitialReport) now carry admin-only mini pencil/trash icons (EventModal edit, confirm+delete, stopPropagation'd) matching zone card style; zone cards: verification badge now visible to all users (icons stay admin-gated), Inspect ghost button always available (was evidence-only), click cursor unconditional; incident drawer delete now confirms + closes drawer (was stale-open); zone evidence rail header badge unified to incident style. Shared-only — propagates to all three apps. All builds green.
+
+## 📅 2026-08-08 — Module: shared + all apps — Color tokenization (pre-rebrand)
+
+refactor: pure refactor, rendered colors byte-identical. design-tokens.css now opens each theme with a marked `/* === BRAND ACCENT === */` block (single swap point); new `--ver-*` verification tokens. Severity/verification unified — CSS tokens are the single source; constants.js/IncidentUtils.js now hold var() strings; themeColors.js resolveColor() + getCssVar() (new shared utils/cssVar.js) cover hex-math/canvas/maplibre consumers. ~15 hardcoded crimson spots swept to var()/color-mix (TimelineEntry, DateTimePicker, ZoneTrial.css, incident-detail.css, TargetingCard, SummaryCard, admin TopBar LIVE pill, user-web scrollbar + HomePage scan-line + ParticleCanvas). Superadmin: own styles/tokens.css (navy palette moved from index.css, new --sa-accent* indigo ramp that shared CSS references with hex fallbacks). Fixed latent light-theme sev colors (JS now reaches light --sev-* ramp) + SuperadminMap popup alpha-concat regression. All builds green; superadmin popup verified live via Playwright.
+
+## 📅 2026-08-08 — Module: user-web — ParticleCanvas dot fill fix
+
+fix: home hero particle dots painted pure black (canvas ignored the invalid `var()` fillStyle) — invisible in dark mode, black specks in light. Dots now resolve `--accent-subtle-border` via getCssVar at mount, matching the original design (visible tinted nodes + connection lines). Build green.
+
+## 📅 2026-08-08 — Module: all — Full rebrand GeoWatch → IntelMap24
+
+chore: complete rebrand. Brand string `IntelMap24` everywhere (3× index.html titles/meta/OG, route titles, topbars, Header/Footer, login pages, SignInModal, HeroSection, AboutPage, BootSequence `INTELMAP24 v1.0.4`); title format `IntelMap24 - Conflict Monitor`. Nominatim UAs → `IntelMap24/1.0 (https://intelmap24.com)`. All ~35 localStorage/session keys `geowatch_*` → `intelmap24_*` (dev-stage, no shims — expect re-login). Package names + lockfile (`npm install` synced), scripts renamed `*-intelmap24.sh` (~40 dev utilities swept), map-style names, DB renamed `intelmap24_dev` + role `intelmap24_user` (live-verified via /health + /categories). Brand glyphs G→I (superadmin split `IntelMap`+`24`). Kept intentionally: favicons (logo phase), seed emails, repo dir name, map-style internal ids, backup dump, credential values. Docs swept (PROJECT/readme/docs/*.md/AGENTS.md). All builds green.

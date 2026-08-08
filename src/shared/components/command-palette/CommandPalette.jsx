@@ -45,7 +45,7 @@ const DEFAULT_BRIDGE_LABELS = {
   actions: 'Search all incidents for “{query}”',
 };
 
-const DEFAULT_RECENTS_KEY = 'geowatch_command_palette_recents';
+const DEFAULT_RECENTS_KEY = 'intelmap24_command_palette_recents';
 
 /**
  * Shared ⌘K command palette (map workspace search).
@@ -64,7 +64,7 @@ const DEFAULT_RECENTS_KEY = 'geowatch_command_palette_recents';
  * - onSelectLocation (fn) — called with { lat, lng, zoom }
  * - onOpenAdvanced (fn(query), optional) — advanced-search bridge; when omitted the
  *   bridge row and advanced CTAs are hidden
- * - recentsKey (string, default 'geowatch_command_palette_recents') — localStorage key
+ * - recentsKey (string, default 'intelmap24_command_palette_recents') — localStorage key
  * - legacyRecentsKey (string, optional) — migrated when recentsKey has no value yet
  * - placeholder (string, optional) — overrides every scope's input placeholder
  * - bridgeLabel (string, optional) — bridge row title; '{query}' is interpolated.

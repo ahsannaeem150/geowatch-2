@@ -1,4 +1,4 @@
--- GeoWatch Database Schema
+-- IntelMap24 Database Schema
 -- PostgreSQL 16 + PostGIS 3
 -- NOTE: Run CREATE EXTENSION IF NOT EXISTS postgis; first
 
@@ -321,8 +321,8 @@ CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories
 -- ============================================
 -- PERMISSIONS (run if tables created by superuser)
 -- ============================================
--- GRANT USAGE ON SCHEMA public TO geowatch_user;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO geowatch_user;
--- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO geowatch_user;
--- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO geowatch_user;
--- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO geowatch_user;
+-- GRANT USAGE ON SCHEMA public TO intelmap24_user;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO intelmap24_user;
+-- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO intelmap24_user;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO intelmap24_user;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO intelmap24_user;

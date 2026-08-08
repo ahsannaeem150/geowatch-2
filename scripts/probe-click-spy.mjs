@@ -8,15 +8,15 @@ const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR:', String(e).slice(0, 200)));
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.5 }));
 await page.waitForTimeout(1500);
 
 // Find the Waziristan pixel (same logic as before)
 const pixel = await page.evaluate(() => {
-  const m = window.__geowatchAdminMap;
+  const m = window.__intelmap24AdminMap;
   const canvas = document.querySelector('.maplibregl-canvas');
   const rect = canvas.getBoundingClientRect();
   const feats = m.getSource('zones')?._data?.features || [];
@@ -42,7 +42,7 @@ if (!pixel) { console.log('no pixel'); await browser.close(); process.exit(0); }
 // Install spy: capture what a click at that point sees
 await page.evaluate(() => {
   window.__spy = [];
-  const m = window.__geowatchAdminMap;
+  const m = window.__intelmap24AdminMap;
   m.on('click', (e) => {
     let feats = [];
     try { feats = m.queryRenderedFeatures(e.point, { layers: ['zone-hit'] }); } catch (err) { window.__spy.push({ err: String(err) }); return; }

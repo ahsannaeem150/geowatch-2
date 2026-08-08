@@ -1,6 +1,6 @@
 #!/bin/bash
-# Tail all GeoWatch logs
-# Usage: ./scripts/logs-geowatch.sh [service]
+# Tail all IntelMap24 logs
+# Usage: ./scripts/logs-intelmap24.sh [service]
 #   With no arg: shows last 20 lines of all services
 #   With arg: shows last 50 lines of that service + follows
 
@@ -26,7 +26,7 @@ if [ -n "$SERVICE" ]; then
 fi
 
 echo -e "${CYAN}========================================${NC}"
-echo -e "${CYAN}  GeoWatch Logs${NC}"
+echo -e "${CYAN}  IntelMap24 Logs${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 
@@ -45,8 +45,8 @@ done
 echo -e "${CYAN}========================================${NC}"
 echo ""
 echo "To watch a specific service live:"
-echo "  ./scripts/logs-geowatch.sh martin"
-echo "  ./scripts/logs-geowatch.sh backend"
-echo "  ./scripts/logs-geowatch.sh admin-web"
-echo "  ./scripts/logs-geowatch.sh user-web"
-echo "  ./scripts/logs-geowatch.sh superadmin-web"
+echo "  ./scripts/logs-intelmap24.sh martin"
+echo "  ./scripts/logs-intelmap24.sh backend"
+echo "  ./scripts/logs-intelmap24.sh admin-web"
+echo "  ./scripts/logs-intelmap24.sh user-web"
+echo "  ./scripts/logs-intelmap24.sh superadmin-web"

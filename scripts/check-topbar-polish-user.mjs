@@ -35,7 +35,7 @@ check(
 
 // ─── 2. /map topbar: nav hidden, brand reveals, pill centered ───
 await page.goto(`${USER_BASE}/map`, { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await sleep(4500); // let any first-visit auto-peek settle (this profile has none)
 const navLinks = await page.locator('header nav a').count();
 check('map topbar nav hidden by default', navLinks === 0, `${navLinks} links`);
@@ -62,7 +62,7 @@ check('link click auto-collapses nav', navLinksCollapsed === 0, `${navLinksColla
 
 // ─── 3. ?drawer=saved signed out → graceful no-op ───
 await page.goto(`${USER_BASE}/map?drawer=saved`, { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await sleep(2000);
 const drawerVisible = await page.locator('text=Saved').first().isVisible().catch(() => false);
 const urlHasDrawer = page.url().includes('drawer=');

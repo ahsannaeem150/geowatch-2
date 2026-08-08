@@ -1,4 +1,4 @@
--- GeoWatch Verification System Migration
+-- IntelMap24 Verification System Migration
 -- Adds source-level verification and incident-level override
 
 -- ============================================

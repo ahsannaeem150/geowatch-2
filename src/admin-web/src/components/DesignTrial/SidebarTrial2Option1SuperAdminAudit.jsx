@@ -24,7 +24,7 @@ export const USERS = [
   {
     id: 'u1',
     name: 'System Administrator',
-    email: 'admin@geowatch.local',
+    email: 'admin@intelmap24.local',
     role: 'superadmin',
     active: true,
     avatarSeed: 'admin',
@@ -33,7 +33,7 @@ export const USERS = [
   {
     id: 'u2',
     name: 'Ops Desk',
-    email: 'ops@geowatch.local',
+    email: 'ops@intelmap24.local',
     role: 'admin',
     active: true,
     avatarSeed: 'opsdesk',
@@ -42,7 +42,7 @@ export const USERS = [
   {
     id: 'u3',
     name: 'Station Commander',
-    email: 'cmdr@geowatch.local',
+    email: 'cmdr@intelmap24.local',
     role: 'admin',
     active: true,
     avatarSeed: 'cmdr',
@@ -51,7 +51,7 @@ export const USERS = [
   {
     id: 'u4',
     name: 'Media Cell',
-    email: 'media@geowatch.local',
+    email: 'media@intelmap24.local',
     role: 'admin',
     active: true,
     avatarSeed: 'media',
@@ -60,7 +60,7 @@ export const USERS = [
   {
     id: 'u5',
     name: 'Field Editor',
-    email: 'field@geowatch.local',
+    email: 'field@intelmap24.local',
     role: 'admin',
     active: false,
     avatarSeed: 'field',
@@ -69,7 +69,7 @@ export const USERS = [
   {
     id: 'u6',
     name: 'Analyst',
-    email: 'analyst@geowatch.local',
+    email: 'analyst@intelmap24.local',
     role: 'viewer',
     active: true,
     avatarSeed: 'analyst',

@@ -248,7 +248,7 @@ export default function TopBar({
               boxShadow: '0 0 20px var(--accent-glow-strong)',
             }}
           >
-            G
+            I
           </div>
           <h1
             style={{
@@ -258,7 +258,7 @@ export default function TopBar({
               letterSpacing: '-0.3px',
             }}
           >
-            GeoWatch
+            IntelMap24
           </h1>
         </div>
         <span
@@ -393,8 +393,8 @@ export default function TopBar({
           gap: '8px',
           padding: '6px 18px',
           borderRadius: 'var(--radius-sm)',
-          background: isLive ? 'rgba(90, 1, 28, 0.15)' : 'var(--alert-warning-bg)',
-          border: `1px solid ${isLive ? 'rgba(159, 18, 57, 0.40)' : 'var(--alert-warning-border)'}`,
+          background: isLive ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'var(--alert-warning-bg)',
+          border: `1px solid ${isLive ? 'color-mix(in srgb, var(--accent-light) 40%, transparent)' : 'var(--alert-warning-border)'}`,
         }}
       >
         <div

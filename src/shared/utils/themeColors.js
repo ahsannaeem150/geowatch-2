@@ -3,6 +3,24 @@
  * Used to pick domain / severity colors that stay readable in both dark and light modes.
  */
 
+import { getCssVar } from './cssVar.js';
+
+/**
+ * Resolve a color that may be a CSS var() reference (e.g. 'var(--sev-3)') to a
+ * concrete value via getComputedStyle. Plain hex/rgb colors pass through.
+ * Required because the helpers below do hex string math that var() can't survive.
+ */
+export function resolveColor(color) {
+  if (typeof color !== 'string') return color;
+  const trimmed = color.trim();
+  if (!trimmed.startsWith('var(')) return trimmed;
+  const inner = trimmed.slice(4, -1);
+  const commaIdx = inner.indexOf(',');
+  const name = (commaIdx === -1 ? inner : inner.slice(0, commaIdx)).trim();
+  const fallback = commaIdx === -1 ? '' : inner.slice(commaIdx + 1).trim();
+  return getCssVar(name, fallback || '#6b7280');
+}
+
 function hexToRgb(hex) {
   const normalized = hex.replace('#', '');
   const bigint = parseInt(normalized, 16);
@@ -75,7 +93,7 @@ export function getIncidentDomainColor(incident, theme) {
  * Build colors for a domain category card.
  */
 export function getDomainCardColors(color, theme) {
-  const base = color || '#6b7280';
+  const base = resolveColor(color) || '#6b7280';
 
   if (theme === 'light') {
     const text = isLightColor(base) ? darken(base, 0.35) : base;
@@ -96,7 +114,7 @@ export function getDomainCardColors(color, theme) {
  * current surface. In light mode we use opaque tints instead of alpha overlays.
  */
 export function getBadgeColors(color, theme) {
-  const base = color || '#6b7280';
+  const base = resolveColor(color) || '#6b7280';
 
   if (theme === 'light') {
     const text = isLightColor(base) ? darken(base, 0.35) : base;
@@ -116,7 +134,7 @@ export function getBadgeColors(color, theme) {
  * Build colors for a severity badge.
  */
 export function getSeverityBadgeColors(color, theme) {
-  const base = color || '#6b7280';
+  const base = resolveColor(color) || '#6b7280';
 
   if (theme === 'light') {
     const text = isLightColor(base) ? darken(base, 0.35) : base;

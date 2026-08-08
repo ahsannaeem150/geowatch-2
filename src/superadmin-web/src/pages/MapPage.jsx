@@ -86,9 +86,9 @@ import { useSearchCategories } from '../hooks/useSearchCategories.js';
 import { computeMapPadding } from '../utils/mapPadding.js';
 import { estimatePolygonAreaSqM, formatArea } from '@shared/utils/zoneGeometry.js';
 
-const LS_KEY = 'geowatch_superadmin_last_seen';
-const LS_COMPACT = 'geowatch_superadmin_compact_mode';
-const LS_AUTO_ZOOM = 'geowatch_superadmin_auto_zoom';
+const LS_KEY = 'intelmap24_superadmin_last_seen';
+const LS_COMPACT = 'intelmap24_superadmin_compact_mode';
+const LS_AUTO_ZOOM = 'intelmap24_superadmin_auto_zoom';
 const MAX_ACTIVITIES = 50;
 const RIGHT_PANEL_TRANSITION_MS = 250;
 const PS_PAGE_SIZE = 25;
@@ -172,7 +172,7 @@ export default function MapPage() {
   const returnViewRef = useRef(undefined);
   if (returnViewRef.current === undefined) {
     try {
-      const raw = sessionStorage.getItem('geowatch_superadmin_return_view');
+      const raw = sessionStorage.getItem('intelmap24_superadmin_return_view');
       returnViewRef.current = raw ? JSON.parse(raw) : null;
     } catch {
       returnViewRef.current = null;
@@ -1309,7 +1309,7 @@ export default function MapPage() {
   // Back — from a full-page detail view OR a directory page — restores the map
   // exactly as left. Detail navigation passes the target selection explicitly;
   // without one the current panel selection is saved. Sets the
-  // `geowatch_superadmin_returning` latch the mount-time restore effect
+  // `intelmap24_superadmin_returning` latch the mount-time restore effect
   // consumes. No-op until the map instance exists (map not ready).
   const saveMapReturnView = useCallback(
     (selection) => {
@@ -1325,7 +1325,7 @@ export default function MapPage() {
       // (center, zoom, bearing, pitch, padding) lets the map remount at
       // the exact framing the user left — no flight, no refit.
       sessionStorage.setItem(
-        'geowatch_superadmin_return_view',
+        'intelmap24_superadmin_return_view',
         JSON.stringify({
           lat: center.lat,
           lng: center.lng,
@@ -1339,7 +1339,7 @@ export default function MapPage() {
           selectedZoneId: selId && selIsZone ? selId : null,
         })
       );
-      sessionStorage.setItem('geowatch_superadmin_returning', '1');
+      sessionStorage.setItem('intelmap24_superadmin_returning', '1');
     },
     [selectedIncident, dateRange.from, dateRange.to, isLiveMode]
   );
@@ -1373,10 +1373,10 @@ export default function MapPage() {
   // skipped via the mount-time saved-viewport snapshot) — no duplicated
   // selection logic. Missing fields (older payloads) degrade to viewport-only.
   useEffect(() => {
-    if (sessionStorage.getItem('geowatch_superadmin_returning') !== '1') return;
-    sessionStorage.removeItem('geowatch_superadmin_returning');
-    const raw = sessionStorage.getItem('geowatch_superadmin_return_view');
-    sessionStorage.removeItem('geowatch_superadmin_return_view');
+    if (sessionStorage.getItem('intelmap24_superadmin_returning') !== '1') return;
+    sessionStorage.removeItem('intelmap24_superadmin_returning');
+    const raw = sessionStorage.getItem('intelmap24_superadmin_return_view');
+    sessionStorage.removeItem('intelmap24_superadmin_return_view');
     if (!raw) return;
     try {
       const payload = JSON.parse(raw);
@@ -4099,8 +4099,8 @@ export default function MapPage() {
         onSelectIncident={(incident) => handleSelectIncident(incident, { source: 'palette' })}
         onSelectLocation={handlePaletteSelectLocation}
         onOpenAdvanced={handlePaletteOpenAdvanced}
-        recentsKey="geowatch_superadmin_command_palette_recents_v2"
-        legacyRecentsKey="geowatch_superadmin_command_palette_recents"
+        recentsKey="intelmap24_superadmin_command_palette_recents_v2"
+        legacyRecentsKey="intelmap24_superadmin_command_palette_recents"
         bridgeHint="Open Power Search with this query"
         advancedLabel="Open power search"
       />

@@ -9,7 +9,7 @@ const pageErrors = [];
 
 async function pickZonePixel(page) {
   return page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     const feats = m.getSource('zones')?._data?.features || [];
@@ -42,7 +42,7 @@ async function pickZonePixel(page) {
 
 async function probe(page, label) {
   const diag = await page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     return {
       layer: !!m.getLayer('zone-hit'),
       srcFeatures: (m.getSource('zones')?._data?.features || []).length,
@@ -60,7 +60,7 @@ async function probe(page, label) {
   await page.waitForTimeout(250);
   await page.mouse.move(t.x, t.y, { steps: 5 });
   await page.waitForTimeout(450);
-  const cursor = await page.evaluate(() => window.__geowatchAdminMap.getCanvas().style.cursor);
+  const cursor = await page.evaluate(() => window.__intelmap24AdminMap.getCanvas().style.cursor);
   const dead = cursor !== 'pointer';
   console.log(`\n### ${label}: hover "${t.name}" @${Math.round(t.x)},${Math.round(t.y)} hits=${t.hits} → cursor="${cursor}" ${dead ? '*** DEAD ***' : 'OK'}`);
   console.log('    diag:', JSON.stringify(diag));
@@ -76,7 +76,7 @@ page.on('console', (msg) => { if (msg.type() === 'error') pageErrors.push('conso
 
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
 await probe(page, 'baseline');

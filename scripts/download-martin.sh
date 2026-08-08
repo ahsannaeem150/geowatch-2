@@ -1,5 +1,5 @@
 #!/bin/bash
-# Download Martin tile server binary for GeoWatch
+# Download Martin tile server binary for IntelMap24
 # Usage: ./scripts/download-martin.sh
 
 set -e

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════
-   GeoWatch Homepage Styles
+   IntelMap24 Homepage Styles
    Awwwards-level polish for the landing page
    ═══════════════════════════════════════════════ */
 
@@ -763,7 +763,7 @@
   left: 0;
   width: 180px;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(159, 18, 57, 0.55), rgba(159, 18, 57, 0.85), rgba(159, 18, 57, 0.55), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-light) 55%, transparent), color-mix(in srgb, var(--accent-light) 85%, transparent), color-mix(in srgb, var(--accent-light) 55%, transparent), transparent);
   animation: scan-line 5s ease-in-out infinite;
 }
 

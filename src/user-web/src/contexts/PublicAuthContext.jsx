@@ -12,20 +12,20 @@ export function PublicAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('geowatch_public_token');
+    localStorage.removeItem('intelmap24_public_token');
     setUser(null);
   }, []);
 
   const login = useCallback(async (idToken) => {
     const res = await api.publicLogin(idToken);
     const { token, user } = res.data;
-    localStorage.setItem('geowatch_public_token', token);
+    localStorage.setItem('intelmap24_public_token', token);
     setUser(user);
     return user;
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('geowatch_public_token');
+    const token = localStorage.getItem('intelmap24_public_token');
     if (!token) {
       setLoading(false);
       return;

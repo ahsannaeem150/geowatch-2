@@ -1,7 +1,7 @@
 -- ============================================
--- GeoWatch: Superadmin Foundation (Phase 1)
+-- IntelMap24: Superadmin Foundation (Phase 1)
 -- ============================================
--- Run this as: sudo -u postgres psql -d geowatch_dev -f 001_superadmin_foundation.sql
+-- Run this as: sudo -u postgres psql -d intelmap24_dev -f 001_superadmin_foundation.sql
 --
 -- Creates the audit_logs table and adds last_login_at to users.
 -- This is the immutable audit trail for all platform governance.
@@ -46,8 +46,8 @@ ALTER TABLE users
 -- ============================================
 -- Grant CRUD on audit_logs to the application user
 
-GRANT SELECT, INSERT ON audit_logs TO geowatch_user;
-GRANT USAGE, SELECT ON SEQUENCE audit_logs_id_seq TO geowatch_user;
+GRANT SELECT, INSERT ON audit_logs TO intelmap24_user;
+GRANT USAGE, SELECT ON SEQUENCE audit_logs_id_seq TO intelmap24_user;
 
 -- ============================================
 -- VERIFY

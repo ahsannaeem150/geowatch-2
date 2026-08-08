@@ -13,7 +13,7 @@ const LOGIN = {
 };
 
 async function getTokenFromBrowser(page) {
-  return page.evaluate(() => localStorage.getItem('geowatch_token'));
+  return page.evaluate(() => localStorage.getItem('intelmap24_token'));
 }
 
 async function fetchZones(token) {
@@ -72,7 +72,7 @@ async function clickFirstMarker(page) {
 
 async function getFittingZoom(page, bounds) {
   return page.evaluate(({ bbox }) => {
-    const map = window.__geowatchAdminMap;
+    const map = window.__intelmap24AdminMap;
     if (!map) return null;
     const camera = map.cameraForBounds(bbox, { padding: { top: 0, bottom: 0, left: 0, right: 0 }, maxZoom: 22 });
     return camera ? camera.zoom : null;
@@ -81,14 +81,14 @@ async function getFittingZoom(page, bounds) {
 
 async function getMapZoom(page) {
   return page.evaluate(() => {
-    const map = window.__geowatchAdminMap;
+    const map = window.__intelmap24AdminMap;
     return map ? map.getZoom() : null;
   });
 }
 
 async function setMapZoom(page, zoom) {
   return page.evaluate((z) => {
-    const map = window.__geowatchAdminMap;
+    const map = window.__intelmap24AdminMap;
     if (!map) return;
     map.setZoom(z);
   }, zoom);
@@ -96,7 +96,7 @@ async function setMapZoom(page, zoom) {
 
 async function flyTo(page, lat, lng, zoom) {
   return page.evaluate(({ lat, lng, zoom }) => {
-    const map = window.__geowatchAdminMap;
+    const map = window.__intelmap24AdminMap;
     if (!map) return;
     map.flyTo({ center: [lng, lat], zoom, duration: 0 });
   }, { lat, lng, zoom });
@@ -117,7 +117,7 @@ async function projectZoneCentroid(page, zone) {
   const centroid = getZoneCentroid(zone);
   if (!centroid) return null;
   return page.evaluate(({ lng, lat }) => {
-    const map = window.__geowatchAdminMap;
+    const map = window.__intelmap24AdminMap;
     if (!map) return null;
     const point = map.project([lng, lat]);
     const canvas = map.getCanvas();

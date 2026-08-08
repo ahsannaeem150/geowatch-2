@@ -1,5 +1,5 @@
 /**
- * GeoWatch — smart selection camera policy (shared, pure — no MapLibre imports).
+ * IntelMap24 — smart selection camera policy (shared, pure — no MapLibre imports).
  *
  * Decides how the map camera should respond when the user selects an incident
  * (point) or zone (polygon): target zoom, flight duration, pan-only, or skip.

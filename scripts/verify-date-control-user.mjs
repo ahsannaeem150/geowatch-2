@@ -63,12 +63,12 @@ async function main() {
   // NOTE: SSE keeps a connection open, so 'networkidle' never fires — use domcontentloaded.
   await page.goto(`${USER_BASE}/map`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
   await sleep(3000); // incidents fetch + markers render
 
   const jumpTo = (zoom, center) =>
     page.evaluate(
-      ([z, c]) => window.__geowatchUserMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
+      ([z, c]) => window.__intelmap24UserMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
       [zoom, center]
     );
   const openDatePanel = async () => {

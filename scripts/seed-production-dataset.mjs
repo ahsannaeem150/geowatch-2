@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GeoWatch — production-grade demo dataset seeder.
+ * IntelMap24 — production-grade demo dataset seeder.
  *
  * Seeds 10 point incidents + 5 polygon zones (Middle East / Pakistan focus)
  * through the REAL API with staff JWTs. All entities are fictional but
@@ -14,7 +14,7 @@
  *    60s sleep + retry (max 6 attempts).
  *  - Incident create embeds beat-1 sources (same request = no extra writes).
  *
- * After the run, apply /tmp/geowatch_backdate.sql to align created_at
+ * After the run, apply /tmp/intelmap24_backdate.sql to align created_at
  * columns with the narrative dates (the only direct DB touch).
  *
  * Usage: node scripts/seed-production-dataset.mjs
@@ -23,8 +23,8 @@
 import { writeFile, readFile, mkdir } from 'fs/promises';
 
 const API = 'http://localhost:3100/api/v1';
-const TMP_DIR = '/tmp/geowatch-seed';
-const COMMONS_UA = 'GeoWatchDevSeed/1.0 (local dev seeding; contact: admin@geowatch.local)';
+const TMP_DIR = '/tmp/intelmap24-seed';
+const COMMONS_UA = 'IntelMap24/1.0 (https://intelmap24.com)';
 
 const ACCOUNTS = {
   admin: { email: 'editor@geowatch.local', password: 'EditorPass123!' },
@@ -1126,7 +1126,7 @@ async function main() {
     await sleep(500);
   }
 
-  backdateSql.unshift('-- GeoWatch seed backdating pass — apply with psql -d geowatch_dev -f');
+  backdateSql.unshift('-- IntelMap24 seed backdating pass — apply with psql -d intelmap24_dev -f');
   await writeFile(`${TMP_DIR}/backdate.sql`, backdateSql.join('\n') + '\n');
   await writeFile(`${TMP_DIR}/output.json`, JSON.stringify(output, null, 2));
 

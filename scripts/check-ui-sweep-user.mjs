@@ -59,13 +59,13 @@ async function section(name, fn) {
 async function gotoMap(suffix = '') {
   await page.goto(`${BASE}/map${suffix}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
   await sleep(3200);
 }
 
 async function flyTo(lng, lat, zoom) {
   await page.evaluate(
-    ([lng, lat, zoom]) => window.__geowatchUserMap.jumpTo({ center: [lng, lat], zoom }),
+    ([lng, lat, zoom]) => window.__intelmap24UserMap.jumpTo({ center: [lng, lat], zoom }),
     [lng, lat, zoom]
   );
   await sleep(1600);
@@ -74,7 +74,7 @@ async function flyTo(lng, lat, zoom) {
 async function clickMapAt(lng, lat) {
   const pt = await page.evaluate(
     ([lng, lat]) => {
-      const p = window.__geowatchUserMap.project([lng, lat]);
+      const p = window.__intelmap24UserMap.project([lng, lat]);
       return { x: p.x, y: p.y };
     },
     [lng, lat]
@@ -84,7 +84,7 @@ async function clickMapAt(lng, lat) {
 
 const camBefore = () =>
   page.evaluate(() => {
-    const m = window.__geowatchUserMap;
+    const m = window.__intelmap24UserMap;
     const c = m.getCenter();
     return { lng: c.lng, lat: c.lat, zoom: m.getZoom() };
   });
@@ -398,7 +398,7 @@ await section('date-controls', async () => {
   await sleep(1800);
   await shot('date-damascus-visible');
   const found = await page.evaluate(() => {
-    const m = window.__geowatchUserMap;
+    const m = window.__intelmap24UserMap;
     const feats = m.queryRenderedFeatures({ layers: [] }) || [];
     return document.body.innerText.includes('Damascus');
   });
@@ -420,10 +420,10 @@ await section('about-404', async () => {
 // ═══ 10. Light theme spot-check ═══
 await section('light-theme', async () => {
   await page.goto(`${BASE}/map`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'light'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'light'));
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
   await sleep(3500);
   await shot('light-map');
   await gotoMap('?incident=c76049ad-1462-41f5-8a5a-97a760776247');
@@ -431,7 +431,7 @@ await section('light-theme', async () => {
   await page.goto(`${BASE}/incident/c76049ad-1462-41f5-8a5a-97a760776247`, { waitUntil: 'domcontentloaded' });
   await sleep(2500);
   await shot('light-incident-detail');
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'dark'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'dark'));
 });
 
 console.log('\n═══ CONSOLE ERRORS/WARNINGS ═══');

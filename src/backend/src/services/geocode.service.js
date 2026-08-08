@@ -3,7 +3,7 @@
 // and results are cached (Nominatim's usage policy requires both).
 
 const NOMINATIM_URL = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org/search';
-const USER_AGENT = `GeoWatch/1.0 (contact: ${process.env.GEOCODE_CONTACT_EMAIL || 'admin@geowatch.local'})`;
+const USER_AGENT = 'IntelMap24/1.0 (https://intelmap24.com)';
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500;

@@ -82,7 +82,7 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
 
   await page.goto(`${ADMIN_URL}/login`, { waitUntil: 'load', timeout: 15000 });
-  await page.evaluate((t) => localStorage.setItem('geowatch_token', t), token);
+  await page.evaluate((t) => localStorage.setItem('intelmap24_token', t), token);
 
   // 1. Incident detail right panel.
   await page.goto(`${ADMIN_URL}/?incident=${incident.id}`, { waitUntil: 'load', timeout: 15000 });

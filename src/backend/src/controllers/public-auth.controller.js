@@ -10,7 +10,7 @@ import { broadcastEvent } from '../utils/sse-broadcast.js';
 
 /**
  * POST /api/v1/auth/public/google
- * Exchange a Google ID token for a GeoWatch JWT.
+ * Exchange a Google ID token for a IntelMap24 JWT.
  */
 export async function googleAuthController(req, res) {
   const { idToken } = req.body;

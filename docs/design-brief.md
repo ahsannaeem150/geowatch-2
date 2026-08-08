@@ -1,7 +1,7 @@
-# GeoWatch Visual Design Brief
+# IntelMap24 Visual Design Brief
 
 ## Design Philosophy
-GeoWatch is NOT a generic Google Maps clone. It is a **tactical intelligence dashboard** meets **premium newsroom aesthetic**. Think: Bloomberg Terminal + CIA situation room + modern dark-mode SaaS.
+IntelMap24 is NOT a generic Google Maps clone. It is a **tactical intelligence dashboard** meets **premium newsroom aesthetic**. Think: Bloomberg Terminal + CIA situation room + modern dark-mode SaaS.
 
 ## Brand: Crimson Seal
 The finalized design system uses a **deep maroon** accent on near-black backgrounds, creating a serious, authoritative, premium feel.
@@ -70,7 +70,7 @@ All three frontends support two switchable interface styles via `ThemeContext`:
 | **Tactical** (default) | Space Grotesk | Radial crimson gradient, `#050505` | Sharp (2-6px) | Film grain overlay, uppercase labels, heavy shadows |
 | **SaaS** | Inter | Subtle radial gradient | Medium (6-10px) | Clean, more spacing, softer shadows |
 
-Switch via TopBar/Header dropdown. Persisted in `localStorage` under `geowatch-style`.
+Switch via TopBar/Header dropdown. Persisted in `localStorage` under `intelmap24-style`.
 
 ## Map Styling
 - **Base map**: Dark vector tiles via Martin + custom `map-style-dark.json`

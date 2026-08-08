@@ -80,7 +80,7 @@ export default function SignInModal({ onClose }) {
             color: 'var(--text-primary)',
           }}
         >
-          Sign in to GeoWatch
+          Sign in to IntelMap24
         </h2>
         <p
           style={{

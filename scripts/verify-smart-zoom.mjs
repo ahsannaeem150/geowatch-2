@@ -173,22 +173,22 @@ async function main() {
     console.error('[page error]', err.message);
   });
 
-  await page.addInitScript((t) => localStorage.setItem('geowatch_token', t), token);
+  await page.addInitScript((t) => localStorage.setItem('intelmap24_token', t), token);
 
   // NOTE: SSE keeps a connection open, so 'networkidle' never fires — use domcontentloaded.
   await page.goto(`${ADMIN_BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
   await page.waitForTimeout(3000); // incidents fetch + markers render
   check('map loaded with dev debug handle', true);
 
-  const getZoom = () => page.evaluate(() => window.__geowatchAdminMap.getZoom());
+  const getZoom = () => page.evaluate(() => window.__intelmap24AdminMap.getZoom());
   const getCenter = () => page.evaluate(() => {
-    const c = window.__geowatchAdminMap.getCenter();
+    const c = window.__intelmap24AdminMap.getCenter();
     return { lng: c.lng, lat: c.lat };
   });
   const jumpTo = (zoom, center) => page.evaluate(
-    ([z, c]) => window.__geowatchAdminMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
+    ([z, c]) => window.__intelmap24AdminMap.jumpTo({ zoom: z, ...(c ? { center: c } : {}) }),
     [zoom, center]
   );
 
@@ -274,7 +274,7 @@ async function main() {
   // ─── 5. Tiny zone deep-link → comfort-fit capped at 11 ───
   await page.goto(`${ADMIN_BASE}/?zone=${TINY_ZONE_ID}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
   await page.waitForTimeout(6000); // incidents load + deep-link fit flight
   zoom = await getZoom();
   check('tiny zone (~1.5 km) → zoom ≤ 11.3 (size cap 11)', zoom <= 11.3, `zoom=${zoom.toFixed(2)}`);
@@ -282,11 +282,11 @@ async function main() {
   // ─── 6. Large zone deep-link → zoom ≥ 2.4 (min zoom 2.5 clamp) and bbox fits ───
   await page.goto(`${ADMIN_BASE}/?zone=${LARGE_ZONE_ID}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
   await page.waitForTimeout(6000);
   zoom = await getZoom();
   const fitsCheck = await page.evaluate((bb) => {
-    const b = window.__geowatchAdminMap.getBounds();
+    const b = window.__intelmap24AdminMap.getBounds();
     return {
       fits: bb.minLng >= b.getWest() && bb.maxLng <= b.getEast() &&
             bb.minLat >= b.getSouth() && bb.maxLat <= b.getNorth(),
@@ -301,12 +301,12 @@ async function main() {
   // ─── 6b. Huge trans-regional zone (>3000 km) → fully contained, zoom ≥ 2.4 ───
   await page.goto(`${ADMIN_BASE}/?zone=${HUGE_ZONE_ID}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
   await page.waitForTimeout(6000);
   zoom = await getZoom();
   const hugeFits = await page.evaluate((bb) => {
     const EPS = 0.5; // degrees of slack for viewport edge rounding
-    const b = window.__geowatchAdminMap.getBounds();
+    const b = window.__intelmap24AdminMap.getBounds();
     return {
       fits: bb.minLng >= b.getWest() - EPS && bb.maxLng <= b.getEast() + EPS &&
             bb.minLat >= b.getSouth() - EPS && bb.maxLat <= b.getNorth() + EPS,
@@ -351,7 +351,7 @@ async function main() {
   // ─── 7b. Stutter instrumentation: incident click never touches padding;
   // same-zoom pan uses easeTo (no flyTo zoom-out arc) ───
   await page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     window.__cam = { setPadding: 0, flyTo: 0, easeTo: 0 };
     const osp = m.setPadding.bind(m);
     m.setPadding = (p) => { window.__cam.setPadding += 1; return osp(p); };
@@ -382,15 +382,15 @@ async function main() {
   const freshMapPage = async (pg) => {
     await pg.goto(`${ADMIN_BASE}/`, { waitUntil: 'domcontentloaded' });
     await pg.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-    await pg.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+    await pg.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
     await pg.waitForTimeout(3000);
   };
   // Click the zone fill at a marker-free NW offset; verify the click point is
   // actually on the map canvas (not a drawer card / panel) before clicking.
   const clickZoneFill = async (pg) => {
     const pt = await pg.evaluate(([cx, cy]) => {
-      const p = window.__geowatchAdminMap.project([cx, cy]);
-      const canvas = window.__geowatchAdminMap.getCanvas().getBoundingClientRect();
+      const p = window.__intelmap24AdminMap.project([cx, cy]);
+      const canvas = window.__intelmap24AdminMap.getCanvas().getBoundingClientRect();
       return { x: canvas.x + p.x, y: canvas.y + p.y };
     }, [MED_CENTER[0] - 0.25, MED_CENTER[1] + 0.25]);
     const target = await pg.evaluate(([x, y]) => {
@@ -404,7 +404,7 @@ async function main() {
     return { clicked: true };
   };
   const zoneRect = (pg) => pg.evaluate((bb) => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const sw = m.project([bb.minLng, bb.minLat]);
     const ne = m.project([bb.maxLng, bb.maxLat]);
     const canvas = m.getCanvas().getBoundingClientRect();
@@ -476,17 +476,17 @@ async function main() {
     consoleErrors.push(`pageerror: ${err.message}`);
     console.error('[page error]', err.message);
   });
-  await page2.addInitScript((t) => localStorage.setItem('geowatch_token', t), token);
+  await page2.addInitScript((t) => localStorage.setItem('intelmap24_token', t), token);
   await freshMapPage(page2);
   await page2.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     window.__flyCount = 0;
     const ofly = m.flyTo.bind(m);
     m.flyTo = (opts) => { window.__flyCount += 1; return ofly(opts); };
     const oet = m.easeTo.bind(m);
     m.easeTo = (opts) => { window.__flyCount += 1; return oet(opts); };
   });
-  await page2.evaluate(([z, c]) => window.__geowatchAdminMap.jumpTo({ zoom: z, center: c }), [7, MED_CENTER]);
+  await page2.evaluate(([z, c]) => window.__intelmap24AdminMap.jumpTo({ zoom: z, center: c }), [7, MED_CENTER]);
   await page2.waitForTimeout(500);
   await page2.click('button[title="Incidents"]');
   await page2.waitForSelector('text=Incidents in Viewport', { timeout: 5000 });

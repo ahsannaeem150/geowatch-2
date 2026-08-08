@@ -76,8 +76,8 @@ export default function Sidebar() {
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ color: 'var(--text-primary)' }}>Geo</span>
-            <span className="console-gradient-text">Watch</span>
+            <span style={{ color: 'var(--text-primary)' }}>IntelMap</span>
+            <span className="console-gradient-text">24</span>
           </span>
         )}
       </div>

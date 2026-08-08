@@ -15,7 +15,7 @@ async function main() {
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
 
   await page.goto('http://localhost:5174/login', { waitUntil: 'load' });
-  await page.evaluate((t) => localStorage.setItem('geowatch_token', t), token);
+  await page.evaluate((t) => localStorage.setItem('intelmap24_token', t), token);
   await page.goto('http://localhost:5174/', { waitUntil: 'load' });
   await page.waitForSelector('.dashboard-layout', { timeout: 15000 });
 

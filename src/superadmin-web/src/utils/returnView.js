@@ -2,7 +2,7 @@
  * Return-view helper for the map ↔ full-page detail navigation.
  *
  * When the user leaves /superadmin/map for a full-page incident/zone view,
- * MapPage saves a `geowatch_superadmin_return_view` payload in sessionStorage
+ * MapPage saves a `intelmap24_superadmin_return_view` payload in sessionStorage
  * (camera + layout context). Back navigation targets the URL built here so the
  * map mounts with the camera already in the URL: `initialViewport` then
  * initializes the map directly at the saved view (no fly-from-default) and the
@@ -11,7 +11,7 @@
  */
 export function buildReturnMapUrl() {
   try {
-    const raw = sessionStorage.getItem('geowatch_superadmin_return_view');
+    const raw = sessionStorage.getItem('intelmap24_superadmin_return_view');
     if (!raw) return '/superadmin/map';
     const payload = JSON.parse(raw);
     const { lat, lng, zoom, selectedIncidentId, selectedZoneId } = payload || {};

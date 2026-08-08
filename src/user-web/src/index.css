@@ -53,12 +53,12 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(159, 18, 57, 0.4);
+  background: color-mix(in srgb, var(--accent-light) 40%, transparent);
   border-radius: var(--radius-md);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(159, 18, 57, 0.6);
+  background: color-mix(in srgb, var(--accent-light) 60%, transparent);
 }
 
 /* ═══════════════════════════════════════════════

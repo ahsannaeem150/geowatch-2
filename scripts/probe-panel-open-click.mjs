@@ -9,12 +9,12 @@ page.on('pageerror', (e) => console.log('PAGEERROR:', String(e).slice(0, 300)));
 page.on('console', (m) => { if (m.type() === 'error') console.log('CONSOLE:', m.text().slice(0, 200)); });
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 
 async function pickPixel(page, nameLike) {
   return page.evaluate((nameLike) => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     for (const f of m.getSource('zones')?._data?.features || []) {
@@ -42,7 +42,7 @@ async function pickPixel(page, nameLike) {
 const zoneParam = () => page.evaluate(() => new URLSearchParams(location.search).get('zone'));
 
 // Step 1: click Hormuz → panel opens
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [56, 26.5], zoom: 6.0 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [56, 26.5], zoom: 6.0 }));
 await page.waitForTimeout(1200);
 const hz = await pickPixel(page, 'Hormuz');
 await page.mouse.click(hz.x, hz.y);
@@ -52,7 +52,7 @@ console.log('step1 Hormuz click → param:', await zoneParam());
 // Step 2: install spy, click Waziristan with panel OPEN
 await page.evaluate(() => {
   window.__spy = [];
-  const m = window.__geowatchAdminMap;
+  const m = window.__intelmap24AdminMap;
   m.on('click', (e) => {
     let feats = [];
     try { feats = m.queryRenderedFeatures(e.point, { layers: ['zone-hit'] }); } catch (err) { window.__spy.push({ err: String(err) }); return; }
@@ -64,7 +64,7 @@ await page.evaluate(() => {
     });
   });
 });
-await page.evaluate(() => window.__geowatchAdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.0 }));
+await page.evaluate(() => window.__intelmap24AdminMap.jumpTo({ center: [68.5, 33.0], zoom: 6.0 }));
 await page.waitForTimeout(1500);
 const wz = await pickPixel(page, 'Waziristan');
 console.log('waziristan pixel:', JSON.stringify(wz));

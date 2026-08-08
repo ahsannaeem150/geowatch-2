@@ -13,11 +13,11 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
 await page.goto(`${USER_BASE}/map`, { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await sleep(4500); // settle (fresh profile may auto-peek: 1.2s reveal + 2.5s)
 
 // ─── Hover-intent: quick pass does NOT reveal ───
-const brandBtn = page.locator('header button[title="GeoWatch home — hover for navigation"]');
+const brandBtn = page.locator('header button[title="IntelMap24 home — hover for navigation"]');
 const navCount = () => page.locator('header nav a').count();
 const brandBox = await brandBtn.boundingBox();
 await page.mouse.move(brandBox.x - 60, brandBox.y + brandBox.height / 2);

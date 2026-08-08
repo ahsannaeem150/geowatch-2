@@ -1,12 +1,15 @@
-// GeoWatch Shared Constants
+// IntelMap24 Shared Constants
 // Used by both user-web and admin-web
 
+// Severity/verification colors are CSS tokens (design-tokens.css --sev-*/--ver-*) —
+// the single source of truth. var() strings work in inline styles; JS contexts that
+// do hex math or string-concat must resolve via getCssVar() from utils/cssVar.js.
 export const SEVERITY_SCALE = [
-  { value: 1, label: 'Minimal',  color: '#4ade80', radius: 6 },
-  { value: 2, label: 'Low',      color: '#fbbf24', radius: 8 },
-  { value: 3, label: 'Moderate', color: '#fb923c', radius: 10 },
-  { value: 4, label: 'Severe',   color: '#f87171', radius: 12 },
-  { value: 5, label: 'Critical', color: '#dc2626', radius: 14 },
+  { value: 1, label: 'Minimal',  color: 'var(--sev-1)', radius: 6 },
+  { value: 2, label: 'Low',      color: 'var(--sev-2)', radius: 8 },
+  { value: 3, label: 'Moderate', color: 'var(--sev-3)', radius: 10 },
+  { value: 4, label: 'Severe',   color: 'var(--sev-4)', radius: 12 },
+  { value: 5, label: 'Critical', color: 'var(--sev-5)', radius: 14 },
 ];
 
 export const EVENT_STATUS = {
@@ -39,10 +42,10 @@ export const VERIFICATION_STATUS = {
 };
 
 export const VERIFICATION_CONFIG = {
-  unverified: { label: 'Unverified', color: '#9ca3af', icon: '?' },
-  verified:   { label: 'Verified',   color: '#22c55e', icon: '✓' },
-  disputed:   { label: 'Disputed',   color: '#f59e0b', icon: '⚠' },
-  debunked:   { label: 'Debunked',   color: '#ef4444', icon: '✕' },
+  unverified: { label: 'Unverified', color: 'var(--ver-unverified)', icon: '?' },
+  verified:   { label: 'Verified',   color: 'var(--ver-verified)', icon: '✓' },
+  disputed:   { label: 'Disputed',   color: 'var(--ver-disputed)', icon: '⚠' },
+  debunked:   { label: 'Debunked',   color: 'var(--ver-debunked)', icon: '✕' },
 };
 
 export const MARTIN_URL =

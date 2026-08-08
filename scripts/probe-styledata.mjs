@@ -7,11 +7,11 @@ const ctx = await browser.newContext({ storageState: STATE, viewport: { width: 1
 const page = await ctx.newPage();
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 await page.evaluate(() => {
   window.__sd = [];
-  const m = window.__geowatchAdminMap;
+  const m = window.__intelmap24AdminMap;
   m.on('styledata', () => {
     window.__sd.push({ t: Math.round(performance.now()), loaded: m.isStyleLoaded(), layer: !!m.getLayer('zone-hit'), src: !!m.getSource('zones') });
   });
@@ -24,7 +24,7 @@ await page.locator(sel).first().click();
 await page.waitForTimeout(3000);
 const sd = await page.evaluate(() => window.__sd);
 const after = await page.evaluate(() => {
-  const m = window.__geowatchAdminMap;
+  const m = window.__intelmap24AdminMap;
   return { loaded: m.isStyleLoaded(), layer: !!m.getLayer('zone-hit'), src: !!m.getSource('zones') };
 });
 console.log('events:', JSON.stringify(sd, null, 1));

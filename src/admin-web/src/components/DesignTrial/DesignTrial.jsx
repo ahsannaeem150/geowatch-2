@@ -724,7 +724,7 @@ export default function DesignTrial() {
                 G
               </div>
               <h1 style={{ fontSize: '30px', fontWeight: 700, letterSpacing: '-1.2px', margin: 0, lineHeight: 1.1 }}>
-                GeoWatch
+                IntelMap24
               </h1>
               <span
                 style={{
@@ -1014,7 +1014,7 @@ export default function DesignTrial() {
                 >
                   G
                 </div>
-                <span style={{ fontSize: '17px', fontWeight: 700, letterSpacing: '-0.3px' }}>GeoWatch</span>
+                <span style={{ fontSize: '17px', fontWeight: 700, letterSpacing: '-0.3px' }}>IntelMap24</span>
               </div>
               <span
                 style={{

@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 
 /**
  * check-superadmin-zone-fixes.mjs — spot-verify the admin-port zone fixes on
- * superadmin-web (:5175, dev handle window.__geowatchSuperadminMap):
+ * superadmin-web (:5175, dev handle window.__intelmap24SuperadminMap):
  *   A: theme-style setStyle no longer strips zone layers (zone-hit survives)
  *   C: drawer zone rows show the zone category name (not "Unknown")
  *   B: clicking a drawer zone row deep-links via ?zone= (not ?incident=)
@@ -36,11 +36,11 @@ async function main() {
 
   await page.goto(`${BASE}/superadmin/map`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(
-    () => window.__geowatchSuperadminMap && window.__geowatchSuperadminMap.isStyleLoaded(),
+    () => window.__intelmap24SuperadminMap && window.__intelmap24SuperadminMap.isStyleLoaded(),
     { timeout: 20000 }
   );
   const map = () => page.evaluate(() => {
-    const m = window.__geowatchSuperadminMap;
+    const m = window.__intelmap24SuperadminMap;
     return {
       zoneHit: !!m.getLayer('zone-hit'),
       zonesSrc: !!m.getSource('zones'),
@@ -53,7 +53,7 @@ async function main() {
   check('A: zone-hit layer present on load', before.zoneHit);
 
   const flipped = await page.evaluate(async () => {
-    const m = window.__geowatchSuperadminMap;
+    const m = window.__intelmap24SuperadminMap;
     const current = document.documentElement.dataset.theme === 'light'
       ? '/map-style-light.json' : '/map-style-dark.json';
     const next = current.includes('dark') ? '/map-style-light.json' : '/map-style-dark.json';

@@ -22,7 +22,7 @@ import './TargetingCard.css';
 export default function TargetingCard({
   latitude,
   longitude,
-  color = '#9f1239',
+  color = 'var(--accent-light)',
   label = 'GW · TARGETING',
   compact = false,
   hasOverlay = false,

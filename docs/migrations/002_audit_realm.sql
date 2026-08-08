@@ -1,7 +1,7 @@
 -- ============================================
--- GeoWatch: Audit Realm Separation (Phase 4)
+-- IntelMap24: Audit Realm Separation (Phase 4)
 -- ============================================
--- Run this as: sudo -u postgres psql -d geowatch_dev -f 002_audit_realm.sql
+-- Run this as: sudo -u postgres psql -d intelmap24_dev -f 002_audit_realm.sql
 --
 -- Adds realm and actor_type columns to audit_logs to separate
 -- system (staff) activity from user (public) activity.
@@ -43,7 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_type ON audit_logs(actor_type, c
 CREATE INDEX IF NOT EXISTS idx_audit_logs_realm_actor ON audit_logs(realm, actor_type, created_at DESC);
 
 -- Update grants
-GRANT SELECT, INSERT ON audit_logs TO geowatch_user;
+GRANT SELECT, INSERT ON audit_logs TO intelmap24_user;
 
 -- ============================================
 -- VERIFY

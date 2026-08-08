@@ -1,7 +1,7 @@
 -- ============================================
--- GeoWatch: Add Domains & Categories Taxonomy
+-- IntelMap24: Add Domains & Categories Taxonomy
 -- ============================================
--- Run this as: geowatch_user
+-- Run this as: intelmap24_user
 -- Creates the domains and categories tables and seeds all data.
 --
 -- NOTE: Run AFTER the rename-events-to-incidents migration.

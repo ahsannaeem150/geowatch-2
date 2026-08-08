@@ -17,7 +17,7 @@ function normalizeGeometry(geometry) {
 }
 
 /**
- * GeoWatch shared zone SVG overlay.
+ * IntelMap24 shared zone SVG overlay.
  *
  * Renders polygon zones with the approved "neon-fade-no-shadow" style:
  *   - subtle radial-gradient fill

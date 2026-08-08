@@ -76,13 +76,13 @@ async function section(name, fn) {
 async function gotoMap(suffix = '') {
   await page.goto(`${BASE}/${suffix}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
   await sleep(3200);
 }
 
 async function flyTo(lng, lat, zoom) {
   await page.evaluate(
-    ([lng, lat, zoom]) => window.__geowatchAdminMap.jumpTo({ center: [lng, lat], zoom }),
+    ([lng, lat, zoom]) => window.__intelmap24AdminMap.jumpTo({ center: [lng, lat], zoom }),
     [lng, lat, zoom]
   );
   await sleep(1600);
@@ -92,7 +92,7 @@ async function flyTo(lng, lat, zoom) {
 async function clickMapAt(lng, lat) {
   const pt = await page.evaluate(
     ([lng, lat]) => {
-      const p = window.__geowatchAdminMap.project([lng, lat]);
+      const p = window.__intelmap24AdminMap.project([lng, lat]);
       const r = document.querySelector('.maplibregl-canvas').getBoundingClientRect();
       return { x: r.x + p.x, y: r.y + p.y };
     },
@@ -103,7 +103,7 @@ async function clickMapAt(lng, lat) {
 
 const camBefore = () =>
   page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const c = m.getCenter();
     return { lng: c.lng, lat: c.lat, zoom: m.getZoom() };
   });
@@ -165,7 +165,7 @@ await section('login', async () => {
   await shot('login-filled');
   await page.click('button[type="submit"]');
   await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
   await sleep(3500);
   console.log('  landed on:', page.url());
   await shot('login-landing-map');
@@ -574,7 +574,7 @@ await section('focus-compact', async () => {
     }))
   );
   console.log('  drawer switches:', JSON.stringify(swInfo));
-  const azOff = await page.evaluate(() => localStorage.getItem('geowatch_admin_auto_zoom') === 'false');
+  const azOff = await page.evaluate(() => localStorage.getItem('intelmap24_admin_auto_zoom') === 'false');
   if (azOff) {
     console.log('  auto-zoom was left OFF by a previous run — restoring ON');
     await page.locator('button[role="switch"]').nth(0).click();
@@ -613,16 +613,16 @@ await section('focus-compact', async () => {
 // ═══ 13. Light theme spot-check ═══
 await section('light-theme', async () => {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'light'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'light'));
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.maplibregl-canvas', { timeout: 20000 });
-  await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 20000 });
+  await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 20000 });
   await sleep(3500);
   await shot('light-map');
   await gotoMap(`?incident=${TANKER_ID}`);
   await page.waitForSelector('button:has-text("Full details")', { timeout: 10000 }).catch(() => {});
   await shot('light-incident-sidebar');
-  await page.evaluate(() => localStorage.setItem('geowatch-theme', 'dark'));
+  await page.evaluate(() => localStorage.setItem('intelmap24-theme', 'dark'));
 });
 
 console.log('\n═══ CONSOLE ERRORS/WARNINGS ═══');

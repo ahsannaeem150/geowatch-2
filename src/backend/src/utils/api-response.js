@@ -1,5 +1,5 @@
 /**
- * GeoWatch Standard API Response Format
+ * IntelMap24 Standard API Response Format
  * { success: boolean, data: any, message: string|null, error: string|null }
  */
 

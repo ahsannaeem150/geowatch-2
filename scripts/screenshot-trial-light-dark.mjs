@@ -17,8 +17,8 @@ async function capture(route, theme, name, interactions = []) {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.evaluate(
     ({ theme, style }) => {
-      localStorage.setItem('geowatch-theme', theme);
-      localStorage.setItem('geowatch-style', style);
+      localStorage.setItem('intelmap24-theme', theme);
+      localStorage.setItem('intelmap24-style', style);
     },
     { theme, style }
   );

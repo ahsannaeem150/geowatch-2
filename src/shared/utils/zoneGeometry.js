@@ -1,5 +1,5 @@
 /**
- * GeoWatch — shared polygon geometry helpers for zone incidents.
+ * IntelMap24 — shared polygon geometry helpers for zone incidents.
  * All functions assume a GeoJSON Polygon exterior ring: [lng, lat] pairs
  * where the last point equals the first.
  */

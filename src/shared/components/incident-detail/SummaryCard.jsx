@@ -1,6 +1,7 @@
 import { Icons } from './IncidentIcons.jsx';
 import { Badge, SeverityBadge, VerificationBadge, StatusBadge } from './IncidentBadges.jsx';
 import { formatDate, formatTime } from './IncidentUtils.js';
+import { getCssVar } from '@shared/utils/cssVar.js';
 
 function SaveButton({ saved = false }) {
   return (
@@ -14,7 +15,8 @@ export default function SummaryCard({ incident, children, onTitleClick, mode = '
   return (
     <div className="id-summary">
       <div className="id-summary__row">
-        <Badge color={incident.domainColor || incident.categoryColor || '#9f1239'}>{incident.domain || incident.categoryName || incident.category}</Badge>
+        {/* Badge does hex string-math (getBadgeColors), so the token is resolved to a concrete color via getCssVar */}
+        <Badge color={incident.domainColor || incident.categoryColor || getCssVar('--accent-light', '#9f1239')}>{incident.domain || incident.categoryName || incident.category}</Badge>
         <StatusBadge status={incident.status} />
         <VerificationBadge status={incident.verification} />
         <SeverityBadge level={incident.severity} />

@@ -19,7 +19,7 @@ function SectionDivider() {
 export default function HomePage() {
   const [booting, setBooting] = useState(() => {
     // Only show boot sequence on first visit per session
-    return !sessionStorage.getItem('geowatch_booted');
+    return !sessionStorage.getItem('intelmap24_booted');
   });
 
   // One consolidated fetch feeds every home section (see useHomeData)
@@ -33,7 +33,7 @@ export default function HomePage() {
   );
 
   const handleBootComplete = () => {
-    sessionStorage.setItem('geowatch_booted', 'true');
+    sessionStorage.setItem('intelmap24_booted', 'true');
     setBooting(false);
   };
 

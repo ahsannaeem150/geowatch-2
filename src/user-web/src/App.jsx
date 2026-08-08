@@ -41,13 +41,13 @@ function ScrollToTop() {
 // Per-route document titles. Detail pages set their own title from the
 // loaded incident/zone; everything else maps here.
 const ROUTE_TITLES = [
-  { match: /^\/$/, title: 'GeoWatch — Global Conflict Monitor' },
-  { match: /^\/map$/, title: 'Map — GeoWatch' },
-  { match: /^\/incidents$/, title: 'Incidents — GeoWatch' },
-  { match: /^\/zones$/, title: 'Zones — GeoWatch' },
-  { match: /^\/about$/, title: 'About — GeoWatch' },
+  { match: /^\/$/, title: 'IntelMap24 - Conflict Monitor' },
+  { match: /^\/map$/, title: 'Map — IntelMap24' },
+  { match: /^\/incidents$/, title: 'Incidents — IntelMap24' },
+  { match: /^\/zones$/, title: 'Zones — IntelMap24' },
+  { match: /^\/about$/, title: 'About — IntelMap24' },
   // Catch-all (404) — keep last; detail pages override with the loaded title
-  { match: /^\/(?!incident\/|zone\/|trial\/).*/, title: 'Page not found — GeoWatch' },
+  { match: /^\/(?!incident\/|zone\/|trial\/).*/, title: 'Page not found — IntelMap24' },
 ];
 
 function RouteTitle() {

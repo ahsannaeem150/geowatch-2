@@ -13,7 +13,7 @@ const pageErrors = [];
 
 async function zoneDiagnostics(page, label) {
   const diag = await page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     if (!m) return { map: false };
     const src = m.getSource('zones');
     const data = src?._data;
@@ -52,7 +52,7 @@ async function hoverAndClickTest(page, label, shots = true) {
   // pick a zone pixel that is in the viewport, NOT under the right panel,
   // and where document.elementFromPoint is the map canvas (no marker/panel cover)
   const target = await page.evaluate(() => {
-    const m = window.__geowatchAdminMap;
+    const m = window.__intelmap24AdminMap;
     const canvas = document.querySelector('.maplibregl-canvas');
     const rect = canvas.getBoundingClientRect();
     const feats = m.getSource('zones')?._data?.features || [];
@@ -88,7 +88,7 @@ async function hoverAndClickTest(page, label, shots = true) {
   console.log(`\n--- ${label}: physical test on zone "${target.name}" (${target.kind}) @ ${Math.round(target.x)},${Math.round(target.y)}`);
   await page.mouse.move(target.x, target.y, { steps: 5 });
   await page.waitForTimeout(500);
-  const cursor = await page.evaluate(() => window.__geowatchAdminMap.getCanvas().style.cursor);
+  const cursor = await page.evaluate(() => window.__intelmap24AdminMap.getCanvas().style.cursor);
   const urlBefore = page.url();
   await page.mouse.click(target.x, target.y);
   await page.waitForTimeout(1000);
@@ -111,7 +111,7 @@ page.on('pageerror', (err) => pageErrors.push(String(err).slice(0, 300)));
 // ─── Scenario 1: owner URL (incident=<zone id> deep link) ───
 await page.goto(BASE + OWNER_URL, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(6000); // let incidents/zones load + deep-link effect run
 
 await zoneDiagnostics(page, 'owner-url-after-load');
@@ -120,7 +120,7 @@ await hoverAndClickTest(page, 'owner-url-zone-hover');
 // ─── Scenario 2: plain map, no deep link — baseline sanity ───
 await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('.maplibregl-canvas', { timeout: 25000 });
-await page.waitForFunction(() => !!window.__geowatchAdminMap, { timeout: 25000 });
+await page.waitForFunction(() => !!window.__intelmap24AdminMap, { timeout: 25000 });
 await page.waitForTimeout(5000);
 await zoneDiagnostics(page, 'plain-map-baseline');
 await hoverAndClickTest(page, 'plain-map-zone-hover');

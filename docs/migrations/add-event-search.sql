@@ -1,6 +1,6 @@
 -- Migration: Add full-text search to incidents table
 -- NOTE: Run this as the postgres superuser:
---   sudo -u postgres psql -d geowatch_dev -f docs/migrations/add-event-search.sql
+--   sudo -u postgres psql -d intelmap24_dev -f docs/migrations/add-event-search.sql
 
 -- Add search_vector column (auto-generated from title + description)
 ALTER TABLE incidents

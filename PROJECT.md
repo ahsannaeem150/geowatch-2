@@ -1,4 +1,4 @@
-# GeoWatch — Project Master Document
+# IntelMap24 — Project Master Document
 
 ## Product
 Map-based global conflict and major events visualization platform.

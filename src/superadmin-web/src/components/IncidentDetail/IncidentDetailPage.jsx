@@ -486,7 +486,7 @@ export default function IncidentDetailPage() {
 
   const handleBack = useCallback(() => {
     // Deterministic: always return to the map. When a saved return-view exists
-    // (geowatch_superadmin_return_view), the camera rides in the Back URL so
+    // (intelmap24_superadmin_return_view), the camera rides in the Back URL so
     // MapPage mounts directly at the saved view — the panel-selection restore
     // skips its flight entirely. history.length counts the whole session
     // (external links, redirects, same-page entries), which made navigate(-1)

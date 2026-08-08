@@ -46,12 +46,12 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 
 await page.goto(`${USER_BASE}/map`, { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 20000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 20000 });
 await sleep(3500);
 
 // ─── Bug 2: zones visible by default (no drawer interaction) ───
 const defaultVisible = await page.evaluate((zid) => {
-  const m = window.__geowatchUserMap;
+  const m = window.__intelmap24UserMap;
   const data = m.getSource('zones')?._data;
   const ids = (data?.features || []).map((f) => String(f.id));
   return { count: ids.length, hasFixture: ids.includes(zid) };
@@ -66,10 +66,10 @@ await page.waitForSelector('.tbd-panel', { timeout: 5000 });
 await page.locator('.tbd-panel .tui-date-preset:has-text("Last 30 days")').first().click();
 await sleep(2500);
 
-await page.evaluate(() => window.__geowatchUserMap.jumpTo({ zoom: 7.5, center: [55, 20] }));
+await page.evaluate(() => window.__intelmap24UserMap.jumpTo({ zoom: 7.5, center: [55, 20] }));
 await sleep(800);
 const clickPt = await page.evaluate(([zx, zy, zid]) => {
-  const m = window.__geowatchUserMap;
+  const m = window.__intelmap24UserMap;
   const pt = m.project([zx, zy]);
   const canvas = m.getCanvas().getBoundingClientRect();
   const x = canvas.x + pt.x, y = canvas.y + pt.y;
@@ -102,7 +102,7 @@ await page.waitForSelector('button.opt1-back-link', { timeout: 10000 });
 
 // ─── Bug 4: Back restores historic range + reopens the zone panel ───
 await page.locator('button.opt1-back-link').first().click();
-await page.waitForFunction(() => !!window.__geowatchUserMap, { timeout: 15000 });
+await page.waitForFunction(() => !!window.__intelmap24UserMap, { timeout: 15000 });
 await sleep(3500);
 
 const pillClass = await page.locator('.tbm').getAttribute('class');

@@ -160,10 +160,10 @@ export default function Header() {
             fontFamily: 'var(--font-mono)',
           }}
         >
-          G
+          I
         </div>
         <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-          GeoWatch
+          IntelMap24
         </span>
       </Link>
 

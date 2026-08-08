@@ -166,7 +166,7 @@ const ROUTE_TITLES = [
   { match: /^\/superadmin\/recycle-bin$/, title: 'Recycle Bin — Superadmin' },
   { match: /^\/superadmin\/incident\//, title: 'Incident — Superadmin' },
   { match: /^\/superadmin\/zone\//, title: 'Zone — Superadmin' },
-  { match: /.*/, title: 'GeoWatch Superadmin' },
+  { match: /.*/, title: 'IntelMap24 Superadmin' },
 ];
 
 function RouteTitle() {

@@ -2,7 +2,7 @@
  * Return-view helper for the map ↔ full-page detail navigation.
  *
  * When the user leaves the workspace map for a full-page incident/zone view,
- * DashboardLayout saves a `geowatch_admin_return_view` payload in
+ * DashboardLayout saves a `intelmap24_admin_return_view` payload in
  * sessionStorage (camera + layout context). Back navigation targets the URL
  * built here so the map mounts with the camera already in the URL:
  * `initialViewport` then initializes the map directly at the saved view (no
@@ -11,7 +11,7 @@
  */
 export function buildReturnMapUrl() {
   try {
-    const raw = sessionStorage.getItem('geowatch_admin_return_view');
+    const raw = sessionStorage.getItem('intelmap24_admin_return_view');
     if (!raw) return '/';
     const payload = JSON.parse(raw);
     const { lat, lng, zoom, selectedIncidentId, selectedZoneId } = payload || {};
