@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import SignInModal from './SignInModal';
 
 // Placeholder overlay bodies — each mirrors the prototype's showPlaceholder:
 // correct container type + title + close button + pending body copy.
@@ -20,7 +21,13 @@ export const OVERLAY_META = {
   incidentsDirectory: { title: 'Incidents' },
   zonesDirectory: { title: 'Zones' },
   profilePage: { title: 'Profile' },
-  signIn: { title: 'Sign in' },
+  // Prototype sign-in card: bare sheet body, no grabber/title row, 22px corners.
+  signIn: { title: 'Sign in', heightFraction: 0.52, hideHeader: true, topRadius: 22 },
+};
+
+// Real bodies keyed by overlay id — overrides PlaceholderBody when present.
+export const OVERLAY_BODIES = {
+  signIn: SignInModal,
 };
 
 export function PlaceholderBody() {

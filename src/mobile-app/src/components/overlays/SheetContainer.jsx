@@ -67,6 +67,9 @@ export default function SheetContainer({ overlay, children }) {
 
   const translateY = Animated.add(enter, drag);
 
+  const hideHeader = overlay.props?.hideHeader;
+  const topRadius = overlay.props?.topRadius ?? 18;
+
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <Animated.View
@@ -77,45 +80,49 @@ export default function SheetContainer({ overlay, children }) {
             paddingBottom: insets.bottom,
             backgroundColor: theme.bgSurface,
             borderColor: theme.borderSubtle,
+            borderTopLeftRadius: topRadius,
+            borderTopRightRadius: topRadius,
             transform: [{ translateY }],
           },
         ]}>
-        <View {...panResponder.panHandlers}>
-          <View style={styles.grabberRow}>
-            <View
-              style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
-            />
-          </View>
-          <View style={styles.titleRow}>
-            <Text
-              style={[
-                styles.title,
-                { color: theme.textPrimary, fontFamily: theme.fontHead },
-              ]}>
-              {overlay.props?.title}
-            </Text>
-            <Pressable
-              onPress={() => closeOverlay(overlay.id)}
-              hitSlop={8}
-              style={({ pressed }) => [
-                styles.closeBtn,
-                { backgroundColor: pressed ? theme.bgHover : 'transparent' },
-              ]}>
-              <X size={16} color={theme.textSecondary} />
-            </Pressable>
-          </View>
-          {overlay.props?.meta ? (
-            <View style={styles.metaRow}>
+        {hideHeader ? null : (
+          <View {...panResponder.panHandlers}>
+            <View style={styles.grabberRow}>
+              <View
+                style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
+              />
+            </View>
+            <View style={styles.titleRow}>
               <Text
                 style={[
-                  styles.meta,
-                  { color: theme.textMuted, fontFamily: theme.fontMono },
+                  styles.title,
+                  { color: theme.textPrimary, fontFamily: theme.fontHead },
                 ]}>
-                {overlay.props.meta}
+                {overlay.props?.title}
               </Text>
+              <Pressable
+                onPress={() => closeOverlay(overlay.id)}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.closeBtn,
+                  { backgroundColor: pressed ? theme.bgHover : 'transparent' },
+                ]}>
+                <X size={16} color={theme.textSecondary} />
+              </Pressable>
             </View>
-          ) : null}
-        </View>
+            {overlay.props?.meta ? (
+              <View style={styles.metaRow}>
+                <Text
+                  style={[
+                    styles.meta,
+                    { color: theme.textMuted, fontFamily: theme.fontMono },
+                  ]}>
+                  {overlay.props.meta}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
         <View style={styles.body}>{children}</View>
       </Animated.View>
     </View>

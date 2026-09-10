@@ -5,6 +5,10 @@
 export const API_BASE_URL = 'http://10.0.2.2:3100/api/v1'; // Android emulator → host localhost
 export const MARTIN_URL = 'http://10.0.2.2:8080';
 
+// From Google Cloud console → OAuth web client ID; required by
+// @react-native-google-signin so Google returns an idToken for the backend.
+export const GOOGLE_WEB_CLIENT_ID = 'PASTE_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com';
+
 export const SEVERITY_LEVELS = [1, 2, 3, 4, 5];
 
 // Placeholder severities (mirrors the mobile UI prototype; real labels come from the backend later)

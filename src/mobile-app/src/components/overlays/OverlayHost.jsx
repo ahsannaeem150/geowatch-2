@@ -11,7 +11,7 @@ import { X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import SheetContainer from './SheetContainer';
-import { OVERLAY_META, PlaceholderBody } from './Placeholders';
+import { OVERLAY_BODIES, OVERLAY_META, PlaceholderBody } from './Placeholders';
 
 // Z-order model (rendered bottom → top):
 // map < side-controls < backdrop < sheets < fullscreen < left drawer
@@ -210,11 +210,16 @@ export default function OverlayHost() {
           props: {
             title: meta.title ?? overlay.id,
             heightFraction: meta.heightFraction,
+            hideHeader: meta.hideHeader,
+            topRadius: meta.topRadius,
             meta: meta.meta,
             ...overlay.props,
           },
         };
-        const body = overlay.props?.children ?? <PlaceholderBody />;
+        const BodyComponent = OVERLAY_BODIES[overlay.id];
+        const body =
+          overlay.props?.children ??
+          (BodyComponent ? <BodyComponent overlay={resolved} /> : <PlaceholderBody />);
         switch (resolved.type) {
           case 'sheet':
             return (
