@@ -1,12 +1,51 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { OverlayProvider } from './context/OverlayContext';
+import MapScreen from './screens/map/MapScreen';
+import OverlayHost from './components/overlays/OverlayHost';
 
-// Placeholder — replaced by RootNavigator in prompt P2 once the HTML
-// UI reference has been converted into the navigation tree.
+const Stack = createNativeStackNavigator();
+
+function Root() {
+  const { mode, theme } = useTheme();
+  const base = mode === 'dark' ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: theme.bgDeep,
+      card: theme.bgSurface,
+      primary: theme.accentLight,
+      text: theme.textPrimary,
+      border: theme.borderSubtle,
+    },
+  };
+
+  return (
+    <OverlayProvider>
+      <NavigationContainer theme={navTheme}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Map" component={MapScreen} />
+        </Stack.Navigator>
+        <OverlayHost />
+      </NavigationContainer>
+    </OverlayProvider>
+  );
+}
+
 export default function App() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>IntelMap24 Mobile — scaffold</Text>
-    </View>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <Root />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
