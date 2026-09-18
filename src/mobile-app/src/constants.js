@@ -71,4 +71,5 @@ export const STORAGE_KEYS = {
   THEME: 'intelmap24_mobile_theme',
   REDUCE_MOTION: 'intelmap24_mobile_reduce_motion',
   LAYERS: 'intelmap24_mobile_layers',
+  SEL_MODE: 'intelmap24_mobile_sel_mode',
 };

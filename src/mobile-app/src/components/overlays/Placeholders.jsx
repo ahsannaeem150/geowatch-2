@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import SignInModal from './SignInModal';
 import LayersSheet from './LayersSheet';
+import SettingsSheet from './SettingsSheet';
+import { DirectoryPreviewBody, ProfileDrawerBody, SheetPreviewBody } from './PreviewStubs';
 
 // Placeholder overlay bodies — each mirrors the prototype's showPlaceholder:
 // correct container type + title + close button + pending body copy.
@@ -30,6 +32,12 @@ export const OVERLAY_META = {
 export const OVERLAY_BODIES = {
   signIn: SignInModal,
   layers: LayersSheet,
+  settings: SettingsSheet,
+  incidentsDirectory: DirectoryPreviewBody,
+  zonesDirectory: DirectoryPreviewBody,
+  bookmarks: SheetPreviewBody,
+  history: SheetPreviewBody,
+  profile: ProfileDrawerBody,
 };
 
 export function PlaceholderBody() {

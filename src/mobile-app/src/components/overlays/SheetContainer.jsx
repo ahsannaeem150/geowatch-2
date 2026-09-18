@@ -131,7 +131,7 @@ export default function SheetContainer({ overlay, children }) {
 
 const styles = StyleSheet.create({
   wrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'flex-end',
   },
   sheet: {

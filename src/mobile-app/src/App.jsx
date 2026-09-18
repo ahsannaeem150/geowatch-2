@@ -11,6 +11,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { OverlayProvider } from './context/OverlayContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { MapProvider } from './context/MapContext';
+import { SelectionProvider } from './context/SelectionContext';
 import MapScreen from './screens/map/MapScreen';
 import OverlayHost from './components/overlays/OverlayHost';
 
@@ -81,7 +82,9 @@ export default function App() {
         <OverlayProvider>
           <AuthProvider>
             <MapProvider>
-              <Root />
+              <SelectionProvider>
+                <Root />
+              </SelectionProvider>
             </MapProvider>
           </AuthProvider>
         </OverlayProvider>

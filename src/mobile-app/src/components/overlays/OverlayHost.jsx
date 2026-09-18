@@ -12,10 +12,16 @@ import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import SheetContainer from './SheetContainer';
 import { OVERLAY_BODIES, OVERLAY_META, PlaceholderBody } from './Placeholders';
+import SelectionPill from '../selection/SelectionPill';
+import PeekSheet from '../selection/PeekSheet';
+import IncidentDrawer from '../selection/IncidentDrawer';
+import ZoneSheet from '../selection/ZoneSheet';
+import EmbeddedMapPanel from '../selection/EmbeddedMapPanel';
 
-// Z-order model (rendered bottom → top):
-// map < side-controls < backdrop < sheets < fullscreen < left drawer
-//   < top panels < modal < toast
+// Z-order model (rendered bottom → top, mirrors the prototype's z-indexes):
+// map < pill (32) < backdrop (55) < sheets/fullscreen/drawerLeft/topPanel
+// (56–66, stack order) < emb panel (64/zps) < zone sheet / peek (65)
+// < incident drawer (70) < modal (80) < toast
 
 const BACKDROP_TYPES = new Set(['sheet', 'drawerLeft', 'topPanel']);
 
@@ -195,66 +201,84 @@ export default function OverlayHost() {
   const { stack, topOverlay, closeOverlay, toast } = useOverlay();
   const hasBackdrop = stack.some((o) => BACKDROP_TYPES.has(o.type));
 
+  const renderOverlay = (overlay) => {
+    const meta = OVERLAY_META[overlay.id] ?? {};
+    const resolved = {
+      ...overlay,
+      props: {
+        title: meta.title ?? overlay.id,
+        heightFraction: meta.heightFraction,
+        hideHeader: meta.hideHeader,
+        topRadius: meta.topRadius,
+        meta: meta.meta,
+        ...overlay.props,
+      },
+    };
+    const BodyComponent = OVERLAY_BODIES[overlay.id];
+    const body =
+      overlay.props?.children ??
+      (BodyComponent ? (
+        <BodyComponent overlay={resolved} />
+      ) : (
+        <PlaceholderBody />
+      ));
+    switch (resolved.type) {
+      case 'sheet':
+        return (
+          <SheetContainer key={resolved.id} overlay={resolved}>
+            {body}
+          </SheetContainer>
+        );
+      case 'fullscreen':
+        return (
+          <FullscreenContainer key={resolved.id} overlay={resolved}>
+            {body}
+          </FullscreenContainer>
+        );
+      case 'drawerLeft':
+        return (
+          <DrawerLeftContainer key={resolved.id} overlay={resolved}>
+            {body}
+          </DrawerLeftContainer>
+        );
+      case 'topPanel':
+        return (
+          <TopPanelContainer key={resolved.id} overlay={resolved}>
+            {body}
+          </TopPanelContainer>
+        );
+      case 'modal':
+        return (
+          <ModalContainer key={resolved.id} overlay={resolved}>
+            {body}
+          </ModalContainer>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Modals (sign-in) sit above the selection surfaces; everything else in
+  // the stack sits below them (prototype: modal z80 > drawer z70 > peek
+  // z65 > emb z64 > sheets z56 > pill z32).
+  const baseOverlays = stack.filter((o) => o.type !== 'modal');
+  const modalOverlays = stack.filter((o) => o.type === 'modal');
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <SelectionPill />
       {hasBackdrop ? (
         <Pressable
           style={styles.backdrop}
           onPress={() => topOverlay && closeOverlay(topOverlay.id)}
         />
       ) : null}
-      {stack.map((overlay) => {
-        const meta = OVERLAY_META[overlay.id] ?? {};
-        const resolved = {
-          ...overlay,
-          props: {
-            title: meta.title ?? overlay.id,
-            heightFraction: meta.heightFraction,
-            hideHeader: meta.hideHeader,
-            topRadius: meta.topRadius,
-            meta: meta.meta,
-            ...overlay.props,
-          },
-        };
-        const BodyComponent = OVERLAY_BODIES[overlay.id];
-        const body =
-          overlay.props?.children ??
-          (BodyComponent ? <BodyComponent overlay={resolved} /> : <PlaceholderBody />);
-        switch (resolved.type) {
-          case 'sheet':
-            return (
-              <SheetContainer key={resolved.id} overlay={resolved}>
-                {body}
-              </SheetContainer>
-            );
-          case 'fullscreen':
-            return (
-              <FullscreenContainer key={resolved.id} overlay={resolved}>
-                {body}
-              </FullscreenContainer>
-            );
-          case 'drawerLeft':
-            return (
-              <DrawerLeftContainer key={resolved.id} overlay={resolved}>
-                {body}
-              </DrawerLeftContainer>
-            );
-          case 'topPanel':
-            return (
-              <TopPanelContainer key={resolved.id} overlay={resolved}>
-                {body}
-              </TopPanelContainer>
-            );
-          case 'modal':
-            return (
-              <ModalContainer key={resolved.id} overlay={resolved}>
-                {body}
-              </ModalContainer>
-            );
-          default:
-            return null;
-        }
-      })}
+      {baseOverlays.map(renderOverlay)}
+      <EmbeddedMapPanel />
+      <ZoneSheet />
+      <PeekSheet />
+      <IncidentDrawer />
+      {modalOverlays.map(renderOverlay)}
       {toast ? <Toast message={toast} /> : null}
     </View>
   );
@@ -262,7 +286,7 @@ export default function OverlayHost() {
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,.45)',
   },
   flex: { flex: 1 },
@@ -285,10 +309,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   full: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   row: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
   },
   drawer: {
@@ -296,7 +320,7 @@ const styles = StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
   },
   topWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     paddingHorizontal: 12,
   },
   topPanel: {
@@ -308,7 +332,7 @@ const styles = StyleSheet.create({
     minHeight: 160,
   },
   modalWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,

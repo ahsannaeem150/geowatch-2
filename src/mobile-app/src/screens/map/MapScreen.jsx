@@ -19,6 +19,7 @@ import {
   MIN_ZOOM,
   useMap,
 } from '../../context/MapContext';
+import { useSelection } from '../../context/SelectionContext';
 import { ZONE_OVERLAYS } from '../../constants';
 import { MAP_STYLES } from './mapStyles';
 import TopBar from './components/TopBar';
@@ -148,7 +149,7 @@ function GateHint() {
 
 export default function MapScreen() {
   const { mode, theme } = useTheme();
-  const { topOverlay, closeOverlay } = useOverlay();
+  const { topOverlay, closeOverlay, stack } = useOverlay();
   const {
     incidents,
     zones,
@@ -156,26 +157,41 @@ export default function MapScreen() {
     isRangeGated,
     selectedId,
     selectedKind,
-    selectItem,
-    clearSelection,
     ghostItem,
     layerVisibility,
     cameraRef,
     handleRegionChange,
   } = useMap();
+  const {
+    handleBack: handleSelectionBack,
+    handleMapPress,
+    selectFromMap,
+    view: selectionView,
+  } = useSelection();
 
-  // Android hardware back closes the topmost overlay first; the app exits
-  // only when the overlay stack is empty.
+  // Android hardware back goes to whatever is visually topmost (mirrors the
+  // prototype z-order): modal (80) > drawer/zoneSheet/peek (65–70) > stack
+  // overlays (55–66) > pill (32). The selection chain walks drawer →
+  // peek/pill → deselect-or-restore-origin before the app exits.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      const hasModal = stack.some((o) => o.type === 'modal');
+      const selectionOnTop =
+        !hasModal &&
+        (selectionView === 'drawer' ||
+          selectionView === 'zoneSheet' ||
+          selectionView === 'peek');
+      if (selectionOnTop && handleSelectionBack()) {
+        return true;
+      }
       if (topOverlay) {
         closeOverlay(topOverlay.id);
         return true;
       }
-      return false;
+      return handleSelectionBack();
     });
     return () => sub.remove();
-  }, [topOverlay, closeOverlay]);
+  }, [topOverlay, closeOverlay, handleSelectionBack, stack, selectionView]);
 
   // Client-side layer filters: fetch everything permitted, hide by
   // domain/zone-category per the Layers sheet toggles.
@@ -272,16 +288,17 @@ export default function MapScreen() {
   }, [ghostItem]);
 
   // One press handler per source (NOT per feature): reads current context
-  // state at event time — no stale closures.
+  // state at event time — no stale closures. Selection flow lives entirely
+  // in SelectionContext (peek/pill/drawer by mode, zones → sheet).
   const handleIncidentPress = useCallback(
     (event) => {
       event.stopPropagation?.();
       const id = event.nativeEvent?.features?.[0]?.properties?.id;
       if (id) {
-        selectItem(id, 'incident');
+        selectFromMap(id, 'incident');
       }
     },
-    [selectItem],
+    [selectFromMap],
   );
 
   const handleZonePress = useCallback(
@@ -289,15 +306,11 @@ export default function MapScreen() {
       event.stopPropagation?.();
       const id = event.nativeEvent?.features?.[0]?.properties?.id;
       if (id) {
-        selectItem(id, 'zone');
+        selectFromMap(id, 'zone');
       }
     },
-    [selectItem],
+    [selectFromMap],
   );
-
-  const handleMapPress = useCallback(() => {
-    clearSelection();
-  }, [clearSelection]);
 
   const handleRegionDidChange = useCallback(
     (event) => {
