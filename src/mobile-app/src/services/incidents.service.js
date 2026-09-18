@@ -19,6 +19,22 @@ export function listZones(params = {}) {
   });
 }
 
+// /incidents/search carries the filterable params the plain list endpoint
+// lacks (q, severities, statuses, domainSlugs, verificationStatuses,
+// zoneCategoryIds). Directory screens go through these (P6). Multi-value
+// params are comma-joined strings (backend preprocesses comma arrays).
+export function searchIncidents(params = {}) {
+  return api.get('/incidents/search', {
+    params: { geometryType: 'point', ...params },
+  });
+}
+
+export function searchZones(params = {}) {
+  return api.get('/incidents/search', {
+    params: { geometryType: 'polygon', ...params },
+  });
+}
+
 export function listSavedIncidents(params = {}) {
   return api.get('/incidents/saved', { params });
 }

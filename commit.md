@@ -12820,3 +12820,5 @@ feat(mobile): API service layer + Google auth (P3)
 feat(mobile): MapLibre engine + live incident/zone layers (P4)
 feat(mobile): selection state machine — peek/pill/drawer + context-aware back (P5)
 fix(mobile): RN 0.87 removed StyleSheet.absoluteFillObject — shell-wide spread fix (OverlayHost/SheetContainer/selection sheets were top-anchoring/collapsed)
+
+feat(mobile): incidents/zones directory screens with filter drawers (P6)

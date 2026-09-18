@@ -10,7 +10,7 @@ import { useOverlay } from '../../../context/OverlayContext';
 const TABS = [
   { key: 'map', label: 'Map', Icon: MapIcon },
   { key: 'search', label: 'Search', Icon: Search, overlay: { id: 'powerSearch', type: 'fullscreen' } },
-  { key: 'viewport', label: 'Viewport', Icon: Eye, overlay: { id: 'incidentsDirectory', type: 'fullscreen' } },
+  { key: 'viewport', label: 'Incidents', Icon: Eye, overlay: { id: 'incidentsDirectory', type: 'fullscreen' } },
   { key: 'activity', label: 'Activity', Icon: Activity, overlay: { id: 'activity', type: 'sheet' } },
   { key: 'alerts', label: 'Alerts', Icon: Bell, overlay: { id: 'alerts', type: 'sheet' }, badge: '9+' },
 ];

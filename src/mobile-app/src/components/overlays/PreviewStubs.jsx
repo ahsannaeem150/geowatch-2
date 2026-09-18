@@ -80,6 +80,7 @@ export function ProfileDrawerBody() {
   const { theme } = useTheme();
   const { openOverlay } = useOverlay();
   const rows = [
+    { id: 'searchHub', label: 'Search hub (dev)' },
     { id: 'bookmarks', label: 'Bookmarks (dev)' },
     { id: 'history', label: 'History (dev)' },
     { id: 'settings', label: 'Settings (dev)' },
@@ -114,15 +115,6 @@ function Note({ text }) {
       style={[styles.note, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
       {text}
     </Text>
-  );
-}
-
-export function DirectoryPreviewBody() {
-  return (
-    <ScrollView contentContainerStyle={styles.body}>
-      <Note text="— DIRECTORY DESIGN PENDING · PREVIEW ROWS DRIVE THE SELECTION FLOW —" />
-      <PreviewRows origin={{ type: 'fullscreen' }} />
-    </ScrollView>
   );
 }
 

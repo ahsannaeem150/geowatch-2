@@ -4,7 +4,9 @@ import { useTheme } from '../../context/ThemeContext';
 import SignInModal from './SignInModal';
 import LayersSheet from './LayersSheet';
 import SettingsSheet from './SettingsSheet';
-import { DirectoryPreviewBody, ProfileDrawerBody, SheetPreviewBody } from './PreviewStubs';
+import SearchHubBody from './SearchHubBody';
+import { IncidentsDirectoryBody, ZonesDirectoryBody } from './DirectoryScreen';
+import { ProfileDrawerBody, SheetPreviewBody } from './PreviewStubs';
 
 // Placeholder overlay bodies — each mirrors the prototype's showPlaceholder:
 // correct container type + title + close button + pending body copy.
@@ -21,8 +23,9 @@ export const OVERLAY_META = {
   bookmarks: { title: 'Bookmarks', heightFraction: 0.7 },
   history: { title: 'History', heightFraction: 0.7 },
   powerSearch: { title: 'Power Search' },
-  incidentsDirectory: { title: 'Incidents' },
-  zonesDirectory: { title: 'Zones' },
+  // Directories render their own header (back ‹ + title/subtitle + Reset).
+  incidentsDirectory: { title: 'Incidents', hideHeader: true },
+  zonesDirectory: { title: 'Zones', hideHeader: true },
   profilePage: { title: 'Profile' },
   // Prototype sign-in card: bare sheet body, no grabber/title row, 22px corners.
   signIn: { title: 'Sign in', heightFraction: 0.52, hideHeader: true, topRadius: 22 },
@@ -33,8 +36,9 @@ export const OVERLAY_BODIES = {
   signIn: SignInModal,
   layers: LayersSheet,
   settings: SettingsSheet,
-  incidentsDirectory: DirectoryPreviewBody,
-  zonesDirectory: DirectoryPreviewBody,
+  searchHub: SearchHubBody,
+  incidentsDirectory: IncidentsDirectoryBody,
+  zonesDirectory: ZonesDirectoryBody,
   bookmarks: SheetPreviewBody,
   history: SheetPreviewBody,
   profile: ProfileDrawerBody,

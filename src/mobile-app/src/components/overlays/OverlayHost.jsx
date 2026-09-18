@@ -81,7 +81,9 @@ function FullscreenContainer({ overlay, children }) {
           paddingBottom: insets.bottom,
         },
       ]}>
-      <HeaderRow overlay={overlay} title={overlay.props?.title} />
+      {overlay.props?.hideHeader ? null : (
+        <HeaderRow overlay={overlay} title={overlay.props?.title} />
+      )}
       <View style={styles.flex}>{children}</View>
     </Animated.View>
   );
