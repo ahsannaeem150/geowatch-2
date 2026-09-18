@@ -21,37 +21,41 @@ export const SEVERITIES = [
 ];
 export const SEVERITY_NAMES = SEVERITIES.map((s) => s.name);
 
-// Placeholder incident domains (mirrors the mobile UI prototype; real data comes from the backend later)
+// Incident domains (mirrors the mobile UI prototype). `slug` matches the
+// backend `domains.slug` taxonomy (docs/migrations/add-domains-and-categories.sql)
+// and keys layer visibility + client-side filtering against incident.domain_slug.
 export const DOMAINS = [
-  { code: 'cr', name: 'Conflict', color: '#ef4444' },
-  { code: 'bo', name: 'Terrorism & Asymmetric', color: '#f59e0b' },
-  { code: 'ct', name: 'Counter-Terrorism & Security Ops', color: '#f87171' },
-  { code: 'cu', name: 'Civil Unrest', color: '#fbbf24' },
-  { code: 'mp', name: 'Military Posture & Movement', color: '#9ca3af' },
-  { code: 'nh', name: 'Natural Hazard', color: '#60a5fa' },
-  { code: 'ii', name: 'Infrastructure & Industrial', color: '#c4b5fd' },
-  { code: 'he', name: 'Health Emergency', color: '#22c55e' },
-  { code: 'hm', name: 'Humanitarian & Migration', color: '#facc15' },
-  { code: 'pg', name: 'Political & Governance', color: '#2dd4bf' },
-  { code: 'ci', name: 'Cyber & Information', color: '#38bdf8' },
-  { code: 'ma', name: 'Maritime', color: '#3b82f6' },
-  { code: 'es', name: 'Economic Shock', color: '#a3e635' },
-  { code: 'en', name: 'Environmental', color: '#4ade80' },
-  { code: 'cw', name: 'CBRN & WMD', color: '#7f1d1d' },
-  { code: 'ta', name: 'Transport & Aviation', color: '#a78bfa' },
-  { code: 'in', name: 'Intelligence', color: '#818cf8' },
+  { code: 'cr', name: 'Conflict', slug: 'conflict', color: '#ef4444' },
+  { code: 'bo', name: 'Terrorism & Asymmetric', slug: 'terrorism-asymmetric', color: '#f59e0b' },
+  { code: 'ct', name: 'Counter-Terrorism & Security Ops', slug: 'counter-terrorism', color: '#f87171' },
+  { code: 'cu', name: 'Civil Unrest', slug: 'civil-unrest', color: '#fbbf24' },
+  { code: 'mp', name: 'Military Posture & Movement', slug: 'military-posture', color: '#9ca3af' },
+  { code: 'nh', name: 'Natural Hazard', slug: 'natural-hazard', color: '#60a5fa' },
+  { code: 'ii', name: 'Infrastructure & Industrial', slug: 'infrastructure', color: '#c4b5fd' },
+  { code: 'he', name: 'Health Emergency', slug: 'health-emergency', color: '#22c55e' },
+  { code: 'hm', name: 'Humanitarian & Migration', slug: 'humanitarian', color: '#facc15' },
+  { code: 'pg', name: 'Political & Governance', slug: 'political', color: '#2dd4bf' },
+  { code: 'ci', name: 'Cyber & Information', slug: 'cyber', color: '#38bdf8' },
+  { code: 'ma', name: 'Maritime', slug: 'maritime', color: '#3b82f6' },
+  { code: 'es', name: 'Economic Shock', slug: 'economic', color: '#a3e635' },
+  { code: 'en', name: 'Environmental', slug: 'environmental', color: '#4ade80' },
+  { code: 'cw', name: 'CBRN & WMD', slug: 'cbrn-wmd', color: '#7f1d1d' },
+  { code: 'ta', name: 'Transport & Aviation', slug: 'transport', color: '#a78bfa' },
+  { code: 'in', name: 'Intelligence', slug: 'intelligence', color: '#818cf8' },
 ];
 
-// Placeholder zone overlay categories (mirrors the mobile UI prototype; real data comes from the backend later)
+// Zone overlay categories (mirrors the mobile UI prototype). `slug` matches the
+// backend `zone_categories.slug` taxonomy (seeds.sql); incident rows carry no
+// zone-category slug, so zones are matched by `zone_category_name` → `name`.
 export const ZONE_OVERLAYS = [
-  { code: 'nt', name: 'NOTAM', color: '#a78bfa' },
-  { code: 'nm', name: 'NOTMAR', color: '#60a5fa' },
-  { code: 'cu', name: 'Curfew', color: '#fbbf24' },
-  { code: 'nf', name: 'No-Fly Zone', color: '#ef4444' },
-  { code: 'me', name: 'Maritime Exclusion Zone', color: '#3b82f6' },
-  { code: 'pa', name: 'Protest Area', color: '#f59e0b' },
-  { code: 'ev', name: 'Evacuation Zone', color: '#4ade80' },
-  { code: 'sh', name: 'Shelter-in-Place', color: '#2dd4bf' },
+  { code: 'nt', name: 'NOTAM', slug: 'notam', color: '#a78bfa' },
+  { code: 'nm', name: 'NOTMAR', slug: 'notmar', color: '#60a5fa' },
+  { code: 'cu', name: 'Curfew', slug: 'curfew', color: '#fbbf24' },
+  { code: 'nf', name: 'No-Fly Zone', slug: 'no-fly-zone', color: '#ef4444' },
+  { code: 'me', name: 'Maritime Exclusion Zone', slug: 'maritime-exclusion-zone', color: '#3b82f6' },
+  { code: 'pa', name: 'Protest Area', slug: 'protest-area', color: '#f59e0b' },
+  { code: 'ev', name: 'Evacuation Zone', slug: 'evacuation-zone', color: '#4ade80' },
+  { code: 'sh', name: 'Shelter-in-Place', slug: 'shelter-in-place', color: '#2dd4bf' },
 ];
 
 export const EVENT_STATUSES = ['active', 'resolved'];
@@ -66,4 +70,5 @@ export const STORAGE_KEYS = {
   USER: 'intelmap24_user',
   THEME: 'intelmap24_mobile_theme',
   REDUCE_MOTION: 'intelmap24_mobile_reduce_motion',
+  LAYERS: 'intelmap24_mobile_layers',
 };

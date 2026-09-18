@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO, isValid } from 'date-fns';
 import { ArrowRight, Calendar, ChevronDown } from 'lucide-react-native';
 import { useTheme } from '../../../context/ThemeContext';
+import { useMap } from '../../../context/MapContext';
 
 const PRESETS = [
   'Today',
@@ -33,13 +34,12 @@ function fmtInputDate(iso) {
 export default function TimeStrip() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  // Date selection lives in MapContext so the map (and later screens) read it.
+  const { timeSel, pickPreset, applySingle, applyRange } = useMap();
+  const { preset, single, from, to } = timeSel;
 
   const [now, setNow] = useState(() => new Date());
   const [open, setOpen] = useState(false);
-  const [preset, setPreset] = useState('Today');
-  const [single, setSingle] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
 
   // Live clock — 1s ticker, cleaned up on unmount.
   useEffect(() => {
@@ -86,33 +86,9 @@ export default function TimeStrip() {
     return 'Today';
   }, [preset, single, from, to]);
 
-  const pickPreset = (name) => {
-    setPreset(name);
-    setSingle('');
-    setFrom('');
-    setTo('');
+  const handlePickPreset = (name) => {
+    pickPreset(name);
     setOpen(false);
-  };
-
-  const applySingle = (value) => {
-    setSingle(value);
-    if (value) {
-      setPreset(null);
-      setFrom('');
-      setTo('');
-    }
-  };
-
-  const applyRange = (which, value) => {
-    if (which === 'from') {
-      setFrom(value);
-    } else {
-      setTo(value);
-    }
-    if (value) {
-      setPreset(null);
-      setSingle('');
-    }
   };
 
   return (
@@ -208,7 +184,7 @@ export default function TimeStrip() {
           {PRESETS.map((name) => (
             <Pressable
               key={name}
-              onPress={() => pickPreset(name)}
+              onPress={() => handlePickPreset(name)}
               style={({ pressed }) => [
                 styles.dpItem,
                 preset === name && {

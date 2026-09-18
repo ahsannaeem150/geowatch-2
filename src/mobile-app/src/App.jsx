@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { OverlayProvider } from './context/OverlayContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MapProvider } from './context/MapContext';
 import MapScreen from './screens/map/MapScreen';
 import OverlayHost from './components/overlays/OverlayHost';
 
@@ -79,7 +80,9 @@ export default function App() {
       <ThemeProvider>
         <OverlayProvider>
           <AuthProvider>
-            <Root />
+            <MapProvider>
+              <Root />
+            </MapProvider>
           </AuthProvider>
         </OverlayProvider>
       </ThemeProvider>

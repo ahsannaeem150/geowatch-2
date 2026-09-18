@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import SignInModal from './SignInModal';
+import LayersSheet from './LayersSheet';
 
 // Placeholder overlay bodies — each mirrors the prototype's showPlaceholder:
 // correct container type + title + close button + pending body copy.
@@ -28,6 +29,7 @@ export const OVERLAY_META = {
 // Real bodies keyed by overlay id — overrides PlaceholderBody when present.
 export const OVERLAY_BODIES = {
   signIn: SignInModal,
+  layers: LayersSheet,
 };
 
 export function PlaceholderBody() {

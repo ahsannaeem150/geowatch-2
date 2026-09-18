@@ -12817,3 +12817,4 @@ feat: full user-web power search + drawer overhaul ported to both staff apps: co
 chore: scaffold src/mobile-app (bare React Native, Android-only, standalone — not in npm workspaces); base folder structure, constants + theme token stubs, planned dep list in package.json. Mobile app Phase 2 kickoff.
 feat(mobile): navigation shell + overlay system (P2)
 feat(mobile): API service layer + Google auth (P3)
+feat(mobile): MapLibre engine + live incident/zone layers (P4)

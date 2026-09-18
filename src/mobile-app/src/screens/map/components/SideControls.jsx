@@ -1,9 +1,11 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { PermissionsAndroid, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layers, LocateFixed, Minus, Plus } from 'lucide-react-native';
+import Geolocation from '@react-native-community/geolocation';
 import { useTheme } from '../../../context/ThemeContext';
 import { useOverlay } from '../../../context/OverlayContext';
+import { useMap } from '../../../context/MapContext';
 
 function CtrlButton({ onPress, children, theme }) {
   return (
@@ -25,9 +27,36 @@ function CtrlButton({ onPress, children, theme }) {
 export default function SideControls() {
   const { theme } = useTheme();
   const { openOverlay, showToast, stack } = useOverlay();
+  const { zoomIn, zoomOut, flyTo } = useMap();
   const insets = useSafeAreaInsets();
 
   const hidden = stack.length > 0;
+
+  // Runtime permission → current position → fly the camera there.
+  const locate = useCallback(async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location permission',
+          message: 'IntelMap24 uses your location to center the map.',
+          buttonPositive: 'OK',
+        },
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        showToast('Location permission denied');
+        return;
+      }
+      Geolocation.getCurrentPosition(
+        (pos) =>
+          flyTo([pos.coords.longitude, pos.coords.latitude], 11),
+        () => showToast('Location unavailable'),
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+      );
+    } catch {
+      showToast('Location unavailable');
+    }
+  }, [flyTo, showToast]);
 
   return (
     <View
@@ -42,13 +71,13 @@ export default function SideControls() {
         onPress={() => openOverlay({ id: 'layers', type: 'sheet' })}>
         <Layers size={18} color={theme.textPrimary} />
       </CtrlButton>
-      <CtrlButton theme={theme} onPress={() => showToast('Zoom in — coming soon')}>
+      <CtrlButton theme={theme} onPress={zoomIn}>
         <Plus size={18} color={theme.textPrimary} />
       </CtrlButton>
-      <CtrlButton theme={theme} onPress={() => showToast('Zoom out — coming soon')}>
+      <CtrlButton theme={theme} onPress={zoomOut}>
         <Minus size={18} color={theme.textPrimary} />
       </CtrlButton>
-      <CtrlButton theme={theme} onPress={() => showToast('Locate — coming soon')}>
+      <CtrlButton theme={theme} onPress={locate}>
         <LocateFixed size={17} color={theme.textPrimary} />
       </CtrlButton>
     </View>
