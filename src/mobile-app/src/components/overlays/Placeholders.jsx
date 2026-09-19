@@ -5,6 +5,8 @@ import SignInModal from './SignInModal';
 import LayersSheet from './LayersSheet';
 import SettingsSheet from './SettingsSheet';
 import SearchHubBody from './SearchHubBody';
+import PowerSearchBody from './PowerSearchScreen';
+import CommandPaletteBody from './CommandPalette';
 import { IncidentsDirectoryBody, ZonesDirectoryBody } from './DirectoryScreen';
 import { ProfileDrawerBody, SheetPreviewBody } from './PreviewStubs';
 
@@ -14,7 +16,8 @@ import { ProfileDrawerBody, SheetPreviewBody } from './PreviewStubs';
 
 export const OVERLAY_META = {
   profile: { title: 'Account' },
-  commandPalette: { title: 'Search' },
+  // Palette renders its own input row (ESC chip replaces the header close).
+  commandPalette: { title: 'Search', hideHeader: true },
   searchHub: { title: 'Search', heightFraction: 0.82 },
   layers: { title: 'Map Layers', heightFraction: 0.6 },
   activity: { title: 'Live Activity', heightFraction: 0.6, meta: 'LIVE · REAL-TIME VIA SSE' },
@@ -22,7 +25,9 @@ export const OVERLAY_META = {
   settings: { title: 'Settings', heightFraction: 0.7 },
   bookmarks: { title: 'Bookmarks', heightFraction: 0.7 },
   history: { title: 'History', heightFraction: 0.7 },
-  powerSearch: { title: 'Power Search' },
+  // Power Search renders its own header and keeps the middle transparent so
+  // the map shows through (prototype .ps-screen).
+  powerSearch: { title: 'Power Search', hideHeader: true, transparent: true },
   // Directories render their own header (back ‹ + title/subtitle + Reset).
   incidentsDirectory: { title: 'Incidents', hideHeader: true },
   zonesDirectory: { title: 'Zones', hideHeader: true },
@@ -37,6 +42,8 @@ export const OVERLAY_BODIES = {
   layers: LayersSheet,
   settings: SettingsSheet,
   searchHub: SearchHubBody,
+  powerSearch: PowerSearchBody,
+  commandPalette: CommandPaletteBody,
   incidentsDirectory: IncidentsDirectoryBody,
   zonesDirectory: ZonesDirectoryBody,
   bookmarks: SheetPreviewBody,

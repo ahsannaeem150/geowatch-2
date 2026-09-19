@@ -151,4 +151,19 @@ export const api = {
   delete: (path, options) => request(path, { ...options, method: 'DELETE' }),
 };
 
+// Media/uploads URLs are rebuilt by the backend from the request origin, so
+// from the emulator they can come back as http://localhost:3100 — rewrite the
+// origin to the API's (10.0.2.2:3100 in dev) so images actually load.
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/v\d+\/?$/, '');
+
+export function mediaUrl(url) {
+  if (!url || typeof url !== 'string') {
+    return null;
+  }
+  if (url.startsWith('/')) {
+    return `${API_ORIGIN}${url}`;
+  }
+  return url.replace(/^https?:\/\/[^/]+/, API_ORIGIN);
+}
+
 export default api;

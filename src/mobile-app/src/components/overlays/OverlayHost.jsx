@@ -15,6 +15,7 @@ import { OVERLAY_BODIES, OVERLAY_META, PlaceholderBody } from './Placeholders';
 import SelectionPill from '../selection/SelectionPill';
 import PeekSheet from '../selection/PeekSheet';
 import IncidentDrawer from '../selection/IncidentDrawer';
+import EvidencePanel from '../selection/EvidencePanel';
 import ZoneSheet from '../selection/ZoneSheet';
 import EmbeddedMapPanel from '../selection/EmbeddedMapPanel';
 
@@ -69,12 +70,15 @@ function FullscreenContainer({ overlay, children }) {
     inputRange: [0, 1],
     outputRange: [60, 0],
   });
+  const backgroundColor = overlay.props?.transparent
+    ? 'transparent'
+    : theme.bgDeep;
   return (
     <Animated.View
       style={[
         styles.full,
         {
-          backgroundColor: theme.bgDeep,
+          backgroundColor,
           opacity: progress,
           transform: [{ translateX }],
           paddingTop: insets.top + 8,
@@ -140,7 +144,9 @@ function TopPanelContainer({ overlay, children }) {
             marginTop: insets.top + 8,
           },
         ]}>
-        <HeaderRow overlay={overlay} title={overlay.props?.title} />
+        {overlay.props?.hideHeader ? null : (
+          <HeaderRow overlay={overlay} title={overlay.props?.title} />
+        )}
         <View style={styles.topBody}>{children}</View>
       </Animated.View>
     </View>
@@ -212,6 +218,7 @@ export default function OverlayHost() {
         heightFraction: meta.heightFraction,
         hideHeader: meta.hideHeader,
         topRadius: meta.topRadius,
+        transparent: meta.transparent,
         meta: meta.meta,
         ...overlay.props,
       },
@@ -263,8 +270,11 @@ export default function OverlayHost() {
   // Modals (sign-in) sit above the selection surfaces; everything else in
   // the stack sits below them (prototype: modal z80 > drawer z70 > peek
   // z65 > emb z64 > sheets z56 > pill z32).
-  const baseOverlays = stack.filter((o) => o.type !== 'modal');
+  const baseOverlays = stack.filter((o) => o.type !== 'modal' && o.id !== 'signIn');
   const modalOverlays = stack.filter((o) => o.type === 'modal');
+  // The sign-in gate must also cover the selection surfaces (drawer/evidence
+  // star) — hoist it above them while keeping its bottom-sheet container.
+  const signInOverlays = stack.filter((o) => o.id === 'signIn');
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -280,6 +290,8 @@ export default function OverlayHost() {
       <ZoneSheet />
       <PeekSheet />
       <IncidentDrawer />
+      <EvidencePanel />
+      {signInOverlays.map(renderOverlay)}
       {modalOverlays.map(renderOverlay)}
       {toast ? <Toast message={toast} /> : null}
     </View>
@@ -329,6 +341,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     maxHeight: '70%',
+    overflow: 'hidden',
   },
   topBody: {
     minHeight: 160,

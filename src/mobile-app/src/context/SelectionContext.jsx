@@ -4,10 +4,12 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants';
+import { getIncident } from '../services/incidents.service';
 import { useMap } from './MapContext';
 import { useOverlay } from './OverlayContext';
 
@@ -23,8 +25,14 @@ import { useOverlay } from './OverlayContext';
 //               preview closes; the next map tap clears it)
 //   peek      — 46% bottom sheet with the preview card
 //   pill      — compact selection bar above the tab bar
-//   drawer    — fullscreen incident details (stub body for now)
+//   drawer    — fullscreen incident details
+//   evidence  — fullscreen evidence panel above the drawer (prototype #evi);
+//               back returns to the drawer
 //   zoneSheet — 62% bottom sheet with zone stats
+//
+// Detail cache: the drawer's GET /incidents/:id result is kept per incident
+// id so the peek upgrades to detail data once fetched and reopening the
+// drawer is instant (prototype refetches every renderDrawer — wasteful).
 //
 // Origin stack (previewItemOnMap): previewing an item from a list surface
 // opens EmbeddedMapPanel + PeekSheet ABOVE that surface. Fullscreen origins
@@ -58,6 +66,9 @@ export function SelectionProvider({ children }) {
   const [view, setView] = useState('idle');
   const [item, setItem] = useState(null);
   const [origin, setOrigin] = useState(null); // { type:'fullscreen' } | { type:'sheet', id }
+  const [evidenceUpdate, setEvidenceUpdate] = useState(null);
+  // incidentId → { incident, timeline } detail cache (drawer fetch, peek reads)
+  const detailCache = useRef(new Map());
 
   // ─── Mode setting (persisted; surfaced in the Settings screen later) ───
   useEffect(() => {
@@ -82,15 +93,48 @@ export function SelectionProvider({ children }) {
     [showToast],
   );
 
+  // ─── Detail cache ───
+
+  // Fetch (or return cached) GET /incidents/:id → { incident, timeline }.
+  // Errors propagate — the drawer owns its error/retry state.
+  const fetchDetail = useCallback(async (id) => {
+    const hit = detailCache.current.get(id);
+    if (hit) {
+      return hit;
+    }
+    const detail = await getIncident(id);
+    detailCache.current.set(id, detail);
+    return detail;
+  }, []);
+
+  const getCachedDetail = useCallback(
+    (id) => detailCache.current.get(id) || null,
+    [],
+  );
+
+  // ─── Evidence panel (prototype openEvidence/closeEvi) ───
+  // Only reachable from the drawer; back returns to the drawer.
+  const openEvidence = useCallback((update) => {
+    setEvidenceUpdate(update);
+    setView('evidence');
+  }, []);
+
+  const closeEvidence = useCallback(() => {
+    setView('drawer');
+  }, []);
+
   // ─── Transitions ───
 
   // Map tap on a marker/zone. Ends any preview context and closes open
   // surfaces first (prototype focusIncident closes sheets/directories).
+  // `itemObj` is an optional fallback for callers whose result set isn't the
+  // map's currently-fetched range (command palette searches all time).
   const selectFromMap = useCallback(
-    (id, kind) => {
+    (id, kind, itemObj) => {
       const list = kind === 'zone' ? zones : incidents;
-      setItem(list.find((i) => i.id === id) || null);
+      setItem(list.find((i) => i.id === id) || itemObj || null);
       setOrigin(null);
+      setEvidenceUpdate(null);
       closeAll();
       selectItem(id, kind);
       if (kind === 'zone') {
@@ -116,6 +160,7 @@ export function SelectionProvider({ children }) {
       }
       setOrigin(orig);
       setItem(previewItem);
+      setEvidenceUpdate(null);
       selectItem(previewItem.id, kind);
       setView('peek');
     },
@@ -126,6 +171,7 @@ export function SelectionProvider({ children }) {
   // surface is restored with the item still selected (ring + row highlight).
   const closePreview = useCallback(() => {
     setView('idle');
+    setEvidenceUpdate(null);
     if (origin?.type === 'sheet') {
       openOverlay({ id: origin.id, type: 'sheet' });
     }
@@ -142,8 +188,10 @@ export function SelectionProvider({ children }) {
     setView(selectedKind === 'zone' ? 'zoneSheet' : 'drawer');
   }, [selectedKind]);
 
-  // Drawer/zoneSheet back: preview → peek+emb; plain selection → pill.
+  // Drawer/zoneSheet back (also the evidence ✕ — closes both layers):
+  // preview → peek+emb; plain selection → pill.
   const closeDrawer = useCallback(() => {
+    setEvidenceUpdate(null);
     setView(origin ? 'peek' : 'pill');
   }, [origin]);
 
@@ -155,6 +203,7 @@ export function SelectionProvider({ children }) {
   const dismissSelection = useCallback(() => {
     setView('idle');
     setItem(null);
+    setEvidenceUpdate(null);
     clearSelection();
   }, [clearSelection]);
 
@@ -181,6 +230,9 @@ export function SelectionProvider({ children }) {
   // stack (MapScreen consults this first).
   const handleBack = useCallback(() => {
     switch (view) {
+      case 'evidence':
+        closeEvidence();
+        return true;
       case 'drawer':
         closeDrawer();
         return true;
@@ -200,7 +252,7 @@ export function SelectionProvider({ children }) {
       default:
         return false;
     }
-  }, [view, origin, closeDrawer, closeZoneSheet, closePreview, dismissSelection]);
+  }, [view, origin, closeEvidence, closeDrawer, closeZoneSheet, closePreview, dismissSelection]);
 
   // Embedded map panel is open for the whole preview except the resting
   // state (it stays mounted under the drawer, prototype keeps it open).
@@ -215,6 +267,7 @@ export function SelectionProvider({ children }) {
       view,
       item,
       origin,
+      evidenceUpdate,
       previewActive,
       isGhost,
       selectFromMap,
@@ -227,6 +280,10 @@ export function SelectionProvider({ children }) {
       dismissSelection,
       handleMapPress,
       handleBack,
+      fetchDetail,
+      getCachedDetail,
+      openEvidence,
+      closeEvidence,
     }),
     [
       selMode,
@@ -234,6 +291,7 @@ export function SelectionProvider({ children }) {
       view,
       item,
       origin,
+      evidenceUpdate,
       previewActive,
       isGhost,
       selectFromMap,
@@ -246,6 +304,10 @@ export function SelectionProvider({ children }) {
       dismissSelection,
       handleMapPress,
       handleBack,
+      fetchDetail,
+      getCachedDetail,
+      openEvidence,
+      closeEvidence,
     ],
   );
 

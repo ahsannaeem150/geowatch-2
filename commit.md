@@ -12822,3 +12822,5 @@ feat(mobile): selection state machine — peek/pill/drawer + context-aware back 
 fix(mobile): RN 0.87 removed StyleSheet.absoluteFillObject — shell-wide spread fix (OverlayHost/SheetContainer/selection sheets were top-anchoring/collapsed)
 
 feat(mobile): incidents/zones directory screens with filter drawers (P6)
+feat(mobile): power search + command palette (P7)
+feat(mobile): incident drawer + evidence panel with real backend data (P8)

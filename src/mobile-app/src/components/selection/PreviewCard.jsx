@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MapPin, Star } from 'lucide-react-native';
 import { format, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useOverlay } from '../../context/OverlayContext';
+import {
+  isIncidentSaved,
+  saveIncident,
+  unsaveIncident,
+} from '../../services/incidents.service';
 import { SEVERITIES, ZONE_OVERLAYS } from '../../constants';
 
 // Shared selection bodies — RN port of the prototype renderPeek() card
 // (badge row, title + star, meta, description box) and the zone stats
-// block. Rendered from list data only; the real detail fetch comes later.
+// block. Peek renders from list data; the drawer passes the fetched detail
+// (SelectionContext cache) for full-fidelity content.
 
 export function severityOf(item) {
   return Math.min(Math.max(parseInt(item?.severity, 10) || 3, 1), 5);
@@ -35,8 +41,22 @@ export function zoneOverlayFor(name) {
   return ZONE_OVERLAYS.find((z) => z.name === name) || null;
 }
 
+// Verification badge renders only when status ≠ unverified (web parity).
+export function verificationTag(theme, status) {
+  switch (status) {
+    case 'verified':
+      return { color: theme.success, label: '✓ Verified' };
+    case 'disputed':
+      return { color: theme.sev2, label: '⚠ Disputed' };
+    case 'debunked':
+      return { color: theme.danger, label: '✕ Debunked' };
+    default:
+      return null;
+  }
+}
+
 // b-tag port: mono 9px uppercase chip. `dot` renders the leading b-dot.
-function Tag({ color, label, dot }) {
+export function Tag({ color, label, dot }) {
   const { theme } = useTheme();
   return (
     <View
@@ -54,20 +74,64 @@ function Tag({ color, label, dot }) {
   );
 }
 
-function StarButton() {
+// Real bookmark star: checks saved state when signed in, toggles
+// save/unsave; signed out → requireSignIn gate (sign-in sheet).
+export function StarButton({ itemId }) {
   const { theme } = useTheme();
-  const { requireSignIn } = useAuth();
+  const { signedIn, requireSignIn } = useAuth();
   const { showToast } = useOverlay();
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setSaved(false);
+    if (signedIn && itemId) {
+      isIncidentSaved(itemId)
+        .then((res) => {
+          if (alive) {
+            setSaved(!!res?.saved);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      alive = false;
+    };
+  }, [signedIn, itemId]);
+
+  const toggle = async () => {
+    if (!itemId || busy) {
+      return;
+    }
+    if (!requireSignIn('save incidents')) {
+      return;
+    }
+    const next = !saved;
+    setSaved(next); // optimistic
+    setBusy(true);
+    try {
+      if (next) {
+        await saveIncident(itemId);
+      } else {
+        await unsaveIncident(itemId);
+      }
+      showToast(next ? 'Saved to bookmarks' : 'Removed from bookmarks');
+    } catch {
+      setSaved(!next);
+      showToast('Could not update bookmark');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <Pressable
-      onPress={() => {
-        if (requireSignIn('save incidents')) {
-          showToast('Saving arrives in a later prompt');
-        }
-      }}
-      hitSlop={8}
-      style={styles.starBtn}>
-      <Star size={17} color={theme.textMuted} />
+    <Pressable onPress={toggle} hitSlop={8} style={styles.starBtn}>
+      <Star
+        size={17}
+        color={saved ? theme.sev2 : theme.textMuted}
+        fill={saved ? theme.sev2 : 'transparent'}
+      />
     </Pressable>
   );
 }
@@ -82,18 +146,18 @@ export function IncidentCard({ item }) {
   const sevColor = theme[`sev${sev}`];
   const sevName = SEVERITIES[sev - 1]?.name || 'Moderate';
   const typeLabel = (item.category_name || item.domain_name || 'Incident').toUpperCase();
+  const typeColor = item.domain_color || theme.sev4;
+  const verTag = verificationTag(theme, item.verification_status);
   const date = formatItemDate(item.start_date);
 
   return (
     <View style={styles.card}>
       <View style={styles.badgeRow}>
-        <Tag color={theme.sev4} label={typeLabel} dot />
+        <Tag color={typeColor} label={typeLabel} dot />
         {item.status === 'active' ? (
           <Tag color={theme.success} label="Active" dot />
         ) : null}
-        {item.verification_status === 'verified' ? (
-          <Tag color={theme.success} label="✓ Verified" />
-        ) : null}
+        {verTag ? <Tag color={verTag.color} label={verTag.label} /> : null}
         <Tag color={sevColor} label={`S${sev} | ${sevName}`} />
       </View>
       <View style={styles.titleRow}>
@@ -104,7 +168,7 @@ export function IncidentCard({ item }) {
           ]}>
           {item.title}
         </Text>
-        <StarButton />
+        <StarButton itemId={item.id} />
       </View>
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>
@@ -171,7 +235,7 @@ export function ZoneInfo({ item }) {
           ]}>
           {item.title}
         </Text>
-        <StarButton />
+        <StarButton itemId={item.id} />
       </View>
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>

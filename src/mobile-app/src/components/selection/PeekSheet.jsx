@@ -19,7 +19,7 @@ import { IncidentCard, ZoneInfo } from './PreviewCard';
 // SelectionContext.handleMapPress).
 export default function PeekSheet() {
   const { theme } = useTheme();
-  const { view, item, expandFromPeek } = useSelection();
+  const { view, item, expandFromPeek, getCachedDetail } = useSelection();
   const { selectedKind } = useMap();
   const { height: windowHeight } = useWindowDimensions();
   const height = Math.round(windowHeight * 0.46);
@@ -41,6 +41,11 @@ export default function PeekSheet() {
   if (!visible) {
     return null;
   }
+
+  // Upgrade to the fetched detail when the SelectionContext cache already
+  // has it (drawer opened earlier) — the peek itself never refetches.
+  const cached = getCachedDetail(item.id);
+  const disp = cached?.incident ? { ...item, ...cached.incident } : item;
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
@@ -81,9 +86,9 @@ export default function PeekSheet() {
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}>
             {selectedKind === 'zone' ? (
-              <ZoneInfo item={item} />
+              <ZoneInfo item={disp} />
             ) : (
-              <IncidentCard item={item} />
+              <IncidentCard item={disp} />
             )}
           </ScrollView>
         </Pressable>

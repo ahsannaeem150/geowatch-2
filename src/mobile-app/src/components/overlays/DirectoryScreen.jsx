@@ -558,8 +558,8 @@ export default function DirectoryScreen({ kind, overlay }) {
   );
 }
 
-// ─── Result card (prototype .dir-card) ───
-function DirCard({ kind, item, highlighted, onPress }) {
+// ─── Result card (prototype .dir-card) — shared with Power Search (P7) ───
+export function DirCard({ kind, item, highlighted, onPress }) {
   const { theme } = useTheme();
   const isZone = kind === 'zone';
   const sev = severityOf(item);
