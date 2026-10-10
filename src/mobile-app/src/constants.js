@@ -2,8 +2,13 @@
 // Mirrors src/shared/constants.js (web). Keep values in sync manually,
 // or wire Metro watchFolders to import @shared directly (decided in P1).
 
-export const API_BASE_URL = 'http://10.0.2.2:3100/api/v1'; // Android emulator → host localhost
-export const MARTIN_URL = 'http://10.0.2.2:8080';
+// Dev host for backend/Martin/fonts.
+//   Emulator:        '10.0.2.2' (Android emulator → host localhost)
+//   Physical device: '127.0.0.1' with `adb reverse tcp:3100 tcp:3100` (+ 8080, 5173)
+export const DEV_HOST = '127.0.0.1';
+
+export const API_BASE_URL = `http://${DEV_HOST}:3100/api/v1`;
+export const MARTIN_URL = `http://${DEV_HOST}:8080`;
 
 // From Google Cloud console → OAuth web client ID; required by
 // @react-native-google-signin so Google returns an idToken for the backend.
@@ -72,4 +77,9 @@ export const STORAGE_KEYS = {
   REDUCE_MOTION: 'intelmap24_mobile_reduce_motion',
   LAYERS: 'intelmap24_mobile_layers',
   SEL_MODE: 'intelmap24_mobile_sel_mode',
+  HISTORY: 'intelmap24_mobile_history',
+  ALERTS: 'intelmap24_mobile_alerts',
+  SEEN_SNAPSHOT: 'intelmap24_mobile_seen_snapshot',
+  LAST_ACTIVE: 'intelmap24_mobile_last_active',
+  NOTIF_PREFS: 'intelmap24_mobile_notif_prefs',
 };

@@ -167,32 +167,22 @@ function XPostList({ items }) {
   );
 }
 
-export default function EvidencePanel() {
+// Evidence content (title, tabs, media grid, X posts, lightbox) — shared by
+// the fullscreen panel (direct mode / zones) and the peek sheet's inline
+// evidence sub-view.
+export function EvidenceBody({ bottomPad = 0 }) {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { showToast } = useOverlay();
   const { selectedId } = useMap();
-  const { view, evidenceUpdate, closeEvidence, closeDrawer, getCachedDetail } =
-    useSelection();
+  const { evidenceUpdate, getCachedDetail } = useSelection();
   const { width, height } = useWindowDimensions();
-  const visible = view === 'evidence' && !!evidenceUpdate;
-  const enter = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState('all');
   const [lightbox, setLightbox] = useState(null);
 
   useEffect(() => {
-    if (visible) {
-      setTab('all');
-      setLightbox(null);
-      enter.setValue(0);
-      Animated.timing(enter, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, enter]);
+    setTab('all');
+    setLightbox(null);
+  }, [evidenceUpdate?.id]);
 
   // Update-attached evidence, falling back to the incident-level aggregate
   // when the update itself has none (web evidence-rail parity).
@@ -214,7 +204,7 @@ export default function EvidencePanel() {
     };
   }, [evidenceUpdate, selectedId, getCachedDetail]);
 
-  if (!visible) {
+  if (!evidenceUpdate) {
     return null;
   }
 
@@ -236,43 +226,7 @@ export default function EvidencePanel() {
   const lbImgH = lbW > 0 && lbH > 0 ? (lbImgW * lbH) / lbW : height * 0.7;
 
   return (
-    <Animated.View
-      style={[
-        styles.panel,
-        {
-          backgroundColor: theme.bgSurface,
-          paddingTop: insets.top + 12,
-          paddingBottom: insets.bottom,
-          transform: [
-            {
-              translateX: enter.interpolate({
-                inputRange: [0, 1],
-                outputRange: [width, 0],
-              }),
-            },
-          ],
-        },
-      ]}>
-      <View style={[styles.head, { borderBottomColor: theme.borderSubtle }]}>
-        <Pressable
-          onPress={closeEvidence}
-          hitSlop={8}
-          style={[styles.backBtn, { backgroundColor: theme.bgHover }]}>
-          <ChevronLeft size={18} color={theme.textPrimary} />
-        </Pressable>
-        <Text
-          style={[styles.title, { color: theme.textMuted, fontFamily: theme.fontMono }]}
-          numberOfLines={1}>
-          UPDATE EVIDENCE
-        </Text>
-        <Pressable
-          onPress={closeDrawer}
-          hitSlop={8}
-          style={[styles.backBtn, { backgroundColor: theme.bgHover }]}>
-          <X size={16} color={theme.textPrimary} />
-        </Pressable>
-      </View>
-
+    <View style={styles.bodyWrap}>
       <View style={styles.headWrap}>
         <View style={styles.eviTitleRow}>
           <Text style={[styles.eviTitle, { color: theme.textPrimary, fontFamily: theme.fontHead }]}>
@@ -347,7 +301,7 @@ export default function EvidencePanel() {
             <XPostList items={xItems} />
           </>
         ) : null}
-        <View style={styles.tailPad} />
+        <View style={bottomPad > 0 ? { height: bottomPad } : styles.tailPad} />
       </ScrollView>
 
       <Modal
@@ -386,6 +340,79 @@ export default function EvidencePanel() {
           ) : null}
         </View>
       </Modal>
+    </View>
+  );
+}
+
+export default function EvidencePanel() {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { selectedKind } = useMap();
+  const { view, selMode, evidenceUpdate, closeEvidence, closeDrawer } =
+    useSelection();
+  const { width } = useWindowDimensions();
+  // Fullscreen panel only for DIRECT mode incidents and zone evidence; the
+  // peek/compact flow renders evidence inline inside the sheet.
+  const visible =
+    view === 'evidence' &&
+    !!evidenceUpdate &&
+    (selMode === 'direct' || selectedKind === 'zone');
+  const enter = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      enter.setValue(0);
+      Animated.timing(enter, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, enter]);
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <Animated.View
+      style={[
+        styles.panel,
+        {
+          backgroundColor: theme.bgSurface,
+          paddingTop: insets.top + 12,
+          paddingBottom: insets.bottom,
+          transform: [
+            {
+              translateX: enter.interpolate({
+                inputRange: [0, 1],
+                outputRange: [width, 0],
+              }),
+            },
+          ],
+        },
+      ]}>
+      <View style={[styles.head, { borderBottomColor: theme.borderSubtle }]}>
+        <Pressable
+          onPress={closeEvidence}
+          hitSlop={8}
+          style={[styles.backBtn, { backgroundColor: theme.bgHover }]}>
+          <ChevronLeft size={18} color={theme.textPrimary} />
+        </Pressable>
+        <Text
+          style={[styles.title, { color: theme.textMuted, fontFamily: theme.fontMono }]}
+          numberOfLines={1}>
+          UPDATE EVIDENCE
+        </Text>
+        <Pressable
+          onPress={closeDrawer}
+          hitSlop={8}
+          style={[styles.backBtn, { backgroundColor: theme.bgHover }]}>
+          <X size={16} color={theme.textPrimary} />
+        </Pressable>
+      </View>
+      <EvidenceBody key={evidenceUpdate.id} />
     </Animated.View>
   );
 }
@@ -393,6 +420,9 @@ export default function EvidencePanel() {
 const styles = StyleSheet.create({
   panel: {
     ...StyleSheet.absoluteFill,
+  },
+  bodyWrap: {
+    flex: 1,
   },
   head: {
     flexDirection: 'row',

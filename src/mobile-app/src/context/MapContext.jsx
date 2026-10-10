@@ -10,6 +10,7 @@ import React, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, isValid, parseISO, startOfMonth, subDays } from 'date-fns';
 import { listIncidents, listZones } from '../services/incidents.service';
+import { subscribeSse } from '../services/sse.service';
 import { DOMAINS, STORAGE_KEYS, ZONE_OVERLAYS } from '../constants';
 import { useOverlay } from './OverlayContext';
 
@@ -32,6 +33,16 @@ const SMART_FILTER_THRESHOLD = 100;
 const VIEWPORT_DEBOUNCE_MS = 400;
 const UNBOUNDED_FROM = '1970-01-01';
 const UNBOUNDED_TO = '2099-12-31';
+const SSE_REFETCH_DEBOUNCE_MS = 1500;
+const SSE_MAP_EVENTS = new Set([
+  'incident_created',
+  'incident_updated',
+  'incident_resolved',
+  'incident_deleted',
+  'timeline_added',
+  'timeline_updated',
+  'timeline_deleted',
+]);
 
 export const DEFAULT_CENTER = [15, 25];
 export const DEFAULT_ZOOM = 2;
@@ -151,9 +162,11 @@ export function MapProvider({ children }) {
   }, [isRangeGated]);
 
   const runFetch = useCallback(
-    async ({ boundedRefetch = false } = {}) => {
+    async ({ boundedRefetch = false, silent = false } = {}) => {
       const seq = ++fetchSeqRef.current;
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const { from, to } = dateRangeRef.current;
       const effFrom = from || UNBOUNDED_FROM;
       const effTo = to || UNBOUNDED_TO;
@@ -236,7 +249,7 @@ export function MapProvider({ children }) {
           setZones(zoneRes?.incidents || []);
         }
       } catch {
-        if (seq === fetchSeqRef.current) {
+        if (seq === fetchSeqRef.current && !silent) {
           showToast('Could not load incidents — check the backend');
         }
       } finally {
@@ -252,6 +265,35 @@ export function MapProvider({ children }) {
   useEffect(() => {
     runFetch();
   }, [dateRange.from, dateRange.to, isRangeGated, runFetch]);
+
+  // SSE live updates (signed-in only — LiveContext owns the connection):
+  // bursts are coalesced into one silent trailing refetch so a stream of
+  // events never spams the pipeline or flashes the loading pill.
+  const sseDebounceRef = useRef(null);
+  useEffect(
+    () =>
+      subscribeSse((evt) => {
+        if (!evt || !SSE_MAP_EVENTS.has(evt.type)) {
+          return;
+        }
+        if (sseDebounceRef.current) {
+          clearTimeout(sseDebounceRef.current);
+        }
+        sseDebounceRef.current = setTimeout(() => {
+          sseDebounceRef.current = null;
+          runFetch({ silent: true });
+        }, SSE_REFETCH_DEBOUNCE_MS);
+      }),
+    [runFetch],
+  );
+  useEffect(
+    () => () => {
+      if (sseDebounceRef.current) {
+        clearTimeout(sseDebounceRef.current);
+      }
+    },
+    [],
+  );
 
   // Region changes: track zoom/bounds; debounced viewport-bounded refetch.
   const handleRegionChange = useCallback(

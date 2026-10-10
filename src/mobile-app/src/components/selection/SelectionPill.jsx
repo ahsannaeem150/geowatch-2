@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
@@ -12,7 +11,7 @@ import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
-import { severityOf } from './PreviewCard';
+import { formatKm2, severityOf } from './PreviewCard';
 
 // Selection pill (prototype #sel-pill): compact bar shown when the peek /
 // drawer / zone sheet collapses. Tap → full details (expandSelection).
@@ -22,21 +21,31 @@ export default function SelectionPill() {
   const { view, item, isGhost, expandFromPill } = useSelection();
   const { selectedKind } = useMap();
   const visible = view === 'pill' && !!item;
-  const enter = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = React.useState(visible);
+  const enter = useRef(new Animated.Value(visible ? 1 : 0)).current;
 
   useEffect(() => {
     if (visible) {
+      setMounted(true);
       enter.setValue(0);
-      Animated.timing(enter, {
+      Animated.spring(enter, {
         toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
+        damping: 22,
+        stiffness: 240,
+        mass: 0.9,
         useNativeDriver: true,
       }).start();
+    } else if (mounted) {
+      Animated.timing(enter, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true,
+      }).start(() => setMounted(false));
     }
-  }, [visible, enter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
-  if (!visible) {
+  if (!mounted || !item) {
     return null;
   }
 
@@ -51,6 +60,11 @@ export default function SelectionPill() {
   ).toUpperCase();
   const d = item.start_date ? parseISO(item.start_date) : null;
   const ago = d && isValid(d) ? `${formatDistanceToNow(d)} ago` : '';
+  // Zone pill meta shows category · area (prototype pill is cat · time; zones
+  // have no meaningful "ago" — area is the useful at-a-glance stat).
+  const areaKm2 = selectedKind === 'zone' ? formatKm2(item.area_sq_m) : null;
+  const detail =
+    selectedKind === 'zone' ? (areaKm2 ? `${areaKm2} km²` : '') : ago;
   // ghostSelected(): out-of-range selection gets a suffix chip next to the
   // (truncating) title so it stays visible.
 
@@ -97,7 +111,7 @@ export default function SelectionPill() {
                 { color: theme.textMuted, fontFamily: theme.fontMono },
               ]}>
               {cat}
-              {ago ? ` · ${ago}` : ''}
+              {detail ? ` · ${detail}` : ''}
             </Text>
           </View>
         </View>

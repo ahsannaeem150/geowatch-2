@@ -1,14 +1,18 @@
 // Base-map styles for the mobile MapLibre view.
 // Copied from the repo-root assets/map-style-{dark,light}.json (the web apps'
-// source of truth) with two rewrites for the Android emulator:
-//   sources.openmaptiles.url → http://10.0.2.2:8080/tiles  (Martin on the host)
-//   glyphs → http://10.0.2.2:5173/fonts/{fontstack}/{range}.pbf
-// DEV ONLY: the glyphs URL is served by user-web's Vite dev server (it copies
-// assets/fonts into its public dir). For production both URLs must point at
-// real hosted origins (tile server + font glyphs) — 10.0.2.2 only resolves
-// from the Android emulator to the dev host.
+// source of truth) with rewritten URLs:
+//   sources.openmaptiles.url → Martin tiles (:8080)
+//   glyphs → backend static /fonts (:3100 — Express serves assets/fonts, so no
+//            user-web dependency; production: same route on the deployed API)
+// The bundled JSONs keep the emulator host (10.0.2.2); rewrite it to DEV_HOST
+// at load time so physical devices (adb reverse → 127.0.0.1) work too.
 
-import dark from '../../../assets/map/map-style-dark.json';
-import light from '../../../assets/map/map-style-light.json';
+import darkJson from '../../../assets/map/map-style-dark.json';
+import lightJson from '../../../assets/map/map-style-light.json';
+import { DEV_HOST } from '../../constants';
 
-export const MAP_STYLES = { dark, light };
+function rehost(style) {
+  return JSON.parse(JSON.stringify(style).replaceAll('10.0.2.2', DEV_HOST));
+}
+
+export const MAP_STYLES = { dark: rehost(darkJson), light: rehost(lightJson) };

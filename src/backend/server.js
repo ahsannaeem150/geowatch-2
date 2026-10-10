@@ -100,6 +100,14 @@ app.use('/uploads', express.static(UPLOAD_DIR, {
   immutable: true,
 }));
 
+// ─── Static File Serving (map font glyphs) ───
+// Serves assets/fonts (Noto Sans fontstacks) so the mobile app (and any
+// non-Vite client) gets map glyphs without depending on user-web's dev server.
+app.use('/fonts', express.static(join(__dirname, '../../assets/fonts'), {
+  maxAge: '7d',
+  immutable: true,
+}));
+
 // ─── Rate Limiting (applied to all API routes, NOT the SSE stream or static files) ───
 app.use(generalLimiter);
 

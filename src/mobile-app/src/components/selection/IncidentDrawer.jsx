@@ -48,7 +48,8 @@ function updateCounts(update) {
   return { xCount, camCount };
 }
 
-function TimelineNode({ update, label, onInspect }) {
+// Exported: the zone sheet reuses the same node for its Restriction Timeline.
+export function TimelineNode({ update, label, onInspect }) {
   const { theme } = useTheme();
   const { xCount, camCount } = updateCounts(update);
   const thumb = mediaUrl(
@@ -155,23 +156,18 @@ function Skeleton({ theme }) {
   );
 }
 
-export default function IncidentDrawer() {
+// Full incident detail body (summary card + actions + timeline) — shared by
+// the fullscreen drawer (direct mode) and the multi-detent peek sheet.
+export function DrawerBody({ item }) {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { showToast } = useOverlay();
-  const {
-    view,
-    item,
-    closeDrawer,
-    openEvidence,
-    fetchDetail,
-    getCachedDetail,
-  } = useSelection();
-  const { width } = useWindowDimensions();
-  const visible = view === 'drawer' && !!item;
-  const enter = useRef(new Animated.Value(0)).current;
-
-  const [detail, setDetail] = useState(null);
+  const { openEvidence, fetchDetail, getCachedDetail } = useSelection();
+  // Lazy-init from the detail cache: the sheet unmounts this body while the
+  // evidence sub-view is open, and a null-first paint made the whole timeline
+  // vanish for a beat on every return. Starting cached keeps back seamless.
+  const [detail, setDetail] = useState(() =>
+    item?.id ? getCachedDetail(item.id) : null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -191,14 +187,124 @@ export default function IncidentDrawer() {
   );
 
   useEffect(() => {
-    if (visible && item?.id) {
+    if (item?.id) {
       const cached = getCachedDetail(item.id);
       setDetail(cached); // instant paint on reopen; null → skeleton
       if (!cached) {
         load(item.id);
       }
     }
-  }, [visible, item?.id, getCachedDetail, load]);
+  }, [item?.id, getCachedDetail, load]);
+
+  // Detail payload wins over list data once fetched (full description etc.).
+  const inc = detail?.incident ? { ...item, ...detail.incident } : item;
+  const timeline = [...(detail?.timeline || [])].sort(
+    (a, b) => new Date(a.update_date) - new Date(b.update_date),
+  );
+  const report = timeline.find((u) => u.type === 'report') || timeline[0];
+  const updates = timeline.filter((u) => u !== report);
+
+  const copyLink = () => {
+    Clipboard.setString(`http://localhost:5173/incident/${item.id}`);
+    showToast('Link copied');
+  };
+
+  return (
+    <View>
+      <IncidentCard item={inc} />
+      <View style={styles.actionRow}>
+        <Pressable
+          onPress={() => showToast('Full detail page arrives in a later prompt')}
+          style={[styles.actBtn, styles.actPrimary, { backgroundColor: theme.accent }]}>
+          <FileText size={13} color="#f2f2f2" />
+          <Text style={[styles.actText, styles.actTextPrimary]}>Full details</Text>
+        </Pressable>
+        <Pressable
+          onPress={copyLink}
+          style={[
+            styles.actBtn,
+            { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+          ]}>
+          <Link2 size={13} color={theme.textSecondary} />
+          <Text style={[styles.actText, { color: theme.textSecondary }]}>
+            Copy link
+          </Text>
+        </Pressable>
+      </View>
+
+      {loading && !detail ? <Skeleton theme={theme} /> : null}
+
+      {error && !detail ? (
+        <View
+          style={[
+            styles.errBox,
+            { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+          ]}>
+          <Text style={[styles.errText, { color: theme.textSecondary }]}>
+            Could not load the incident timeline.
+          </Text>
+          <Pressable
+            onPress={() => load(item.id)}
+            style={[styles.retryBtn, { backgroundColor: theme.accent }]}>
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {report ? (
+        <>
+          <Text
+            style={[
+              styles.secLabel,
+              { color: theme.textMuted, fontFamily: theme.fontMono },
+            ]}>
+            INITIAL REPORT
+          </Text>
+          <View style={styles.timeline}>
+            <TimelineNode
+              update={report}
+              label="INITIAL REPORT"
+              onInspect={() => openEvidence(report)}
+            />
+          </View>
+        </>
+      ) : null}
+
+      {updates.length ? (
+        <>
+          <Text
+            style={[
+              styles.secLabel,
+              { color: theme.textMuted, fontFamily: theme.fontMono },
+            ]}>
+            UPDATES
+          </Text>
+          <View style={styles.timeline}>
+            {updates.map((u) => (
+              <TimelineNode
+                key={u.id}
+                update={u}
+                label={`UPDATE ${fmtDate(u.update_date)}`}
+                onInspect={() => openEvidence(u)}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
+      <View style={styles.tailPad} />
+    </View>
+  );
+}
+
+export default function IncidentDrawer() {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { view, item, selMode, closeDrawer } = useSelection();
+  const { width } = useWindowDimensions();
+  // Fullscreen page is the DIRECT mode surface; peek/compact expand inside
+  // the multi-detent sheet (PeekSheet) instead.
+  const visible = view === 'drawer' && !!item && selMode === 'direct';
+  const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
@@ -215,19 +321,6 @@ export default function IncidentDrawer() {
   if (!visible) {
     return null;
   }
-
-  // Detail payload wins over list data once fetched (full description etc.).
-  const inc = detail?.incident ? { ...item, ...detail.incident } : item;
-  const timeline = [...(detail?.timeline || [])].sort(
-    (a, b) => new Date(a.update_date) - new Date(b.update_date),
-  );
-  const report = timeline.find((u) => u.type === 'report') || timeline[0];
-  const updates = timeline.filter((u) => u !== report);
-
-  const copyLink = () => {
-    Clipboard.setString(`http://localhost:5173/incident/${item.id}`);
-    showToast('Link copied');
-  };
 
   return (
     <Animated.View
@@ -263,87 +356,7 @@ export default function IncidentDrawer() {
         </Text>
       </View>
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-        <IncidentCard item={inc} />
-        <View style={styles.actionRow}>
-          <Pressable
-            onPress={() => showToast('Full detail page arrives in a later prompt')}
-            style={[styles.actBtn, styles.actPrimary, { backgroundColor: theme.accent }]}>
-            <FileText size={13} color="#f2f2f2" />
-            <Text style={[styles.actText, styles.actTextPrimary]}>Full details</Text>
-          </Pressable>
-          <Pressable
-            onPress={copyLink}
-            style={[
-              styles.actBtn,
-              { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
-            ]}>
-            <Link2 size={13} color={theme.textSecondary} />
-            <Text style={[styles.actText, { color: theme.textSecondary }]}>
-              Copy link
-            </Text>
-          </Pressable>
-        </View>
-
-        {loading && !detail ? <Skeleton theme={theme} /> : null}
-
-        {error && !detail ? (
-          <View
-            style={[
-              styles.errBox,
-              { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
-            ]}>
-            <Text style={[styles.errText, { color: theme.textSecondary }]}>
-              Could not load the incident timeline.
-            </Text>
-            <Pressable
-              onPress={() => load(item.id)}
-              style={[styles.retryBtn, { backgroundColor: theme.accent }]}>
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {report ? (
-          <>
-            <Text
-              style={[
-                styles.secLabel,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              INITIAL REPORT
-            </Text>
-            <View style={styles.timeline}>
-              <TimelineNode
-                update={report}
-                label="INITIAL REPORT"
-                onInspect={() => openEvidence(report)}
-              />
-            </View>
-          </>
-        ) : null}
-
-        {updates.length ? (
-          <>
-            <Text
-              style={[
-                styles.secLabel,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              UPDATES
-            </Text>
-            <View style={styles.timeline}>
-              {updates.map((u) => (
-                <TimelineNode
-                  key={u.id}
-                  update={u}
-                  label={`UPDATE ${fmtDate(u.update_date)}`}
-                  onInspect={() => openEvidence(u)}
-                />
-              ))}
-            </View>
-          </>
-        ) : null}
-        <View style={styles.tailPad} />
+        <DrawerBody item={item} />
       </ScrollView>
     </Animated.View>
   );

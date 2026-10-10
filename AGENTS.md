@@ -1,19 +1,19 @@
 # IntelMap24 — Agent Guide
 
-> This file is written for AI coding agents. Read it first when working on IntelMap24. It describes the project's architecture, conventions, commands, and gotchas (verified 2026-09-10).
+> For AI coding agents — read first. Architecture, conventions, commands, gotchas (verified 2026-09-10).
 
 ---
 
 ## 1. Project Overview
 
-**IntelMap24** (formerly GeoWatch — full rebrand completed 2026-08-08) is a map-based global conflict and major-events visualization platform — a tactical intelligence dashboard with a premium newsroom aesthetic. The platform has three web frontends and one shared backend:
+**IntelMap24** (formerly GeoWatch — full rebrand completed 2026-08-08): map-based global conflict and major-events visualization platform — tactical intelligence dashboard with a premium newsroom aesthetic. Three web frontends + one shared backend:
 
-- **user-web** (`:5173`) — Public website: home page, interactive `/map` explorer, incident/zone directory pages and detail pages, about page, 404 page. Read-only plus Google sign-in for saving/bookmarking incidents.
-- **admin-web** (`:5174`) — Internal staff dashboard for creating and curating incidents, timeline updates, sources, media, and polygon zones (map-first workspace + incidents/zones directory pages).
-- **superadmin-web** (`:5175`) — System console for super admins (staff + public user management, audit/activity logs, taxonomy, recycle bin, system health, data export, X-archive debug, Theme Lab color playground) plus the same map workspace and directory pages.
-- **backend** (`:3100`) — Express REST API with JWT auth, PostGIS queries, SSE broadcasting, audit logging, notifications, and media upload processing.
+- **user-web** (`:5173`) — Public site: home, `/map` explorer, incident/zone directories + detail pages, about, 404. Read-only + Google sign-in bookmarks.
+- **admin-web** (`:5174`) — Staff dashboard: create/curate incidents, timeline updates, sources, media, polygon zones (map-first workspace + directory pages).
+- **superadmin-web** (`:5175`) — Super-admin console: staff/public user management, audit/activity logs, taxonomy, recycle bin, system health, export, X-archive debug, Theme Lab + same map workspace/directories.
+- **backend** (`:3100`) — Express REST API: JWT auth, PostGIS, SSE, audit logging, notifications, media uploads.
 
-The code lives in a single npm-workspace monorepo. The database is PostgreSQL 16 with PostGIS 3. Map tiles are served by a self-hosted Martin binary reading a local `.mbtiles` file; map styles and font glyphs are self-hosted from `assets/`.
+Single npm-workspace monorepo. PostgreSQL 16 + PostGIS 3. Tiles served by a self-hosted Martin binary reading a local `.mbtiles`; map styles + font glyphs self-hosted from `assets/`.
 
 ---
 
@@ -23,34 +23,26 @@ The code lives in a single npm-workspace monorepo. The database is PostgreSQL 16
 |-------|------------|
 | Frontend frameworks | React 18 + Vite 5 + React Router DOM 7 |
 | Map rendering | MapLibre GL JS 4.x |
-| Backend runtime | Node.js >= 20 + Express 4 (ESM — all packages use `"type": "module"`) |
+| Backend runtime | Node.js >= 20 + Express 4 (ESM — all packages `"type": "module"`) |
 | Database | PostgreSQL 16 + PostGIS 3 |
-| Real-time | Server-Sent Events (SSE) over HTTP |
+| Real-time | Server-Sent Events (SSE) |
 | Tile server | Martin v1.8.2 (self-hosted binary in `tools/`) |
 | Auth | JWT (`jsonwebtoken`) + `bcryptjs` + Google OAuth for public users |
 | Validation | Zod |
-| Date handling | `date-fns` |
-| Icons | `lucide-react` |
-| Animation | `framer-motion` (user-web only) |
-| Image processing | Sharp (WebP + thumbnail) |
-| File uploads | Multer |
-| Storage abstraction | Local disk (`./uploads`) with a factory ready for Cloudflare R2 |
+| Dates / Icons / Animation | `date-fns` / `lucide-react` / `framer-motion` (user-web only) |
+| Images / Uploads / Storage | Sharp (WebP + thumbnail) / Multer / local disk (`./uploads`) with factory ready for R2 |
 | Monorepo | npm workspaces |
 
 ### Workspace Packages
 
-- `src/backend` — `intelmap24-backend`
-- `src/user-web` — `intelmap24-user-web`
-- `src/admin-web` — `intelmap24-admin-web`
-- `src/superadmin-web` — `intelmap24-superadmin-web`
+`src/backend` (intelmap24-backend), `src/user-web`, `src/admin-web`, `src/superadmin-web`.
 
-### Key Dependency Versions (from each workspace's `package.json`)
+### Key Dependency Versions
 
-- Backend: `express` ^4.19.2, `pg` ^8.12.0, `zod` ^3.23.8, `jsonwebtoken` ^9.0.2, `bcryptjs` ^2.4.3, `express-rate-limit` ^7.3.1, `multer` ^2.1.1, `sharp` ^0.34.5, `playwright` ^1.61.0, `nodemon` (dev)
-- Frontends: `react` ^18.3.1, `vite` ^5.3.1, `maplibre-gl` ^4.5.0 (user-web + admin-web only — superadmin-web renders no MapLibre map of its own), `react-router-dom` ^7.15.0, `date-fns` ^3.6.0
-- user-web extras: `framer-motion` ^12.40.0, `lucide-react` ^1.17.0
-- superadmin-web extras: `lucide-react` ^0.468.0
-- Note: `lucide-react` versions differ across workspaces and admin-web doesn't declare it — hoisting resolves it anyway. Don't add it without checking the lockfile.
+- Backend: express ^4.19.2, pg ^8.12.0, zod ^3.23.8, jsonwebtoken ^9.0.2, bcryptjs ^2.4.3, express-rate-limit ^7.3.1, multer ^2.1.1, sharp ^0.34.5, playwright ^1.61.0, nodemon (dev)
+- Frontends: react ^18.3.1, vite ^5.3.1, maplibre-gl ^4.5.0 (user-web + admin-web only — superadmin-web renders no map), react-router-dom ^7.15.0, date-fns ^3.6.0
+- user-web: framer-motion ^12.40.0, lucide-react ^1.17.0; superadmin-web: lucide-react ^0.468.0
+- `lucide-react` versions differ across workspaces and admin-web doesn't declare it — hoisting resolves it. Don't add it without checking the lockfile.
 
 ---
 
@@ -60,53 +52,50 @@ The code lives in a single npm-workspace monorepo. The database is PostgreSQL 16
 intelmap24/
 ├── src/
 │   ├── backend/              # Express API
-│   │   ├── server.js         # App entry point; mounts CORS, SSE, static uploads, rate limits, routes
+│   │   ├── server.js         # Entry: CORS, SSE, static uploads, rate limits, routes
 │   │   └── src/
 │   │       ├── config/       # database.js, env.js
-│   │       ├── controllers/  # Express route handlers
-│   │       ├── services/     # Business logic + SQL queries
+│   │       ├── controllers/  # Route handlers
+│   │       ├── services/     # Business logic + SQL
 │   │       ├── routes/       # Express routers
 │   │       ├── middleware/   # auth, role, rate-limiter, validate-request, error-handler, response-wrapper
 │   │       ├── validators/   # Zod schemas
 │   │       ├── storage/      # local.storage.js + index.js (getStorageEngine factory)
 │   │       └── utils/        # api-response, async-handler, audit-log(-actions), sse-broadcast,
 │   │                         # image/video-processor, oembed, x-oembed, x-screenshot, slugify, media-url
-│   ├── user-web/             # Public website
-│   ├── admin-web/            # Admin dashboard
-│   ├── superadmin-web/       # Superadmin console
-│   └── shared/               # Cross-app design tokens, constants, shared components, hooks, utils
-├── assets/                   # map-style-{dark,light}.json, fonts/ (Noto Sans fontstacks), tiles/ (gitignored .mbtiles)
-├── docs/                     # api-spec.md, database-schema.sql, design-brief.md, env-template.md,
-│                             # incident-taxonomy.md, grant-permissions.sql, media-migration.sql,
-│                             # dev-credentials.md (gitignored), migrations/
-├── scripts/                  # Service launcher/stopper/logs + Playwright verification & screenshot utilities
-├── uploads/                  # Local user-generated content (gitignored)
-├── tools/                    # Downloaded martin + ffmpeg binaries (gitignored)
-├── logo/                     # Source brand artwork + previews
+│   ├── user-web/  admin-web/  superadmin-web/   # the three frontends
+│   └── shared/               # Design tokens, constants, shared components, hooks, utils
+├── assets/                   # map-style-{dark,light}.json, fonts/ (Noto Sans), tiles/ (gitignored .mbtiles)
+├── docs/                     # api-spec, database-schema, design-brief, env-template, incident-taxonomy,
+│                             # grant-permissions.sql, media-migration.sql, dev-credentials.md (gitignored), migrations/
+├── scripts/                  # Service launchers + Playwright verify/screenshot utilities, favicon rasterizers, backfills
+├── uploads/                  # User-generated content (gitignored)
+├── tools/                    # martin + ffmpeg binaries (gitignored)
+├── logo/                     # Brand artwork + previews
 ├── seeds.sql                 # Sample dev data
 ├── commit.md                 # Full build history (append every change)
-├── trialRoutes.md            # Reference for design/trial routes (stale — last updated 2026-06-16; App.jsx files are authoritative)
-├── PROJECT.md                # Architecture, conventions, and requirements traceability
+├── trialRoutes.md            # Trial-route reference (stale since 2026-06-16; App.jsx files authoritative)
+├── PROJECT.md                # Architecture + requirements traceability
 └── AGENTS.md                 # This file
 ```
 
 ### Shared Code (`src/shared/`)
 
-Each frontend imports shared code through the `@shared` Vite alias (`resolve.alias` in each `vite.config.js`).
+Frontends import shared code via the `@shared` Vite alias (`resolve.alias` in each `vite.config.js`).
 
-- `design-tokens.css` — Dark-first CSS variable system with light-mode overrides via `[data-theme="light"]`: display scale vars (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), `--font-longform` (Inter) for long-form prose, keyboard-only `:focus-visible` rings, reduced-motion suppression (media query + `.reduce-motion` class), `--border-strong`.
-- `constants.js` — Severity scale, event statuses, source types, user roles, verification statuses, API base URL, Martin URL.
-- `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark and interface-style providers/hooks. Supported styles: `tactical` (default), `saas` (persisted in `localStorage`, applied via the `data-style` HTML attribute).
-- `components/` — `Button`, `Badge`, `SeverityBadge`, `Skeleton`, `TimelineEntry`, `MapContextMenu`, `MapLegend`, `ThemeToggle`, `MediaGallery`, `MediaLightbox`, `ConfirmDialog`, `DateTimePicker`, `ZoneSvgOverlay`, `GhostIncidentBanner`, `RightPanelCollapseButton`, `CategoryMultiSelect`, `WorkspaceRail`. `command-palette/` — shared ⌘K palette (backend-fed, per-app actions; all three apps).
-- `components/incident-detail/` — Shared incident detail package (sidebar + full page + evidence rail + timeline items + X-post list + source cards + procedural `TargetingCard` hero). Reused across all three frontends.
-- `components/zone/` — Shared zone/polygon detail components (`ZoneDetailSidebar`, `ZoneDetailPage`, `ZoneEditorSidebar`) plus trial-only styles/components.
-- `marker-builder.js`, `marker-icons.js` — Map marker generation helpers.
+- `design-tokens.css` — Dark-first CSS variables, light via `[data-theme="light"]`: display scale (`--display-2xl/xl/lg`, `--title`, `--body`, `--caption`), `--font-longform` (Inter), keyboard-only `:focus-visible` rings, reduced-motion suppression (media query + `.reduce-motion` class), `--border-strong`.
+- `constants.js` — Severity scale, statuses, source types, roles, verification statuses, API base URL, Martin URL.
+- `theme-context.jsx`, `useTheme.js`, `useStyle.js` — Light/dark + interface-style providers/hooks. Styles: `tactical` (default), `saas` (localStorage, `data-style` attribute).
+- `components/` — Button, Badge, SeverityBadge, Skeleton, TimelineEntry, MapContextMenu, MapLegend, ThemeToggle, MediaGallery, MediaLightbox, ConfirmDialog, DateTimePicker, ZoneSvgOverlay, GhostIncidentBanner, RightPanelCollapseButton, CategoryMultiSelect, WorkspaceRail; `command-palette/` — shared ⌘K palette (backend-fed, per-app actions, all three apps).
+- `components/incident-detail/` — Shared incident detail package (sidebar + full page + evidence rail + timeline items + X-post list + source cards + procedural `TargetingCard` hero), all three frontends.
+- `components/zone/` — Zone detail components (`ZoneDetailSidebar`, `ZoneDetailPage`, `ZoneEditorSidebar`) + trial-only ones.
+- `marker-builder.js`, `marker-icons.js` — Map marker helpers.
 - `styles/incident-detail.css`, `media-components.css` — Imported in each app's `main.jsx`.
-- `hooks/` — `useCategories.js`, `useZoneCategories.js`, `useLongPress.js`, `useMapContextMenu.js`, `useReducedMotion.js`.
-- `utils/` — `zoneGeometry.js`, `themeColors.js`, `cssVar.js`, `selectionCamera.js` (shared smart selection camera policy used by all three map apps), `themePreview.js` (boot snippet imported by all three `main.jsx` — applies `?tokens=` base64url / session token overrides from the Theme Lab plus a floating "THEME PREVIEW" badge).
-- `index.js` — Public exports (incident-detail package, zone components, `RightPanelCollapseButton`).
+- `hooks/` — useCategories, useZoneCategories, useLongPress, useMapContextMenu, useReducedMotion.
+- `utils/` — zoneGeometry, themeColors, cssVar, selectionCamera (shared smart selection camera policy), themePreview (boot snippet in all three `main.jsx` — `?tokens=` base64url/session overrides from Theme Lab + floating "THEME PREVIEW" badge).
+- `index.js` — Public exports.
 
-Note: `BrandHomeLink` (map-topbar brand cluster used in WorkspaceTopBar + PowerSearchPanel) is a **user-web local** component at `src/user-web/src/components/Layout/BrandHomeLink.jsx`, not shared; staff apps use their per-app `BrandLogo` mark in the power-search topbar instead.
+Note: `BrandHomeLink` is **user-web local** (`src/user-web/src/components/Layout/BrandHomeLink.jsx`), not shared; staff apps use per-app `BrandLogo` in the power-search topbar.
 
 ### Backend Layered Architecture
 
@@ -116,7 +105,7 @@ Note: `BrandHomeLink` (map-topbar brand cluster used in WorkspaceTopBar + PowerS
 | `controllers/` | Parse request, call service, return response | `incident.controller.js` |
 | `services/` | Business logic and SQL | `incident.service.js` |
 | `validators/` | Zod input schemas | `incident.schema.js` |
-| `middleware/` | Auth, roles, rate limits, validation, error handling | `auth.middleware.js` |
+| `middleware/` | Auth, roles, rate limits, validation, errors | `auth.middleware.js` |
 | `storage/` | File persistence abstraction | `local.storage.js` |
 | `utils/` | Cross-cutting helpers | `audit-log.js`, `sse-broadcast.js` |
 
@@ -124,117 +113,57 @@ Feature modules follow this stack end-to-end: incidents, timeline, sources (+ pu
 
 ### Geometry: Incidents and Zones
 
-There is **no separate `zones` table** (and no `zone.service.js`/`zone.routes.js`). Both point incidents and polygon zones live in the `incidents` table:
+**No separate `zones` table** (and no `zone.service.js`/`zone.routes.js`). Points and polygon zones both live in `incidents`:
 
-- `geometry_type` column is `'point'` or `'polygon'`; `geom` is `GEOMETRY(Geometry, 4326)`.
-- Polygon incidents use `zone_category_id` (foreign key to `zone_categories`).
-- Area and perimeter are computed with PostGIS `ST_Area`/`ST_Perimeter` when `geometry_type = 'polygon'`.
-- Zone categories are managed by `src/backend/src/services/zone-category.service.js` and `src/backend/src/routes/zone-category.routes.js`.
-- Zones DO carry severity (editable in `ZoneEditorSidebar`), so severity is a common filter in search/drawers.
+- `geometry_type` = `'point'` | `'polygon'`; `geom` = `GEOMETRY(Geometry, 4326)`.
+- Polygons use `zone_category_id` → `zone_categories`; area/perimeter via PostGIS `ST_Area`/`ST_Perimeter`.
+- Zone categories: `services/zone-category.service.js` + `routes/zone-category.routes.js`.
+- Zones DO carry severity (editable in `ZoneEditorSidebar`) — severity is a common filter in search/drawers.
 
-### Database Tables (docs/database-schema.sql + migrations)
+### Database Tables
 
-Core: `users` (staff), `public_users`, `domains`, `categories`, `incidents`, `source_accounts`, `incident_sources`, `incident_updates`, `incident_media`, `zone_categories`, `user_saved_incidents`, `audit_logs`, `deleted_incidents_log`. Migration `012_admin_workspace_support.sql` adds `staff_saved_incidents`, `staff_recents`, and `notifications`.
+Core: `users` (staff), `public_users`, `domains`, `categories`, `incidents`, `source_accounts`, `incident_sources`, `incident_updates`, `incident_media`, `zone_categories`, `user_saved_incidents`, `audit_logs`, `deleted_incidents_log`. Migration `012_admin_workspace_support.sql` adds `staff_saved_incidents`, `staff_recents`, `notifications`.
 
 ---
 
 ## 4. Build and Development Commands
 
-Run all commands from the repo root unless noted.
-
-### Prerequisites
-
-- Node.js >= 20 and npm >= 10
-- PostgreSQL 16 with PostGIS 3 extension
-- A Martin-compatible `.mbtiles` file at `assets/tiles/tiles.mbtiles`
-
-### Initial Setup
+Run from repo root. Prerequisites: Node >= 20, npm >= 10, PostgreSQL 16 + PostGIS 3, Martin-compatible `.mbtiles` at `assets/tiles/tiles.mbtiles`.
 
 ```bash
-# Install all workspace dependencies
-npm install
+# Setup
+npm install                # all workspace deps
+npm run setup:martin       # download Martin binary
 
-# Download the Martin tile server binary
-npm run setup:martin
-```
-
-### Database Setup
-
-```bash
-# Create the database, roles, and schema (run as postgres superuser)
+# Database (as postgres superuser)
 sudo -u postgres psql -f docs/database-schema.sql
-
-# Seed sample data (superadmin + sample incidents)
 sudo -u postgres psql -d intelmap24_dev -f seeds.sql
 ```
 
-Incremental schema changes live in `docs/migrations/` (numbered SQL files `001`–`012` plus a few older named ones). Apply them in order when setting up an existing database.
+Incremental schema changes: `docs/migrations/` (numbered `001`–`012` + older named ones) — apply in order.
 
-### Environment Files
-
-```bash
-# Backend
-cp src/backend/.env.example src/backend/.env.development
-# Edit DB credentials, JWT_SECRET, MARTIN_URL, etc.
-
-# Frontends each have their own .env with VITE_API_URL and VITE_MARTIN_URL.
-# Vite only exposes env vars prefixed with VITE_ to the client.
-```
-
-`src/backend/src/config/env.js` loads `.env.development` in development and `.env.production` in production. See `docs/env-template.md` for the full variable list.
-
-### Start Services
+Env files: `cp src/backend/.env.example src/backend/.env.development`, then edit DB creds, `JWT_SECRET`, `MARTIN_URL`. Each frontend has its own `.env` with `VITE_API_URL`/`VITE_MARTIN_URL` (only `VITE_`-prefixed vars reach the client). `src/backend/src/config/env.js` loads `.env.development` in dev, `.env.production` in prod; full variable list in `docs/env-template.md`.
 
 ```bash
-# Start all five services (Martin + backend + three frontends)
-./scripts/start-intelmap24.sh
+# Services (launcher writes logs + PIDs to logs/, opens admin dashboard unless --no-browser)
+./scripts/start-intelmap24.sh [--no-browser]     # all five: Martin + backend + 3 frontends
+./scripts/start-intelmap24.sh martin|backend|admin-web|user-web|superadmin-web
+./scripts/stop-intelmap24.sh [service]
+./scripts/status-intelmap24.sh
+./scripts/logs-intelmap24.sh [service]
 
-# Start without opening the browser
-./scripts/start-intelmap24.sh --no-browser
-
-# Start individual services
-./scripts/start-intelmap24.sh martin
-./scripts/start-intelmap24.sh backend
-./scripts/start-intelmap24.sh admin-web
-./scripts/start-intelmap24.sh user-web
-./scripts/start-intelmap24.sh superadmin-web
-```
-
-The launcher writes logs and PID files to `logs/` and opens the admin dashboard in a browser unless `--no-browser` is passed.
-
-### Stop / Status / Logs
-
-```bash
-./scripts/stop-intelmap24.sh              # Stop all services
-./scripts/stop-intelmap24.sh backend      # Stop one service
-./scripts/status-intelmap24.sh            # Check which services are running
-./scripts/logs-intelmap24.sh              # Tail all logs
-./scripts/logs-intelmap24.sh backend      # Tail one service log
-```
-
-### Manual Dev Commands (without the launcher)
-
-```bash
+# Manual (without launcher)
 ./scripts/start-martin.sh
-npm run dev:backend        # nodemon server.js  → :3100
+npm run dev:backend        # nodemon → :3100
 npm run dev:admin-web      # vite :5174
 npm run dev:user-web       # vite :5173
 npm run dev:superadmin-web # vite :5175
-```
 
-### Production Builds
-
-```bash
+# Production builds → each app's dist/ (no backend build; prod runs `node server.js`)
 npm run build:user-web
 npm run build:admin-web
 npm run build:superadmin-web
 ```
-
-Build outputs go to each frontend's `dist/` directory. There is no backend build step; production runs `node server.js`.
-
-### Scripts Directory
-
-`scripts/` also holds Playwright verify/screenshot/check utilities (`verify-*.mjs`, `screenshot-*.mjs`, `check-*.mjs`, `probe-*.mjs`, `repro-*.mjs`, `shoot-*.mjs`, `shot-*.mjs`), favicon rasterizers (`rasterize-favicon.mjs`, `rasterize-favicon-admin-superadmin.mjs`), `backfill-*.mjs` data backfills, and tile debugging — dev aids, not a test suite; most assume dev services are running.
 
 ---
 
@@ -245,49 +174,40 @@ Build outputs go to each frontend's `dist/` directory. There is no backend build
 | User website | http://localhost:5173 | Public read-only + Google sign-in bookmarks |
 | Admin dashboard | http://localhost:5174 | Staff-only, protected by login |
 | Superadmin console | http://localhost:5175 | `super_admin` only |
-| Backend API | http://localhost:3100/api/v1 | Base path is `/api/v1` (moved 3000 → 3100 permanently on 2026-07-31; media URLs origin-normalized at read time — `src/backend/src/utils/media-url.js`) |
+| Backend API | http://localhost:3100/api/v1 | Moved 3000 → 3100 on 2026-07-31; media URLs origin-normalized at read time (`utils/media-url.js`) |
 | Martin tiles | http://localhost:8080 | Self-hosted `.mbtiles` |
 
-All three frontends talk to the backend over HTTP and SSE; only the backend talks to PostgreSQL. Martin serves tiles directly to the frontends.
+Frontends talk to the backend over HTTP + SSE; only the backend talks to PostgreSQL. Martin serves tiles directly to frontends.
 
 ### Auth Roles
 
-- `super_admin` — Full platform access, user management, delete/restore/purge incidents.
-- `admin` — Create/edit incidents, timeline updates, sources, zones. Cannot manage staff users.
-- `public_user` — Google-authenticated public users; read-only plus save/bookmark incidents.
+- `super_admin` — Full access, user management, delete/restore/purge incidents.
+- `admin` — Incidents, timeline, sources, zones. Cannot manage staff users.
+- `public_user` — Google-authenticated; read-only + bookmarks.
 
-Staff users (`users` table) and public users (`public_users` table) are separate identities; `public_user` JWTs are resolved from the public table.
+Staff (`users`) and public (`public_users`) are separate identities; `public_user` JWTs resolve from the public table.
 
-### Frontend Routing (production routes)
+### Frontend Routing
 
-- **user-web**: `/` (home), `/map`, `/incidents` + `/zones` (read-only table directories), `/incident/:id`, `/zone/:id`, `/about`, `*` → `NotFoundPage`, plus `/trial/zone*` design trials.
-- **admin-web**: `/login`, `/*` → `DashboardLayout` (map-first HUD, includes `/search` Power Search handled inside the layout), `/incidents`, `/zones`, `/incident/:id`, `/zone/:id`, plus `/trial*` and `/sidebarTrial*` design trials.
-- **superadmin-web**: everything under `/superadmin/*` — dashboard, users, public-users, map (full-viewport workspace page rendered outside the sidebar `Layout`), incidents, zones, audit, public-activity, domains, zone-categories, system, export, **theme-lab**, recycle-bin, x-archive-debug, `incident/:id`, `zone/:id`, `*` → `NotFoundPage`; console pages keep the sidebar shell.
+- **user-web**: `/` (home), `/map`, `/incidents`, `/zones`, `/incident/:id`, `/zone/:id`, `/about`, `*` → NotFound, + `/trial/zone*` design trials.
+- **admin-web**: `/login`, `/*` → DashboardLayout (map-first HUD; `/search` Power Search handled inside the layout), `/incidents`, `/zones`, `/incident/:id`, `/zone/:id`, + `/trial*`, `/sidebarTrial*`.
+- **superadmin-web**: everything under `/superadmin/*` — dashboard, users, public-users, map (full-viewport page rendered outside the sidebar Layout), incidents, zones, audit, public-activity, domains, zone-categories, system, export, theme-lab, recycle-bin, x-archive-debug, `incident/:id`, `zone/:id`, `*` → NotFound.
 
-All three apps set per-route `document.title` via a `RouteTitle` component and ship an inline SVG favicon + meta in `index.html` (with PNG fallbacks 16/32/apple-touch-180 and `?v=` cache-busts).
+All apps set per-route `document.title` via `RouteTitle` and ship an inline SVG favicon + meta in `index.html` (PNG fallbacks 16/32/apple-touch-180, `?v=` cache-busts).
 
 ---
 
 ## 6. API Conventions
 
-- Base path: `/api/v1`
-- Standard response envelope:
-  ```json
-  { "success": true, "data": {}, "message": null, "error": null }
-  ```
-- Auth header: `Authorization: Bearer <jwt>`
-- SSE auth uses `?token=<jwt>` query parameter because `EventSource` cannot send custom headers. SSE URL: `/api/v1/incidents/stream?token=<jwt>`.
-- Zod validates all request bodies, queries, and params.
-- Controllers use `asyncHandler` so errors reach the centralized error handler.
-- Controllers return responses via `res.apiSuccess(data, message)` or `res.apiError(message, errorCode, statusCode)` (attached by the `responseWrapper` middleware).
+- Base path `/api/v1`; envelope `{ "success": true, "data": {}, "message": null, "error": null }`.
+- Auth: `Authorization: Bearer <jwt>`; SSE uses `?token=<jwt>` (EventSource can't send headers): `/api/v1/incidents/stream?token=<jwt>`.
+- Zod validates all bodies/queries/params; `asyncHandler` on handlers so errors reach the centralized handler; responses via `res.apiSuccess(data, message)` / `res.apiError(message, errorCode, statusCode)` (responseWrapper middleware).
 
 ### Critical Mount Ordering in `server.js`
 
-1. **SSE stream endpoint first**: `app.get('/api/v1/incidents/stream', authenticate, ...)` is registered before the incident router so `/:id` never interprets `stream` as an incident ID. It is also mounted **before** `generalLimiter` so long-lived connections don't count toward the rate limit.
-2. **Static `/uploads` second**: also before `generalLimiter` so image requests don't consume API quota.
-3. **`generalLimiter` third**, then all API routers.
-
-Actual route mounting order (verified against `server.js`):
+1. **SSE stream first** (before the incident router so `/:id` never eats `stream`; also before `generalLimiter` so long-lived connections don't count toward the limit).
+2. **Static `/uploads` second** (before `generalLimiter` so image requests don't consume quota).
+3. **`generalLimiter` third**, then all routers.
 
 ```js
 app.get('/api/v1/incidents/stream', authenticate, ...);   // SSE — FIRST, before limiter
@@ -317,70 +237,54 @@ app.use('/api/v1/staff/activity', staffActivityRoutes);
 app.use('/api/v1/x-archive-debug', xArchiveDebugRoutes);
 ```
 
-The media router (and the other nested `:id` routers — timeline, sources) uses `Router({ mergeParams: true })`; mounted at `/api/v1/incidents/:id/media`, without it `req.params.id` is `undefined` and uploads fail with a Postgres NOT NULL violation.
+Nested `:id` routers (media, timeline, sources) use `Router({ mergeParams: true })` — without it `req.params.id` is `undefined` and uploads fail with a Postgres NOT NULL violation.
 
 ---
 
 ## 7. Code Style Guidelines
 
-### File and Naming Conventions
+### Naming
 
-- Backend/service files: `kebab-case` (e.g., `incident.service.js`).
-- React component files: `PascalCase.jsx` (e.g., `IncidentDetailPage.jsx`).
-- Variables/functions: `camelCase`.
-- React components: `PascalCase`.
-- Constants/enums: `UPPER_SNAKE_CASE`.
-- SQL tables: plural, `snake_case`. SQL columns: `snake_case`.
-- All packages are ESM (`"type": "module"`); use `import`/`export` with explicit `.js` / `.jsx` extensions on local imports.
+Backend/service files kebab-case (`incident.service.js`); React components PascalCase.jsx; vars/functions camelCase; components PascalCase; constants UPPER_SNAKE_CASE; SQL tables plural snake_case, columns snake_case. All packages ESM — `import`/`export` with explicit `.js`/`.jsx` extensions on local imports.
 
-### Frontend Conventions
+### Frontend
 
-- Pure React + CSS; no external UI component libraries.
-- Use the `@shared` alias for shared components, hooks, and constants.
-- Dark theme first; light theme is driven by CSS variables and `[data-theme="light"]`. Token-only colors — never hardcode hex in components.
-- **Color tokens are the single source of truth**: accent values live in one marked `/* === BRAND ACCENT === */` block per theme at the top of `design-tokens.css` (rebrand = edit that block only). **Final brand colors (owner-selected 2026-08-08): Turquoise — `--accent: #0e4f4a`, `--accent-light: #14b8a6`.** Severity/verification colors are `--sev-*`/`--ver-*` tokens — JS uses `'var(--sev-N)'` strings in inline styles, or `getCssVar()` (`src/shared/utils/cssVar.js`) for canvas/hex-math contexts (`themeColors.js` `resolveColor()` already resolves them). superadmin-web owns `src/styles/tokens.css` (navy console palette + `--sa-accent*` turquoise ramp, which shared CSS references with hex fallbacks). Never hardcode brand/severity hex in production files.
-- **Theme Lab** (`/superadmin/theme-lab`): color playground with 26 presets, live whole-app preview, per-token overrides, cross-app preview links (`?tokens=` base64url), Finalize export panel. Drafts persist in localStorage. The runtime half is `src/shared/utils/themePreview.js`, boot-imported by all three `main.jsx`.
-- **Brand logo assets** (`public/brand/` in each app — identical 9-file set: lockup dark/light + no-tag crops, `intelmap24-mark.svg` topbar tile, `intelmap24-favicon.svg` 1.6x zoomed without dot, plus PNG favicon fallbacks; per-app `BrandLogo.jsx` component): recolor ONLY via each SVG's internal `<style>` vars (`--text/--brand-1/--brand-2/--alert/--muted/--bg`) — SVGs are already recolored to the final turquoise palette; regenerate PNG favicons with `scripts/rasterize-favicon.mjs` (user-web) and `scripts/rasterize-favicon-admin-superadmin.mjs` (staff apps, dot removed) if artwork changes; bump the `?v=` cache-bust in `index.html`; never edit paths/geometry.
-- Two interface styles are supported via the `data-style` HTML attribute: `tactical` (default), `saas`.
-- Import shared styles in each app's `main.jsx`:
-  ```js
-  import '@shared/media-components.css';
-  import '@shared/styles/incident-detail.css';
-  ```
-- Each frontend wraps the app in the shared `ThemeProvider`.
-- Each frontend's `vite.config.js` includes a `copyMapAssetsPlugin` that copies `assets/map-style-*.json` and `assets/fonts/` into the app's `public/` at build/dev start — map styles and font glyphs are served as same-origin static files.
-- **Reduced motion**: all three apps honor OS `prefers-reduced-motion` AND a `.reduce-motion` HTML class via `design-tokens.css`; each has a Settings-drawer "Reduce motion" switch persisted in `localStorage` (`intelmap24_{user,admin,superadmin}_reduce_motion`, boot-applied in each `main.jsx`). Guard new animation with the shared `useReducedMotion` hook.
-- Typography: 10px floor for production labels; use the display scale vars and `.font-longform` (Inter) for long-form prose such as incident descriptions and About copy.
-- **Trial pages must be lazy-loaded**: user-web's 7 zone trial pages are `React.lazy` + `Suspense` in `App.jsx` because their trial CSS (e.g. `ZoneTrial.css`) was leaking globally into production pages. Keep new trials behind lazy imports and scope-prefix their CSS.
+- Pure React + CSS; no external UI component libraries. Use the `@shared` alias for shared code. Dark-first; light via CSS variables + `[data-theme="light"]`. Token-only colors — never hardcode hex in components.
+- **Color tokens are the single source of truth**: accent lives in one marked `/* === BRAND ACCENT === */` block per theme atop `design-tokens.css` (rebrand = edit that block only). **Final brand colors (owner-selected 2026-08-08): `--accent: #0e4f4a`, `--accent-light: #14b8a6` (turquoise).** Severity/verification colors are `--sev-*`/`--ver-*` tokens — JS uses `'var(--sev-N)'` strings in inline styles, or `getCssVar()` (`utils/cssVar.js`) for canvas/hex-math (`themeColors.js resolveColor()` resolves them). superadmin-web owns `src/styles/tokens.css` (navy console palette + `--sa-accent*` turquoise ramp, referenced by shared CSS with hex fallbacks). Never hardcode brand/severity hex in production files.
+- **Theme Lab** (`/superadmin/theme-lab`): 26 presets, live whole-app preview, per-token overrides, cross-app `?tokens=` base64url links, Finalize export. Drafts in localStorage. Runtime half: `utils/themePreview.js`, boot-imported by all three `main.jsx`.
+- **Brand assets** (`public/brand/` per app — identical 9-file set: lockup dark/light + no-tag crops, `intelmap24-mark.svg` topbar tile, `intelmap24-favicon.svg`, PNG fallbacks; per-app `BrandLogo.jsx`): recolor ONLY via each SVG's internal `<style>` vars (`--text/--brand-1/--brand-2/--alert/--muted/--bg`) — already final turquoise. If artwork changes: regenerate PNG favicons with `scripts/rasterize-favicon.mjs` (user-web) / `rasterize-favicon-admin-superadmin.mjs` (staff, dot removed), bump `?v=` in `index.html`, never edit paths/geometry.
+- Interface styles via `data-style`: `tactical` (default), `saas`.
+- Import shared styles in each `main.jsx`: `import '@shared/media-components.css';` + `import '@shared/styles/incident-detail.css';` Wrap each app in the shared `ThemeProvider`.
+- Each `vite.config.js` has `copyMapAssetsPlugin` copying `assets/map-style-*.json` + `assets/fonts/` into the app's `public/` — map styles and glyphs served same-origin.
+- **Reduced motion**: OS `prefers-reduced-motion` + `.reduce-motion` class honored via `design-tokens.css`; per-app Settings switch persisted in localStorage (`intelmap24_{user,admin,superadmin}_reduce_motion`, boot-applied in `main.jsx`). Guard new animation with the shared `useReducedMotion` hook.
+- Typography: 10px floor for production labels; display scale vars; `.font-longform` (Inter) for long-form prose (incident descriptions, About copy).
+- **Trial pages must be lazy-loaded** (`React.lazy` + `Suspense` in `App.jsx`) with scope-prefixed CSS — trial CSS (e.g. `ZoneTrial.css`) once leaked globally into production pages.
 
-### Backend Conventions
+### Backend
 
-- Use `asyncHandler` on every route handler.
-- Write a Zod schema for every API input and validate with `validateRequest(schema, 'body' | 'query' | 'params')`.
-- Business logic and SQL live in `services/`.
-- Always include error handling; prefer `throw` with `{ status, errorCode }` for the centralized handler.
-- Audit-log all significant create/update/delete actions (`utils/audit-log.js`, action names in `utils/audit-actions.js`).
+- `asyncHandler` on every route handler. Zod schema for every API input via `validateRequest(schema, 'body' | 'query' | 'params')`. Business logic + SQL in `services/`. Throw `{ status, errorCode }` for the centralized handler.
+- Audit-log significant create/update/delete (`utils/audit-log.js`; action names in `utils/audit-actions.js`).
 - Domain/category-slug filter conditions in search queries must be wrapped polygon-safe — otherwise zone results silently vanish under incident filters (fixed once in `searchIncidents`; keep new filters the same way).
 
-### Database Conventions
+### Database
 
-- Primary keys: UUID v4 (`gen_random_uuid()`) for most tables; `domains`, `categories`, and `zone_categories` use `SERIAL`; `audit_logs` uses `BIGSERIAL`.
-- Geometry: PostGIS `Geometry(4326)`; point markers and polygon zones share the `incidents` table via `geometry_type`.
-- Dates stored in UTC (`TIMESTAMP WITH TIME ZONE`); displayed in local time on the client.
-- `latitude`/`longitude` are `DECIMAL` — PostgreSQL returns them as **strings**; always `parseFloat()` before `.toFixed()` or arithmetic.
-- Flexible metadata stored in `JSONB`.
-- `verification_status` on incidents and updates: `unverified` (default), `verified`, `disputed`, `debunked`. Verification is manual; there is no per-source verification or auto-compute cascade. UI pattern: verification badge/glyph renders only when status ≠ `unverified` (shared `VERIFICATION_CONFIG`); status labels render only when Active (Resolved renders nothing).
+- PKs: UUID v4 (`gen_random_uuid()`) mostly; `domains`/`categories`/`zone_categories` SERIAL; `audit_logs` BIGSERIAL.
+- Geometry: PostGIS `Geometry(4326)`; points + polygons share `incidents` via `geometry_type`.
+- Dates UTC (`TIMESTAMP WITH TIME ZONE`), displayed in local time on the client.
+- `latitude`/`longitude` are DECIMAL — Postgres returns them as **strings**; always `parseFloat()` before `.toFixed()` or arithmetic.
+- Flexible metadata in JSONB.
+- `verification_status`: `unverified` (default) / `verified` / `disputed` / `debunked`. Manual; no per-source verification or auto-compute cascade. UI: verification badge renders only when ≠ `unverified`; status label only when Active (Resolved renders nothing).
 
 ### Map-Specific Gotchas
 
-- MapLibre positions markers via `translate3d` on the parent element — apply visual effects (scale, shadow) to a child element, never override the parent transform.
+- MapLibre positions markers via `translate3d` on the parent element — apply visual effects to a child, never override the parent transform.
 - Split marker effects into separate `useEffect`s: one for create/remove/position (`[events]`), one for selection styling (`[selectedIncidentId]`).
-- Zone hover/click handlers must be bound ONCE per map (delegated bindings that read a `zonesRef` at event time) — rebinding per zone-set change causes stale-closure bugs. All three map components (`UserMap`, `AdminMap`, `SuperadminMap`) follow this pattern.
-- Smart viewport filtering: fetch without viewport first; if total count > 100, enable viewport-bounded fetching on pan/zoom, otherwise load everything.
-- Large-range gating (all three map apps): ranges > 31 days or unbounded ("All time") withhold point incidents below zoom 6 (zones always load); at/above zoom 6 point fetches become viewport-bounded. Null date-range ends must never reach the list endpoint — translate to `1970-01-01`/`2099-12-31` (it defaults to "visible today" when dates are absent).
-- Date visibility: active incidents visible until `end_date`; resolved incidents get a 1-day grace period.
-- Point-incident list queries must pass `geometryType` — otherwise polygon zones arrive twice (once from the point query, once from the zone path).
-- Drawer lists (all apps): zone rows are included alongside points via `drawerIncidents` memos (points+zones, `created_at` desc, Layers-toggle-aware); selected-card highlight is wired from the real `selectedIncidentId` (accent border + tint, hover border off accent) — don't hardcode selection to null.
+- Zone hover/click handlers bound ONCE per map (delegated bindings reading a `zonesRef` at event time) — rebinding per zone-set change causes stale-closure bugs. All three map components follow this pattern.
+- Smart viewport filtering: fetch without viewport first; if total > 100, enable viewport-bounded fetching on pan/zoom, else load everything.
+- Large-range gating (all apps): ranges > 31 days or All-time withhold point incidents below zoom 6 (zones always load); ≥ zoom 6 point fetches become viewport-bounded. Null date-range ends must never reach the API — translate to `1970-01-01`/`2099-12-31` (endpoint defaults to "visible today" when dates are absent).
+- Date visibility: active incidents visible until `end_date`; resolved get a 1-day grace period.
+- Point-incident list queries must pass `geometryType` — otherwise polygon zones arrive twice (point query + zone path).
+- Drawer lists (all apps): zones included via `drawerIncidents` memos (points+zones, `created_at` desc, Layers-toggle-aware); selection highlight wired from the real `selectedIncidentId` (accent border + tint) — don't hardcode selection to null.
 
 ---
 
@@ -388,118 +292,50 @@ The media router (and the other nested `:id` routers — timeline, sources) uses
 
 ### Token-Saving Working Protocol (owner-approved, overrides older habits)
 
-- **Verify with builds only** (`npm run build:<app>`). Run Playwright verify/screenshot scripts **only for major behavioral changes or when the owner explicitly asks** — the owner tests manually otherwise and reports behavior back.
+- **Verify with builds only** (`npm run build:<app>`). Playwright verify/screenshot scripts **only for major behavioral changes or when the owner asks** — the owner tests manually otherwise.
 - **Do not read screenshots back** unless something looks wrong; the owner inspects them.
-- **Batch small tweaks** into one task instead of separate rounds.
-- **commit.md**: append a short 2–3 line summary per change — no detailed tables/sections (recent entries follow this terse format).
+- **Batch small tweaks** into one task. **commit.md**: append a short 2–3 line summary per change (terse format).
 - Keep agent reports and user-facing replies terse.
-- **Agent delegation (2026-08-02)**: Kimi orchestrates (plan, precise briefs, build checks, terse reports); coder/explore subagents do file-heavy work in their own context. Agents never edit `commit.md`/`AGENTS.md`/`trialRoutes.md` (Kimi does docs). Ports: user-web first → owner tests → parallel admin/superadmin agents; sequence shared-file edits to avoid conflicts. Resume by id: agent-1 admin, agent-2 superadmin, agent-3 user-web/backend, agent-4 explore.
+- **Agent delegation**: Kimi orchestrates (plan, precise briefs, build checks, terse reports); coder/explore subagents do file-heavy work. Agents never edit `commit.md`/`AGENTS.md`/`trialRoutes.md` (Kimi does docs). Ports: user-web first → owner tests → parallel admin/superadmin agents; sequence shared-file edits. Resume by id: agent-1 admin, agent-2 superadmin, agent-3 user-web/backend, agent-4 explore.
 
-**There are currently no automated tests in this repository.** No Jest, Vitest, Playwright test suites, or CI pipelines are configured for the project code. (`playwright` is a backend dependency but powers the screenshot/verification utilities in `scripts/`, not test automation.)
+**No automated tests in this repository** — no Jest/Vitest/Playwright suites or CI. (`playwright` is a backend dependency but powers the `scripts/` utilities, not test automation.)
 
-### Manual Verification Steps
-
-After changes, verify the project builds and runs:
+### Manual Verification
 
 ```bash
-# 1. Build each frontend to catch compile errors
-npm run build:user-web
-npm run build:admin-web
-npm run build:superadmin-web
-
-# 2. Restart services and smoke-test the affected app
-./scripts/stop-intelmap24.sh
-./scripts/start-intelmap24.sh
-
-# 3. Check service status
+npm run build:user-web && npm run build:admin-web && npm run build:superadmin-web
+./scripts/stop-intelmap24.sh && ./scripts/start-intelmap24.sh
 ./scripts/status-intelmap24.sh
-
-# 4. Tail logs if a service fails
-./scripts/logs-intelmap24.sh <service>
+./scripts/logs-intelmap24.sh <service>   # if a service fails
 ```
 
-The Playwright utilities drive headless browsers against running dev servers; they may need dev credentials (gitignored `docs/dev-credentials.md`). Repeated logins trip the auth rate limiter — allow cooldown or reuse a long-lived token.
-
-If you add automated tests, place them in `tests/` or `__tests__/` per workspace and update this section.
+Playwright utilities drive headless browsers against running dev servers; may need gitignored `docs/dev-credentials.md`. Repeated logins trip the auth rate limiter — allow cooldown or reuse a long-lived token. New automated tests go in `tests/` or `__tests__/` per workspace (update this section if added).
 
 ---
 
-## 9. Security Considerations
+## 9. Security
 
-### Auth and Authorization
-
-- JWT tokens sign with `JWT_SECRET` (>= 32 characters in dev; >= 64 in production).
-- Tokens expire per `JWT_EXPIRES_IN` (default `7d`).
-- Passwords are hashed with `bcryptjs` using `BCRYPT_ROUNDS` (default `12`).
-- `authenticate` middleware verifies the Bearer token (header first, `?token=` query fallback for SSE) and attaches `req.user`.
-- `requireRole(...)` must be applied **after** `authenticate`.
-- Staff users and public users are resolved from separate tables; public users get role `public_user`.
-- Deactivated accounts (`is_active = false`) receive `403 FORBIDDEN`.
-
-### Rate Limiting
-
-- `generalLimiter` — 300 requests per minute per IP on most API routes. Env vars: `RATE_LIMIT_WINDOW_MS` (default 60000) and `RATE_LIMIT_MAX_REQUESTS` (default 300).
-- `authLimiter` — 10 auth attempts per 15 minutes per IP, on login/register endpoints.
-- `adminWriteLimiter` — 50 write operations per 15 minutes per user, keyed by `req.user.id`.
-- SSE (`/api/v1/incidents/stream`) and static `/uploads` are excluded — they are mounted before `generalLimiter` in `server.js`.
-
-### CORS
-
-- Allowed origins are configured from `USER_WEB_URL`, `ADMIN_WEB_URL`, `SUPERADMIN_WEB_URL`, plus Vite preview ports (`:4173–4175`).
-- In `development`, any origin is allowed for local testing.
-- `credentials: true` is enabled; requests with no origin (curl, server-to-server) are allowed.
-
-### Secrets and Environment
-
-- `.env` files are gitignored. Only `.env.example` is committed.
-- `docs/dev-credentials.md` is gitignored and contains local default passwords.
-- Never commit the Martin binary, `.mbtiles` files, uploads, or generated screenshots.
-
-### Input Validation and SQL
-
-- All API inputs are validated with Zod.
-- Services use parameterized `pg` queries; do not concatenate user input into SQL.
-- File uploads are processed through Multer, converted by Sharp (images → WebP + thumbnail), and stored with generated filenames. Videos are pass-through for now.
-
-### Production Checklist
-
-- Strong unique `JWT_SECRET`/`DB_PASSWORD`; PostgreSQL firewalled (never internet-exposed); HTTPS everywhere; `STORAGE_PROVIDER=r2` + R2 credentials off local disk; restrict dev CORS allowances.
+- JWT signs with `JWT_SECRET` (≥ 32 chars dev, ≥ 64 prod); expiry per `JWT_EXPIRES_IN` (default `7d`). Passwords: bcryptjs, `BCRYPT_ROUNDS` (default 12).
+- `authenticate` verifies the Bearer token (header first, `?token=` fallback for SSE) and attaches `req.user`. `requireRole(...)` must come **after** `authenticate`. Deactivated accounts (`is_active = false`) → 403.
+- Rate limits: `generalLimiter` 300 req/min/IP (`RATE_LIMIT_WINDOW_MS` default 60000, `RATE_LIMIT_MAX_REQUESTS` default 300); `authLimiter` 10 attempts/15 min/IP on login/register; `adminWriteLimiter` 50 writes/15 min/user (keyed by `req.user.id`). SSE + static `/uploads` excluded (mounted before `generalLimiter`).
+- CORS: origins from `USER_WEB_URL`/`ADMIN_WEB_URL`/`SUPERADMIN_WEB_URL` + Vite preview `:4173–4175`; development allows any origin; `credentials: true`; origin-less requests (curl, server-to-server) allowed.
+- Secrets: `.env` files gitignored (only `.env.example` committed); `docs/dev-credentials.md` gitignored. Never commit the Martin binary, `.mbtiles`, uploads, or screenshots.
+- All inputs Zod-validated; parameterized `pg` queries — never concatenate user input into SQL. Uploads: Multer → Sharp (images → WebP + thumbnail), generated filenames; videos pass-through for now.
+- Production checklist: strong unique `JWT_SECRET`/`DB_PASSWORD`; PostgreSQL firewalled (never internet-exposed); HTTPS everywhere; `STORAGE_PROVIDER=r2` + R2 credentials; restrict dev CORS allowances.
 
 ---
 
 ## 10. Deployment Notes
 
-There is **no automated CI/CD, Docker, or deployment pipeline** in this repository. Deployment is currently manual.
+No CI/CD, Docker, or pipeline — deployment is manual. Current dev: local Pop!_OS workstation, services via `scripts/start-intelmap24.sh`, logs/PIDs in `logs/`.
 
-### Current Dev Deployment
-
-- Local Pop!_OS workstation.
-- Services launched via `scripts/start-intelmap24.sh`.
-- Logs and PID files written to `logs/`.
-
-### Planned Production Architecture
-
-- Backend + PostgreSQL + Martin on Oracle Cloud Free Tier.
-- Frontends on Vercel free tier.
-- Cloudflare R2 for object storage (flip `STORAGE_PROVIDER` from `local` to `r2`; write `r2.storage.js` behind the existing `storage/index.js` factory — Postgres stores URLs only, so no data migration is needed).
-
-### Cost Constraints
-
-- No per-request pricing services for MVP.
-- Free tiers only until revenue justifies paid plans.
+Planned production: backend + PostgreSQL + Martin on Oracle Cloud Free Tier; frontends on Vercel free tier; Cloudflare R2 for object storage (flip `STORAGE_PROVIDER` local → r2; write `r2.storage.js` behind the existing `storage/index.js` factory — Postgres stores URLs only, no data migration needed). Cost: free tiers only until revenue; no per-request pricing for MVP.
 
 ---
 
 ## 11. Key Files to Read Before Working
 
-Read in order when starting a task:
-
-1. `PROJECT.md` — Architecture, conventions, requirements.
-2. `commit.md` — Full build history; append every change.
-3. `docs/design-brief.md` — UI/UX direction.
-4. `docs/api-spec.md` — Backend API contract.
-5. `docs/database-schema.sql` — Database schema (single source of truth).
-6. `trialRoutes.md` — Trial-route reference (stale since 2026-06-16; each app's `src/App.jsx` is the authoritative route list).
+1. `PROJECT.md` — architecture, conventions, requirements. 2. `commit.md` — build history (append every change). 3. `docs/design-brief.md` — UI/UX direction. 4. `docs/api-spec.md` — API contract. 5. `docs/database-schema.sql` — schema (single source of truth). 6. `trialRoutes.md` — trial routes (stale; each app's `src/App.jsx` is authoritative).
 
 ---
 
@@ -507,51 +343,42 @@ Read in order when starting a task:
 
 ### Recently Completed
 
-Full rebrand GeoWatch → IntelMap24 (name + logo + colors; final Turquoise palette `#0e4f4a`/`#14b8a6` applied 2026-08-08 across tokens, `--sa-accent*` ramp, and all brand SVGs), brand asset set in all three apps (`public/brand/` + per-app `BrandLogo`), Theme Lab color playground (`/superadmin/theme-lab` + shared `themePreview.js`), Power Search overhaul on all three apps (compact 3-row result cards, zone/incident distinction, zone-category filter end-to-end, polygon-safe backend filters), drawer overhaul port to staff apps (zones in drawer lists, real selection highlight), workspace chrome on all three maps (top bar, rail/drawers, right detail panel, ⌘K palette), smart selection camera, directory pages on shared `TableUI` + CategoryMultiSelect, placement mode + drawing toolbar 2.0, deterministic Back navigation with instant camera restore (per-app `utils/returnView.js`), incident-detail overhaul (silent SSE refetch, `TargetingCard` hero), trial CSS leak fix (lazy trial pages). Full history: `commit.md`.
+Full GeoWatch → IntelMap24 rebrand (name + logo + turquoise palette, 2026-08-08), brand asset set in all three apps, Theme Lab, Power Search overhaul (compact cards, zone/incident distinction, polygon-safe filters), drawer overhaul port to staff apps, workspace chrome on all maps (top bar, rail/drawers, right detail panel, ⌘K palette), smart selection camera, TableUI directories + CategoryMultiSelect, placement mode + drawing toolbar 2.0, deterministic Back navigation (`utils/returnView.js`), incident-detail overhaul (silent SSE refetch, `TargetingCard`), trial CSS leak fix. Mobile app (P1–P12): see §14. Full history: `commit.md`.
 
 ### Active Trial Routes
 
-- **user-web** (`:5173`): `/trial/zone-sidebar`, `/trial/zone`, `/trial/zone-meter`, `/trial/zone-styles`, `/trial/zone-heroes`, `/trial/zone-sidebar-animations`, `/trial/zone-create` — all React.lazy.
-- **admin-web** (`:5174`): `/trial`, `/sidebarTrial`, `/sidebarTrial2` (+ `/optionF`, `/xGallery`, `/admin`, `/superadmin`), `/xPostOptions`, `/incident-trial/{user,admin,superadmin}`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options` — read-only design references.
+- **user-web**: `/trial/zone-sidebar`, `/trial/zone`, `/trial/zone-meter`, `/trial/zone-styles`, `/trial/zone-heroes`, `/trial/zone-sidebar-animations`, `/trial/zone-create` — all React.lazy.
+- **admin-web**: `/trial`, `/sidebarTrial`, `/sidebarTrial2` (+ `/optionF`, `/xGallery`, `/admin`, `/superadmin`), `/xPostOptions`, `/incident-trial/{user,admin,superadmin}`, `/trial/map-workspace-a`, `/trial/power-search`, `/trial/layer-drawer-options` — read-only design references.
 - File mappings in `trialRoutes.md` (partially stale) and each app's `src/App.jsx`.
 
 ### Known Non-Blocking Issues
 
-- Google Sign-In returns 403 on localhost due to unauthorized OAuth origin.
-- `XPostCompactList` has a DOM nesting warning (toolbar buttons inside a `<button>` summary) — fix in `src/shared/components/incident-detail/XPostCompactList.jsx`.
+- Google Sign-In returns 403 on localhost (unauthorized OAuth origin).
+- `XPostCompactList` DOM nesting warning (toolbar buttons inside a `<button>` summary) — fix in `src/shared/components/incident-detail/XPostCompactList.jsx`.
 - Vite warns about JS chunks > 500 KB; code-splitting is post-MVP.
-- Backend login rate limiting can trigger after many consecutive test runs; allow a cooldown or reuse a long-lived token.
+- Backend login rate limiting can trigger after many consecutive test runs; allow cooldown or reuse a long-lived token.
 
 ### Post-MVP Backlog
 
-- Video processing with `ffmpeg` (`utils/video-processor.js` is currently a pass-through placeholder).
-- Marker clustering with Supercluster.
-- Heatmap layer.
-- Full mobile responsiveness.
-- Push/webhook notifications.
-- Native Android app (React Native, Phase 2).
+Video processing with ffmpeg (`utils/video-processor.js` is a pass-through placeholder), Supercluster marker clustering, heatmap layer, full mobile responsiveness, push/webhook notifications.
 
 ---
 
 ## 13. Agent Workflow Checklist
 
-When handed a task:
+1. Read this file, `PROJECT.md`, `commit.md`. 2. Identify the workspace (backend / user-web / admin-web / superadmin-web / shared). 3. **Minimal** changes; no unrelated refactors. 4. Match the file's existing style. 5. Backend changes: Zod validators + audit logging as needed. 6. Build the affected frontend(s) before finishing. 7. Append `commit.md` (`feat:` / `fix:` / `style:` / `chore:`). 8. Update `trialRoutes.md` if routes change. 9. Provide a conventional-commit style message in the final response.
 
-1. Read this file, `PROJECT.md`, and `commit.md`.
-2. Identify the correct workspace (`backend`, `user-web`, `admin-web`, `superadmin-web`, or `shared`).
-3. Make **minimal** changes; do not refactor unrelated code.
-4. Follow existing code style in the file you edit.
-5. For backend changes, add or update Zod validators and audit logging as needed.
-6. Build the affected frontend(s) before finishing.
-7. Append a summary of the change to `commit.md` in the format:
-   ```
-   feat: description
-   fix: description
-   style: description
-   chore: description
-   ```
-8. Update `trialRoutes.md` if you add or change routes.
-9. Provide a conventional-commit style message in your final response.
+---
+
+## 14. Mobile App (`src/mobile-app/`) — Android (added 2026-09-20)
+
+Bare **React Native 0.87** (react 19.2), Android-only. **Standalone package — NOT in root npm workspaces** (avoids Metro hoisting conflicts); own `package.json`/`node_modules`. UI flow follows the prototype `src/mobile-app/index.html` (structure/flow exact, sizing free-form).
+
+- **Architecture**: single-screen map-first. One root `MapScreen` + custom overlay system — `OverlayContext`/`OverlayHost` (LIFO stack: sheet / fullscreen / drawerLeft / topPanel / modal; backdrop; Android BackHandler closes topmost). Contexts: `ThemeContext` (tokens in `theme/tokens.js`, ported from `design-tokens.css`), `AuthContext` (Google sign-in → `/auth/public/google`, JWT in react-native-keychain), `MapContext` (fetch pipeline + camera), `SelectionContext` (peek/compact/direct state machine + origin stack + view history), `LiveContext` (alerts/activity/away banner).
+- **Map**: `@maplibre/maplibre-react-native` 11; bundled copies of `assets/map-style-{dark,light}.json` in `assets/map/` with rewritten URLs (tiles → Martin :8080, glyphs → backend static `/fonts` :3100 — Express serves `assets/fonts` directly, no user-web dependency). All web map gotchas apply (zoom-6 gating, viewport bounding, `geometryType`, ghost selection). Emulator quirk: needs `nativeVariant=vulkan` + `androidView="texture"` under SwiftShader. **Incident markers are web-style PNGs**: `scripts/generate-mobile-markers.mjs` bakes domain-colored circle+glow+white-icon images (paths from `src/shared/marker-icons.js`, colors from mobile `DOMAINS`) into `assets/markers/` + `src/screens/map/markerImages.js`; MapScreen renders them via `<Images>` + symbol layer (color/icon = domain, size = severity radii 6–14, constant across zoom; selection = white ring + colored glow halo; ghost = 50% opacity). Re-run the generator if web marker artwork changes.
+- **Networking**: emulator hits host via `10.0.2.2` (API+fonts :3100, Martin :8080); `services/api.js` unwraps the envelope + rewrites media URL hosts. Physical device: `adb reverse` those ports + `DEV_HOST = '127.0.0.1'` in `src/constants.js` (mapStyles.js rewrites bundled-style hosts from DEV_HOST at load; flip back to `10.0.2.2` for emulator work). SSE via `react-native-sse` with `?token=`; signed-out clients fall back to list-diff alerts (client-side by design — backend notifications stay staff-only).
+- **Run**: mobile-only needs just **backend + martin**. Emulator: `cd src/mobile-app && npx react-native run-android` (SDK `~/Android/Sdk`, JDK `~/jdk` as JAVA_HOME, AVD `intelmap24`). **Physical device (preferred)**: `./scripts/start-mobile-intelmap24.sh <connect|services|metro|build|logs|all>` + `./scripts/stop-mobile-intelmap24.sh <metro|services|connect|all>`; `connect` = adb reverse (every replug), `services` = backend+martin only, `build` = APK → phone Download (MIUI blocks adb install). Total shutdown of everything: `./scripts/stop-all-intelmap24.sh`. Verify: `npx eslint .` + Metro bundle; emulator screenshots under `temp_screenshots/mobile-map-engine/`.
+- **Known gaps**: signed-in E2E unverified until Google Cloud OAuth is configured (`GOOGLE_WEB_CLIENT_ID` in `src/constants.js` + Android client/SHA-1 + backend `GOOGLE_CLIENT_ID` match); "Full details" page is a stub; videos pass-through.
 
 ---
 

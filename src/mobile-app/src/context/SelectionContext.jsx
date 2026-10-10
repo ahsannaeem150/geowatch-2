@@ -67,6 +67,13 @@ export function SelectionProvider({ children }) {
   const [item, setItem] = useState(null);
   const [origin, setOrigin] = useState(null); // { type:'fullscreen' } | { type:'sheet', id }
   const [evidenceUpdate, setEvidenceUpdate] = useState(null);
+  // View the evidence panel was opened from ('drawer' | 'zoneSheet') — back
+  // returns there instead of hardcoding the drawer.
+  const [evidenceFrom, setEvidenceFrom] = useState(null);
+  // View history (prototype pushHistory): newest-first, deduped, cap 20,
+  // persisted. Entries: { kind, id, when, item } — item is the full list-row
+  // snapshot so preview-on-map works even after the date range moves on.
+  const [history, setHistory] = useState([]);
   // incidentId → { incident, timeline } detail cache (drawer fetch, peek reads)
   const detailCache = useRef(new Map());
 
@@ -112,16 +119,65 @@ export function SelectionProvider({ children }) {
     [],
   );
 
-  // ─── Evidence panel (prototype openEvidence/closeEvi) ───
-  // Only reachable from the drawer; back returns to the drawer.
-  const openEvidence = useCallback((update) => {
-    setEvidenceUpdate(update);
-    setView('evidence');
+  // ─── View history (prototype pushHistory/clearHistory) ───
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEYS.HISTORY)
+      .then((raw) => {
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (Array.isArray(parsed)) {
+          setHistory(parsed.slice(0, 20));
+        }
+      })
+      .catch(() => {});
   }, []);
 
+  // Record on incident drawer / zone sheet open (dedupe-to-front, cap 20).
+  useEffect(() => {
+    if ((view !== 'drawer' && view !== 'zoneSheet') || !item?.id) {
+      return;
+    }
+    const entry = {
+      kind: selectedKind === 'zone' ? 'zone' : 'incident',
+      id: item.id,
+      when: new Date().toISOString(),
+      item,
+    };
+    setHistory((prev) => {
+      const next = [
+        entry,
+        ...prev.filter((h) => !(h.kind === entry.kind && h.id === entry.id)),
+      ].slice(0, 20);
+      AsyncStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(next)).catch(
+        () => {},
+      );
+      return next;
+    });
+  }, [view, item, selectedKind]);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    AsyncStorage.setItem(STORAGE_KEYS.HISTORY, '[]').catch(() => {});
+    showToast('History cleared');
+  }, [showToast]);
+
+  // ─── Evidence panel (prototype openEvidence/closeEvi) ───
+  // Reachable from the drawer (incidents) and the zone sheet; back returns
+  // to whichever surface opened it.
+  const openEvidence = useCallback(
+    (update) => {
+      // Remember the surface the evidence was opened from so back lands
+      // there again (peek half/full stays inside the bottom sheet).
+      setEvidenceFrom(view);
+      setEvidenceUpdate(update);
+      setView('evidence');
+    },
+    [view],
+  );
+
   const closeEvidence = useCallback(() => {
-    setView('drawer');
-  }, []);
+    setView(evidenceFrom && evidenceFrom !== 'evidence' ? evidenceFrom : 'drawer');
+    setEvidenceFrom(null);
+  }, [evidenceFrom]);
 
   // ─── Transitions ───
 
@@ -135,6 +191,7 @@ export function SelectionProvider({ children }) {
       setItem(list.find((i) => i.id === id) || itemObj || null);
       setOrigin(null);
       setEvidenceUpdate(null);
+      setEvidenceFrom(null);
       closeAll();
       selectItem(id, kind);
       if (kind === 'zone') {
@@ -161,6 +218,7 @@ export function SelectionProvider({ children }) {
       setOrigin(orig);
       setItem(previewItem);
       setEvidenceUpdate(null);
+      setEvidenceFrom(null);
       selectItem(previewItem.id, kind);
       setView('peek');
     },
@@ -172,11 +230,24 @@ export function SelectionProvider({ children }) {
   const closePreview = useCallback(() => {
     setView('idle');
     setEvidenceUpdate(null);
+    setEvidenceFrom(null);
     if (origin?.type === 'sheet') {
       openOverlay({ id: origin.id, type: 'sheet' });
     }
     setOrigin(null);
   }, [origin, openOverlay]);
+
+  // Peek drag-down → collapse to the pill (same target as a map tap).
+  const collapsePeek = useCallback(() => {
+    setView('pill');
+  }, []);
+
+  // Sheet full detent drag-down → back to the half detent (peek).
+  const collapseToPeek = useCallback(() => {
+    setEvidenceUpdate(null);
+    setEvidenceFrom(null);
+    setView('peek');
+  }, []);
 
   // Peek tap → full details (drawer for incidents, the bigger sheet zones).
   const expandFromPeek = useCallback(() => {
@@ -184,14 +255,16 @@ export function SelectionProvider({ children }) {
   }, [selectedKind]);
 
   // Pill tap → full details (all modes; prototype expandSelection).
+  // Pill tap → half-detent bottom sheet (zones go straight to their sheet).
   const expandFromPill = useCallback(() => {
-    setView(selectedKind === 'zone' ? 'zoneSheet' : 'drawer');
+    setView(selectedKind === 'zone' ? 'zoneSheet' : 'peek');
   }, [selectedKind]);
 
   // Drawer/zoneSheet back (also the evidence ✕ — closes both layers):
   // preview → peek+emb; plain selection → pill.
   const closeDrawer = useCallback(() => {
     setEvidenceUpdate(null);
+    setEvidenceFrom(null);
     setView(origin ? 'peek' : 'pill');
   }, [origin]);
 
@@ -204,6 +277,7 @@ export function SelectionProvider({ children }) {
     setView('idle');
     setItem(null);
     setEvidenceUpdate(null);
+    setEvidenceFrom(null);
     clearSelection();
   }, [clearSelection]);
 
@@ -221,6 +295,9 @@ export function SelectionProvider({ children }) {
       case 'pill':
         dismissSelection();
         break;
+      case 'drawer':
+      case 'evidence':
+        break; // full sheet stays put — gestures/back handle it
       default:
         clearSelection(); // idle: clears a lingering post-preview ring
     }
@@ -234,7 +311,13 @@ export function SelectionProvider({ children }) {
         closeEvidence();
         return true;
       case 'drawer':
-        closeDrawer();
+        // Sheet flow steps back to the half detent; direct mode uses the
+        // fullscreen drawer's own back (→ pill/peek).
+        if (selMode === 'direct' || origin) {
+          closeDrawer();
+        } else {
+          collapseToPeek();
+        }
         return true;
       case 'zoneSheet':
         closeZoneSheet();
@@ -252,7 +335,7 @@ export function SelectionProvider({ children }) {
       default:
         return false;
     }
-  }, [view, origin, closeEvidence, closeDrawer, closeZoneSheet, closePreview, dismissSelection]);
+  }, [view, origin, selMode, closeEvidence, closeDrawer, collapseToPeek, closeZoneSheet, closePreview, dismissSelection]);
 
   // Embedded map panel is open for the whole preview except the resting
   // state (it stays mounted under the drawer, prototype keeps it open).
@@ -268,12 +351,15 @@ export function SelectionProvider({ children }) {
       item,
       origin,
       evidenceUpdate,
+      evidenceFrom,
       previewActive,
       isGhost,
       selectFromMap,
       previewItemOnMap,
       closePreview,
       expandFromPeek,
+      collapsePeek,
+      collapseToPeek,
       expandFromPill,
       closeDrawer,
       closeZoneSheet,
@@ -284,6 +370,8 @@ export function SelectionProvider({ children }) {
       getCachedDetail,
       openEvidence,
       closeEvidence,
+      history,
+      clearHistory,
     }),
     [
       selMode,
@@ -292,12 +380,15 @@ export function SelectionProvider({ children }) {
       item,
       origin,
       evidenceUpdate,
+      evidenceFrom,
       previewActive,
       isGhost,
       selectFromMap,
       previewItemOnMap,
       closePreview,
       expandFromPeek,
+      collapsePeek,
+      collapseToPeek,
       expandFromPill,
       closeDrawer,
       closeZoneSheet,
@@ -308,6 +399,8 @@ export function SelectionProvider({ children }) {
       getCachedDetail,
       openEvidence,
       closeEvidence,
+      history,
+      clearHistory,
     ],
   );
 

@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
+import { Camera, GeoJSONSource, Images, Layer, Map } from '@maplibre/maplibre-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import {
@@ -22,14 +22,26 @@ import {
 import { useSelection } from '../../context/SelectionContext';
 import { ZONE_OVERLAYS } from '../../constants';
 import { MAP_STYLES } from './mapStyles';
+import { MARKER_IMAGES, markerImageFor } from './markerImages';
 import TopBar from './components/TopBar';
 import TimeStrip from './components/TimeStrip';
 import SideControls from './components/SideControls';
 import TabBar from './components/TabBar';
+import AwayBanner from './components/AwayBanner';
 
-function severityColor(theme, sev) {
+// Web SEVERITY_SCALE radii (src/shared/constants.js) — marker size encodes
+// severity, marker color/icon encode the domain (mirrors marker-builder.js).
+const SEVERITY_RADII = [6, 8, 10, 12, 14];
+
+function severityRadius(sev) {
   const n = Math.min(Math.max(parseInt(sev, 10) || 3, 1), 5);
-  return theme[`sev${n}`];
+  return SEVERITY_RADII[n - 1];
+}
+
+// Marker PNG canvas is 256px with the visible circle at d=176 — icon-size
+// scales the image so the circle renders at 2*severityRadius logical px.
+function markerIconSize(sev) {
+  return (2 * severityRadius(sev)) / 176;
 }
 
 // Zone rows carry no category slug — match on zone_category_name (the mobile
@@ -178,7 +190,8 @@ export default function MapScreen() {
       const hasModal = stack.some((o) => o.type === 'modal');
       const selectionOnTop =
         !hasModal &&
-        (selectionView === 'drawer' ||
+        (selectionView === 'evidence' ||
+          selectionView === 'drawer' ||
           selectionView === 'zoneSheet' ||
           selectionView === 'peek');
       if (selectionOnTop && handleSelectionBack()) {
@@ -214,12 +227,14 @@ export default function MapScreen() {
           properties: {
             id: i.id,
             kind: 'incident',
-            severity: i.severity,
-            color: severityColor(theme, i.severity),
+            icon: markerImageFor(i.domain_slug),
+            color: i.domain_color || '#6b7280',
+            r: severityRadius(i.severity),
+            iconSize: markerIconSize(i.severity),
           },
         })),
     }),
-    [incidents, layerVisibility, theme],
+    [incidents, layerVisibility],
   );
 
   const zonesFC = useMemo(
@@ -281,7 +296,14 @@ export default function MapScreen() {
         {
           type: 'Feature',
           geometry,
-          properties: { id: ghostItem.id, kind: isZone ? 'zone' : 'incident' },
+          properties: {
+            id: ghostItem.id,
+            kind: isZone ? 'zone' : 'incident',
+            icon: markerImageFor(ghostItem.domain_slug),
+            color: ghostItem.domain_color || '#6b7280',
+            r: severityRadius(ghostItem.severity),
+            iconSize: markerIconSize(ghostItem.severity),
+          },
         },
       ],
     };
@@ -343,6 +365,7 @@ export default function MapScreen() {
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
         />
+        <Images images={MARKER_IMAGES} />
         <GeoJSONSource id="zones" data={zonesFC} onPress={handleZonePress}>
           <Layer
             id="zone-fill"
@@ -384,25 +407,17 @@ export default function MapScreen() {
           id="incidents"
           data={incidentsFC}
           onPress={handleIncidentPress}>
+          {/* Selection: colored glow halo + white ring (web: 2px white border
+              + domain glow box-shadow) */}
           <Layer
-            id="incident-circle"
+            id="incident-selected-glow"
             type="circle"
+            filter={selectedFilter(selectedId, selectedKind, 'incident')}
             paint={{
               'circle-color': ['get', 'color'],
-              'circle-radius': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                2,
-                3,
-                6,
-                5,
-                12,
-                8,
-              ],
-              'circle-opacity': 0.9,
-              'circle-stroke-width': 1,
-              'circle-stroke-color': theme.bgDeep,
+              'circle-radius': ['*', ['get', 'r'], 1.5],
+              'circle-blur': 1,
+              'circle-opacity': 0.7,
             }}
           />
           <Layer
@@ -411,19 +426,21 @@ export default function MapScreen() {
             filter={selectedFilter(selectedId, selectedKind, 'incident')}
             paint={{
               'circle-color': 'rgba(0,0,0,0)',
-              'circle-radius': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                2,
-                7,
-                6,
-                9,
-                12,
-                13,
-              ],
+              'circle-radius': ['+', ['get', 'r'], 2],
               'circle-stroke-width': 2,
-              'circle-stroke-color': theme.accentLight,
+              'circle-stroke-color': '#ffffff',
+            }}
+          />
+          {/* Web-style markers: domain-colored circle + glow + white icon
+              (PNGs from scripts/generate-mobile-markers.mjs); size = severity */}
+          <Layer
+            id="incident-marker"
+            type="symbol"
+            layout={{
+              'icon-image': ['get', 'icon'],
+              'icon-size': ['get', 'iconSize'],
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
             }}
           />
         </GeoJSONSource>
@@ -447,26 +464,16 @@ export default function MapScreen() {
               }}
             />
             <Layer
-              id="ghost-circle"
-              type="circle"
+              id="ghost-marker"
+              type="symbol"
               filter={['==', ['get', 'kind'], 'incident']}
-              paint={{
-                'circle-color': theme.textMuted,
-                'circle-radius': [
-                  'interpolate',
-                  ['linear'],
-                  ['zoom'],
-                  2,
-                  3,
-                  6,
-                  5,
-                  12,
-                  8,
-                ],
-                'circle-opacity': 0.5,
-                'circle-stroke-width': 1,
-                'circle-stroke-color': theme.bgDeep,
+              layout={{
+                'icon-image': ['get', 'icon'],
+                'icon-size': ['get', 'iconSize'],
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
               }}
+              paint={{ 'icon-opacity': 0.5 }}
             />
           </GeoJSONSource>
         ) : null}
@@ -475,6 +482,7 @@ export default function MapScreen() {
       {isRangeGated ? <GateHint /> : null}
       <TopBar />
       <TimeStrip />
+      <AwayBanner />
       <SideControls />
       <TabBar />
     </View>

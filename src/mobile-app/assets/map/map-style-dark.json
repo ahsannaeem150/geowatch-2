@@ -17,7 +17,7 @@
       "url": "http://10.0.2.2:8080/tiles"
     }
   },
-  "glyphs": "http://10.0.2.2:5173/fonts/{fontstack}/{range}.pbf",
+  "glyphs": "http://10.0.2.2:3100/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
       "id": "background",

@@ -41,6 +41,48 @@ export function zoneOverlayFor(name) {
   return ZONE_OVERLAYS.find((z) => z.name === name) || null;
 }
 
+// Thousands-separated km² ("44,181 km²" prototype style). Input is the
+// backend's area_sq_m string (PostGIS computes it for polygons).
+export function formatKm2(areaSqM) {
+  const km2 = parseFloat(areaSqM) / 1e6;
+  if (!Number.isFinite(km2)) {
+    return null;
+  }
+  const rounded = km2 >= 100 ? Math.round(km2) : km2 >= 10 ? km2.toFixed(1) : km2.toFixed(2);
+  return String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+export function formatKm(perimeterM) {
+  const km = parseFloat(perimeterM) / 1000;
+  if (!Number.isFinite(km)) {
+    return null;
+  }
+  const rounded = km >= 100 ? Math.round(km) : km.toFixed(1);
+  return String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// Corner count of the zone outline (excludes the closing duplicate point).
+export function zoneVertexCount(geometry) {
+  const rings =
+    geometry?.type === 'Polygon'
+      ? [geometry.coordinates?.[0]]
+      : geometry?.type === 'MultiPolygon'
+        ? geometry.coordinates.map((p) => p[0])
+        : [];
+  let count = 0;
+  rings.forEach((ring) => {
+    if (!Array.isArray(ring)) {
+      return;
+    }
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    const closed =
+      ring.length > 1 && first && last && first[0] === last[0] && first[1] === last[1];
+    count += closed ? ring.length - 1 : ring.length;
+  });
+  return count || null;
+}
+
 // Verification badge renders only when status ≠ unverified (web parity).
 export function verificationTag(theme, status) {
   switch (status) {
@@ -196,20 +238,18 @@ export function IncidentCard({ item }) {
 }
 
 // Zone info block (zone peek in preview mode + ZoneSheet body).
+// Stats follow the prototype .zn-stats: value on top, label below.
 export function ZoneInfo({ item }) {
   const { theme } = useTheme();
   if (!item) {
     return null;
   }
   const color = item.zone_category_color || theme.accentLight;
-  const overlay = zoneOverlayFor(item.zone_category_name);
   const sev = severityOf(item);
-  const areaKm2 = Number.isFinite(parseFloat(item.area_sq_m))
-    ? (parseFloat(item.area_sq_m) / 1e6).toFixed(1)
-    : null;
-  const periKm = Number.isFinite(parseFloat(item.perimeter_m))
-    ? (parseFloat(item.perimeter_m) / 1000).toFixed(1)
-    : null;
+  const verTag = verificationTag(theme, item.verification_status);
+  const areaKm2 = formatKm2(item.area_sq_m);
+  const periKm = formatKm(item.perimeter_m);
+  const vertices = zoneVertexCount(item.geometry);
 
   return (
     <View style={styles.card}>
@@ -222,6 +262,7 @@ export function ZoneInfo({ item }) {
         {item.status === 'active' ? (
           <Tag color={theme.success} label="Active" dot />
         ) : null}
+        {verTag ? <Tag color={verTag.color} label={verTag.label} /> : null}
         <Tag
           color={theme[`sev${sev}`]}
           label={`S${sev} | ${SEVERITIES[sev - 1]?.name || 'Moderate'}`}
@@ -257,6 +298,9 @@ export function ZoneInfo({ item }) {
           },
         ]}>
         <View style={styles.stat}>
+          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
+            {areaKm2 ? `${areaKm2} km²` : '—'}
+          </Text>
           <Text
             style={[
               styles.statLabel,
@@ -264,11 +308,11 @@ export function ZoneInfo({ item }) {
             ]}>
             AREA
           </Text>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
-            {areaKm2 ? `${areaKm2} km²` : '—'}
-          </Text>
         </View>
         <View style={styles.stat}>
+          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
+            {periKm ? `${periKm} km` : '—'}
+          </Text>
           <Text
             style={[
               styles.statLabel,
@@ -276,20 +320,17 @@ export function ZoneInfo({ item }) {
             ]}>
             PERIMETER
           </Text>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
-            {periKm ? `${periKm} km` : '—'}
-          </Text>
         </View>
         <View style={styles.stat}>
+          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
+            {vertices ?? '—'}
+          </Text>
           <Text
             style={[
               styles.statLabel,
               { color: theme.textMuted, fontFamily: theme.fontMono },
             ]}>
-            CATEGORY
-          </Text>
-          <Text style={[styles.statValue, { color }]}>
-            {overlay?.code?.toUpperCase() || '—'}
+            VERTICES
           </Text>
         </View>
       </View>

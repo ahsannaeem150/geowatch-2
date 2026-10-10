@@ -167,6 +167,46 @@ npm run dev:user-web
 npm run dev:superadmin-web
 ```
 
+### 6. Mobile App (Physical Android Device over USB)
+
+The mobile app (`src/mobile-app/`) runs against just two services: the backend
+(`:3100` — API plus map font glyphs, served statically from `assets/fonts`) and
+Martin (`:8080` — tiles). No web frontend is needed. Two helper scripts cover
+the phone workflow, mirroring the web `start-/stop-intelmap24.sh` style:
+
+```bash
+# Phone (re)plugged over USB → always run this first (sets adb reverse ports)
+./scripts/start-mobile-intelmap24.sh connect
+
+# Mobile-only work: start just backend + Martin (all web apps stay stopped)
+# and stream their logs — Ctrl+C detaches, services keep running
+./scripts/start-mobile-intelmap24.sh services
+
+# Terminal 2: Metro bundler (foreground — logs + `r` reload / `j` DevTools)
+./scripts/start-mobile-intelmap24.sh metro
+
+# Phone's JS logs in another terminal (optional)
+./scripts/start-mobile-intelmap24.sh logs
+
+# Native rebuild needed (new dependency/permission): build + push the APK,
+# then install it on the phone via Files → Download → intelmap24-debug.apk
+./scripts/start-mobile-intelmap24.sh build
+
+# One shot: connect + services (then start metro yourself in terminal 2)
+./scripts/start-mobile-intelmap24.sh all
+
+# Stop individual mobile pieces (or everything mobile at once)
+./scripts/stop-mobile-intelmap24.sh metro|services|connect|all
+
+# Stop ABSOLUTELY everything — mobile stack + backend + martin + all 3 webs
+./scripts/stop-all-intelmap24.sh
+```
+
+Notes: USB debugging + "Install via USB" must be enabled on the phone; the
+debug server host is `127.0.0.1:8081` (set once via the in-app dev menu).
+Running everything (mobile + all web apps)? Use `./scripts/start-intelmap24.sh`
+as usual, plus `connect` and `metro` from the mobile start script.
+
 ### 6. Build Commands
 
 ```bash

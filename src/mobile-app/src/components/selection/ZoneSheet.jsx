@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -12,21 +12,63 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { useOverlay } from '../../context/OverlayContext';
 import { useSelection } from '../../context/SelectionContext';
-import { ZoneInfo } from './PreviewCard';
+import { ZoneInfo, formatItemDate } from './PreviewCard';
+import { TimelineNode } from './IncidentDrawer';
 
 const SWIPE_CLOSE_DISTANCE = 60;
 
-// Zone sheet: 62% bottom sheet for polygon selections (any mode). Grabber
-// swipe-down or ✕ → pill (plain) or peek+emb (preview), via closeZoneSheet().
+// Zone sheet: 62% bottom sheet for polygon selections (any mode). Body is
+// real backend data — stats/window render from list data instantly, the
+// Restriction Timeline fetches GET /incidents/:id on open (SelectionContext
+// cache → instant reopen, same pattern as IncidentDrawer). Grabber swipe-down
+// or ✕ → pill (plain) or peek+emb (preview), via closeZoneSheet().
 export default function ZoneSheet() {
   const { theme } = useTheme();
-  const { view, item, closeZoneSheet } = useSelection();
+  const { showToast } = useOverlay();
+  const {
+    view,
+    item,
+    closeZoneSheet,
+    openEvidence,
+    fetchDetail,
+    getCachedDetail,
+  } = useSelection();
   const { height: windowHeight } = useWindowDimensions();
   const height = Math.round(windowHeight * 0.62);
   const visible = view === 'zoneSheet' && !!item;
   const enter = useRef(new Animated.Value(0)).current;
   const drag = useRef(new Animated.Value(0)).current;
+
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(
+    (id) => {
+      setLoading(true);
+      setError(false);
+      fetchDetail(id)
+        .then((d) => setDetail(d))
+        .catch(() => {
+          setError(true);
+          showToast('Failed to load zone details');
+        })
+        .finally(() => setLoading(false));
+    },
+    [fetchDetail, showToast],
+  );
+
+  useEffect(() => {
+    if (visible && item?.id) {
+      const cached = getCachedDetail(item.id);
+      setDetail(cached);
+      if (!cached) {
+        load(item.id);
+      }
+    }
+  }, [visible, item?.id, getCachedDetail, load]);
 
   useEffect(() => {
     if (visible) {
@@ -80,6 +122,16 @@ export default function ZoneSheet() {
     drag.interpolate({ inputRange: [0, 1], outputRange: [0, height] }),
   );
 
+  // Detail payload wins over list data once fetched.
+  const zone = detail?.incident ? { ...item, ...detail.incident } : item;
+  const endDate = formatItemDate(zone.end_date);
+  const timeline = [...(detail?.timeline || [])].sort(
+    (a, b) => new Date(a.update_date) - new Date(b.update_date),
+  );
+  const declared = timeline.find((u) => u.type === 'report') || timeline[0];
+  const updates = timeline.filter((u) => u !== declared);
+  const skeletonBlock = [styles.skBlock, { backgroundColor: theme.bgElevated }];
+
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <Animated.View
@@ -119,23 +171,87 @@ export default function ZoneSheet() {
           </View>
         </View>
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-          <ZoneInfo item={item} />
+          <ZoneInfo item={zone} />
           <View
             style={[
-              styles.stub,
+              styles.window,
               {
                 backgroundColor: theme.bgElevated,
                 borderColor: theme.borderSubtle,
               },
             ]}>
-            <Text
-              style={[
-                styles.stubText,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              FULL ZONE DETAILS ARRIVE IN A LATER PROMPT
-            </Text>
+            <View
+              style={[styles.windowDot, { backgroundColor: theme.success }]}
+            />
+            <View style={styles.windowBody}>
+              <Text style={[styles.windowTitle, { color: theme.textPrimary }]}>
+                {endDate ? `Until ${endDate}` : 'Indefinite'}
+              </Text>
+              <Text
+                style={[
+                  styles.windowSub,
+                  { color: theme.textMuted, fontFamily: theme.fontMono },
+                ]}>
+                {endDate
+                  ? 'Scheduled expiry'
+                  : 'Until further notice · no expiry'}
+              </Text>
+            </View>
           </View>
+
+          <Text
+            style={[
+              styles.secLabel,
+              { color: theme.textMuted, fontFamily: theme.fontMono },
+            ]}>
+            RESTRICTION TIMELINE
+          </Text>
+
+          {loading && !detail ? (
+            <View style={styles.skWrap}>
+              <View style={[...skeletonBlock, styles.skNode]} />
+              <View style={[...skeletonBlock, styles.skNode]} />
+            </View>
+          ) : null}
+
+          {error && !detail ? (
+            <View
+              style={[
+                styles.errBox,
+                {
+                  backgroundColor: theme.bgElevated,
+                  borderColor: theme.borderSubtle,
+                },
+              ]}>
+              <Text style={[styles.errText, { color: theme.textSecondary }]}>
+                Could not load the restriction timeline.
+              </Text>
+              <Pressable
+                onPress={() => load(item.id)}
+                style={[styles.retryBtn, { backgroundColor: theme.accent }]}>
+                <Text style={styles.retryText}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {declared ? (
+            <View style={styles.timeline}>
+              <TimelineNode
+                update={declared}
+                label="DECLARED"
+                onInspect={() => openEvidence(declared)}
+              />
+              {updates.map((u) => (
+                <TimelineNode
+                  key={u.id}
+                  update={u}
+                  label={`UPDATE ${formatItemDate(u.update_date)}`}
+                  onInspect={() => openEvidence(u)}
+                />
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.tailPad} />
         </ScrollView>
       </Animated.View>
     </View>
@@ -184,15 +300,78 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
-  stub: {
+  window: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 6,
     borderWidth: 1,
     borderRadius: 10,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  stubText: {
+  windowDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  windowBody: {
+    flex: 1,
+    gap: 2,
+  },
+  windowTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  windowSub: {
+    fontSize: 10.5,
+  },
+  secLabel: {
     fontSize: 9.5,
-    letterSpacing: 1.2,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  timeline: {
+    paddingLeft: 22,
+    paddingRight: 16,
+  },
+  skWrap: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  skBlock: {
+    borderRadius: 8,
+  },
+  skNode: {
+    height: 110,
+  },
+  errBox: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  errText: {
+    fontSize: 12.5,
+  },
+  retryBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 9,
+  },
+  retryText: {
+    color: '#f2f2f2',
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  tailPad: {
+    height: 28,
   },
 });

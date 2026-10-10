@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Activity, Bell, Eye, Map as MapIcon, Search } from 'lucide-react-native';
 import { useTheme } from '../../../context/ThemeContext';
 import { useOverlay } from '../../../context/OverlayContext';
+import { useLive } from '../../../context/LiveContext';
 
 // Tab → overlay it opens; used both for press handling and for computing
 // which tab is highlighted (the tab whose overlay is topmost).
@@ -12,13 +13,17 @@ const TABS = [
   { key: 'search', label: 'Search', Icon: Search, overlay: { id: 'powerSearch', type: 'fullscreen' } },
   { key: 'viewport', label: 'Incidents', Icon: Eye, overlay: { id: 'incidentsDirectory', type: 'fullscreen' } },
   { key: 'activity', label: 'Activity', Icon: Activity, overlay: { id: 'activity', type: 'sheet' } },
-  { key: 'alerts', label: 'Alerts', Icon: Bell, overlay: { id: 'alerts', type: 'sheet' }, badge: '9+' },
+  { key: 'alerts', label: 'Alerts', Icon: Bell, overlay: { id: 'alerts', type: 'sheet' } },
 ];
 
 export default function TabBar() {
   const { theme } = useTheme();
   const { openOverlay, closeAll, stack } = useOverlay();
+  const { unreadCount } = useLive();
   const insets = useSafeAreaInsets();
+
+  const badge =
+    unreadCount > 0 ? (unreadCount > 9 ? '9+' : String(unreadCount)) : null;
 
   const topId = stack.length ? stack[stack.length - 1].id : null;
 
@@ -50,6 +55,7 @@ export default function TabBar() {
       {TABS.map((tab) => {
         const active = isActive(tab);
         const color = active ? theme.accentLight : theme.textMuted;
+        const tabBadge = tab.key === 'alerts' ? badge : null;
         return (
           <Pressable
             key={tab.key}
@@ -65,7 +71,7 @@ export default function TabBar() {
             ) : null}
             <View>
               <tab.Icon size={22} color={color} strokeWidth={1.8} />
-              {tab.badge ? (
+              {tabBadge ? (
                 <View
                   style={[
                     styles.badge,
@@ -73,7 +79,7 @@ export default function TabBar() {
                   ]}>
                   <Text
                     style={[styles.badgeText, { fontFamily: theme.fontMono }]}>
-                    {tab.badge}
+                    {tabBadge}
                   </Text>
                 </View>
               ) : null}
