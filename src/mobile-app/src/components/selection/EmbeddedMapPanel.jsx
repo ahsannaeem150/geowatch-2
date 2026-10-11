@@ -49,11 +49,14 @@ function zoneBBox(geometry) {
 export default function EmbeddedMapPanel() {
   const { mode, theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { previewActive, item, closePreview } = useSelection();
+  const { previewActive, item, closePreview, origin } = useSelection();
   const { selectedKind } = useMap();
   const { height: windowHeight } = useWindowDimensions();
   const height = Math.round(windowHeight * 0.54);
-  const visible = previewActive && !!item;
+  // Power Search previews keep their own floating search card visible — the
+  // embedded panel (a map-within-the-map) is redundant there and would cover
+  // the PS controls, so it stays out of that flow.
+  const visible = previewActive && !!item && origin?.id !== 'powerSearch';
   const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

@@ -484,7 +484,7 @@ export function PowerSearchBody({ overlay }) {
 
   const close = () => closeOverlay(overlay.id);
   const openPreview = (kind, item) =>
-    previewItemOnMap(kind, item, { type: 'fullscreen' }, 'power-search');
+    previewItemOnMap(kind, item, { type: 'fullscreen', id: 'powerSearch' }, 'power-search');
 
   return (
     <View style={styles.root} pointerEvents="box-none">
@@ -658,10 +658,11 @@ export function PowerSearchBody({ overlay }) {
 }
 
 // ─── Multi-detent results sheet ───
-// Two detents: collapsed (grabber + "N RESULTS" + sort) and full (~top of
-// screen). Grabber drag uses the PeekSheet model: extractOffset relative
-// dragging for zero-latency finger tracking, and the release spring inherits
-// the fling velocity so motion never visibly stops and re-accelerates.
+// Three detents: collapsed (grabber + "N RESULTS" + sort), half (~52%) and
+// full (just below the floating search card). Grabber drag uses the
+// PeekSheet model: extractOffset relative dragging for zero-latency finger
+// tracking, and the release spring inherits the fling velocity so motion
+// never visibly stops and re-accelerates.
 function ResultsSheet({
   total,
   loading,
@@ -683,22 +684,15 @@ function ResultsSheet({
   // (insets.bottom); the sheet fills the remaining body minus the tab bar.
   const sheetH = Math.round(windowHeight - insets.top - 8 - insets.bottom - TAB_CLEAR);
   const collapsedTy = sheetH - COLLAPSED_VISIBLE;
+  const halfTy = Math.round(sheetH * 0.52);
 
-  const [level, setLevel] = useState('collapsed');
+  const [level, setLevel] = useState('collapsed'); // 'collapsed'|'half'|'full'
   const [sortOpen, setSortOpen] = useState(false);
   const pos = useRef(new Animated.Value(sheetH)).current; // mounts hidden
   const startTy = useRef(collapsedTy);
-  const currentTy = useRef(sheetH);
 
   const live = useRef({});
-  live.current = { level, collapsedTy };
-
-  useEffect(() => {
-    const id = pos.addListener(({ value }) => {
-      currentTy.current = value;
-    });
-    return () => pos.removeListener(id);
-  }, [pos]);
+  live.current = { level, collapsedTy, halfTy };
 
   // Slide-in on mount.
   useEffect(() => {
@@ -715,7 +709,10 @@ function ResultsSheet({
   // Keyboard open/close resizes the window (adjustResize): re-snap to the
   // current level's detent so the sheet never strands mid-screen.
   useEffect(() => {
-    springTo(live.current.level === 'full' ? FULL_TY : collapsedTy);
+    const s = live.current;
+    springTo(
+      s.level === 'full' ? FULL_TY : s.level === 'half' ? s.halfTy : collapsedTy,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsedTy]);
 
@@ -730,14 +727,36 @@ function ResultsSheet({
       useNativeDriver: true,
     }).start();
 
+  // Whole-sheet drag (Google Maps style): the pan responder CAPTURES vertical
+  // gestures before the results ScrollView can claim them — drag up anywhere
+  // raises the sheet (until full), drag down lowers it only when the list is
+  // scrolled to its top, otherwise the list scrolls. This is what makes the
+  // sheet feel 1:1 responsive instead of "stuck" behind the list.
+  const listScrollY = useRef(0);
+  // Our own velocity tracker: g.vy from a CAPTURE-claimed responder is
+  // unreliable on Android (measured from the claim point, often ~0 — that was
+  // the "sheet stops dead on release, then re-accelerates" hitch). Sampling
+  // move positions ourselves gives the true finger velocity at release, so
+  // the spring inherits real momentum like the incident PeekSheet.
+  const moveSamples = useRef([]);
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) =>
-        Math.abs(g.dy) > 3 && Math.abs(g.dy) > Math.abs(g.dx),
+      onMoveShouldSetPanResponderCapture: (_e, g) => {
+        if (Math.abs(g.dy) <= 3 || Math.abs(g.dy) <= Math.abs(g.dx)) {
+          return false;
+        }
+        const s = live.current;
+        if (g.dy < 0) {
+          return s.level !== 'full'; // up: raise unless already full
+        }
+        return listScrollY.current <= 0 && s.level !== 'collapsed';
+      },
+      onMoveShouldSetPanResponder: () => false,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         pos.stopAnimation();
-        startTy.current = currentTy.current;
+        startTy.current = pos.__getValue(); // listener refs go stale across native-driver cycles; __getValue is exact
+        moveSamples.current = [{ t: Date.now(), y: startTy.current }];
         pos.extractOffset();
       },
       onPanResponderMove: (_e, g) => {
@@ -745,46 +764,92 @@ function ResultsSheet({
         const clamped =
           abs < FULL_TY ? FULL_TY + (abs - FULL_TY) * 0.3 : Math.min(abs, live.current.collapsedTy);
         pos.setValue(clamped - startTy.current);
+        const samples = moveSamples.current;
+        samples.push({ t: Date.now(), y: clamped });
+        if (samples.length > 8) samples.shift();
       },
       onPanResponderRelease: (_e, g) => {
         const s = live.current;
         pos.flattenOffset();
-        const restTy = s.level === 'full' ? FULL_TY : s.collapsedTy;
+        const restTy =
+          s.level === 'full'
+            ? FULL_TY
+            : s.level === 'half'
+              ? s.halfTy
+              : s.collapsedTy;
+        // Release velocity from our own samples (px/ms): slope across the
+        // last ~100ms of finger movement.
+        const samples = moveSamples.current;
+        const last = samples[samples.length - 1];
+        let first = samples[0];
+        for (let i = samples.length - 1; i >= 0; i -= 1) {
+          if (last.t - samples[i].t > 100) break;
+          first = samples[i];
+        }
+        let vyMsRaw = g.vy;
+        if (last && first && last.t > first.t) {
+          vyMsRaw = (last.y - first.y) / (last.t - first.t);
+        }
+        moveSamples.current = [];
         // A plain tap / tiny jitter never changes the detent.
-        if (Math.abs(g.dy) < 12 && Math.abs(g.vy) < 0.75) {
+        if (Math.abs(g.dy) < 12 && Math.abs(vyMsRaw) < 0.75) {
           springTo(restTy);
           return;
         }
-        const vyMs = Math.max(-3.5, Math.min(3.5, g.vy));
+        const vyMs = Math.max(-3.5, Math.min(3.5, vyMsRaw));
         const vy = vyMs * 1000; // RN springs take px/s
         const endTy = Math.max(FULL_TY, Math.min(startTy.current + g.dy, s.collapsedTy));
         const projected = endTy + vyMs * 220;
         const flickUp = vyMs < -1.0 && g.dy < -10;
         const flickDown = vyMs > 1.0 && g.dy > 10;
-        let target = restTy;
-        let nextLevel = s.level;
-        if (flickUp || projected < s.collapsedTy * 0.55) {
-          target = FULL_TY;
-          nextLevel = 'full';
-        } else if (flickDown || projected > s.collapsedTy * 0.6) {
-          target = s.collapsedTy;
-          nextLevel = 'collapsed';
+        // Detents ascending by translateY: full < half < collapsed. Mirrors
+        // the selection PeekSheet: a clear flick UP flies straight to full
+        // (never parks at half), a flick DOWN steps one detent, and a slow
+        // drag settles at the detent nearest the projected resting point.
+        const detents = [
+          { lv: 'full', ty: FULL_TY },
+          { lv: 'half', ty: s.halfTy },
+          { lv: 'collapsed', ty: s.collapsedTy },
+        ];
+        let target;
+        if (flickUp) {
+          target = detents[0];
+        } else if (flickDown) {
+          const idx = detents.findIndex((d) => d.lv === s.level);
+          target = detents[Math.min(idx + 1, detents.length - 1)];
+        } else {
+          target = detents.reduce((best, d) =>
+            Math.abs(d.ty - projected) < Math.abs(best.ty - projected)
+              ? d
+              : best,
+          );
         }
-        if (nextLevel !== s.level) setLevel(nextLevel);
-        springTo(target, vy);
+        if (target.lv !== s.level) setLevel(target.lv);
+        springTo(target.ty, vy);
       },
       onPanResponderTerminate: () => {
         const s = live.current;
         pos.flattenOffset();
-        springTo(s.level === 'full' ? FULL_TY : s.collapsedTy);
+        moveSamples.current = [];
+        springTo(
+          s.level === 'full'
+            ? FULL_TY
+            : s.level === 'half'
+              ? s.halfTy
+              : s.collapsedTy,
+        );
       },
     }),
   ).current;
 
+  // Tap on the header walks the detents upward, then back to collapsed.
   const toggleLevel = () => {
-    const next = level === 'full' ? 'collapsed' : 'full';
+    const next =
+      level === 'collapsed' ? 'half' : level === 'half' ? 'full' : 'collapsed';
     setLevel(next);
-    springTo(next === 'full' ? FULL_TY : collapsedTy);
+    springTo(
+      next === 'full' ? FULL_TY : next === 'half' ? halfTy : collapsedTy,
+    );
     if (next === 'collapsed') setSortOpen(false);
   };
 
@@ -793,6 +858,7 @@ function ResultsSheet({
   return (
     <View style={styles.sheetWrap} pointerEvents="box-none">
       <Animated.View
+        {...panResponder.panHandlers}
         style={[
           styles.sheet,
           {
@@ -802,7 +868,7 @@ function ResultsSheet({
             transform: [{ translateY: pos }],
           },
         ]}>
-        <View {...panResponder.panHandlers} style={styles.sheetHead}>
+        <View style={styles.sheetHead}>
           <View style={styles.grabberRow}>
             <View
               style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
@@ -951,7 +1017,12 @@ function ResultsSheet({
             <ScrollView
               style={styles.stripList}
               contentContainerStyle={styles.stripPad}
-              keyboardShouldPersistTaps="handled">
+              keyboardShouldPersistTaps="handled"
+              scrollEnabled={level === 'full'}
+              scrollEventThrottle={16}
+              onScroll={(e) => {
+                listScrollY.current = e.nativeEvent.contentOffset.y;
+              }}>
               {total === 0 ? (
                 <View style={styles.stateBox}>
                   <Text style={[styles.stateText, { color: theme.textMuted }]}>
@@ -1028,6 +1099,7 @@ function ResultsSheet({
 // ─── Filters drawer (prototype .ps-filters + .psf-acc accordion) ───
 function PsFilterDrawer(props) {
   const { theme, close, filterCount } = props;
+  const insets = useSafeAreaInsets();
   const slide = useRef(new Animated.Value(0)).current;
   // Which date field's calendar is open inside the Date Range accordion
   // (null = neither; tapping a field opens its picker — no auto-chaining).
@@ -1060,6 +1132,8 @@ function PsFilterDrawer(props) {
             backgroundColor: theme.bgSurface,
             borderRightColor: theme.borderSubtle,
             transform: [{ translateX }],
+            // Start below the transparent status bar, not underneath it.
+            top: insets.top,
           },
         ]}>
         <View

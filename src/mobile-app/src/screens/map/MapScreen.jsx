@@ -255,6 +255,8 @@ export default function MapScreen() {
     return () => sub.remove();
   }, [topOverlay, closeOverlay, handleSelectionBack, stack, selectionView]);
 
+  const psOpen = stack.some((o) => o.id === 'powerSearch');
+
   // Client-side layer filters: fetch everything permitted, hide by
   // domain/zone-category per the Layers sheet toggles.
   const incidentsFC = useMemo(
@@ -381,7 +383,7 @@ export default function MapScreen() {
       const list = kind === 'zone' ? searchOverlay.zones : searchOverlay.incidents;
       const item = list.find((i) => i.id === id);
       if (item) {
-        previewItemOnMap(kind, item, { type: 'fullscreen' }, 'power-search');
+        previewItemOnMap(kind, item, { type: 'fullscreen', id: 'powerSearch' }, 'power-search');
       }
     },
     [searchOverlay, previewItemOnMap],
@@ -491,12 +493,18 @@ export default function MapScreen() {
           maxZoom={MAX_ZOOM}
         />
         <Images images={MARKER_IMAGES} />
-        <ZoneLayers
-          zonesFC={zonesFC}
-          selectedId={selectedId}
-          selectedKind={selectedKind}
-          onZonePress={handleZonePress}
-        />
+        {/* While Power Search publishes its result overlay, the base
+            date-range layers step aside — only PS results render, so taps
+            can never resolve to a same-spot base feature (wrong incident). */}
+        {searchOverlay ? null : (
+          <ZoneLayers
+            zonesFC={zonesFC}
+            selectedId={selectedId}
+            selectedKind={selectedKind}
+            onZonePress={handleZonePress}
+          />
+        )}
+        {searchOverlay ? null : (
         <GeoJSONSource
           id="incidents"
           data={incidentsFC}
@@ -538,6 +546,7 @@ export default function MapScreen() {
             }}
           />
         </GeoJSONSource>
+        )}
         {psIncidentsFC || psZonesFC ? (
           <>
             {psZonesFC ? (
@@ -637,9 +646,15 @@ export default function MapScreen() {
       </Map>
       {loading ? <LoadingPill /> : null}
       {isRangeGated ? <GateHint /> : null}
-      <TopBar />
-      <TimeStrip />
-      <AwayBanner />
+      {/* Power Search replaces the home chrome (its own floating search card
+          takes over); the tab bar stays via OverlayHost's hoisted copy. */}
+      {psOpen ? null : (
+        <>
+          <TopBar />
+          <TimeStrip />
+          <AwayBanner />
+        </>
+      )}
       <SideControls />
       <TabBar />
     </View>

@@ -62,9 +62,15 @@ export default function PeekSheet() {
   const [level, setLevel] = useState('half');
   const pos = useRef(new Animated.Value(hiddenTy)).current;
   const startTy = useRef(halfTy);
-  const currentTy = useRef(halfTy);
   const pendingVy = useRef(0);
   const wantOpen = useRef(true);
+  // Target of the spring launched by the gesture release, if any. When the
+  // follow-up context update re-runs the open/detent effect with the SAME
+  // target, restarting the spring there would visibly re-accelerate the sheet
+  // (the effect can fire hundreds of ms later on heavy screens like Power
+  // Search) — so the effect skips the duplicate and lets the in-flight
+  // spring finish.
+  const launchedTy = useRef(null);
 
   const targetTy =
     view === 'drawer'
@@ -90,16 +96,6 @@ export default function PeekSheet() {
     closeEvidence,
   };
 
-  // Track the live translateY (value + offset) so a new drag always starts
-  // from the sheet's actual on-screen position. With a listener attached the
-  // native driver forwards its updates to JS, so this stays accurate.
-  useEffect(() => {
-    const id = pos.addListener(({ value }) => {
-      currentTy.current = value;
-    });
-    return () => pos.removeListener(id);
-  }, [pos]);
-
   // Open / detent-change / close animations. If the change came from a
   // fling release, the spring inherits the finger's release velocity
   // (pendingVy) so the sheet never visibly "stops then re-accelerates".
@@ -115,6 +111,13 @@ export default function PeekSheet() {
       // effect and the sheet re-enters instead of disappearing for good.
       setMounted(true);
       setLevel(targetTy === 0 ? 'full' : 'half');
+      if (launchedTy.current === targetTy) {
+        // The gesture release already started this exact spring — don't
+        // restart it late (double-push glitch).
+        launchedTy.current = null;
+        pendingVy.current = 0;
+        return;
+      }
       Animated.spring(pos, {
         toValue: targetTy,
         damping: 22,
@@ -127,6 +130,11 @@ export default function PeekSheet() {
       pendingVy.current = 0;
     } else if (mounted) {
       wantOpen.current = false;
+      if (launchedTy.current === hiddenTy) {
+        launchedTy.current = null;
+        pendingVy.current = 0;
+        return;
+      }
       Animated.spring(pos, {
         toValue: hiddenTy,
         damping: 26,
@@ -170,7 +178,7 @@ export default function PeekSheet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inEvidence, bodyAnim]);
 
-  const springTo = (ty, velocity = 0) =>
+  const springTo = (ty, velocity = 0, onDone) =>
     Animated.spring(pos, {
       toValue: ty,
       damping: 22,
@@ -179,7 +187,9 @@ export default function PeekSheet() {
       velocity,
       overshootClamping: true,
       useNativeDriver: true,
-    }).start();
+    }).start(({ finished }) => {
+      if (finished && onDone) onDone();
+    });
 
   const panResponder = useRef(
     PanResponder.create({
@@ -191,8 +201,11 @@ export default function PeekSheet() {
         // was the ~1s response delay), then switch to RELATIVE dragging:
         // extractOffset folds the current on-screen position into the offset
         // so setValue(dy) tracks the finger 1:1 with zero bridge latency.
+        // __getValue() (NOT a listener-synced ref) is the source of truth:
+        // native-driver listener forwarding silently drops updates across a
+        // dismiss/reopen cycle, which used to freeze down-drags from full.
         pos.stopAnimation();
-        startTy.current = currentTy.current;
+        startTy.current = pos.__getValue();
         pendingVy.current = 0;
         pos.extractOffset();
       },
@@ -264,7 +277,18 @@ export default function PeekSheet() {
           after = s.expandFromPeek;
         }
         pendingVy.current = vy;
-        springTo(target, vy);
+        launchedTy.current = target;
+        // Dismiss: the effect skips its duplicate spring, so the unmount must
+        // ride on THIS spring's completion instead.
+        springTo(
+          target,
+          vy,
+          target === s.hiddenTy
+            ? () => {
+                if (!wantOpen.current) setMounted(false);
+              }
+            : undefined,
+        );
         if (after) {
           after();
         }
