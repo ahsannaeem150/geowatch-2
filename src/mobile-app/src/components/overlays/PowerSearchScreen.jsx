@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import {
   Animated,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -42,6 +41,7 @@ import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { useAuth } from '../../context/AuthContext';
+import useSheetGesture from '../../hooks/useSheetGesture';
 import {
   searchIncidents,
   searchZones,
@@ -689,10 +689,68 @@ function ResultsSheet({
   const [level, setLevel] = useState('collapsed'); // 'collapsed'|'half'|'full'
   const [sortOpen, setSortOpen] = useState(false);
   const pos = useRef(new Animated.Value(sheetH)).current; // mounts hidden
-  const startTy = useRef(collapsedTy);
 
   const live = useRef({});
   live.current = { level, collapsedTy, halfTy };
+
+  // Whole-sheet drag (Google Maps style), sharing the map PeekSheet's gesture
+  // engine (src/hooks/useSheetGesture.js) so this sheet drags/flicks/settles
+  // identically. Capture mode: the responder CAPTURES vertical gestures
+  // before the results ScrollView can claim them — drag up anywhere raises
+  // the sheet (until full), drag down lowers it only when the list is
+  // scrolled to its top, otherwise the list scrolls.
+  const listScrollY = useRef(0);
+  const { panResponder, springTo } = useSheetGesture({
+    pos,
+    mode: 'capture',
+    canClaim: (g) => {
+      const s = live.current;
+      if (g.dy < 0) {
+        return s.level !== 'full'; // up: raise unless already full
+      }
+      return listScrollY.current <= 0 && s.level !== 'collapsed';
+    },
+    getClamp: () => ({ top: FULL_TY, bottom: live.current.collapsedTy }),
+    getRestTy: () => {
+      const s = live.current;
+      return s.level === 'full'
+        ? FULL_TY
+        : s.level === 'half'
+          ? s.halfTy
+          : s.collapsedTy;
+    },
+    chooseTarget: ({ dy, vyMs, projected }) => {
+      const s = live.current;
+      // Detents ascending by translateY: full < half < collapsed. Mirrors
+      // the selection PeekSheet: a clear flick UP flies straight to full
+      // (never parks at half), a flick DOWN steps one detent, and a slow
+      // drag settles at the detent nearest the projected resting point.
+      const detents = [
+        { lv: 'full', ty: FULL_TY },
+        { lv: 'half', ty: s.halfTy },
+        { lv: 'collapsed', ty: s.collapsedTy },
+      ];
+      let target;
+      if (vyMs < -1.0 && dy < -10) {
+        target = detents[0];
+      } else if (vyMs > 1.0 && dy > 10) {
+        const idx = detents.findIndex((d) => d.lv === s.level);
+        target = detents[Math.min(idx + 1, detents.length - 1)];
+      } else {
+        target = detents.reduce((best, d) =>
+          Math.abs(d.ty - projected) < Math.abs(best.ty - projected)
+            ? d
+            : best,
+        );
+      }
+      return {
+        ty: target.ty,
+        after: () => {
+          if (target.lv !== s.level) setLevel(target.lv);
+        },
+      };
+    },
+  });
 
   // Slide-in on mount.
   useEffect(() => {
@@ -715,132 +773,6 @@ function ResultsSheet({
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsedTy]);
-
-  const springTo = (ty, velocity = 0) =>
-    Animated.spring(pos, {
-      toValue: ty,
-      damping: 22,
-      stiffness: 260,
-      mass: 0.9,
-      velocity,
-      overshootClamping: true,
-      useNativeDriver: true,
-    }).start();
-
-  // Whole-sheet drag (Google Maps style): the pan responder CAPTURES vertical
-  // gestures before the results ScrollView can claim them — drag up anywhere
-  // raises the sheet (until full), drag down lowers it only when the list is
-  // scrolled to its top, otherwise the list scrolls. This is what makes the
-  // sheet feel 1:1 responsive instead of "stuck" behind the list.
-  const listScrollY = useRef(0);
-  // Our own velocity tracker: g.vy from a CAPTURE-claimed responder is
-  // unreliable on Android (measured from the claim point, often ~0 — that was
-  // the "sheet stops dead on release, then re-accelerates" hitch). Sampling
-  // move positions ourselves gives the true finger velocity at release, so
-  // the spring inherits real momentum like the incident PeekSheet.
-  const moveSamples = useRef([]);
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_e, g) => {
-        if (Math.abs(g.dy) <= 3 || Math.abs(g.dy) <= Math.abs(g.dx)) {
-          return false;
-        }
-        const s = live.current;
-        if (g.dy < 0) {
-          return s.level !== 'full'; // up: raise unless already full
-        }
-        return listScrollY.current <= 0 && s.level !== 'collapsed';
-      },
-      onMoveShouldSetPanResponder: () => false,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        pos.stopAnimation();
-        startTy.current = pos.__getValue(); // listener refs go stale across native-driver cycles; __getValue is exact
-        moveSamples.current = [{ t: Date.now(), y: startTy.current }];
-        pos.extractOffset();
-      },
-      onPanResponderMove: (_e, g) => {
-        const abs = startTy.current + g.dy;
-        const clamped =
-          abs < FULL_TY ? FULL_TY + (abs - FULL_TY) * 0.3 : Math.min(abs, live.current.collapsedTy);
-        pos.setValue(clamped - startTy.current);
-        const samples = moveSamples.current;
-        samples.push({ t: Date.now(), y: clamped });
-        if (samples.length > 8) samples.shift();
-      },
-      onPanResponderRelease: (_e, g) => {
-        const s = live.current;
-        pos.flattenOffset();
-        const restTy =
-          s.level === 'full'
-            ? FULL_TY
-            : s.level === 'half'
-              ? s.halfTy
-              : s.collapsedTy;
-        // Release velocity from our own samples (px/ms): slope across the
-        // last ~100ms of finger movement.
-        const samples = moveSamples.current;
-        const last = samples[samples.length - 1];
-        let first = samples[0];
-        for (let i = samples.length - 1; i >= 0; i -= 1) {
-          if (last.t - samples[i].t > 100) break;
-          first = samples[i];
-        }
-        let vyMsRaw = g.vy;
-        if (last && first && last.t > first.t) {
-          vyMsRaw = (last.y - first.y) / (last.t - first.t);
-        }
-        moveSamples.current = [];
-        // A plain tap / tiny jitter never changes the detent.
-        if (Math.abs(g.dy) < 12 && Math.abs(vyMsRaw) < 0.75) {
-          springTo(restTy);
-          return;
-        }
-        const vyMs = Math.max(-3.5, Math.min(3.5, vyMsRaw));
-        const vy = vyMs * 1000; // RN springs take px/s
-        const endTy = Math.max(FULL_TY, Math.min(startTy.current + g.dy, s.collapsedTy));
-        const projected = endTy + vyMs * 220;
-        const flickUp = vyMs < -1.0 && g.dy < -10;
-        const flickDown = vyMs > 1.0 && g.dy > 10;
-        // Detents ascending by translateY: full < half < collapsed. Mirrors
-        // the selection PeekSheet: a clear flick UP flies straight to full
-        // (never parks at half), a flick DOWN steps one detent, and a slow
-        // drag settles at the detent nearest the projected resting point.
-        const detents = [
-          { lv: 'full', ty: FULL_TY },
-          { lv: 'half', ty: s.halfTy },
-          { lv: 'collapsed', ty: s.collapsedTy },
-        ];
-        let target;
-        if (flickUp) {
-          target = detents[0];
-        } else if (flickDown) {
-          const idx = detents.findIndex((d) => d.lv === s.level);
-          target = detents[Math.min(idx + 1, detents.length - 1)];
-        } else {
-          target = detents.reduce((best, d) =>
-            Math.abs(d.ty - projected) < Math.abs(best.ty - projected)
-              ? d
-              : best,
-          );
-        }
-        if (target.lv !== s.level) setLevel(target.lv);
-        springTo(target.ty, vy);
-      },
-      onPanResponderTerminate: () => {
-        const s = live.current;
-        pos.flattenOffset();
-        moveSamples.current = [];
-        springTo(
-          s.level === 'full'
-            ? FULL_TY
-            : s.level === 'half'
-              ? s.halfTy
-              : s.collapsedTy,
-        );
-      },
-    }),
-  ).current;
 
   // Tap on the header walks the detents upward, then back to collapsed.
   const toggleLevel = () => {

@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
+import useSheetGesture from '../../hooks/useSheetGesture';
 import { ZoneBody } from './ZoneSheet';
 import { DrawerBody } from './IncidentDrawer';
 import { EvidenceBody } from './EvidencePanel';
@@ -61,16 +61,7 @@ export default function PeekSheet() {
   const [mounted, setMounted] = useState(active);
   const [level, setLevel] = useState('half');
   const pos = useRef(new Animated.Value(hiddenTy)).current;
-  const startTy = useRef(halfTy);
-  const pendingVy = useRef(0);
   const wantOpen = useRef(true);
-  // Target of the spring launched by the gesture release, if any. When the
-  // follow-up context update re-runs the open/detent effect with the SAME
-  // target, restarting the spring there would visibly re-accelerate the sheet
-  // (the effect can fire hundreds of ms later on heavy screens like Power
-  // Search) — so the effect skips the duplicate and lets the in-flight
-  // spring finish.
-  const launchedTy = useRef(null);
 
   const targetTy =
     view === 'drawer'
@@ -178,128 +169,56 @@ export default function PeekSheet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inEvidence, bodyAnim]);
 
-  const springTo = (ty, velocity = 0, onDone) =>
-    Animated.spring(pos, {
-      toValue: ty,
-      damping: 22,
-      stiffness: 260,
-      mass: 0.9,
-      velocity,
-      overshootClamping: true,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && onDone) onDone();
-    });
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) =>
-        Math.abs(g.dy) > 3 && Math.abs(g.dy) > Math.abs(g.dx),
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        // Fire-and-forget stop (NO callback wait — that native round-trip
-        // was the ~1s response delay), then switch to RELATIVE dragging:
-        // extractOffset folds the current on-screen position into the offset
-        // so setValue(dy) tracks the finger 1:1 with zero bridge latency.
-        // __getValue() (NOT a listener-synced ref) is the source of truth:
-        // native-driver listener forwarding silently drops updates across a
-        // dismiss/reopen cycle, which used to freeze down-drags from full.
-        pos.stopAnimation();
-        startTy.current = pos.__getValue();
-        pendingVy.current = 0;
-        pos.extractOffset();
-      },
-      onPanResponderMove: (_e, g) => {
-        const abs = startTy.current + g.dy;
-        // resist past the full detent, clamp past the hidden offset
-        const clamped =
-          abs < 0 ? abs * 0.3 : Math.min(abs, live.current.hiddenTy);
-        pos.setValue(clamped - startTy.current);
-      },
-      onPanResponderRelease: (_e, g) => {
-        const s = live.current;
-        pos.flattenOffset(); // merge offset back → absolute value again
-        const restTy = s.level === 'full' ? 0 : s.halfTy;
-        const H = s.halfTy;
-        // A plain tap / tiny jitter must NEVER change the detent — a quick
-        // tap can carry a big velocity spike, which used to dismiss the
-        // sheet. Velocity only counts when the finger actually travelled.
-        if (Math.abs(g.dy) < 12 && Math.abs(g.vy) < 0.75) {
-          pendingVy.current = 0;
-          springTo(restTy);
-          return;
+  // Shared gesture engine (src/hooks/useSheetGesture.js) — the reference
+  // implementation every sheet in the app uses. launchedTy lets the detent
+  // effect above skip re-firing a spring the gesture release already
+  // launched (double-push glitch on heavy screens).
+  const { panResponder, pendingVy, launchedTy } = useSheetGesture({
+    pos,
+    getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
+    getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
+    chooseTarget: ({ dy, vyMs, projected, restTy }) => {
+      const s = live.current;
+      const H = s.halfTy;
+      // A clear flick snaps in its direction even over a short distance —
+      // projection handles long drags, this handles fast short swipes.
+      const flickUp = vyMs < -1.0 && dy < -10;
+      const flickDown = vyMs > 1.0 && dy > 10;
+      if (s.view === 'evidence') {
+        const backTy = s.evidenceFrom === 'drawer' ? 0 : H;
+        if (flickDown || projected > restTy + 120) {
+          return { ty: backTy, after: s.closeEvidence };
         }
-        // Clamp the inherited velocity (px/ms), then convert to px/s for
-        // RN springs — SpringAnimation's frame time is in SECONDS (unlike
-        // decay which uses ms), so a raw g.vy is ~1000x too small.
-        const vyMs = Math.max(-3.5, Math.min(3.5, g.vy));
-        const vy = vyMs * 1000;
-        const endTy = Math.max(
-          0,
-          Math.min(startTy.current + g.dy, s.hiddenTy),
-        );
-        const projected = endTy + vyMs * 220; // ~220ms of coast
-        // A clear flick snaps in its direction even over a short distance —
-        // projection handles long drags, this handles fast short swipes.
-        const flickUp = vyMs < -1.0 && g.dy < -10;
-        const flickDown = vyMs > 1.0 && g.dy > 10;
-
-        // Decide the target detent + any state change. THE KEY: the spring
-        // starts RIGHT HERE with the finger's velocity (motion never stops),
-        // and the context update happens after — when it re-renders and the
-        // effect re-fires a spring to the SAME target, pendingVy hands the
-        // velocity over so the restart is invisible.
-        let target = restTy;
-        let after = null;
-        if (s.view === 'evidence') {
-          const backTy = s.evidenceFrom === 'drawer' ? 0 : H;
-          if (flickDown || projected > restTy + 120) {
-            target = backTy;
-            after = s.closeEvidence;
-          } else if ((flickUp || projected < H * 0.5) && restTy !== 0) {
-            target = 0;
-            after = () => setLevel('full');
-          }
-        } else if (s.level === 'full') {
-          if (flickDown || projected > H * 0.45) {
-            target = H;
-            after = s.collapseToPeek;
-          } else {
-            target = 0;
-          }
-        } else if (flickDown || projected > H + (s.hiddenTy - H) * 0.35) {
-          // Collapse IMMEDIATELY: the pill springs in while this sheet keeps
-          // sliding down and fading — overlapping motion, no vanish-then-pop.
-          target = s.hiddenTy;
-          after = s.collapsePeek;
-        } else if (flickUp || projected < H * 0.55) {
-          target = 0;
-          after = s.expandFromPeek;
+        if ((flickUp || projected < H * 0.5) && restTy !== 0) {
+          return { ty: 0, after: () => setLevel('full') };
         }
-        pendingVy.current = vy;
-        launchedTy.current = target;
-        // Dismiss: the effect skips its duplicate spring, so the unmount must
-        // ride on THIS spring's completion instead.
-        springTo(
-          target,
-          vy,
-          target === s.hiddenTy
-            ? () => {
-                if (!wantOpen.current) setMounted(false);
-              }
-            : undefined,
-        );
-        if (after) {
-          after();
+        return { ty: restTy };
+      }
+      if (s.level === 'full') {
+        if (flickDown || projected > H * 0.45) {
+          return { ty: H, after: s.collapseToPeek };
         }
-      },
-      onPanResponderTerminate: () => {
-        const s = live.current;
-        pos.flattenOffset();
-        springTo(s.level === 'full' ? 0 : s.halfTy);
-      },
-    }),
-  ).current;
+        return { ty: 0 };
+      }
+      if (flickDown || projected > H + (s.hiddenTy - H) * 0.35) {
+        // Collapse IMMEDIATELY: the pill springs in while this sheet keeps
+        // sliding down and fading — overlapping motion, no vanish-then-pop.
+        // The detent effect skips its duplicate spring (launchedTy), so the
+        // unmount rides on THIS spring's completion instead.
+        return {
+          ty: s.hiddenTy,
+          after: s.collapsePeek,
+          onDone: () => {
+            if (!wantOpen.current) setMounted(false);
+          },
+        };
+      }
+      if (flickUp || projected < H * 0.55) {
+        return { ty: 0, after: s.expandFromPeek };
+      }
+      return { ty: restTy };
+    },
+  });
 
   if (!mounted || !item) {
     return null;
