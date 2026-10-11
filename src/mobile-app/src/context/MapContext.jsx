@@ -7,11 +7,20 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, isValid, parseISO, startOfMonth, subDays } from 'date-fns';
 import { listIncidents, listZones } from '../services/incidents.service';
 import { subscribeSse } from '../services/sse.service';
 import { DOMAINS, STORAGE_KEYS, ZONE_OVERLAYS } from '../constants';
+import {
+  centerForPaddedFlight,
+  fitZoomForBounds,
+  getSelectionCamera,
+  projectToScreen,
+  selectionSignature,
+  zoneComfortFactor,
+} from '../utils/selectionCamera';
 import { useOverlay } from './OverlayContext';
 
 // Shared map state: date range (lifted from TimeStrip), incident/zone data,
@@ -133,11 +142,41 @@ export function MapProvider({ children }) {
 
   const cameraRef = useRef(null);
   const mapZoomRef = useRef(DEFAULT_ZOOM);
+  const mapCenterRef = useRef(DEFAULT_CENTER);
+  const viewportPxRef = useRef(Dimensions.get('window'));
+  const lastSelectionFlightRef = useRef(null);
   const viewportBoundsRef = useRef(null); // "w,s,e,n" string for the API
   const viewportModeRef = useRef(viewportMode);
   const dateRangeRef = useRef(dateRange);
   const debounceRef = useRef(null);
   const fetchSeqRef = useRef(0); // drops stale responses (pan refetch vs range fetch)
+
+  useEffect(() => {
+    const sub = Dimensions.addEventListener('change', ({ window }) => {
+      viewportPxRef.current = window;
+    });
+    return () => sub?.remove();
+  }, []);
+
+  // ─── Auto-zoom on selection (web Settings drawer parity; off = pan-only) ───
+  const [autoZoomEnabled, setAutoZoomEnabledState] = useState(true);
+  const autoZoomRef = useRef(true);
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEYS.AUTO_ZOOM)
+      .then((raw) => {
+        if (raw !== null) {
+          const v = raw === 'true';
+          autoZoomRef.current = v;
+          setAutoZoomEnabledState(v);
+        }
+      })
+      .catch(() => {});
+  }, []);
+  const setAutoZoomEnabled = useCallback((v) => {
+    autoZoomRef.current = v;
+    setAutoZoomEnabledState(v);
+    AsyncStorage.setItem(STORAGE_KEYS.AUTO_ZOOM, String(v)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     viewportModeRef.current = viewportMode;
@@ -303,6 +342,10 @@ export function MapProvider({ children }) {
       if (Array.isArray(bounds) && bounds.length === 4) {
         viewportBoundsRef.current = bounds.map((n) => n.toFixed(5)).join(',');
       }
+      const center = state.center;
+      if (Array.isArray(center) && center.length === 2 && center.every(Number.isFinite)) {
+        mapCenterRef.current = center;
+      }
       if (Number.isFinite(zoom)) {
         mapZoomRef.current = zoom;
         setMapZoom((prev) => (Math.abs(prev - zoom) < 0.05 ? prev : zoom));
@@ -323,6 +366,9 @@ export function MapProvider({ children }) {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedKind, setSelectedKind] = useState(null); // 'incident' | 'zone'
   const [ghostItem, setGhostItem] = useState(null);
+  // Power Search result overlay: while the PS screen is open its result set
+  // renders as extra map markers on top of the date-range fetch. Null = off.
+  const [searchOverlay, setSearchOverlay] = useState(null);
   const selectedItemRef = useRef(null);
   const incidentsRef = useRef(incidents);
   const zonesRef = useRef(zones);
@@ -466,6 +512,95 @@ export function MapProvider({ children }) {
     cameraRef.current?.flyTo({ center, zoom, duration: 1200 });
   }, []);
 
+  // ─── Smart selection camera (web UserMap flyToCoords effect parity) ───
+  // The shared pure policy decides zoom/duration/panOnly; measurement is
+  // pure Web-Mercator (utils/selectionCamera.js) because MapLibre RN has no
+  // synchronous cameraForBounds. request: { type, source, lng, lat, bounds?,
+  // padding? } — padding mirrors the chrome about to open (peek sheet etc.)
+  // so the target lands in the visible area, via centerForPaddedFlight.
+  const flyToSelection = useCallback((request) => {
+    const cam = cameraRef.current;
+    if (
+      !cam ||
+      !request ||
+      !Number.isFinite(request.lng) ||
+      !Number.isFinite(request.lat)
+    ) {
+      return;
+    }
+    const { type, source, bounds } = request;
+    const padding = request.padding || { top: 0, right: 0, bottom: 0, left: 0 };
+    const { width: vw, height: vh } = viewportPxRef.current;
+    const currentZoom = mapZoomRef.current;
+    const currentCenter = mapCenterRef.current;
+
+    // Repeat-click guard: skip only when an identical (type, source, lng, lat)
+    // selection would repeat the last flight AND the camera + padding are
+    // unchanged (web: signature + zoom ±0.3 + drift ≤ 5% of the viewport span).
+    const signature = selectionSignature({ type, source, lng: request.lng, lat: request.lat });
+    const last = lastSelectionFlightRef.current;
+    if (last && last.signature === signature) {
+      const world = 512 * 2 ** currentZoom;
+      const viewportSpan = Math.hypot((360 * vw) / world, (360 * vh) / world);
+      const centerDrift = Math.hypot(
+        currentCenter[0] - last.center[0],
+        currentCenter[1] - last.center[1],
+      );
+      const sameCamera =
+        Math.abs(currentZoom - last.zoom) <= 0.3 && centerDrift <= viewportSpan * 0.05;
+      if (sameCamera && paddingEquals(padding, last.padding)) {
+        return;
+      }
+    }
+
+    const isZone = type === 'zone' && bounds;
+    let fitZoom;
+    let fitsAtCurrentZoom = false;
+    if (isZone) {
+      fitZoom = fitZoomForBounds(bounds, vw, vh, padding, zoneComfortFactor(bounds));
+      fitsAtCurrentZoom = currentZoom >= fitZoomForBounds(bounds, vw, vh, padding, 1.0);
+    }
+    let isVisibleInViewport = false;
+    if (type === 'incident' && source === 'power-search') {
+      const [x, y] = projectToScreen([request.lng, request.lat], currentZoom, currentCenter, vw, vh);
+      isVisibleInViewport =
+        x >= (padding.left || 0) &&
+        x <= vw - (padding.right || 0) &&
+        y >= (padding.top || 0) &&
+        y <= vh - (padding.bottom || 0);
+    }
+
+    const decision = getSelectionCamera({
+      type,
+      source,
+      bounds,
+      currentZoom,
+      isVisibleInViewport,
+      fitsAtCurrentZoom,
+      autoZoomEnabled: autoZoomRef.current,
+      fitZoom,
+    });
+
+    const targetZoom = Math.min(decision.zoom, MAX_ZOOM);
+    // Pan-only and equal-zoom results go through easeTo: flyTo's van Wijk arc
+    // zooms out mid-flight on long pans, which reads as stutter when no zoom
+    // change is intended (web parity).
+    const zoomUnchanged = decision.panOnly || Math.abs(targetZoom - currentZoom) < 0.001;
+    const flightCenter = centerForPaddedFlight([request.lng, request.lat], targetZoom, padding);
+    lastSelectionFlightRef.current = {
+      signature,
+      zoom: targetZoom,
+      center: [request.lng, request.lat],
+      padding,
+    };
+    const camera = { center: flightCenter, zoom: targetZoom, duration: decision.duration };
+    if (zoomUnchanged) {
+      cam.easeTo(camera);
+    } else {
+      cam.flyTo(camera);
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       timeSel,
@@ -485,6 +620,8 @@ export function MapProvider({ children }) {
       selectItem,
       clearSelection,
       ghostItem,
+      searchOverlay,
+      setSearchOverlay,
       layerVisibility,
       toggleDomainLayer,
       toggleZoneLayer,
@@ -494,6 +631,9 @@ export function MapProvider({ children }) {
       zoomIn,
       zoomOut,
       flyTo,
+      flyToSelection,
+      autoZoomEnabled,
+      setAutoZoomEnabled,
       handleRegionChange,
     }),
     [
@@ -514,6 +654,7 @@ export function MapProvider({ children }) {
       selectItem,
       clearSelection,
       ghostItem,
+      searchOverlay,
       layerVisibility,
       toggleDomainLayer,
       toggleZoneLayer,
@@ -522,6 +663,9 @@ export function MapProvider({ children }) {
       zoomIn,
       zoomOut,
       flyTo,
+      flyToSelection,
+      autoZoomEnabled,
+      setAutoZoomEnabled,
       handleRegionChange,
     ],
   );
@@ -531,6 +675,16 @@ export function MapProvider({ children }) {
 
 function isUnboundedRangeNow(from, to) {
   return !from || !to;
+}
+
+function paddingEquals(a, b) {
+  if (!a || !b) return false;
+  return (
+    (a.top || 0) === (b.top || 0) &&
+    (a.right || 0) === (b.right || 0) &&
+    (a.bottom || 0) === (b.bottom || 0) &&
+    (a.left || 0) === (b.left || 0)
+  );
 }
 
 export function useMap() {

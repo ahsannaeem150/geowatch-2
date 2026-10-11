@@ -82,4 +82,5 @@ export const STORAGE_KEYS = {
   SEEN_SNAPSHOT: 'intelmap24_mobile_seen_snapshot',
   LAST_ACTIVE: 'intelmap24_mobile_last_active',
   NOTIF_PREFS: 'intelmap24_mobile_notif_prefs',
+  AUTO_ZOOM: 'intelmap24_mobile_auto_zoom',
 };

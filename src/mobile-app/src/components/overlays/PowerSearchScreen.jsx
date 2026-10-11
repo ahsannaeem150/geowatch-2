@@ -1,28 +1,33 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import {
   Animated,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  ArrowRight,
   Calendar,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
+  ChevronUp,
   Clock,
   Crosshair,
   FileText,
-  Filter,
   MapPin,
   RotateCcw,
   Search,
@@ -31,7 +36,7 @@ import {
   Star,
   X,
 } from 'lucide-react-native';
-import { isValid, parseISO } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
@@ -51,17 +56,16 @@ import {
   VERIFICATION_STATUSES,
   ZONE_OVERLAYS,
 } from '../../constants';
+import MiniCalendar from '../../screens/map/components/MiniCalendar';
 import { DirCard } from './DirectoryScreen';
 
-// Power Search fullscreen (prototype #ps-screen; openPowerSearch/
-// closePowerSearch/togglePsFilters/toggleAcc/toggleStrip/collapseStrip/
-// toggleMulti/renderPsFiltersStatic/togglePsfSev/togglePsfCheck/
-// countActiveFilters/renderAppliedTags/psClearTag/resetPsFilters/
-// renderPsResults).
-//
-// The fullscreen container is transparent (meta.transparent in
-// Placeholders.jsx) so the map shows through the middle; the top controls
-// and the bottom results strip float over it, matching the prototype.
+// Power Search (prototype #ps-screen): a FLOATING glass search bar over the
+// live map + a multi-detent results sheet (collapsed ↔ full, grabber drag —
+// same spring/velocity model as the selection PeekSheet). The fullscreen
+// container is transparent + pointerEvents box-none (meta.transparent in
+// Placeholders.jsx), so the map pans/zooms under the screen and the tab bar
+// stays tappable. Results also render as map markers via MapContext's
+// searchOverlay; tapping one previews it exactly like a card tap.
 //
 // Backend mapping (GET /api/v1/incidents/search):
 //   type → which call runs (point → searchIncidents, polygon → searchZones)
@@ -73,6 +77,14 @@ import { DirCard } from './DirectoryScreen';
 //   categories → zoneCategoryIds (zones only), saved only → savedOnly=true.
 
 const ALL_TIME = { dateFrom: '1970-01-01', dateTo: '2099-12-31' };
+
+// Tab bar overlaps the bottom 62px of the overlay body — the sheet floats
+// above it so the tabs stay visible and tappable.
+const TAB_CLEAR = 62;
+const COLLAPSED_VISIBLE = 128;
+// Full detent stops just below the floating search card so the query bar
+// stays visible/editable even with the sheet fully raised.
+const FULL_TY = 88;
 
 const SOURCE_TYPES = [
   { key: 'x_post', label: 'X Post', pill: '𝕏 X Posts' },
@@ -88,16 +100,46 @@ const VERIF_META = {
   debunked: { label: 'Debunked', colorKey: 'sev4' },
 };
 
-// resetPsFilters() defaults: type Point + status Active on, everything
-// else off/cleared.
+const SORTS = [
+  { key: 'newest', label: 'Newest first' },
+  { key: 'oldest', label: 'Oldest first' },
+  { key: 'severity', label: 'Severity' },
+];
+
+function itemTime(item) {
+  const raw = item.created_at || item.start_date || 0;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+function sortItems(list, mode) {
+  const arr = [...list];
+  if (mode === 'oldest') {
+    arr.sort((a, b) => itemTime(a) - itemTime(b));
+  } else if (mode === 'severity') {
+    arr.sort((a, b) => (b.severity || 0) - (a.severity || 0));
+  } else {
+    arr.sort((a, b) => itemTime(b) - itemTime(a));
+  }
+  return arr;
+}
+
+// Clean start: no forced type/status defaults — everything shown until the
+// user picks filters. Reset returns here too.
 const DEFAULTS = {
-  typeSel: { point: true, polygon: false },
-  statusSel: { active: true, resolved: false },
+  typeSel: {},
+  statusSel: {},
 };
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 function validDate(s) {
   return ISO_RE.test(s) && isValid(parseISO(s)) ? s : null;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = parseISO(iso);
+  return isValid(d) ? format(d, 'd MMM yyyy') : '';
 }
 
 function capitalize(s) {
@@ -126,7 +168,7 @@ function pillState(theme, on) {
 export function PowerSearchBody({ overlay }) {
   const { theme } = useTheme();
   const { closeOverlay, showToast } = useOverlay();
-  const { selectedId } = useMap();
+  const { selectedId, setSearchOverlay } = useMap();
   const { previewItemOnMap } = useSelection();
   const { signedIn, requireSignIn } = useAuth();
 
@@ -142,10 +184,21 @@ export function PowerSearchBody({ overlay }) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [savedOnly, setSavedOnly] = useState(false);
+  const [sortMode, setSortMode] = useState('newest');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [stripOpen, setStripOpen] = useState(true);
+  // All accordions start collapsed except Type (web PS drawer parity).
   const [collapsed, setCollapsed] = useState(
-    () => new Set(['domains', 'zonecats', 'source']),
+    () =>
+      new Set([
+        'date',
+        'domains',
+        'zonecats',
+        'severity',
+        'status',
+        'verif',
+        'source',
+        'options',
+      ]),
   );
   const [incResults, setIncResults] = useState([]);
   const [zoneResults, setZoneResults] = useState([]);
@@ -385,7 +438,7 @@ export function PowerSearchBody({ overlay }) {
   if (dateFrom || dateTo) {
     tags.push({
       key: 'date',
-      label: `Date: ${dateFrom || '…'} → ${dateTo || '…'}`,
+      label: `Date: ${fmtDate(dateFrom) || '…'} → ${fmtDate(dateTo) || '…'}`,
       clear: () => {
         setDateFrom('');
         setDateTo('');
@@ -404,25 +457,44 @@ export function PowerSearchBody({ overlay }) {
 
   // Client-side zone-category fallback filter (constant fallback has no ids
   // to send server-side).
-  const visibleZones =
-    zonecatSel.size && !zonecats
-      ? zoneResults.filter((z) => zonecatSel.has(z.zone_category_name))
-      : zoneResults;
+  const visibleZones = useMemo(
+    () =>
+      zonecatSel.size && !zonecats
+        ? zoneResults.filter((z) => zonecatSel.has(z.zone_category_name))
+        : zoneResults,
+    [zoneResults, zonecatSel, zonecats],
+  );
   const total = incResults.length + visibleZones.length;
+
+  const sortedInc = useMemo(
+    () => sortItems(incResults, sortMode),
+    [incResults, sortMode],
+  );
+  const sortedZones = useMemo(
+    () => sortItems(visibleZones, sortMode),
+    [visibleZones, sortMode],
+  );
+
+  // Publish results as map markers while the screen is open; cleared on
+  // unmount (close) so the base map returns to its date-range set.
+  useEffect(() => {
+    setSearchOverlay({ incidents: incResults, zones: visibleZones });
+  }, [incResults, visibleZones, setSearchOverlay]);
+  useEffect(() => () => setSearchOverlay(null), [setSearchOverlay]);
 
   const close = () => closeOverlay(overlay.id);
   const openPreview = (kind, item) =>
-    previewItemOnMap(kind, item, { type: 'fullscreen' });
+    previewItemOnMap(kind, item, { type: 'fullscreen' }, 'power-search');
 
   return (
-    <View style={styles.root}>
-      {/* top controls over the map (prototype .ps-top) */}
+    <View style={styles.root} pointerEvents="box-none">
+      {/* floating search bar (prototype .ps-top → floating card) */}
       <View
         style={[
-          styles.top,
+          styles.topCard,
           {
             backgroundColor: theme.bgGlass,
-            borderBottomColor: theme.borderSubtle,
+            borderColor: theme.borderSubtle,
           },
         ]}>
         <View style={styles.headRow}>
@@ -431,91 +503,83 @@ export function PowerSearchBody({ overlay }) {
             hitSlop={6}
             style={({ pressed }) => [
               styles.backBtn,
-              { backgroundColor: pressed ? theme.bgElevated : theme.bgHover },
+              {
+                backgroundColor: pressed ? theme.bgElevated : theme.bgHover,
+                borderColor: theme.borderSubtle,
+              },
             ]}>
             <ChevronLeft size={17} color={theme.textPrimary} />
           </Pressable>
-          <View style={styles.headTitles}>
-            <Text
+          <View
+            style={[
+              styles.searchRow,
+              { backgroundColor: theme.bgInput, borderColor: theme.borderSubtle },
+            ]}>
+            <Search size={15} color={theme.textMuted} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder="Search incidents, zones…"
+              placeholderTextColor={theme.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              returnKeyType="search"
               style={[
-                styles.title,
+                styles.searchInput,
                 { color: theme.textPrimary, fontFamily: theme.fontHead },
-              ]}>
-              Power Search
-            </Text>
-            <Text
-              style={[
-                styles.subtitle,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              EXPLORE EVERYTHING
-            </Text>
+              ]}
+            />
+            {q ? (
+              <Pressable onPress={() => setQ('')} hitSlop={8}>
+                <X size={14} color={theme.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
           <Pressable
             onPress={() => setFiltersOpen(true)}
             style={({ pressed }) => [
-              styles.miniBtn,
+              styles.filtersBtn,
               {
-                borderColor: theme.borderSubtle,
-                backgroundColor: pressed ? theme.bgHover : theme.bgSurface,
+                borderColor: filterCount
+                  ? theme.accentSubtleBorder
+                  : theme.borderSubtle,
+                backgroundColor: pressed
+                  ? theme.bgHover
+                  : filterCount
+                    ? theme.accentSubtleBg
+                    : theme.bgSurface,
               },
             ]}>
-            <Filter size={11} color={theme.textSecondary} />
-            <Text
-              style={[
-                styles.miniBtnText,
-                { color: theme.textSecondary, fontFamily: theme.fontMono },
-              ]}>
-              Filters
-            </Text>
+            <SlidersHorizontal
+              size={14}
+              color={filterCount ? theme.accentLight : theme.textSecondary}
+            />
+            {filterCount ? (
+              <View
+                style={[
+                  styles.filtersBadge,
+                  { backgroundColor: theme.accentLight },
+                ]}>
+                <Text
+                  style={[
+                    styles.filtersBadgeText,
+                    { color: theme.bgDeep, fontFamily: theme.fontMono },
+                  ]}>
+                  {filterCount}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
-          <Pressable
-            onPress={resetFilters}
-            style={({ pressed }) => [
-              styles.miniBtn,
-              {
-                borderColor: theme.borderSubtle,
-                backgroundColor: pressed ? theme.bgHover : theme.bgSurface,
-              },
-            ]}>
-            <Text
-              style={[
-                styles.miniBtnText,
-                { color: theme.textSecondary, fontFamily: theme.fontMono },
-              ]}>
-              Reset
-            </Text>
-          </Pressable>
-        </View>
-        <View
-          style={[
-            styles.searchRow,
-            { backgroundColor: theme.bgInput, borderColor: theme.borderSubtle },
-          ]}>
-          <Search size={15} color={theme.textMuted} />
-          <TextInput
-            value={q}
-            onChangeText={setQ}
-            placeholder="Search incidents, zones…"
-            placeholderTextColor={theme.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            style={[
-              styles.searchInput,
-              { color: theme.textPrimary, fontFamily: theme.fontHead },
-            ]}
-          />
-          {q ? (
-            <Pressable onPress={() => setQ('')} hitSlop={8}>
-              <X size={14} color={theme.textMuted} />
-            </Pressable>
-          ) : null}
         </View>
         {/* applied tags */}
-        <View style={styles.tagsRow}>
-          {tags.length ? (
-            tags.map((t) => (
+        {tags.length ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.tagsRow}>
+            {tags.map((t) => (
               <Pressable
                 key={t.key}
                 onPress={t.clear}
@@ -535,212 +599,25 @@ export function PowerSearchBody({ overlay }) {
                 </Text>
                 <X size={10} color={theme.textMuted} />
               </Pressable>
-            ))
-          ) : (
-            <Text
-              style={[
-                styles.tagsEmpty,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              No filters applied — all results shown
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* transparent middle — map visible, touches swallowed (prototype
-          .ps-screen covers the map without handling clicks) */}
-      <Pressable style={styles.middle} onPress={() => {}} />
-
-      {/* results strip (prototype .ps-results-strip) */}
-      <View
-        style={[
-          styles.strip,
-          {
-            backgroundColor: theme.bgGlass,
-            borderTopColor: theme.borderSubtle,
-          },
-          stripOpen && styles.stripOpen,
-        ]}>
-        <View style={styles.stripHead}>
-          <Pressable onPress={() => setStripOpen((v) => !v)} hitSlop={6}>
-            <Text
-              style={[
-                styles.stripCount,
-                { color: theme.accentLight, fontFamily: theme.fontMono },
-              ]}>
-              {total} RESULTS
-            </Text>
-          </Pressable>
-          <View style={styles.stripActions}>
-            <Pressable
-              onPress={() => setStripOpen((v) => !v)}
-              style={({ pressed }) => [
-                styles.miniBtn,
-                {
-                  borderColor: theme.borderSubtle,
-                  backgroundColor: pressed ? theme.bgHover : theme.bgSurface,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.miniBtnText,
-                  { color: theme.textSecondary, fontFamily: theme.fontMono },
-                ]}>
-                ▾ List
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={close}
-              style={({ pressed }) => [
-                styles.miniBtn,
-                {
-                  borderColor: theme.borderSubtle,
-                  backgroundColor: pressed ? theme.bgHover : theme.bgSurface,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.miniBtnText,
-                  { color: theme.textSecondary, fontFamily: theme.fontMono },
-                ]}>
-                ✕ Close
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-        {stripOpen ? (
-          loading ? (
-            <View style={styles.stripPad}>
-              {[0, 1, 2].map((i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.skelRow,
-                    { borderBottomColor: theme.borderSubtle },
-                  ]}>
-                  <View
-                    style={[
-                      styles.skelBar,
-                      { backgroundColor: theme.bgElevated },
-                    ]}
-                  />
-                  <View style={styles.skelCol}>
-                    <View
-                      style={[
-                        styles.skelLine,
-                        styles.skelW72,
-                        { backgroundColor: theme.bgElevated },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.skelLine,
-                        styles.skelW38,
-                        { backgroundColor: theme.bgElevated },
-                      ]}
-                    />
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : error ? (
-            <View style={styles.stateBox}>
-              <Text style={[styles.stateText, { color: theme.textMuted }]}>
-                Couldn’t load results.
-              </Text>
-              <Pressable
-                onPress={fetchResults}
-                style={[
-                  styles.retryBtn,
-                  {
-                    borderColor: theme.accentSubtleBorder,
-                    backgroundColor: theme.accentSubtleBg,
-                  },
-                ]}>
-                <Text
-                  style={[
-                    styles.retryText,
-                    { color: theme.accentLight, fontFamily: theme.fontMono },
-                  ]}>
-                  Retry
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.stripList}
-              contentContainerStyle={styles.stripPad}
-              keyboardShouldPersistTaps="handled">
-              {total === 0 ? (
-                <View style={styles.stateBox}>
-                  <Text style={[styles.stateText, { color: theme.textMuted }]}>
-                    No results match your filters.
-                  </Text>
-                  <Pressable onPress={resetFilters} hitSlop={6}>
-                    <Text
-                      style={[
-                        styles.resetLink,
-                        { color: theme.accentLight },
-                      ]}>
-                      Reset all filters
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <>
-                  {incResults.length ? (
-                    <>
-                      <Text
-                        style={[
-                          styles.secLabel,
-                          {
-                            color: theme.textMuted,
-                            fontFamily: theme.fontMono,
-                          },
-                        ]}>
-                        Incidents ({incResults.length})
-                      </Text>
-                      {incResults.map((item) => (
-                        <DirCard
-                          key={item.id}
-                          kind="incident"
-                          item={item}
-                          highlighted={selectedId === item.id}
-                          onPress={() => openPreview('incident', item)}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                  {visibleZones.length ? (
-                    <>
-                      <Text
-                        style={[
-                          styles.secLabel,
-                          {
-                            color: theme.textMuted,
-                            fontFamily: theme.fontMono,
-                          },
-                        ]}>
-                        Zones ({visibleZones.length})
-                      </Text>
-                      {visibleZones.map((item) => (
-                        <DirCard
-                          key={item.id}
-                          kind="zone"
-                          item={item}
-                          highlighted={selectedId === item.id}
-                          onPress={() => openPreview('zone', item)}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                </>
-              )}
-            </ScrollView>
-          )
+            ))}
+          </ScrollView>
         ) : null}
       </View>
+
+      {/* multi-detent results sheet */}
+      <ResultsSheet
+        total={total}
+        loading={loading}
+        error={error}
+        onRetry={fetchResults}
+        onReset={resetFilters}
+        incResults={sortedInc}
+        zoneResults={sortedZones}
+        selectedId={selectedId}
+        onOpen={openPreview}
+        sortMode={sortMode}
+        onSortChange={setSortMode}
+      />
 
       {/* filters drawer (prototype .ps-filters) */}
       {filtersOpen ? (
@@ -780,10 +657,381 @@ export function PowerSearchBody({ overlay }) {
   );
 }
 
+// ─── Multi-detent results sheet ───
+// Two detents: collapsed (grabber + "N RESULTS" + sort) and full (~top of
+// screen). Grabber drag uses the PeekSheet model: extractOffset relative
+// dragging for zero-latency finger tracking, and the release spring inherits
+// the fling velocity so motion never visibly stops and re-accelerates.
+function ResultsSheet({
+  total,
+  loading,
+  error,
+  onRetry,
+  onReset,
+  incResults,
+  zoneResults,
+  selectedId,
+  onOpen,
+  sortMode,
+  onSortChange,
+}) {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+
+  // The fullscreen container already pads top (insets.top + 8) and bottom
+  // (insets.bottom); the sheet fills the remaining body minus the tab bar.
+  const sheetH = Math.round(windowHeight - insets.top - 8 - insets.bottom - TAB_CLEAR);
+  const collapsedTy = sheetH - COLLAPSED_VISIBLE;
+
+  const [level, setLevel] = useState('collapsed');
+  const [sortOpen, setSortOpen] = useState(false);
+  const pos = useRef(new Animated.Value(sheetH)).current; // mounts hidden
+  const startTy = useRef(collapsedTy);
+  const currentTy = useRef(sheetH);
+
+  const live = useRef({});
+  live.current = { level, collapsedTy };
+
+  useEffect(() => {
+    const id = pos.addListener(({ value }) => {
+      currentTy.current = value;
+    });
+    return () => pos.removeListener(id);
+  }, [pos]);
+
+  // Slide-in on mount.
+  useEffect(() => {
+    Animated.spring(pos, {
+      toValue: collapsedTy,
+      damping: 24,
+      stiffness: 220,
+      mass: 0.9,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keyboard open/close resizes the window (adjustResize): re-snap to the
+  // current level's detent so the sheet never strands mid-screen.
+  useEffect(() => {
+    springTo(live.current.level === 'full' ? FULL_TY : collapsedTy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsedTy]);
+
+  const springTo = (ty, velocity = 0) =>
+    Animated.spring(pos, {
+      toValue: ty,
+      damping: 22,
+      stiffness: 260,
+      mass: 0.9,
+      velocity,
+      overshootClamping: true,
+      useNativeDriver: true,
+    }).start();
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dy) > 3 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        pos.stopAnimation();
+        startTy.current = currentTy.current;
+        pos.extractOffset();
+      },
+      onPanResponderMove: (_e, g) => {
+        const abs = startTy.current + g.dy;
+        const clamped =
+          abs < FULL_TY ? FULL_TY + (abs - FULL_TY) * 0.3 : Math.min(abs, live.current.collapsedTy);
+        pos.setValue(clamped - startTy.current);
+      },
+      onPanResponderRelease: (_e, g) => {
+        const s = live.current;
+        pos.flattenOffset();
+        const restTy = s.level === 'full' ? FULL_TY : s.collapsedTy;
+        // A plain tap / tiny jitter never changes the detent.
+        if (Math.abs(g.dy) < 12 && Math.abs(g.vy) < 0.75) {
+          springTo(restTy);
+          return;
+        }
+        const vyMs = Math.max(-3.5, Math.min(3.5, g.vy));
+        const vy = vyMs * 1000; // RN springs take px/s
+        const endTy = Math.max(FULL_TY, Math.min(startTy.current + g.dy, s.collapsedTy));
+        const projected = endTy + vyMs * 220;
+        const flickUp = vyMs < -1.0 && g.dy < -10;
+        const flickDown = vyMs > 1.0 && g.dy > 10;
+        let target = restTy;
+        let nextLevel = s.level;
+        if (flickUp || projected < s.collapsedTy * 0.55) {
+          target = FULL_TY;
+          nextLevel = 'full';
+        } else if (flickDown || projected > s.collapsedTy * 0.6) {
+          target = s.collapsedTy;
+          nextLevel = 'collapsed';
+        }
+        if (nextLevel !== s.level) setLevel(nextLevel);
+        springTo(target, vy);
+      },
+      onPanResponderTerminate: () => {
+        const s = live.current;
+        pos.flattenOffset();
+        springTo(s.level === 'full' ? FULL_TY : s.collapsedTy);
+      },
+    }),
+  ).current;
+
+  const toggleLevel = () => {
+    const next = level === 'full' ? 'collapsed' : 'full';
+    setLevel(next);
+    springTo(next === 'full' ? FULL_TY : collapsedTy);
+    if (next === 'collapsed') setSortOpen(false);
+  };
+
+  const sortLabel = SORTS.find((s) => s.key === sortMode)?.label || 'Newest';
+
+  return (
+    <View style={styles.sheetWrap} pointerEvents="box-none">
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            height: sheetH,
+            backgroundColor: theme.bgSurface,
+            borderColor: theme.borderSubtle,
+            transform: [{ translateY: pos }],
+          },
+        ]}>
+        <View {...panResponder.panHandlers} style={styles.sheetHead}>
+          <View style={styles.grabberRow}>
+            <View
+              style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
+            />
+          </View>
+          <View style={styles.sheetHeadRow}>
+            <Pressable
+              onPress={toggleLevel}
+              hitSlop={6}
+              style={styles.sheetHeadLeft}>
+              <Text
+                style={[
+                  styles.stripCount,
+                  { color: theme.accentLight, fontFamily: theme.fontMono },
+                ]}>
+                {loading ? 'SEARCHING…' : `${total} RESULTS`}
+              </Text>
+              {level === 'full' ? (
+                <ChevronDown size={14} color={theme.textMuted} />
+              ) : (
+                <ChevronUp size={14} color={theme.textMuted} />
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => setSortOpen((v) => !v)}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.sortBtn,
+                {
+                  borderColor: theme.borderSubtle,
+                  backgroundColor: pressed ? theme.bgHover : theme.bgElevated,
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.sortBtnText,
+                  { color: theme.textSecondary, fontFamily: theme.fontMono },
+                ]}>
+                {sortLabel}
+              </Text>
+              <ChevronDown
+                size={11}
+                color={theme.textMuted}
+                style={sortOpen ? styles.chevOpen : undefined}
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        {sortOpen ? (
+          <View
+            style={[
+              styles.sortMenu,
+              {
+                backgroundColor: theme.bgElevated,
+                borderColor: theme.borderSubtle,
+              },
+            ]}>
+            {SORTS.map((s) => {
+              const on = s.key === sortMode;
+              return (
+                <Pressable
+                  key={s.key}
+                  onPress={() => {
+                    onSortChange(s.key);
+                    setSortOpen(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.sortItem,
+                    pressed && { backgroundColor: theme.bgHover },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.sortItemText,
+                      { color: on ? theme.accentLight : theme.textSecondary },
+                      on && styles.sortItemOn,
+                    ]}>
+                    {s.label}
+                  </Text>
+                  {on ? <Check size={13} color={theme.accentLight} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
+        <View style={styles.sheetBody}>
+          {loading ? (
+            <View style={styles.stripPad}>
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.skelRow,
+                    { borderBottomColor: theme.borderSubtle },
+                  ]}>
+                  <View
+                    style={[
+                      styles.skelBar,
+                      { backgroundColor: theme.bgElevated },
+                    ]}
+                  />
+                  <View style={styles.skelCol}>
+                    <View
+                      style={[
+                        styles.skelLine,
+                        styles.skelW72,
+                        { backgroundColor: theme.bgElevated },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.skelLine,
+                        styles.skelW38,
+                        { backgroundColor: theme.bgElevated },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : error ? (
+            <View style={styles.stateBox}>
+              <Text style={[styles.stateText, { color: theme.textMuted }]}>
+                Couldn’t load results.
+              </Text>
+              <Pressable
+                onPress={onRetry}
+                style={[
+                  styles.retryBtn,
+                  {
+                    borderColor: theme.accentSubtleBorder,
+                    backgroundColor: theme.accentSubtleBg,
+                  },
+                ]}>
+                <Text
+                  style={[
+                    styles.retryText,
+                    { color: theme.accentLight, fontFamily: theme.fontMono },
+                  ]}>
+                  Retry
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.stripList}
+              contentContainerStyle={styles.stripPad}
+              keyboardShouldPersistTaps="handled">
+              {total === 0 ? (
+                <View style={styles.stateBox}>
+                  <Text style={[styles.stateText, { color: theme.textMuted }]}>
+                    No results match your filters.
+                  </Text>
+                  <Pressable onPress={onReset} hitSlop={6}>
+                    <Text
+                      style={[
+                        styles.resetLink,
+                        { color: theme.accentLight },
+                      ]}>
+                      Reset all filters
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <>
+                  {incResults.length ? (
+                    <>
+                      <Text
+                        style={[
+                          styles.secLabel,
+                          {
+                            color: theme.textMuted,
+                            fontFamily: theme.fontMono,
+                          },
+                        ]}>
+                        Incidents ({incResults.length})
+                      </Text>
+                      {incResults.map((item) => (
+                        <DirCard
+                          key={item.id}
+                          kind="incident"
+                          item={item}
+                          highlighted={selectedId === item.id}
+                          onPress={() => onOpen('incident', item)}
+                        />
+                      ))}
+                    </>
+                  ) : null}
+                  {zoneResults.length ? (
+                    <>
+                      <Text
+                        style={[
+                          styles.secLabel,
+                          {
+                            color: theme.textMuted,
+                            fontFamily: theme.fontMono,
+                          },
+                        ]}>
+                        Zones ({zoneResults.length})
+                      </Text>
+                      {zoneResults.map((item) => (
+                        <DirCard
+                          key={item.id}
+                          kind="zone"
+                          item={item}
+                          highlighted={selectedId === item.id}
+                          onPress={() => onOpen('zone', item)}
+                        />
+                      ))}
+                    </>
+                  ) : null}
+                </>
+              )}
+            </ScrollView>
+          )}
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
 // ─── Filters drawer (prototype .ps-filters + .psf-acc accordion) ───
 function PsFilterDrawer(props) {
   const { theme, close, filterCount } = props;
   const slide = useRef(new Animated.Value(0)).current;
+  // Which date field's calendar is open inside the Date Range accordion
+  // (null = neither; tapping a field opens its picker — no auto-chaining).
+  const [calField, setCalField] = useState(null);
   useEffect(() => {
     Animated.timing(slide, {
       toValue: 1,
@@ -795,6 +1043,12 @@ function PsFilterDrawer(props) {
     inputRange: [0, 1],
     outputRange: [-340, 0],
   });
+
+  const pickDate = (iso) => {
+    if (calField === 'from') props.setDateFrom(iso);
+    else if (calField === 'to') props.setDateTo(iso);
+    setCalField(null);
+  };
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -837,7 +1091,9 @@ function PsFilterDrawer(props) {
             <X size={15} color={theme.textSecondary} />
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={styles.drawerBody}>
+        <ScrollView
+          contentContainerStyle={styles.drawerBody}
+          keyboardShouldPersistTaps="handled">
           <PsAccordion
             id="type"
             title="Type"
@@ -873,49 +1129,58 @@ function PsFilterDrawer(props) {
             id="date"
             title="Date Range"
             icon={Calendar}
-            badge={0}
+            badge={props.dateFrom || props.dateTo ? 1 : 0}
             {...props}>
-            <View style={styles.dateRow}>
-              <TextInput
-                value={props.dateFrom}
-                onChangeText={props.setDateFrom}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="numbers-and-punctuation"
-                style={[
-                  styles.dateInput,
-                  {
-                    backgroundColor: theme.bgInput,
-                    borderColor: theme.borderSubtle,
-                    color: theme.textPrimary,
-                    fontFamily: theme.fontMono,
-                  },
-                ]}
-              />
-              <Text style={[styles.dateArrow, { color: theme.textMuted }]}>
-                →
-              </Text>
-              <TextInput
-                value={props.dateTo}
-                onChangeText={props.setDateTo}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="numbers-and-punctuation"
-                style={[
-                  styles.dateInput,
-                  {
-                    backgroundColor: theme.bgInput,
-                    borderColor: theme.borderSubtle,
-                    color: theme.textPrimary,
-                    fontFamily: theme.fontMono,
-                  },
-                ]}
-              />
+            <View style={styles.dateRangeRow}>
+              {[
+                { field: 'from', value: props.dateFrom, hint: 'From' },
+                { field: 'to', value: props.dateTo, hint: 'To' },
+              ].map((f, i) => (
+                <React.Fragment key={f.field}>
+                  {i === 1 ? (
+                    <ArrowRight size={13} color={theme.textMuted} />
+                  ) : null}
+                  <Pressable
+                    onPress={() =>
+                      setCalField((cur) => (cur === f.field ? null : f.field))
+                    }
+                    style={({ pressed }) => [
+                      styles.dateField,
+                      {
+                        backgroundColor: theme.bgInput,
+                        borderColor:
+                          calField === f.field
+                            ? theme.accentSubtleBorder
+                            : theme.borderSubtle,
+                      },
+                      pressed && { opacity: 0.7 },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.dateFieldText,
+                        {
+                          color: f.value ? theme.textPrimary : theme.textMuted,
+                          fontFamily: theme.fontMono,
+                        },
+                      ]}
+                      numberOfLines={1}>
+                      {fmtDate(f.value) || f.hint}
+                    </Text>
+                    <Calendar size={13} color={theme.textMuted} />
+                  </Pressable>
+                </React.Fragment>
+              ))}
             </View>
+            {calField ? (
+              <View style={styles.dateCalWrap}>
+                <MiniCalendar
+                  key={calField}
+                  mode="single"
+                  single={calField === 'from' ? props.dateFrom : props.dateTo}
+                  onPickSingle={pickDate}
+                />
+              </View>
+            ) : null}
           </PsAccordion>
 
           <PsAccordion
@@ -1231,38 +1496,30 @@ function PsCheckRow({ on, label, theme, onPress }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  top: {
-    paddingHorizontal: 12,
+  topCard: {
+    marginHorizontal: 12,
+    marginTop: 4,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    paddingTop: 10,
     paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    marginBottom: 10,
+    gap: 8,
   },
   backBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headTitles: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '600', letterSpacing: -0.1 },
-  subtitle: { fontSize: 9.5, letterSpacing: 0.8, marginTop: 1 },
-  miniBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 28,
-    paddingHorizontal: 10,
-    borderRadius: 7,
-    borderWidth: 1,
-  },
-  miniBtnText: { fontSize: 9, letterSpacing: 0.4 },
   searchRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -1270,14 +1527,32 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 13,
-    marginBottom: 9,
   },
   searchInput: { flex: 1, fontSize: 13, padding: 0 },
+  filtersBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filtersBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  filtersBadgeText: { fontSize: 9, fontWeight: '700' },
   tagsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 6,
-    minHeight: 24,
+    paddingTop: 9,
   },
   tag: {
     flexDirection: 'row',
@@ -1289,27 +1564,79 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   tagText: { fontSize: 9.5, letterSpacing: 0.4 },
-  tagsEmpty: { fontSize: 9.5, letterSpacing: 0.4 },
-  middle: { flex: 1 },
-  strip: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    // Prototype bottom:76px — the strip floats above the tab bar.
-    marginBottom: 62,
+  // ─── results sheet ───
+  sheetWrap: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'flex-end',
+    paddingBottom: TAB_CLEAR,
   },
-  stripOpen: { maxHeight: '42%' },
-  stripHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  sheet: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  sheetHead: {
+    paddingBottom: 4,
+  },
+  grabberRow: {
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  stripCount: { fontSize: 10.5, fontWeight: '600', letterSpacing: 0.6 },
-  stripActions: { flexDirection: 'row', gap: 8 },
-  stripList: { flexShrink: 1 },
-  stripPad: { paddingBottom: 12 },
+  grabber: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+  },
+  sheetHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  sheetHeadLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  stripCount: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 28,
+    paddingHorizontal: 10,
+    borderRadius: 7,
+    borderWidth: 1,
+  },
+  sortBtnText: { fontSize: 9.5, letterSpacing: 0.4 },
+  chevOpen: { transform: [{ rotate: '180deg' }] },
+  sortMenu: {
+    position: 'absolute',
+    top: 74,
+    right: 14,
+    minWidth: 150,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 4,
+    zIndex: 10,
+    elevation: 6,
+  },
+  sortItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 7,
+  },
+  sortItemText: { fontSize: 12.5 },
+  sortItemOn: { fontWeight: '600' },
+  sheetBody: { flex: 1 },
+  stripList: { flex: 1 },
+  stripPad: { paddingBottom: 20 },
   secLabel: {
     fontSize: 9.5,
     fontWeight: '600',
@@ -1346,6 +1673,7 @@ const styles = StyleSheet.create({
   skelLine: { height: 10, borderRadius: 4 },
   skelW72: { width: '72%' },
   skelW38: { width: '38%' },
+  // ─── filters drawer ───
   drawerBackdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,.4)',
@@ -1414,16 +1742,25 @@ const styles = StyleSheet.create({
   },
   optBtnText: { fontSize: 10.5 },
   optDot: { width: 6, height: 6, borderRadius: 3 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4 },
-  dateInput: {
-    flex: 1,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    fontSize: 11,
+  dateRangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 4,
   },
-  dateArrow: { fontSize: 12 },
+  dateField: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    paddingHorizontal: 11,
+  },
+  dateFieldText: { fontSize: 11.5, flexShrink: 1 },
+  dateCalWrap: { paddingTop: 8 },
   secDivider: {
     fontSize: 9,
     letterSpacing: 1.8,

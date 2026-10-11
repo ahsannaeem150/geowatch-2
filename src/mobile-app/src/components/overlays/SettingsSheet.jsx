@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { useMap } from '../../context/MapContext';
 import { SEL_MODES, useSelection } from '../../context/SelectionContext';
 import { useLive } from '../../context/LiveContext';
 import { useOverlay } from '../../context/OverlayContext';
@@ -157,6 +158,29 @@ export function NotifPrefsBody() {
 // this subview edit the same toggles (simplification noted in the P12 brief).
 export function LayersPrefsBody() {
   return <LayersSheet />;
+}
+
+// "Auto-zoom on selection" — web Settings drawer parity: off keeps the
+// user's zoom and pans only (MapContext persists STORAGE_KEYS.AUTO_ZOOM).
+function AutoZoomRow({ theme }) {
+  const { autoZoomEnabled, setAutoZoomEnabled } = useMap();
+  return (
+    <SetRow
+      name="Auto-zoom on selection"
+      sub="Zoom map to selected incidents and zones"
+      theme={theme}
+      last
+      onPress={() => setAutoZoomEnabled(!autoZoomEnabled)}
+      right={
+        <Switch
+          value={autoZoomEnabled}
+          onValueChange={setAutoZoomEnabled}
+          trackColor={{ false: theme.borderSubtle, true: theme.accent }}
+          thumbColor={autoZoomEnabled ? theme.accentLight : theme.textMuted}
+        />
+      }
+    />
+  );
 }
 
 function ModeCard({ mode, theme }) {
@@ -321,6 +345,7 @@ export default function SettingsSheet() {
       {SEL_MODES.map((m) => (
         <ModeCard key={m} mode={m} theme={theme} />
       ))}
+      <AutoZoomRow theme={theme} />
 
       <View style={styles.footnote}>
         <Info size={12} color={theme.textMuted} />

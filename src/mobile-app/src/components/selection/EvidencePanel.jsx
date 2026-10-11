@@ -347,16 +347,13 @@ export function EvidenceBody({ bottomPad = 0 }) {
 export default function EvidencePanel() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { selectedKind } = useMap();
   const { view, selMode, evidenceUpdate, closeEvidence, closeDrawer } =
     useSelection();
   const { width } = useWindowDimensions();
-  // Fullscreen panel only for DIRECT mode incidents and zone evidence; the
-  // peek/compact flow renders evidence inline inside the sheet.
+  // Fullscreen panel only for DIRECT-mode incidents; the peek/compact sheet
+  // flow (incidents AND zones) renders evidence inline inside the sheet.
   const visible =
-    view === 'evidence' &&
-    !!evidenceUpdate &&
-    (selMode === 'direct' || selectedKind === 'zone');
+    view === 'evidence' && !!evidenceUpdate && selMode === 'direct';
   const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

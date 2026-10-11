@@ -8,8 +8,10 @@ import React, {
   useState,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Dimensions } from 'react-native';
 import { STORAGE_KEYS } from '../constants';
 import { getIncident } from '../services/incidents.service';
+import { zoneBBox, zoneCentroid } from '../utils/zoneGeometry';
 import { useMap } from './MapContext';
 import { useOverlay } from './OverlayContext';
 
@@ -25,10 +27,10 @@ import { useOverlay } from './OverlayContext';
 //               preview closes; the next map tap clears it)
 //   peek      — 46% bottom sheet with the preview card
 //   pill      — compact selection bar above the tab bar
-//   drawer    — fullscreen incident details
-//   evidence  — fullscreen evidence panel above the drawer (prototype #evi);
-//               back returns to the drawer
-//   zoneSheet — 62% bottom sheet with zone stats
+//   drawer    — full-detent sheet (incidents AND zones) / fullscreen page
+//               (direct-mode incidents only)
+//   evidence  — evidence sub-view, inline in the sheet (sheet flow) or
+//               fullscreen (direct mode); back returns to the drawer
 //
 // Detail cache: the drawer's GET /incidents/:id result is kept per incident
 // id so the peek upgrades to detail data once fetched and reopening the
@@ -37,7 +39,7 @@ import { useOverlay } from './OverlayContext';
 // Origin stack (previewItemOnMap): previewing an item from a list surface
 // opens EmbeddedMapPanel + PeekSheet ABOVE that surface. Fullscreen origins
 // stay mounted underneath; sheet origins are closed and reopened on restore.
-// Chain while an origin is active: drawer/zoneSheet → peek+emb → origin
+// Chain while an origin is active: drawer → peek+emb → origin
 // surface (the pill stage is skipped — prototype closePeekToPill's 500ms
 // pill flash is a known bug-farm and intentionally not ported).
 
@@ -59,6 +61,7 @@ export function SelectionProvider({ children }) {
     selectItem,
     clearSelection,
     ghostItem,
+    flyToSelection,
   } = useMap();
   const { openOverlay, closeOverlay, closeAll, showToast } = useOverlay();
 
@@ -67,7 +70,7 @@ export function SelectionProvider({ children }) {
   const [item, setItem] = useState(null);
   const [origin, setOrigin] = useState(null); // { type:'fullscreen' } | { type:'sheet', id }
   const [evidenceUpdate, setEvidenceUpdate] = useState(null);
-  // View the evidence panel was opened from ('drawer' | 'zoneSheet') — back
+  // View the evidence panel was opened from ('drawer' | 'peek') — back
   // returns there instead of hardcoding the drawer.
   const [evidenceFrom, setEvidenceFrom] = useState(null);
   // View history (prototype pushHistory): newest-first, deduped, cap 20,
@@ -131,9 +134,9 @@ export function SelectionProvider({ children }) {
       .catch(() => {});
   }, []);
 
-  // Record on incident drawer / zone sheet open (dedupe-to-front, cap 20).
+  // Record on full-detail open (dedupe-to-front, cap 20).
   useEffect(() => {
-    if ((view !== 'drawer' && view !== 'zoneSheet') || !item?.id) {
+    if (view !== 'drawer' || !item?.id) {
       return;
     }
     const entry = {
@@ -181,6 +184,50 @@ export function SelectionProvider({ children }) {
 
   // ─── Transitions ───
 
+  // Smart selection camera (web parity): fly to the just-selected item.
+  // source: 'map' (marker tap) | 'power-search' | 'list' (directories,
+  // palette, bookmarks, history…). Padding mirrors the chrome about to open
+  // so the target lands in the visible area (web measures the settled layout;
+  // the mobile chrome is deterministic — top bar, and the sheet detent when
+  // the selection opens one).
+  const flyToItem = useCallback(
+    (kind, selItem, source, nextView) => {
+      if (!selItem) {
+        return;
+      }
+      const { height: vh } = Dimensions.get('window');
+      const padding = {
+        top: 116, // top bar + LIVE pill row
+        right: 24,
+        left: 24,
+        bottom:
+          nextView === 'pill'
+            ? 120 // compact bar height + margin
+            : Math.round(vh * 0.46), // peek half-detent sheet
+      };
+      if (kind === 'zone') {
+        const centroid = zoneCentroid(selItem.geometry);
+        if (centroid) {
+          flyToSelection({
+            type: 'zone',
+            source,
+            lng: centroid[0],
+            lat: centroid[1],
+            bounds: zoneBBox(selItem.geometry),
+            padding,
+          });
+        }
+        return;
+      }
+      const lat = parseFloat(selItem.latitude);
+      const lng = parseFloat(selItem.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        flyToSelection({ type: 'incident', source, lng, lat, padding });
+      }
+    },
+    [flyToSelection],
+  );
+
   // Map tap on a marker/zone. Ends any preview context and closes open
   // surfaces first (prototype focusIncident closes sheets/directories).
   // `itemObj` is an optional fallback for callers whose result set isn't the
@@ -188,29 +235,35 @@ export function SelectionProvider({ children }) {
   const selectFromMap = useCallback(
     (id, kind, itemObj) => {
       const list = kind === 'zone' ? zones : incidents;
-      setItem(list.find((i) => i.id === id) || itemObj || null);
+      const sel = list.find((i) => i.id === id) || itemObj || null;
+      setItem(sel);
       setOrigin(null);
       setEvidenceUpdate(null);
       setEvidenceFrom(null);
       closeAll();
       selectItem(id, kind);
+      let nextView;
       if (kind === 'zone') {
-        setView('zoneSheet'); // zones always take the sheet, mode-independent
+        nextView = 'peek'; // zones take the multi-detent sheet, mode-independent
       } else if (selMode === 'direct') {
-        setView('drawer');
+        nextView = 'drawer';
       } else if (selMode === 'compact') {
-        setView('pill');
+        nextView = 'pill';
       } else {
-        setView('peek');
+        nextView = 'peek';
       }
+      setView(nextView);
+      flyToItem(kind, sel, 'map', nextView);
     },
-    [incidents, zones, selMode, selectItem, closeAll],
+    [incidents, zones, selMode, selectItem, closeAll, flyToItem],
   );
 
   // Preview a list item on the map from a directory/power-search/profile
   // surface. origin: { type: 'fullscreen' } | { type: 'sheet', id }.
+  // source feeds the selection-camera policy ('list' default; the power
+  // search screen passes 'power-search' for its pan-only rule).
   const previewItemOnMap = useCallback(
-    (kind, previewItem, from) => {
+    (kind, previewItem, from, source = 'list') => {
       const orig = from ?? null;
       if (orig?.type === 'sheet') {
         closeOverlay(orig.id); // remembered — reopened on restore
@@ -221,11 +274,12 @@ export function SelectionProvider({ children }) {
       setEvidenceFrom(null);
       selectItem(previewItem.id, kind);
       setView('peek');
+      flyToItem(kind, previewItem, source, 'peek');
     },
-    [closeOverlay, selectItem],
+    [closeOverlay, selectItem, flyToItem],
   );
 
-  // Preview close: emb + peek/drawer/zoneSheet chain ends; the origin
+  // Preview close: emb + peek/drawer chain ends; the origin
   // surface is restored with the item still selected (ring + row highlight).
   const closePreview = useCallback(() => {
     setView('idle');
@@ -249,26 +303,21 @@ export function SelectionProvider({ children }) {
     setView('peek');
   }, []);
 
-  // Peek tap → full details (drawer for incidents, the bigger sheet zones).
+  // Peek tap / drag-up → full-detent sheet (incidents and zones alike).
   const expandFromPeek = useCallback(() => {
-    setView(selectedKind === 'zone' ? 'zoneSheet' : 'drawer');
-  }, [selectedKind]);
+    setView('drawer');
+  }, []);
 
-  // Pill tap → full details (all modes; prototype expandSelection).
-  // Pill tap → half-detent bottom sheet (zones go straight to their sheet).
+  // Pill tap → half-detent bottom sheet (prototype expandSelection).
   const expandFromPill = useCallback(() => {
-    setView(selectedKind === 'zone' ? 'zoneSheet' : 'peek');
-  }, [selectedKind]);
+    setView('peek');
+  }, []);
 
-  // Drawer/zoneSheet back (also the evidence ✕ — closes both layers):
+  // Full-detent back (also the evidence ✕ — closes both layers):
   // preview → peek+emb; plain selection → pill.
   const closeDrawer = useCallback(() => {
     setEvidenceUpdate(null);
     setEvidenceFrom(null);
-    setView(origin ? 'peek' : 'pill');
-  }, [origin]);
-
-  const closeZoneSheet = useCallback(() => {
     setView(origin ? 'peek' : 'pill');
   }, [origin]);
 
@@ -285,7 +334,6 @@ export function SelectionProvider({ children }) {
   const handleMapPress = useCallback(() => {
     switch (view) {
       case 'peek':
-      case 'zoneSheet':
         if (origin) {
           closePreview();
         } else {
@@ -319,9 +367,6 @@ export function SelectionProvider({ children }) {
           collapseToPeek();
         }
         return true;
-      case 'zoneSheet':
-        closeZoneSheet();
-        return true;
       case 'peek':
         if (origin) {
           closePreview();
@@ -335,7 +380,7 @@ export function SelectionProvider({ children }) {
       default:
         return false;
     }
-  }, [view, origin, selMode, closeEvidence, closeDrawer, collapseToPeek, closeZoneSheet, closePreview, dismissSelection]);
+  }, [view, origin, selMode, closeEvidence, closeDrawer, collapseToPeek, closePreview, dismissSelection]);
 
   // Embedded map panel is open for the whole preview except the resting
   // state (it stays mounted under the drawer, prototype keeps it open).
@@ -362,7 +407,6 @@ export function SelectionProvider({ children }) {
       collapseToPeek,
       expandFromPill,
       closeDrawer,
-      closeZoneSheet,
       dismissSelection,
       handleMapPress,
       handleBack,
@@ -391,7 +435,6 @@ export function SelectionProvider({ children }) {
       collapseToPeek,
       expandFromPill,
       closeDrawer,
-      closeZoneSheet,
       dismissSelection,
       handleMapPress,
       handleBack,

@@ -15,18 +15,19 @@ import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
-import { ZoneInfo } from './PreviewCard';
+import { ZoneBody } from './ZoneSheet';
 import { DrawerBody } from './IncidentDrawer';
 import { EvidenceBody } from './EvidencePanel';
 
 // Multi-detent bottom sheet (replaces the old peek → fullscreen-page jump):
 //   peek (half, ~46%) → drag up / chevron → full (~94%) with the COMPLETE
-//   incident detail (description, actions, timeline) inline; INSPECT on a
-//   timeline node switches the sheet body to the evidence sub-view in place
-//   (← returns to the detail). Drag down walks full → half → pill.
+//   detail (incident: description/actions/timeline; zone: stats/window/
+//   restriction timeline) inline; INSPECT on a timeline node switches the
+//   sheet body to the evidence sub-view in place (← returns to the detail).
+//   Drag down walks full → half → pill.
 // Evidence opens at the CURRENT detent — it never forces full on its own.
-// Zones keep their dedicated ZoneSheet; DIRECT selection mode keeps the
-// fullscreen IncidentDrawer/EvidencePanel pages.
+// Incidents AND zones share this sheet (zones are mode-independent); only
+// DIRECT-mode incidents keep the fullscreen IncidentDrawer/EvidencePanel.
 export default function PeekSheet() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -49,12 +50,12 @@ export default function PeekSheet() {
   const halfTy = fullH - halfVisible;
   const hiddenTy = fullH;
 
-  const isZonePeek = selectedKind === 'zone' && view === 'peek';
-  const incidentSheet =
-    selectedKind !== 'zone' &&
-    (view === 'peek' ||
-      ((view === 'drawer' || view === 'evidence') && selMode !== 'direct'));
-  const active = !!item && (isZonePeek || incidentSheet);
+  const isZone = selectedKind === 'zone';
+  const sheetActive = isZone
+    ? view === 'peek' || view === 'drawer' || view === 'evidence'
+    : view === 'peek' ||
+      ((view === 'drawer' || view === 'evidence') && selMode !== 'direct');
+  const active = !!item && sheetActive;
   const inEvidence = view === 'evidence';
 
   const [mounted, setMounted] = useState(active);
@@ -384,7 +385,7 @@ export default function PeekSheet() {
               contentContainerStyle={{ paddingBottom: halfBottomPad }}
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}>
-              {isZonePeek ? <ZoneInfo item={item} /> : <DrawerBody item={item} />}
+              {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
             </ScrollView>
           </Animated.View>
           {showEvidence ? (

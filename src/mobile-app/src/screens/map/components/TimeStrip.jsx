@@ -228,7 +228,7 @@ export default function TimeStrip() {
               <Text
                 style={[
                   styles.liveDate,
-                  { color: modeSoft, fontFamily: theme.fontMono },
+                  { color: modeColor, fontFamily: theme.fontMono },
                 ]}
                 numberOfLines={1}>
                 {format(now, 'd MMMM yyyy')}

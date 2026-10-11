@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   BackHandler,
@@ -50,19 +50,6 @@ function zoneOverlayFor(name) {
   return ZONE_OVERLAYS.find((z) => z.name === name) || null;
 }
 
-function zoneCode(name) {
-  const overlay = zoneOverlayFor(name);
-  if (overlay) {
-    return overlay.code;
-  }
-  return (name || '??')
-    .split(/[\s-]+/)
-    .map((w) => w[0] || '')
-    .join('')
-    .slice(0, 3)
-    .toLowerCase();
-}
-
 // Filter expression matching the selected feature on a layer of the same
 // source (mirrors the web rule: selection styling is a separate layer/effect).
 function selectedFilter(selectedId, selectedKind, kind) {
@@ -71,6 +58,67 @@ function selectedFilter(selectedId, selectedKind, kind) {
     ['get', 'id'],
     selectedKind === kind && selectedId ? selectedId : '__none__',
   ];
+}
+
+// Zone layers (web "neon-fade-no-shadow" look: subtle own-color fill, solid
+// border over a wide blurred glow line, no text labels). Selection is a
+// gently PULSING border instead of the web's brighter static stroke, which
+// stacked with the glow and read as muddy dark corners at map scale. The
+// pulse lives in this isolated component so its ~20fps ticker never
+// re-renders the whole map screen.
+function ZoneLayers({ zonesFC, selectedId, selectedKind, onZonePress }) {
+  const zoneSelected = selectedKind === 'zone' && !!selectedId;
+  const [pulse, setPulse] = useState(0.7);
+  useEffect(() => {
+    if (!zoneSelected) {
+      return undefined;
+    }
+    const t0 = Date.now();
+    const id = setInterval(
+      () => setPulse(0.7 + 0.25 * Math.sin((Date.now() - t0) / 260)),
+      50,
+    );
+    return () => clearInterval(id);
+  }, [zoneSelected]);
+
+  return (
+    <GeoJSONSource id="zones" data={zonesFC} onPress={onZonePress}>
+      <Layer
+        id="zone-fill"
+        type="fill"
+        paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 }}
+      />
+      <Layer
+        id="zone-glow"
+        type="line"
+        paint={{
+          'line-color': ['get', 'color'],
+          'line-width': 5,
+          'line-blur': 3,
+          'line-opacity': 0.4,
+        }}
+      />
+      <Layer
+        id="zone-line"
+        type="line"
+        paint={{
+          'line-color': ['get', 'color'],
+          'line-width': 1.5,
+          'line-opacity': 0.7,
+        }}
+      />
+      <Layer
+        id="zone-selected"
+        type="line"
+        filter={selectedFilter(selectedId, selectedKind, 'zone')}
+        paint={{
+          'line-color': ['get', 'color'],
+          'line-width': 2.5,
+          'line-opacity': pulse,
+        }}
+      />
+    </GeoJSONSource>
+  );
 }
 
 // Loading skeleton: three pulsing blocks + mono label, floats under TimeStrip.
@@ -170,6 +218,7 @@ export default function MapScreen() {
     selectedId,
     selectedKind,
     ghostItem,
+    searchOverlay,
     layerVisibility,
     cameraRef,
     handleRegionChange,
@@ -178,11 +227,12 @@ export default function MapScreen() {
     handleBack: handleSelectionBack,
     handleMapPress,
     selectFromMap,
+    previewItemOnMap,
     view: selectionView,
   } = useSelection();
 
   // Android hardware back goes to whatever is visually topmost (mirrors the
-  // prototype z-order): modal (80) > drawer/zoneSheet/peek (65–70) > stack
+  // prototype z-order): modal (80) > drawer/peek sheet (65–70) > stack
   // overlays (55–66) > pill (32). The selection chain walks drawer →
   // peek/pill → deselect-or-restore-origin before the app exits.
   useEffect(() => {
@@ -192,7 +242,6 @@ export default function MapScreen() {
         !hasModal &&
         (selectionView === 'evidence' ||
           selectionView === 'drawer' ||
-          selectionView === 'zoneSheet' ||
           selectionView === 'peek');
       if (selectionOnTop && handleSelectionBack()) {
         return true;
@@ -258,11 +307,84 @@ export default function MapScreen() {
             id: z.id,
             kind: 'zone',
             color: z.zone_category_color || theme.accentLight,
-            code: zoneCode(z.zone_category_name),
           },
         })),
     }),
     [zones, layerVisibility, theme],
+  );
+
+  // Power Search result overlay: the PS screen publishes its result set here;
+  // markers render on top of the base map and tapping one previews it through
+  // the same power-search flow as a result card tap.
+  const psIncidentsFC = useMemo(() => {
+    if (!searchOverlay) {
+      return null;
+    }
+    return {
+      type: 'FeatureCollection',
+      features: searchOverlay.incidents
+        .filter(
+          (i) =>
+            Number.isFinite(parseFloat(i.latitude)) &&
+            Number.isFinite(parseFloat(i.longitude)),
+        )
+        .map((i) => ({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(i.longitude), parseFloat(i.latitude)],
+          },
+          properties: {
+            id: i.id,
+            kind: 'incident',
+            icon: markerImageFor(i.domain_slug),
+            color: i.domain_color || '#6b7280',
+            r: severityRadius(i.severity),
+            iconSize: markerIconSize(i.severity),
+          },
+        })),
+    };
+  }, [searchOverlay]);
+
+  const psZonesFC = useMemo(() => {
+    if (!searchOverlay) {
+      return null;
+    }
+    return {
+      type: 'FeatureCollection',
+      features: searchOverlay.zones
+        .filter(
+          (z) =>
+            z.geometry &&
+            (z.geometry.type === 'Polygon' ||
+              z.geometry.type === 'MultiPolygon'),
+        )
+        .map((z) => ({
+          type: 'Feature',
+          geometry: z.geometry,
+          properties: {
+            id: z.id,
+            kind: 'zone',
+            color: z.zone_category_color || theme.accentLight,
+          },
+        })),
+    };
+  }, [searchOverlay, theme]);
+
+  const handlePsPress = useCallback(
+    (kind) => (event) => {
+      event.stopPropagation?.();
+      const id = event.nativeEvent?.features?.[0]?.properties?.id;
+      if (!id || !searchOverlay) {
+        return;
+      }
+      const list = kind === 'zone' ? searchOverlay.zones : searchOverlay.incidents;
+      const item = list.find((i) => i.id === id);
+      if (item) {
+        previewItemOnMap(kind, item, { type: 'fullscreen' }, 'power-search');
+      }
+    },
+    [searchOverlay, previewItemOnMap],
   );
 
   // Ghosted selection: the item fell out of the fetched date range — keep it
@@ -300,7 +422,10 @@ export default function MapScreen() {
             id: ghostItem.id,
             kind: isZone ? 'zone' : 'incident',
             icon: markerImageFor(ghostItem.domain_slug),
-            color: ghostItem.domain_color || '#6b7280',
+            color:
+              (isZone
+                ? ghostItem.zone_category_color
+                : ghostItem.domain_color) || '#6b7280',
             r: severityRadius(ghostItem.severity),
             iconSize: markerIconSize(ghostItem.severity),
           },
@@ -366,43 +491,12 @@ export default function MapScreen() {
           maxZoom={MAX_ZOOM}
         />
         <Images images={MARKER_IMAGES} />
-        <GeoJSONSource id="zones" data={zonesFC} onPress={handleZonePress}>
-          <Layer
-            id="zone-fill"
-            type="fill"
-            paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': 0.15 }}
-          />
-          <Layer
-            id="zone-line"
-            type="line"
-            paint={{
-              'line-color': ['get', 'color'],
-              'line-width': 1.5,
-              'line-dasharray': [2, 2],
-            }}
-          />
-          <Layer
-            id="zone-selected"
-            type="line"
-            filter={selectedFilter(selectedId, selectedKind, 'zone')}
-            paint={{ 'line-color': theme.accentLight, 'line-width': 3 }}
-          />
-          <Layer
-            id="zone-label"
-            type="symbol"
-            layout={{
-              'text-field': ['get', 'code'],
-              'text-font': ['Noto Sans Bold'],
-              'text-size': 10,
-              'text-allow-overlap': true,
-            }}
-            paint={{
-              'text-color': ['get', 'color'],
-              'text-halo-color': theme.bgDeep,
-              'text-halo-width': 1.5,
-            }}
-          />
-        </GeoJSONSource>
+        <ZoneLayers
+          zonesFC={zonesFC}
+          selectedId={selectedId}
+          selectedKind={selectedKind}
+          onZonePress={handleZonePress}
+        />
         <GeoJSONSource
           id="incidents"
           data={incidentsFC}
@@ -444,22 +538,85 @@ export default function MapScreen() {
             }}
           />
         </GeoJSONSource>
+        {psIncidentsFC || psZonesFC ? (
+          <>
+            {psZonesFC ? (
+              <GeoJSONSource
+                id="ps-zones"
+                data={psZonesFC}
+                onPress={handlePsPress('zone')}>
+                <Layer
+                  id="ps-zone-fill"
+                  type="fill"
+                  paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': 0.14 }}
+                />
+                <Layer
+                  id="ps-zone-line"
+                  type="line"
+                  paint={{
+                    'line-color': ['get', 'color'],
+                    'line-width': 2,
+                    'line-opacity': 0.85,
+                  }}
+                />
+                <Layer
+                  id="ps-zone-selected"
+                  type="line"
+                  filter={selectedFilter(selectedId, selectedKind, 'zone')}
+                  paint={{
+                    'line-color': '#ffffff',
+                    'line-width': 2.5,
+                    'line-opacity': 0.9,
+                  }}
+                />
+              </GeoJSONSource>
+            ) : null}
+            {psIncidentsFC ? (
+              <GeoJSONSource
+                id="ps-incidents"
+                data={psIncidentsFC}
+                onPress={handlePsPress('incident')}>
+                <Layer
+                  id="ps-incident-selected-ring"
+                  type="circle"
+                  filter={selectedFilter(selectedId, selectedKind, 'incident')}
+                  paint={{
+                    'circle-color': 'rgba(0,0,0,0)',
+                    'circle-radius': ['+', ['get', 'r'], 2],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff',
+                  }}
+                />
+                <Layer
+                  id="ps-incident-marker"
+                  type="symbol"
+                  layout={{
+                    'icon-image': ['get', 'icon'],
+                    'icon-size': ['get', 'iconSize'],
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                  }}
+                />
+              </GeoJSONSource>
+            ) : null}
+          </>
+        ) : null}
         {ghostFC ? (
           <GeoJSONSource id="ghost" data={ghostFC}>
             <Layer
               id="ghost-fill"
               type="fill"
               filter={['==', ['get', 'kind'], 'zone']}
-              paint={{ 'fill-color': theme.textMuted, 'fill-opacity': 0.08 }}
+              paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': 0.06 }}
             />
             <Layer
               id="ghost-line"
               type="line"
               filter={['==', ['get', 'kind'], 'zone']}
               paint={{
-                'line-color': theme.textMuted,
-                'line-width': 1.5,
-                'line-dasharray': [2, 2],
+                'line-color': ['get', 'color'],
+                'line-width': 2,
+                'line-dasharray': [6, 4],
                 'line-opacity': 0.6,
               }}
             />

@@ -57,27 +57,6 @@ function areaLabel(item) {
   return Number.isFinite(m2) ? `${(m2 / 1e6).toFixed(1)} km²` : '';
 }
 
-function pointCenter(item) {
-  const lat = parseFloat(item.latitude);
-  const lon = parseFloat(item.longitude);
-  return Number.isFinite(lat) && Number.isFinite(lon) ? [lon, lat] : null;
-}
-
-// Zones carry no lat/lon columns — average the GeoJSON ring for a centroid.
-function zoneCenter(item) {
-  const ring = item?.geometry?.coordinates?.[0];
-  if (!Array.isArray(ring) || !ring.length) return null;
-  let sx = 0;
-  let sy = 0;
-  ring.forEach((pair) => {
-    sx += Number(pair[0]);
-    sy += Number(pair[1]);
-  });
-  const lon = sx / ring.length;
-  const lat = sy / ring.length;
-  return Number.isFinite(lat) && Number.isFinite(lon) ? [lon, lat] : null;
-}
-
 export function CommandPaletteBody({ overlay }) {
   const { theme } = useTheme();
   const { closeOverlay, openOverlay } = useOverlay();
@@ -152,12 +131,11 @@ export function CommandPaletteBody({ overlay }) {
 
   const openItem = (kind, item) => {
     Keyboard.dismiss();
-    // selectFromMap closes all overlays itself and runs the marker-tap
-    // selection flow; item is passed as fallback data because palette
-    // results come from all-time search, not the map's fetched range.
+    // selectFromMap closes all overlays itself, runs the marker-tap selection
+    // flow AND flies the camera via the shared selection-camera policy;
+    // item is passed as fallback data because palette results come from
+    // all-time search, not the map's fetched range.
     selectFromMap(item.id, kind, item);
-    const center = kind === 'zone' ? zoneCenter(item) : pointCenter(item);
-    if (center) flyTo(center, 8);
   };
 
   const openLocation = (item) => {

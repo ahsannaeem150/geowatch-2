@@ -4,16 +4,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search } from 'lucide-react-native';
 import { useTheme } from '../../../context/ThemeContext';
 import { useOverlay } from '../../../context/OverlayContext';
+import { useSelection } from '../../../context/SelectionContext';
 
 export default function TopBar() {
   const { theme } = useTheme();
   const { openOverlay } = useOverlay();
+  const { view, selMode, collapsePeek, closeDrawer } = useSelection();
   const insets = useSafeAreaInsets();
+
+  // The selection sheet renders ABOVE overlay drawers — so open the profile
+  // drawer only after the sheet has stepped down to the pill (or the direct
+  // fullscreen drawer has closed), otherwise the drawer slides in underneath.
+  const openProfile = () => {
+    if (view === 'drawer' && selMode === 'direct') {
+      closeDrawer();
+    } else if (view !== 'idle' && view !== 'pill') {
+      collapsePeek();
+    }
+    openOverlay({ id: 'profile', type: 'drawerLeft' });
+  };
 
   return (
     <View style={[styles.row, { top: insets.top + 8 }]} pointerEvents="box-none">
       <Pressable
-        onPress={() => openOverlay({ id: 'profile', type: 'drawerLeft' })}
+        onPress={openProfile}
         style={[
           styles.avatar,
           {
