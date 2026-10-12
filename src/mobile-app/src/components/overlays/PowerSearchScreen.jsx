@@ -7,6 +7,9 @@ import React, {
 } from 'react';
 import {
   Animated,
+  BackHandler,
+  Dimensions,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -56,8 +59,12 @@ import {
   VERIFICATION_STATUSES,
   ZONE_OVERLAYS,
 } from '../../constants';
+import { zoneBBox, zoneCentroid } from '../../utils/zoneGeometry';
 import MiniCalendar from '../../screens/map/components/MiniCalendar';
 import { DirCard } from './DirectoryScreen';
+import { DrawerBody } from '../selection/IncidentDrawer';
+import { ZoneBody } from '../selection/ZoneSheet';
+import { EvidenceBody } from '../selection/EvidencePanel';
 
 // Power Search: a SOLID top block (back + search + filters button + a row of
 // quick-filter chips and applied tags) over the live map, a two-detent
@@ -178,8 +185,8 @@ export function PowerSearchBody({ overlay }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { closeOverlay, showToast } = useOverlay();
-  const { selectedId, setSearchOverlay } = useMap();
-  const { previewItemOnMap } = useSelection();
+  const { selectedId, setSearchOverlay, selectItem, flyToSelection } = useMap();
+  const { view: selectionView, closeEvidence } = useSelection();
   const { signedIn, requireSignIn } = useAuth();
 
   const [q, setQ] = useState(overlay.props?.initialQ || '');
@@ -504,15 +511,86 @@ export function PowerSearchBody({ overlay }) {
   );
 
   // Publish results as map markers while the screen is open; cleared on
-  // unmount (close) so the base map returns to its date-range set.
+  // unmount (close) so the base map returns to its date-range set. Tapping a
+  // search marker routes through onOpen into the sheet's LOCAL detail view
+  // (single-sheet pattern — the global PeekSheet stays out of the PS flow).
+  const [detail, setDetail] = useState(null); // { kind, item } | null
+  const openDetailRef = useRef(null);
+  openDetailRef.current = (kind, item) => {
+    setDetail({ kind, item });
+    // Selection ring + card highlight still run through MapContext; the
+    // SelectionContext state machine (peek/pill/preview) is NOT engaged.
+    selectItem(item.id, kind);
+    // Selection-camera parity with the old previewItemOnMap power-search
+    // rule: pan-only flight with the half sheet's bottom padding.
+    const { height: vh } = Dimensions.get('window');
+    const padding = {
+      top: 116,
+      right: 24,
+      left: 24,
+      bottom: Math.round(vh * 0.52),
+    };
+    if (kind === 'zone') {
+      const centroid = zoneCentroid(item.geometry);
+      if (centroid) {
+        flyToSelection({
+          type: 'zone',
+          source: 'power-search',
+          lng: centroid[0],
+          lat: centroid[1],
+          bounds: zoneBBox(item.geometry),
+          padding,
+        });
+      }
+      return;
+    }
+    const lat = parseFloat(item.latitude);
+    const lng = parseFloat(item.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      flyToSelection({ type: 'incident', source: 'power-search', lng, lat, padding });
+    }
+  };
+  const psOpenItem = useCallback(
+    (kind, item) => openDetailRef.current?.(kind, item),
+    [],
+  );
   useEffect(() => {
-    setSearchOverlay({ incidents: incResults, zones: visibleZones });
-  }, [incResults, visibleZones, setSearchOverlay]);
+    setSearchOverlay({
+      incidents: incResults,
+      zones: visibleZones,
+      onOpen: psOpenItem,
+    });
+  }, [incResults, visibleZones, setSearchOverlay, psOpenItem]);
   useEffect(() => () => setSearchOverlay(null), [setSearchOverlay]);
 
+  const closeDetail = useCallback(() => setDetail(null), []);
+
+  // Closing the detail also releases any in-sheet evidence sub-view (the
+  // INSPECT flow runs on SelectionContext's evidence state with a null
+  // global item, so the global PeekSheet/EvidencePanel never appear).
+  useEffect(() => {
+    if (!detail && selectionView === 'evidence') {
+      closeEvidence();
+    }
+  }, [detail, selectionView, closeEvidence]);
+
+  // Hardware back from the detail view returns to the list (it does NOT
+  // close the PS screen); evidence back is left to MapScreen's chain, which
+  // closes the evidence sub-view and lands back on this detail.
+  useEffect(() => {
+    if (!detail) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (selectionView === 'evidence') {
+        return false; // MapScreen's selection chain handles evidence → detail
+      }
+      setDetail(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [detail, selectionView]);
+
   const close = () => closeOverlay(overlay.id);
-  const openPreview = (kind, item) =>
-    previewItemOnMap(kind, item, { type: 'fullscreen', id: 'powerSearch' }, 'power-search');
+  const openPreview = (kind, item) => psOpenItem(kind, item);
 
   return (
     <View style={styles.root} pointerEvents="box-none">
@@ -667,6 +745,8 @@ export function PowerSearchBody({ overlay }) {
         sortMode={sortMode}
         onSortChange={setSortMode}
         topH={topH}
+        detail={detail}
+        onCloseDetail={closeDetail}
       />
 
       {/* filters bottom sheet */}
@@ -710,13 +790,20 @@ export function PowerSearchBody({ overlay }) {
 }
 
 // ─── Two-detent results sheet + dismiss pill ───
-// Detents: half (~52%) and full (just below the solid top block). A clear
-// down-flick from half (or a drag projected deep enough) dismisses the sheet
-// fully off the bottom; a floating "N RESULTS ▴" pill then re-opens it at
-// half. Whole-sheet drag shares the map PeekSheet's gesture engine
-// (src/hooks/useSheetGesture.js) in capture mode: the header strip always
-// drags the sheet (locationY check), drags up raise unless full, and drags
-// down lower the sheet only once the list is scrolled to its top.
+// ONE sheet with internal list ↔ detail (↔ evidence) navigation — the PS
+// screen never opens the global PeekSheet. Detents: half (~52%) and full
+// (just below the solid top block). From LIST, a down-flick from half (or a
+// deep projection) dismisses the sheet fully off the bottom; a floating
+// "N RESULTS ▴" pill then re-opens it at half, always back on the list. In
+// DETAIL the same down-gesture returns to the list at half — the sheet never
+// dismisses straight from detail. Detail/evidence cross-slide mirrors the
+// PeekSheet's detail ↔ evidence cinematic (parallax left + fade / slide in
+// from the right); INSPECT runs on SelectionContext's evidence state with a
+// null global item, so the global sheet/panel never appear. Whole-sheet drag
+// shares the map PeekSheet's gesture engine (src/hooks/useSheetGesture.js)
+// in capture mode: the header strip always drags the sheet (locationY
+// check), drags up raise unless full, and drags down lower the sheet only
+// once the active pane is scrolled to its top.
 function ResultsSheet({
   total,
   loading,
@@ -730,10 +817,13 @@ function ResultsSheet({
   sortMode,
   onSortChange,
   topH,
+  detail,
+  onCloseDetail,
 }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { view: selectionView, evidenceUpdate, closeEvidence } = useSelection();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   // The sheet is full-screen tall and slides under the top block; the
   // dismiss detent parks it fully below the screen (no tab bar anymore).
@@ -745,8 +835,69 @@ function ResultsSheet({
   const [sortOpen, setSortOpen] = useState(false);
   const pos = useRef(new Animated.Value(sheetH)).current; // mounts hidden
 
+  const inDetail = !!detail;
+  const inEvidence = inDetail && selectionView === 'evidence' && !!evidenceUpdate;
+
+  // Detail ↔ evidence cinematic cross-slide (PeekSheet parity): progress
+  // 0 = list, 1 = detail; the list parallax-slides left + fades out while
+  // the detail slides in from the right — back plays the exact reverse. The
+  // list stays MOUNTED underneath (scroll position kept).
+  const bodyAnim = useRef(new Animated.Value(inDetail ? 1 : 0)).current;
+  const [showDetail, setShowDetail] = useState(inDetail);
+  useEffect(() => {
+    if (inDetail) {
+      setShowDetail(true);
+      setSortOpen(false);
+      listScrollY.current = 0; // detail pane starts at its top
+      Animated.timing(bodyAnim, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else if (showDetail) {
+      Animated.timing(bodyAnim, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setShowDetail(false);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inDetail]);
+
+  // Second layer of the same cross-slide for detail → evidence.
+  const eviAnim = useRef(new Animated.Value(0)).current;
+  const [showEvidence, setShowEvidence] = useState(false);
+  useEffect(() => {
+    if (inEvidence) {
+      setShowEvidence(true);
+      Animated.timing(eviAnim, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else if (showEvidence) {
+      Animated.timing(eviAnim, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setShowEvidence(false);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inEvidence]);
+
+  const closeDetailRef = useRef(onCloseDetail);
+  closeDetailRef.current = onCloseDetail;
+
   const live = useRef({});
-  live.current = { level, halfTy, fullTy, sheetH };
+  live.current = { level, halfTy, fullTy, sheetH, inDetail };
 
   const listScrollY = useRef(0);
   const { panResponder, springTo } = useSheetGesture({
@@ -777,19 +928,26 @@ function ResultsSheet({
     chooseTarget: ({ dy, vyMs, projected }) => {
       const s = live.current;
       // A clear flick UP flies straight to full; a flick DOWN steps one
-      // detent (full → half, half → dismissed); a slow drag settles at the
-      // nearest detent, with a deep projection dismissing outright.
+      // detent; a slow drag settles at the nearest detent. In LIST the down
+      // chain ends in a full dismiss (→ pill); in DETAIL it returns to the
+      // list at half instead — the sheet never dismisses from detail.
       const dismissThresh = s.halfTy + (s.sheetH - s.halfTy) * 0.45;
+      const backToList = { lv: 'half', ty: s.halfTy, exitDetail: true };
       let target;
       if (vyMs < -1.0 && dy < -10) {
         target = { lv: 'full', ty: s.fullTy };
       } else if (vyMs > 1.0 && dy > 10) {
-        target =
-          s.level === 'full'
-            ? { lv: 'half', ty: s.halfTy }
+        if (s.level === 'full') {
+          target = { lv: 'half', ty: s.halfTy };
+        } else {
+          target = s.inDetail
+            ? backToList
             : { lv: 'dismissed', ty: s.sheetH };
+        }
       } else if (projected > dismissThresh) {
-        target = { lv: 'dismissed', ty: s.sheetH };
+        target = s.inDetail
+          ? backToList
+          : { lv: 'dismissed', ty: s.sheetH };
       } else {
         target =
           Math.abs(s.fullTy - projected) < Math.abs(s.halfTy - projected)
@@ -799,6 +957,7 @@ function ResultsSheet({
       return {
         ty: target.ty,
         after: () => {
+          if (target.exitDetail) closeDetailRef.current();
           if (target.lv !== s.level) {
             setLevel(target.lv);
             if (target.lv !== 'half') setSortOpen(false);
@@ -845,6 +1004,44 @@ function ResultsSheet({
 
   const sortLabel = SORTS.find((s) => s.key === sortMode)?.label || 'Newest';
 
+  // Cross-slide interpolations (PeekSheet detail ↔ evidence parity).
+  const listTranslate = bodyAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -windowWidth * 0.35],
+  });
+  const listOpacity = bodyAnim.interpolate({
+    inputRange: [0, 0.7],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const detailTranslate = bodyAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [windowWidth, 0],
+  });
+  const detailOpacity = bodyAnim.interpolate({
+    inputRange: [0.15, 1],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const eviParallax = eviAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -windowWidth * 0.35],
+  });
+  const eviParOpacity = eviAnim.interpolate({
+    inputRange: [0, 0.7],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const eviTranslate = eviAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [windowWidth, 0],
+  });
+  const eviOpacity = eviAnim.interpolate({
+    inputRange: [0.15, 1],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
   return (
     <View style={styles.sheetWrap} pointerEvents="box-none">
       <Animated.View
@@ -864,48 +1061,79 @@ function ResultsSheet({
               style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
             />
           </View>
-          <View style={styles.sheetHeadRow}>
-            <Pressable
-              onPress={toggleLevel}
-              hitSlop={6}
-              style={styles.sheetHeadLeft}>
-              <Text
-                style={[
-                  styles.stripCount,
-                  { color: theme.accentLight, fontFamily: theme.fontMono },
+          {inDetail ? (
+            <View style={styles.detailHeadRow}>
+              <Pressable
+                onPress={inEvidence ? closeEvidence : onCloseDetail}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.detailBackBtn,
+                  { backgroundColor: pressed ? theme.bgHover : theme.bgElevated },
                 ]}>
-                {loading ? 'SEARCHING…' : `${total} RESULTS`}
-              </Text>
-              {level === 'full' ? (
-                <ChevronDown size={14} color={theme.textMuted} />
-              ) : (
-                <ChevronUp size={14} color={theme.textMuted} />
-              )}
-            </Pressable>
-            <Pressable
-              onPress={() => setSortOpen((v) => !v)}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.sortBtn,
-                {
-                  borderColor: theme.borderSubtle,
-                  backgroundColor: pressed ? theme.bgHover : theme.bgElevated,
-                },
-              ]}>
+                <ChevronLeft size={16} color={theme.textSecondary} />
+              </Pressable>
               <Text
+                numberOfLines={1}
                 style={[
-                  styles.sortBtnText,
-                  { color: theme.textSecondary, fontFamily: theme.fontMono },
+                  styles.detailHeadTitle,
+                  { color: theme.textMuted, fontFamily: theme.fontMono },
                 ]}>
-                {sortLabel}
+                {inEvidence
+                  ? 'UPDATE EVIDENCE'
+                  : detail.kind === 'zone'
+                    ? (detail.item.zone_category_name || 'ZONE').toUpperCase()
+                    : (
+                        detail.item.category_name ||
+                        detail.item.domain_name ||
+                        'INCIDENT'
+                      ).toUpperCase()}
               </Text>
-              <ChevronDown
-                size={11}
-                color={theme.textMuted}
-                style={sortOpen ? styles.chevOpen : undefined}
-              />
-            </Pressable>
-          </View>
+              <View style={styles.detailBackBtn} />
+            </View>
+          ) : (
+            <View style={styles.sheetHeadRow}>
+              <Pressable
+                onPress={toggleLevel}
+                hitSlop={6}
+                style={styles.sheetHeadLeft}>
+                <Text
+                  style={[
+                    styles.stripCount,
+                    { color: theme.accentLight, fontFamily: theme.fontMono },
+                  ]}>
+                  {loading ? 'SEARCHING…' : `${total} RESULTS`}
+                </Text>
+                {level === 'full' ? (
+                  <ChevronDown size={14} color={theme.textMuted} />
+                ) : (
+                  <ChevronUp size={14} color={theme.textMuted} />
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => setSortOpen((v) => !v)}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.sortBtn,
+                  {
+                    borderColor: theme.borderSubtle,
+                    backgroundColor: pressed ? theme.bgHover : theme.bgElevated,
+                  },
+                ]}>
+                <Text
+                  style={[
+                    styles.sortBtnText,
+                    { color: theme.textSecondary, fontFamily: theme.fontMono },
+                  ]}>
+                  {sortLabel}
+                </Text>
+                <ChevronDown
+                  size={11}
+                  color={theme.textMuted}
+                  style={sortOpen ? styles.chevOpen : undefined}
+                />
+              </Pressable>
+            </View>
+          )}
         </View>
 
         {sortOpen ? (
@@ -945,141 +1173,209 @@ function ResultsSheet({
           </View>
         ) : null}
 
-        <View style={styles.sheetBody}>
-          {loading ? (
-            <View style={styles.stripPad}>
-              {[0, 1, 2].map((i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.skelRow,
-                    { borderBottomColor: theme.borderSubtle },
-                  ]}>
+        <View style={styles.bodyWrap}>
+          <Animated.View
+            pointerEvents={inDetail ? 'none' : 'auto'}
+            style={[
+              styles.bodyFill,
+              {
+                transform: [{ translateX: listTranslate }],
+                opacity: listOpacity,
+              },
+            ]}>
+            {loading ? (
+              <View style={styles.stripPad}>
+                {[0, 1, 2].map((i) => (
                   <View
+                    key={i}
                     style={[
-                      styles.skelBar,
-                      { backgroundColor: theme.bgElevated },
-                    ]}
-                  />
-                  <View style={styles.skelCol}>
+                      styles.skelRow,
+                      { borderBottomColor: theme.borderSubtle },
+                    ]}>
                     <View
                       style={[
-                        styles.skelLine,
-                        styles.skelW72,
+                        styles.skelBar,
                         { backgroundColor: theme.bgElevated },
                       ]}
                     />
-                    <View
-                      style={[
-                        styles.skelLine,
-                        styles.skelW38,
-                        { backgroundColor: theme.bgElevated },
-                      ]}
-                    />
+                    <View style={styles.skelCol}>
+                      <View
+                        style={[
+                          styles.skelLine,
+                          styles.skelW72,
+                          { backgroundColor: theme.bgElevated },
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.skelLine,
+                          styles.skelW38,
+                          { backgroundColor: theme.bgElevated },
+                        ]}
+                      />
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
-          ) : error ? (
-            <View style={styles.stateBox}>
-              <Text style={[styles.stateText, { color: theme.textMuted }]}>
-                Couldn’t load results.
-              </Text>
-              <Pressable
-                onPress={onRetry}
+                ))}
+              </View>
+            ) : error ? (
+              <View style={styles.stateBox}>
+                <Text style={[styles.stateText, { color: theme.textMuted }]}>
+                  Couldn’t load results.
+                </Text>
+                <Pressable
+                  onPress={onRetry}
+                  style={[
+                    styles.retryBtn,
+                    {
+                      borderColor: theme.accentSubtleBorder,
+                      backgroundColor: theme.accentSubtleBg,
+                    },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.retryText,
+                      { color: theme.accentLight, fontFamily: theme.fontMono },
+                    ]}>
+                    Retry
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.stripList}
+                contentContainerStyle={styles.stripPad}
+                keyboardShouldPersistTaps="handled"
+                scrollEnabled={level === 'full'}
+                scrollEventThrottle={16}
+                onScroll={(e) => {
+                  listScrollY.current = e.nativeEvent.contentOffset.y;
+                }}>
+                {total === 0 ? (
+                  <View style={styles.stateBox}>
+                    <Text style={[styles.stateText, { color: theme.textMuted }]}>
+                      No results match your filters.
+                    </Text>
+                    <Pressable onPress={onReset} hitSlop={6}>
+                      <Text
+                        style={[
+                          styles.resetLink,
+                          { color: theme.accentLight },
+                        ]}>
+                        Reset all filters
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <>
+                    {incResults.length ? (
+                      <>
+                        <Text
+                          style={[
+                            styles.secLabel,
+                            {
+                              color: theme.textMuted,
+                              fontFamily: theme.fontMono,
+                            },
+                          ]}>
+                          Incidents ({incResults.length})
+                        </Text>
+                        {incResults.map((item) => (
+                          <DirCard
+                            key={item.id}
+                            kind="incident"
+                            item={item}
+                            highlighted={selectedId === item.id}
+                            onPress={() => onOpen('incident', item)}
+                          />
+                        ))}
+                      </>
+                    ) : null}
+                    {zoneResults.length ? (
+                      <>
+                        <Text
+                          style={[
+                            styles.secLabel,
+                            {
+                              color: theme.textMuted,
+                              fontFamily: theme.fontMono,
+                            },
+                          ]}>
+                          Zones ({zoneResults.length})
+                        </Text>
+                        {zoneResults.map((item) => (
+                          <DirCard
+                            key={item.id}
+                            kind="zone"
+                            item={item}
+                            highlighted={selectedId === item.id}
+                            onPress={() => onOpen('zone', item)}
+                          />
+                        ))}
+                      </>
+                    ) : null}
+                  </>
+                )}
+              </ScrollView>
+            )}
+          </Animated.View>
+
+          {showDetail && detail ? (
+            <Animated.View
+              pointerEvents={inDetail ? 'auto' : 'none'}
+              style={[
+                styles.bodyOverlay,
+                {
+                  backgroundColor: theme.bgSurface,
+                  transform: [{ translateX: detailTranslate }],
+                  opacity: detailOpacity,
+                },
+              ]}>
+              <Animated.View
                 style={[
-                  styles.retryBtn,
+                  styles.bodyFill,
                   {
-                    borderColor: theme.accentSubtleBorder,
-                    backgroundColor: theme.accentSubtleBg,
+                    transform: [{ translateX: eviParallax }],
+                    opacity: eviParOpacity,
                   },
                 ]}>
-                <Text
+                <ScrollView
+                  style={styles.stripList}
+                  contentContainerStyle={[
+                    styles.detailPad,
+                    { paddingBottom: insets.bottom + 24 },
+                  ]}
+                  keyboardShouldPersistTaps="handled"
+                  scrollEnabled={level === 'full'}
+                  scrollEventThrottle={16}
+                  onScroll={(e) => {
+                    listScrollY.current = e.nativeEvent.contentOffset.y;
+                  }}>
+                  {detail.kind === 'zone' ? (
+                    <ZoneBody key={detail.item.id} item={detail.item} />
+                  ) : (
+                    <DrawerBody key={detail.item.id} item={detail.item} />
+                  )}
+                </ScrollView>
+              </Animated.View>
+              {showEvidence ? (
+                <Animated.View
+                  pointerEvents={inEvidence ? 'auto' : 'none'}
                   style={[
-                    styles.retryText,
-                    { color: theme.accentLight, fontFamily: theme.fontMono },
+                    styles.bodyOverlay,
+                    {
+                      backgroundColor: theme.bgSurface,
+                      transform: [{ translateX: eviTranslate }],
+                      opacity: eviOpacity,
+                    },
                   ]}>
-                  Retry
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.stripList}
-              contentContainerStyle={styles.stripPad}
-              keyboardShouldPersistTaps="handled"
-              scrollEnabled={level === 'full'}
-              scrollEventThrottle={16}
-              onScroll={(e) => {
-                listScrollY.current = e.nativeEvent.contentOffset.y;
-              }}>
-              {total === 0 ? (
-                <View style={styles.stateBox}>
-                  <Text style={[styles.stateText, { color: theme.textMuted }]}>
-                    No results match your filters.
-                  </Text>
-                  <Pressable onPress={onReset} hitSlop={6}>
-                    <Text
-                      style={[
-                        styles.resetLink,
-                        { color: theme.accentLight },
-                      ]}>
-                      Reset all filters
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <>
-                  {incResults.length ? (
-                    <>
-                      <Text
-                        style={[
-                          styles.secLabel,
-                          {
-                            color: theme.textMuted,
-                            fontFamily: theme.fontMono,
-                          },
-                        ]}>
-                        Incidents ({incResults.length})
-                      </Text>
-                      {incResults.map((item) => (
-                        <DirCard
-                          key={item.id}
-                          kind="incident"
-                          item={item}
-                          highlighted={selectedId === item.id}
-                          onPress={() => onOpen('incident', item)}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                  {zoneResults.length ? (
-                    <>
-                      <Text
-                        style={[
-                          styles.secLabel,
-                          {
-                            color: theme.textMuted,
-                            fontFamily: theme.fontMono,
-                          },
-                        ]}>
-                        Zones ({zoneResults.length})
-                      </Text>
-                      {zoneResults.map((item) => (
-                        <DirCard
-                          key={item.id}
-                          kind="zone"
-                          item={item}
-                          highlighted={selectedId === item.id}
-                          onPress={() => onOpen('zone', item)}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                </>
-              )}
-            </ScrollView>
-          )}
+                  <EvidenceBody
+                    key={evidenceUpdate?.id}
+                    bottomPad={insets.bottom + 24}
+                  />
+                </Animated.View>
+              ) : null}
+            </Animated.View>
+          ) : null}
         </View>
       </Animated.View>
 
@@ -1772,6 +2068,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
   },
+  detailHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+  },
+  detailBackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailHeadTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 1.8,
+  },
   stripCount: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
   sortBtn: {
     flexDirection: 'row',
@@ -1807,6 +2124,12 @@ const styles = StyleSheet.create({
   sortItemText: { fontSize: 12.5 },
   sortItemOn: { fontWeight: '600' },
   sheetBody: { flex: 1 },
+  bodyWrap: { flex: 1 },
+  bodyFill: { flex: 1 },
+  bodyOverlay: {
+    ...StyleSheet.absoluteFill,
+  },
+  detailPad: { paddingHorizontal: 2 },
   stripList: { flex: 1 },
   stripPad: { paddingBottom: 20 },
   secLabel: {

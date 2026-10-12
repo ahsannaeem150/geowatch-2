@@ -382,7 +382,15 @@ export default function MapScreen() {
       }
       const list = kind === 'zone' ? searchOverlay.zones : searchOverlay.incidents;
       const item = list.find((i) => i.id === id);
-      if (item) {
+      if (!item) {
+        return;
+      }
+      // PS single-sheet pattern: the screen's own detail view handles the
+      // open (published on the overlay); the global preview/PeekSheet flow
+      // is only the fallback for overlays without one.
+      if (searchOverlay.onOpen) {
+        searchOverlay.onOpen(kind, item);
+      } else {
         previewItemOnMap(kind, item, { type: 'fullscreen', id: 'powerSearch' }, 'power-search');
       }
     },
