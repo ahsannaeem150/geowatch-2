@@ -93,6 +93,11 @@ export default function PeekSheet() {
   useEffect(() => {
     if (active) {
       wantOpen.current = true;
+      // Level tracks the detent on EVERY active run — not only on mount.
+      // Keeping it inside the !mounted branch left it stale ('half') after a
+      // drag to full, so the next down-swipe was read as "half → dismiss"
+      // and the sheet fell straight to the pill.
+      setLevel(targetTy === 0 ? 'full' : 'half');
       if (!mounted) {
         // Mount FIRST at the hidden position and return — the effect re-runs
         // (deps include `mounted`) and starts the entry spring on the already
@@ -101,7 +106,6 @@ export default function PeekSheet() {
         // which was the visible jump/glitch on the pill → sheet handoff.
         pos.setValue(hiddenTy);
         setMounted(true);
-        setLevel(targetTy === 0 ? 'full' : 'half');
         return;
       }
       if (launchedTy.current === targetTy) {
