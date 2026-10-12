@@ -170,7 +170,13 @@ function XPostList({ items }) {
 // Evidence content (title, tabs, media grid, X posts, lightbox) — shared by
 // the fullscreen panel (direct mode / zones) and the peek sheet's inline
 // evidence sub-view.
-export function EvidenceBody({ bottomPad = 0 }) {
+export function EvidenceBody({
+  bottomPad = 0,
+  onScroll,
+  touchProps,
+  scrollEnabled,
+  scrollRef,
+}) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { selectedId } = useMap();
@@ -278,7 +284,15 @@ export function EvidenceBody({ bottomPad = 0 }) {
         })}
       </View>
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.body}
+        showsVerticalScrollIndicator={false}
+        overScrollMode="never"
+        scrollEnabled={scrollEnabled}
+        scrollEventThrottle={onScroll ? 16 : undefined}
+        onScroll={onScroll}
+        {...touchProps}>
         {tab !== 'xposts' ? (
           <>
             <Text
