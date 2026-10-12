@@ -59,13 +59,14 @@ import {
 import MiniCalendar from '../../screens/map/components/MiniCalendar';
 import { DirCard } from './DirectoryScreen';
 
-// Power Search (prototype #ps-screen): a FLOATING glass search bar over the
-// live map + a multi-detent results sheet (collapsed ↔ full, grabber drag —
-// same spring/velocity model as the selection PeekSheet). The fullscreen
-// container is transparent + pointerEvents box-none (meta.transparent in
-// Placeholders.jsx), so the map pans/zooms under the screen and the tab bar
-// stays tappable. Results also render as map markers via MapContext's
-// searchOverlay; tapping one previews it exactly like a card tap.
+// Power Search: a SOLID top block (back + search + filters button + a row of
+// quick-filter chips and applied tags) over the live map, a two-detent
+// results sheet (half ↔ full, down-flick dismisses to a floating "N Results"
+// pill), and a bottom-sheet filter panel. The fullscreen container is
+// transparent + pointerEvents box-none (meta.transparent in
+// Placeholders.jsx), so the map pans/zooms under the screen. Results also
+// render as map markers via MapContext's searchOverlay; tapping one previews
+// it exactly like a card tap.
 //
 // Backend mapping (GET /api/v1/incidents/search):
 //   type → which call runs (point → searchIncidents, polygon → searchZones)
@@ -78,13 +79,21 @@ import { DirCard } from './DirectoryScreen';
 
 const ALL_TIME = { dateFrom: '1970-01-01', dateTo: '2099-12-31' };
 
-// Tab bar overlaps the bottom 62px of the overlay body — the sheet floats
-// above it so the tabs stay visible and tappable.
-const TAB_CLEAR = 62;
-const COLLAPSED_VISIBLE = 128;
-// Full detent stops just below the floating search card so the query bar
-// stays visible/editable even with the sheet fully raised.
-const FULL_TY = 88;
+// Quick-filter chips in the top block — each opens the filter sheet with its
+// accordion section pre-expanded.
+const QUICK_FILTERS = [
+  { key: 'type', label: 'Type' },
+  { key: 'severity', label: 'Severity' },
+  { key: 'status', label: 'Status' },
+  { key: 'date', label: 'Date' },
+  { key: 'domains', label: 'Domains' },
+  { key: 'zonecats', label: 'Zone cats' },
+];
+
+// Header strip (grabber + results row) of the results sheet that always
+// drags the sheet even when the list is scrolled — measured from the sheet's
+// top edge inside canClaim via the touch's locationY.
+const HEADER_DRAG_H = 64;
 
 const SOURCE_TYPES = [
   { key: 'x_post', label: 'X Post', pill: '𝕏 X Posts' },
@@ -167,6 +176,7 @@ function pillState(theme, on) {
 
 export function PowerSearchBody({ overlay }) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { closeOverlay, showToast } = useOverlay();
   const { selectedId, setSearchOverlay } = useMap();
   const { previewItemOnMap } = useSelection();
@@ -186,6 +196,7 @@ export function PowerSearchBody({ overlay }) {
   const [savedOnly, setSavedOnly] = useState(false);
   const [sortMode, setSortMode] = useState('newest');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterFocus, setFilterFocus] = useState(null);
   // All accordions start collapsed except Type (web PS drawer parity).
   const [collapsed, setCollapsed] = useState(
     () =>
@@ -200,6 +211,9 @@ export function PowerSearchBody({ overlay }) {
         'options',
       ]),
   );
+  // Measured height of the solid top block — the results sheet's FULL detent
+  // parks just below it so the query bar stays visible/editable.
+  const [topH, setTopH] = useState(140);
   const [incResults, setIncResults] = useState([]);
   const [zoneResults, setZoneResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -386,6 +400,20 @@ export function PowerSearchBody({ overlay }) {
     setSavedOnly(false);
   }, []);
 
+  // Quick chip → open the filter sheet with that accordion pre-expanded and
+  // scrolled into view.
+  const openFilters = useCallback((sectionKey) => {
+    if (sectionKey) {
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        next.delete(sectionKey);
+        return next;
+      });
+    }
+    setFilterFocus(sectionKey || null);
+    setFiltersOpen(true);
+  }, []);
+
   // ─── Applied tags + counts (renderAppliedTags/countActiveFilters) ───
   const sevNums = onKeys(sevSel)
     .map(Number)
@@ -488,13 +516,16 @@ export function PowerSearchBody({ overlay }) {
 
   return (
     <View style={styles.root} pointerEvents="box-none">
-      {/* floating search bar (prototype .ps-top → floating card) */}
+      {/* Solid top block: covers the status bar and anchors the search row +
+          quick-filter chips / applied tags to the screen top. */}
       <View
+        onLayout={(e) => setTopH(e.nativeEvent.layout.height)}
         style={[
-          styles.topCard,
+          styles.topBlock,
           {
-            backgroundColor: theme.bgGlass,
-            borderColor: theme.borderSubtle,
+            paddingTop: insets.top + 10,
+            backgroundColor: theme.bgSurface,
+            borderBottomColor: theme.borderSubtle,
           },
         ]}>
         <View style={styles.headRow}>
@@ -523,7 +554,6 @@ export function PowerSearchBody({ overlay }) {
               placeholderTextColor={theme.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
-              autoFocus
               returnKeyType="search"
               style={[
                 styles.searchInput,
@@ -537,7 +567,7 @@ export function PowerSearchBody({ overlay }) {
             ) : null}
           </View>
           <Pressable
-            onPress={() => setFiltersOpen(true)}
+            onPress={() => openFilters(null)}
             style={({ pressed }) => [
               styles.filtersBtn,
               {
@@ -572,39 +602,58 @@ export function PowerSearchBody({ overlay }) {
             ) : null}
           </Pressable>
         </View>
-        {/* applied tags */}
-        {tags.length ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.tagsRow}>
-            {tags.map((t) => (
-              <Pressable
-                key={t.key}
-                onPress={t.clear}
+        {/* quick-filter chips first, then applied tags in the same row */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.chipsRow}>
+          {QUICK_FILTERS.map((f) => (
+            <Pressable
+              key={f.key}
+              onPress={() => openFilters(f.key)}
+              style={({ pressed }) => [
+                styles.chip,
+                {
+                  borderColor: theme.borderSubtle,
+                  backgroundColor: pressed ? theme.bgHover : theme.bgElevated,
+                },
+              ]}>
+              <Text
                 style={[
-                  styles.tag,
-                  {
-                    backgroundColor: theme.bgElevated,
-                    borderColor: theme.borderSubtle,
-                  },
+                  styles.chipText,
+                  { color: theme.textSecondary, fontFamily: theme.fontMono },
                 ]}>
-                <Text
-                  style={[
-                    styles.tagText,
-                    { color: theme.textSecondary, fontFamily: theme.fontMono },
-                  ]}>
-                  {t.label}
-                </Text>
-                <X size={10} color={theme.textMuted} />
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
+                {f.label}
+              </Text>
+              <ChevronDown size={11} color={theme.textMuted} />
+            </Pressable>
+          ))}
+          {tags.map((t) => (
+            <Pressable
+              key={t.key}
+              onPress={t.clear}
+              style={[
+                styles.chip,
+                {
+                  borderColor: theme.accentSubtleBorder,
+                  backgroundColor: theme.accentSubtleBg,
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: theme.accentLight, fontFamily: theme.fontMono },
+                ]}>
+                {t.label}
+              </Text>
+              <X size={11} color={theme.accentLight} />
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* multi-detent results sheet */}
+      {/* two-detent results sheet + dismiss pill */}
       <ResultsSheet
         total={total}
         loading={loading}
@@ -617,13 +666,15 @@ export function PowerSearchBody({ overlay }) {
         onOpen={openPreview}
         sortMode={sortMode}
         onSortChange={setSortMode}
+        topH={topH}
       />
 
-      {/* filters drawer (prototype .ps-filters) */}
+      {/* filters bottom sheet */}
       {filtersOpen ? (
-        <PsFilterDrawer
+        <PsFilterSheet
           theme={theme}
           filterCount={filterCount}
+          total={total}
           collapsed={collapsed}
           toggleAccordion={toggleAccordion}
           typeSel={typeSel}
@@ -650,6 +701,7 @@ export function PowerSearchBody({ overlay }) {
           toggleSavedOnly={toggleSavedOnly}
           signedIn={signedIn}
           resetFilters={resetFilters}
+          focusKey={filterFocus}
           close={() => setFiltersOpen(false)}
         />
       ) : null}
@@ -657,12 +709,14 @@ export function PowerSearchBody({ overlay }) {
   );
 }
 
-// ─── Multi-detent results sheet ───
-// Three detents: collapsed (grabber + "N RESULTS" + sort), half (~52%) and
-// full (just below the floating search card). Grabber drag uses the
-// PeekSheet model: extractOffset relative dragging for zero-latency finger
-// tracking, and the release spring inherits the fling velocity so motion
-// never visibly stops and re-accelerates.
+// ─── Two-detent results sheet + dismiss pill ───
+// Detents: half (~52%) and full (just below the solid top block). A clear
+// down-flick from half (or a drag projected deep enough) dismisses the sheet
+// fully off the bottom; a floating "N RESULTS ▴" pill then re-opens it at
+// half. Whole-sheet drag shares the map PeekSheet's gesture engine
+// (src/hooks/useSheetGesture.js) in capture mode: the header strip always
+// drags the sheet (locationY check), drags up raise unless full, and drags
+// down lower the sheet only once the list is scrolled to its top.
 function ResultsSheet({
   total,
   loading,
@@ -675,87 +729,89 @@ function ResultsSheet({
   onOpen,
   sortMode,
   onSortChange,
+  topH,
 }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
-  // The fullscreen container already pads top (insets.top + 8) and bottom
-  // (insets.bottom); the sheet fills the remaining body minus the tab bar.
-  const sheetH = Math.round(windowHeight - insets.top - 8 - insets.bottom - TAB_CLEAR);
-  const collapsedTy = sheetH - COLLAPSED_VISIBLE;
+  // The sheet is full-screen tall and slides under the top block; the
+  // dismiss detent parks it fully below the screen (no tab bar anymore).
+  const sheetH = windowHeight;
+  const fullTy = Math.max(Math.round(topH) + 8, 72);
   const halfTy = Math.round(sheetH * 0.52);
 
-  const [level, setLevel] = useState('collapsed'); // 'collapsed'|'half'|'full'
+  const [level, setLevel] = useState('half'); // 'half'|'full'|'dismissed'
   const [sortOpen, setSortOpen] = useState(false);
   const pos = useRef(new Animated.Value(sheetH)).current; // mounts hidden
 
   const live = useRef({});
-  live.current = { level, collapsedTy, halfTy };
+  live.current = { level, halfTy, fullTy, sheetH };
 
-  // Whole-sheet drag (Google Maps style), sharing the map PeekSheet's gesture
-  // engine (src/hooks/useSheetGesture.js) so this sheet drags/flicks/settles
-  // identically. Capture mode: the responder CAPTURES vertical gestures
-  // before the results ScrollView can claim them — drag up anywhere raises
-  // the sheet (until full), drag down lowers it only when the list is
-  // scrolled to its top, otherwise the list scrolls.
   const listScrollY = useRef(0);
   const { panResponder, springTo } = useSheetGesture({
     pos,
     mode: 'capture',
-    canClaim: (g) => {
+    canClaim: (g, e) => {
       const s = live.current;
+      if (s.level === 'dismissed') return false;
+      // Header strip (grabber + "N RESULTS" + sort) always drags the sheet.
+      const y = e?.nativeEvent?.locationY;
+      if (y != null && y <= HEADER_DRAG_H) return true;
       if (g.dy < 0) {
-        return s.level !== 'full'; // up: raise unless already full
+        // Up: raise unless already full; at full only claim when the list is
+        // at its top so list scrolling keeps working otherwise.
+        return s.level !== 'full' || listScrollY.current <= 0;
       }
-      return listScrollY.current <= 0 && s.level !== 'collapsed';
+      return listScrollY.current <= 0;
     },
-    getClamp: () => ({ top: FULL_TY, bottom: live.current.collapsedTy }),
+    getClamp: () => ({ top: live.current.fullTy, bottom: live.current.sheetH }),
     getRestTy: () => {
       const s = live.current;
       return s.level === 'full'
-        ? FULL_TY
+        ? s.fullTy
         : s.level === 'half'
           ? s.halfTy
-          : s.collapsedTy;
+          : s.sheetH;
     },
     chooseTarget: ({ dy, vyMs, projected }) => {
       const s = live.current;
-      // Detents ascending by translateY: full < half < collapsed. Mirrors
-      // the selection PeekSheet: a clear flick UP flies straight to full
-      // (never parks at half), a flick DOWN steps one detent, and a slow
-      // drag settles at the detent nearest the projected resting point.
-      const detents = [
-        { lv: 'full', ty: FULL_TY },
-        { lv: 'half', ty: s.halfTy },
-        { lv: 'collapsed', ty: s.collapsedTy },
-      ];
+      // A clear flick UP flies straight to full; a flick DOWN steps one
+      // detent (full → half, half → dismissed); a slow drag settles at the
+      // nearest detent, with a deep projection dismissing outright.
+      const dismissThresh = s.halfTy + (s.sheetH - s.halfTy) * 0.45;
       let target;
       if (vyMs < -1.0 && dy < -10) {
-        target = detents[0];
+        target = { lv: 'full', ty: s.fullTy };
       } else if (vyMs > 1.0 && dy > 10) {
-        const idx = detents.findIndex((d) => d.lv === s.level);
-        target = detents[Math.min(idx + 1, detents.length - 1)];
+        target =
+          s.level === 'full'
+            ? { lv: 'half', ty: s.halfTy }
+            : { lv: 'dismissed', ty: s.sheetH };
+      } else if (projected > dismissThresh) {
+        target = { lv: 'dismissed', ty: s.sheetH };
       } else {
-        target = detents.reduce((best, d) =>
-          Math.abs(d.ty - projected) < Math.abs(best.ty - projected)
-            ? d
-            : best,
-        );
+        target =
+          Math.abs(s.fullTy - projected) < Math.abs(s.halfTy - projected)
+            ? { lv: 'full', ty: s.fullTy }
+            : { lv: 'half', ty: s.halfTy };
       }
       return {
         ty: target.ty,
         after: () => {
-          if (target.lv !== s.level) setLevel(target.lv);
+          if (target.lv !== s.level) {
+            setLevel(target.lv);
+            if (target.lv !== 'half') setSortOpen(false);
+          }
         },
       };
     },
   });
 
-  // Slide-in on mount.
+  // Slide-in on mount (to the half detent).
   useEffect(() => {
     Animated.spring(pos, {
-      toValue: collapsedTy,
+      toValue: halfTy,
       damping: 24,
       stiffness: 220,
       mass: 0.9,
@@ -764,25 +820,27 @@ function ResultsSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keyboard open/close resizes the window (adjustResize): re-snap to the
-  // current level's detent so the sheet never strands mid-screen.
+  // Keyboard open/close resizes the window (adjustResize) and the top block
+  // can re-measure: re-snap to the current level's detent so the sheet never
+  // strands mid-screen.
   useEffect(() => {
     const s = live.current;
-    springTo(
-      s.level === 'full' ? FULL_TY : s.level === 'half' ? s.halfTy : collapsedTy,
-    );
+    if (s.level === 'dismissed') return;
+    springTo(s.level === 'full' ? s.fullTy : s.halfTy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collapsedTy]);
+  }, [halfTy, fullTy, sheetH]);
 
-  // Tap on the header walks the detents upward, then back to collapsed.
+  // Tap on the header toggles half ↔ full.
   const toggleLevel = () => {
-    const next =
-      level === 'collapsed' ? 'half' : level === 'half' ? 'full' : 'collapsed';
+    const next = level === 'full' ? 'half' : 'full';
     setLevel(next);
-    springTo(
-      next === 'full' ? FULL_TY : next === 'half' ? halfTy : collapsedTy,
-    );
-    if (next === 'collapsed') setSortOpen(false);
+    springTo(next === 'full' ? fullTy : halfTy);
+    setSortOpen(false);
+  };
+
+  const reopen = () => {
+    setLevel('half');
+    springTo(halfTy);
   };
 
   const sortLabel = SORTS.find((s) => s.key === sortMode)?.label || 'Newest';
@@ -1024,29 +1082,95 @@ function ResultsSheet({
           )}
         </View>
       </Animated.View>
+
+      {/* Dismissed → floating pill re-opens the sheet at half. */}
+      {level === 'dismissed' ? (
+        <Pressable
+          onPress={reopen}
+          style={({ pressed }) => [
+            styles.resultsPill,
+            {
+              bottom: insets.bottom + 16,
+              backgroundColor: pressed ? theme.bgElevated : theme.bgSurface,
+              borderColor: theme.accentSubtleBorder,
+            },
+          ]}>
+          <Text
+            style={[
+              styles.resultsPillText,
+              { color: theme.accentLight, fontFamily: theme.fontMono },
+            ]}>
+            {total} RESULTS
+          </Text>
+          <ChevronUp size={13} color={theme.accentLight} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
-// ─── Filters drawer (prototype .ps-filters + .psf-acc accordion) ───
-function PsFilterDrawer(props) {
-  const { theme, close, filterCount } = props;
+// ─── Filters bottom sheet (sections/state identical to the old drawer) ───
+// Slides up over the PS screen at ~85% height on the shared gesture engine;
+// drag/flick-down from the header dismisses with momentum, the inner
+// ScrollView never fights the sheet (head mode). Filters apply live; the
+// footer's "Show N results" button just closes the sheet.
+function PsFilterSheet(props) {
+  const { theme, close, filterCount, total, focusKey } = props;
   const insets = useSafeAreaInsets();
-  const slide = useRef(new Animated.Value(0)).current;
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetH = Math.round(windowHeight * 0.85);
+  const pos = useRef(new Animated.Value(sheetH)).current;
+  const heightRef = useRef(sheetH);
+  heightRef.current = sheetH;
+  const closeRef = useRef(close);
+  closeRef.current = close;
   // Which date field's calendar is open inside the Date Range accordion
   // (null = neither; tapping a field opens its picker — no auto-chaining).
   const [calField, setCalField] = useState(null);
+  // Quick-chip handoff: the pre-expanded section scrolls into view once the
+  // entry slide settles (layout positions recorded per accordion).
+  const scrollRef = useRef(null);
+  const sectionY = useRef({});
+  const recordSectionY = (id, y) => {
+    sectionY.current[id] = y;
+  };
   useEffect(() => {
-    Animated.timing(slide, {
-      toValue: 1,
-      duration: 280,
-      useNativeDriver: true,
-    }).start();
-  }, [slide]);
-  const translateX = slide.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-340, 0],
+    if (!focusKey) return undefined;
+    const t = setTimeout(() => {
+      const y = sectionY.current[focusKey];
+      if (y != null) {
+        scrollRef.current?.scrollTo({ y: Math.max(y - 8, 0), animated: false });
+      }
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { panResponder, springTo } = useSheetGesture({
+    pos,
+    getClamp: () => ({ top: 0, bottom: heightRef.current }),
+    getRestTy: () => 0,
+    chooseTarget: ({ dy, vyMs, projected }) => {
+      const H = heightRef.current;
+      const flickDown = vyMs > 1.0 && dy > 10;
+      if (flickDown || projected > H * 0.35) {
+        // Slide all the way off WITH the finger's velocity, then close —
+        // the user sees the full exit motion instead of a timing-cut.
+        return { ty: H, onDone: () => closeRef.current() };
+      }
+      return { ty: 0 };
+    },
   });
+
+  useEffect(() => {
+    springTo(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animateClose = () =>
+    springTo(heightRef.current, 0, () => closeRef.current());
+
+  const accProps = { ...props, onSectionLayout: recordSectionY };
 
   const pickDate = (iso) => {
     if (calField === 'from') props.setDateFrom(iso);
@@ -1055,57 +1179,91 @@ function PsFilterDrawer(props) {
   };
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <Pressable style={styles.drawerBackdrop} onPress={close} />
+    <View style={styles.filterWrap} pointerEvents="box-none">
       <Animated.View
         style={[
-          styles.drawer,
+          styles.filterSheet,
           {
+            height: sheetH,
+            paddingBottom: insets.bottom,
             backgroundColor: theme.bgSurface,
-            borderRightColor: theme.borderSubtle,
-            transform: [{ translateX }],
-            // Start below the transparent status bar, not underneath it.
-            top: insets.top,
+            borderColor: theme.borderSubtle,
+            transform: [{ translateY: pos }],
           },
         ]}>
         <View
-          style={[styles.drawerHead, { borderBottomColor: theme.borderSubtle }]}>
-          <Text
-            style={[
-              styles.drawerTitle,
-              { color: theme.textPrimary, fontFamily: theme.fontHead },
-            ]}>
-            Filters
-          </Text>
-          {filterCount ? (
+          {...panResponder.panHandlers}
+          style={[
+            styles.filterHead,
+            { borderBottomColor: theme.borderSubtle },
+          ]}>
+          <View style={styles.grabberRow}>
             <View
+              style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
+            />
+          </View>
+          <View style={styles.filterHeadRow}>
+            <Text
               style={[
-                styles.drawerBadge,
-                { backgroundColor: theme.accentLight },
+                styles.filterTitle,
+                { color: theme.textPrimary, fontFamily: theme.fontHead },
               ]}>
+              Filters
+            </Text>
+            {filterCount ? (
+              <View
+                style={[
+                  styles.filterBadge,
+                  { backgroundColor: theme.accentLight },
+                ]}>
+                <Text
+                  style={[
+                    styles.filterBadgeText,
+                    { color: theme.bgDeep, fontFamily: theme.fontMono },
+                  ]}>
+                  {filterCount}
+                </Text>
+              </View>
+            ) : null}
+            <Pressable
+              onPress={props.resetFilters}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.filterReset,
+                pressed && { opacity: 0.7 },
+              ]}>
+              <RotateCcw size={11} color={theme.textSecondary} />
               <Text
                 style={[
-                  styles.drawerBadgeText,
-                  { color: theme.bgDeep, fontFamily: theme.fontMono },
+                  styles.filterResetText,
+                  { color: theme.textSecondary, fontFamily: theme.fontMono },
                 ]}>
-                {filterCount}
+                RESET
               </Text>
-            </View>
-          ) : null}
-          <View style={styles.flex1} />
-          <Pressable onPress={close} hitSlop={8} style={styles.drawerClose}>
-            <X size={15} color={theme.textSecondary} />
-          </Pressable>
+            </Pressable>
+            <View style={styles.flex1} />
+            <Pressable
+              onPress={animateClose}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.filterClose,
+                { backgroundColor: pressed ? theme.bgHover : 'transparent' },
+              ]}>
+              <X size={16} color={theme.textSecondary} />
+            </Pressable>
+          </View>
         </View>
         <ScrollView
-          contentContainerStyle={styles.drawerBody}
+          ref={scrollRef}
+          style={styles.flex1}
+          contentContainerStyle={styles.filterBody}
           keyboardShouldPersistTaps="handled">
           <PsAccordion
             id="type"
             title="Type"
             icon={MapPin}
             badge={0}
-            {...props}>
+            {...accProps}>
             <View style={styles.optRowWrap}>
               {[
                 { key: 'point', label: '◉ Point' },
@@ -1136,7 +1294,7 @@ function PsFilterDrawer(props) {
             title="Date Range"
             icon={Calendar}
             badge={props.dateFrom || props.dateTo ? 1 : 0}
-            {...props}>
+            {...accProps}>
             <View style={styles.dateRangeRow}>
               {[
                 { field: 'from', value: props.dateFrom, hint: 'From' },
@@ -1194,7 +1352,7 @@ function PsFilterDrawer(props) {
             title="Domains & Categories"
             icon={Shield}
             badge={props.domainSel.size}
-            {...props}>
+            {...accProps}>
             {props.domains.map((d) => {
               const on = props.domainSel.has(d.slug);
               return (
@@ -1214,7 +1372,7 @@ function PsFilterDrawer(props) {
             title="Zone Categories"
             icon={Crosshair}
             badge={props.zonecatSel.size}
-            {...props}>
+            {...accProps}>
             {props.zonecats.map((z) => {
               const on = props.zonecatSel.has(z.name);
               return (
@@ -1242,7 +1400,7 @@ function PsFilterDrawer(props) {
             title="Severity"
             icon={Star}
             badge={onKeys(props.sevSel).length}
-            {...props}>
+            {...accProps}>
             {SEVERITIES.map((s) => {
               const on = !!props.sevSel[s.n];
               const color = theme[`sev${s.n}`];
@@ -1280,7 +1438,7 @@ function PsFilterDrawer(props) {
             title="Status"
             icon={Clock}
             badge={onKeys(props.statusSel).length}
-            {...props}>
+            {...accProps}>
             <View style={styles.optRowWrap}>
               {[
                 { key: 'active', label: '● Active' },
@@ -1311,7 +1469,7 @@ function PsFilterDrawer(props) {
             title="Verification"
             icon={CheckCircle2}
             badge={onKeys(props.verifSel).length}
-            {...props}>
+            {...accProps}>
             <View style={styles.optRowWrap}>
               {VERIFICATION_STATUSES.map((v) => {
                 const on = !!props.verifSel[v];
@@ -1343,7 +1501,7 @@ function PsFilterDrawer(props) {
             title="Source Type"
             icon={FileText}
             badge={onKeys(props.sourceSel).length}
-            {...props}>
+            {...accProps}>
             <View style={styles.optRowWrap}>
               {SOURCE_TYPES.map((s) => {
                 const on = !!props.sourceSel[s.key];
@@ -1371,7 +1529,7 @@ function PsFilterDrawer(props) {
             title="Options"
             icon={SlidersHorizontal}
             badge={0}
-            {...props}>
+            {...accProps}>
             <Pressable onPress={props.toggleSavedOnly} style={styles.toggleRow}>
               <Text
                 style={[styles.toggleLabel, { color: theme.textPrimary }]}>
@@ -1406,26 +1564,30 @@ function PsFilterDrawer(props) {
               </Text>
             )}
           </PsAccordion>
-
+        </ScrollView>
+        <View
+          style={[
+            styles.filterFooter,
+            { borderTopColor: theme.borderSubtle },
+          ]}>
           <Pressable
-            onPress={props.resetFilters}
+            onPress={animateClose}
             style={({ pressed }) => [
-              styles.resetAll,
+              styles.showResultsBtn,
               {
-                borderColor: theme.borderSubtle,
-                backgroundColor: pressed ? theme.bgHover : 'transparent',
+                backgroundColor: theme.accentLight,
+                opacity: pressed ? 0.85 : 1,
               },
             ]}>
-            <RotateCcw size={12} color={theme.textSecondary} />
             <Text
               style={[
-                styles.resetAllText,
-                { color: theme.textSecondary, fontFamily: theme.fontMono },
+                styles.showResultsText,
+                { color: theme.bgDeep, fontFamily: theme.fontMono },
               ]}>
-              Reset all filters
+              SHOW {total} RESULTS
             </Text>
           </Pressable>
-        </ScrollView>
+        </View>
       </Animated.View>
     </View>
   );
@@ -1438,12 +1600,19 @@ function PsAccordion({
   badge,
   collapsed,
   toggleAccordion,
+  onSectionLayout,
   children,
 }) {
   const { theme } = useTheme();
   const open = !collapsed.has(id);
   return (
-    <View style={[styles.acc, { borderBottomColor: theme.borderSubtle }]}>
+    <View
+      onLayout={
+        onSectionLayout
+          ? (e) => onSectionLayout(id, e.nativeEvent.layout.y)
+          : undefined
+      }
+      style={[styles.acc, { borderBottomColor: theme.borderSubtle }]}>
       <Pressable onPress={() => toggleAccordion(id)} style={styles.accHead}>
         <Icon size={14} color={theme.textSecondary} />
         <Text
@@ -1502,14 +1671,11 @@ function PsCheckRow({ on, label, theme, onPress }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topCard: {
-    marginHorizontal: 12,
-    marginTop: 4,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 10,
+  // ─── solid top block ───
+  topBlock: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   headRow: {
     flexDirection: 'row',
@@ -1555,26 +1721,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   filtersBadgeText: { fontSize: 9, fontWeight: '700' },
-  tagsRow: {
+  chipsRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingTop: 9,
+    gap: 8,
+    paddingTop: 12,
+    paddingRight: 12,
   },
-  tag: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    height: 24,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    gap: 6,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  tagText: { fontSize: 9.5, letterSpacing: 0.4 },
+  chipText: { fontSize: 11, letterSpacing: 0.3 },
   // ─── results sheet ───
   sheetWrap: {
     ...StyleSheet.absoluteFill,
     justifyContent: 'flex-end',
-    paddingBottom: TAB_CLEAR,
   },
   sheet: {
     borderTopLeftRadius: 22,
@@ -1679,39 +1845,84 @@ const styles = StyleSheet.create({
   skelLine: { height: 10, borderRadius: 4 },
   skelW72: { width: '72%' },
   skelW38: { width: '38%' },
-  // ─── filters drawer ───
-  drawerBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,.4)',
-  },
-  drawer: {
+  resultsPill: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: '80%',
-    borderRightWidth: 1,
-  },
-  drawerHead: {
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 13,
+    gap: 7,
+    height: 42,
+    paddingHorizontal: 18,
+    borderRadius: 21,
+    borderWidth: 1,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+  },
+  resultsPillText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+  // ─── filters bottom sheet ───
+  filterWrap: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'flex-end',
+  },
+  filterSheet: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  filterHead: {
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  drawerTitle: { fontSize: 15, fontWeight: '600' },
-  drawerBadge: {
-    width: 20,
+  filterHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingBottom: 12,
+  },
+  filterTitle: { fontSize: 16, fontWeight: '600' },
+  filterBadge: {
+    minWidth: 20,
     height: 20,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 5,
   },
-  drawerBadgeText: { fontSize: 10, fontWeight: '600' },
+  filterBadgeText: { fontSize: 10, fontWeight: '700' },
+  filterReset: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  filterResetText: { fontSize: 10, fontWeight: '600', letterSpacing: 0.8 },
   flex1: { flex: 1 },
-  drawerClose: { padding: 4 },
-  drawerBody: { paddingBottom: 30 },
+  filterClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBody: { paddingBottom: 16 },
+  filterFooter: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  showResultsBtn: {
+    height: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  showResultsText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 1 },
   acc: { borderBottomWidth: StyleSheet.hairlineWidth },
   accHead: {
     flexDirection: 'row',
@@ -1826,18 +2037,6 @@ const styles = StyleSheet.create({
   toggleKnob: { width: 14, height: 14, borderRadius: 7 },
   toggleKnobOn: { alignSelf: 'flex-end' },
   toggleNote: { fontSize: 10.5, marginTop: 2 },
-  resetAll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderWidth: 1,
-    borderRadius: 9,
-    marginHorizontal: 15,
-    marginTop: 14,
-    paddingVertical: 11,
-  },
-  resetAllText: { fontSize: 10.5, letterSpacing: 0.4 },
 });
 
 export default PowerSearchBody;

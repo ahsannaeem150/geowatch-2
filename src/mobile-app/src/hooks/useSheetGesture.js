@@ -29,7 +29,7 @@ export default function useSheetGesture({
   getRestTy, // () => number — current detent's translateY (tap-settle + terminate)
   chooseTarget, // ({ dy, vyMs, endTy, projected, restTy }) => { ty, after?, onDone? }
   mode = 'head', // 'head': responder claims on move | 'capture': whole-sheet capture
-  canClaim, // capture mode only: (gestureState) => bool
+  canClaim, // capture mode only: (gestureState, event) => bool
 }) {
   const startTy = useRef(0);
   const moveSamples = useRef([]);
@@ -63,7 +63,8 @@ export default function useSheetGesture({
       ...(mode === 'capture'
         ? {
             onMoveShouldSetPanResponderCapture: (e, g) =>
-              verticalClaim(e, g) && (!cfg.current.canClaim || cfg.current.canClaim(g)),
+              verticalClaim(e, g) &&
+              (!cfg.current.canClaim || cfg.current.canClaim(g, e)),
             onMoveShouldSetPanResponder: () => false,
           }
         : {

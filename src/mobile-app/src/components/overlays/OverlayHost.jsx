@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Pressable,
@@ -12,7 +12,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import SheetContainer from './SheetContainer';
 import { OVERLAY_BODIES, OVERLAY_META, PlaceholderBody } from './Placeholders';
-import TabBar from '../../screens/map/components/TabBar';
 import SelectionPill from '../selection/SelectionPill';
 import PeekSheet from '../selection/PeekSheet';
 import IncidentDrawer from '../selection/IncidentDrawer';
@@ -74,20 +73,31 @@ function FullscreenContainer({ overlay, children }) {
     ? 'transparent'
     : theme.bgDeep;
   // Transparent fullscreen overlays (Power Search) let touches fall through
-  // the empty middle to the map AND the tab bar — the container itself never
-  // intercepts, only its real children (top card, sheet, drawer) do.
+  // the empty middle to the map — the container itself never intercepts,
+  // only its real children (top block, sheet, filter sheet) do. They also
+  // manage their own insets (the top block covers the status bar itself).
   const pe = overlay.props?.transparent ? 'box-none' : 'auto';
+  const transparent = !!overlay.props?.transparent;
+  const padStyle = useMemo(
+    () =>
+      StyleSheet.create({
+        pad: {
+          paddingTop: transparent ? 0 : insets.top + 8,
+          paddingBottom: transparent ? 0 : insets.bottom,
+        },
+      }).pad,
+    [transparent, insets.top, insets.bottom],
+  );
   return (
     <Animated.View
       pointerEvents={pe}
       style={[
         styles.full,
+        padStyle,
         {
           backgroundColor,
           opacity: progress,
           transform: [{ translateX }],
-          paddingTop: insets.top + 8,
-          paddingBottom: insets.bottom,
         },
       ]}>
       {overlay.props?.hideHeader ? null : (
@@ -287,7 +297,6 @@ export default function OverlayHost() {
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <SelectionPill />
       {hasBackdrop ? (
         <Pressable
           style={styles.backdrop}
@@ -295,11 +304,10 @@ export default function OverlayHost() {
         />
       ) : null}
       {baseOverlays.map(renderOverlay)}
-      {/* Power Search keeps the tab bar alive: its transparent fullscreen
-          container passes touches through, but the sliding results sheet
-          still COVERS the tab bar's zone — so while PS is in the stack a
-          hoisted TabBar renders above it (and below the selection sheets). */}
-      {stack.some((o) => o.id === 'powerSearch') ? <TabBar /> : null}
+      {/* SelectionPill sits above the stack's overlays (e.g. Power Search's
+          fullscreen container) but below the selection sheets — dismissing a
+          PeekSheet over PS must leave the pill visible and tappable. */}
+      <SelectionPill />
       <EmbeddedMapPanel />
       <PeekSheet />
       <IncidentDrawer />

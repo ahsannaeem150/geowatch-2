@@ -482,6 +482,7 @@ export default function MapScreen() {
         // emulator's SwiftShader GL stack; TextureView + the Vulkan variant
         // (gradle.properties nativeVariant=vulkan) renders correctly.
         androidView="texture"
+        compassEnabled={false}
         onRegionDidChange={handleRegionDidChange}
         onPress={handleMapPress}
         attributionPosition={{ bottom: 6, right: 6 }}
@@ -646,17 +647,18 @@ export default function MapScreen() {
       </Map>
       {loading ? <LoadingPill /> : null}
       {isRangeGated ? <GateHint /> : null}
-      {/* Power Search replaces the home chrome (its own floating search card
-          takes over); the tab bar stays via OverlayHost's hoisted copy. */}
+      {/* Power Search replaces the home chrome (its own solid top block takes
+          over) and now covers the whole screen — the tab bar goes too; the
+          PS back button is the exit. */}
       {psOpen ? null : (
         <>
           <TopBar />
           <TimeStrip />
           <AwayBanner />
+          <TabBar />
         </>
       )}
       <SideControls />
-      <TabBar />
     </View>
   );
 }
