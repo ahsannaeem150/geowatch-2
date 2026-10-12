@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -12,11 +11,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
+import useSheetGesture from '../../hooks/useSheetGesture';
 
-const SWIPE_CLOSE_DISTANCE = 60;
-
-// Bottom sheet container: grabber handle, title row, swipe-down-to-close
-// (>60px drag on the head/grabber closes, mirroring the prototype).
+// Bottom sheet container: grabber handle, title row, swipe-down-to-close.
+// Gesture runs on the shared engine (src/hooks/useSheetGesture.js) so every
+// overlay sheet (Layers/Settings/Activity/Alerts/Saved/Support…) drags 1:1
+// with the finger and closes with fling momentum exactly like the map
+// PeekSheet — no more stop-then-drop timing close.
 export default function SheetContainer({ overlay, children }) {
   const { theme } = useTheme();
   const { closeOverlay } = useOverlay();
@@ -26,46 +27,34 @@ export default function SheetContainer({ overlay, children }) {
     windowHeight * (overlay.props?.heightFraction ?? 0.6),
   );
 
-  const enter = useRef(new Animated.Value(height)).current;
-  const drag = useRef(new Animated.Value(0)).current;
+  // pos: 0 = resting (open), height = fully off-screen (dismissed).
+  const pos = useRef(new Animated.Value(height)).current;
+  const heightRef = useRef(height);
+  heightRef.current = height;
+  const closeRef = useRef(() => {});
+  closeRef.current = () => closeOverlay(overlay.id);
 
+  const { panResponder, springTo } = useSheetGesture({
+    pos,
+    getClamp: () => ({ top: 0, bottom: heightRef.current }),
+    getRestTy: () => 0,
+    chooseTarget: ({ dy, vyMs, projected }) => {
+      const H = heightRef.current;
+      const flickDown = vyMs > 1.0 && dy > 10;
+      if (flickDown || projected > H * 0.35) {
+        // Slide all the way off WITH the finger's velocity, then close —
+        // the user sees the full exit motion instead of a timing-cut.
+        return { ty: H, onDone: () => closeRef.current() };
+      }
+      return { ty: 0 };
+    },
+  });
+
+  // Entry: rise from off-screen once mounted.
   useEffect(() => {
-    Animated.timing(enter, {
-      toValue: 0,
-      duration: 260,
-      useNativeDriver: true,
-    }).start();
-  }, [enter]);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => g.dy > 4,
-      onPanResponderMove: (_e, g) => {
-        if (g.dy > 0) {
-          drag.setValue(g.dy);
-        }
-      },
-      onPanResponderRelease: (_e, g) => {
-        if (g.dy > SWIPE_CLOSE_DISTANCE) {
-          Animated.timing(drag, {
-            toValue: height,
-            duration: 160,
-            useNativeDriver: true,
-          }).start(() => closeOverlay(overlay.id));
-        } else {
-          Animated.spring(drag, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
-      },
-    }),
-  ).current;
-
-  const translateY = Animated.add(enter, drag);
+    springTo(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hideHeader = overlay.props?.hideHeader;
   const topRadius = overlay.props?.topRadius ?? 18;
@@ -82,7 +71,7 @@ export default function SheetContainer({ overlay, children }) {
             borderColor: theme.borderSubtle,
             borderTopLeftRadius: topRadius,
             borderTopRightRadius: topRadius,
-            transform: [{ translateY }],
+            transform: [{ translateY: pos }],
           },
         ]}>
         {hideHeader ? null : (
