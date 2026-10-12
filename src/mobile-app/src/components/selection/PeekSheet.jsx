@@ -94,14 +94,16 @@ export default function PeekSheet() {
     if (active) {
       wantOpen.current = true;
       if (!mounted) {
+        // Mount FIRST at the hidden position and return — the effect re-runs
+        // (deps include `mounted`) and starts the entry spring on the already
+        // attached view. Starting the spring in the same pass as setMounted
+        // fired it on an unmounted view and then restarted it a frame later,
+        // which was the visible jump/glitch on the pill → sheet handoff.
         pos.setValue(hiddenTy);
+        setMounted(true);
+        setLevel(targetTy === 0 ? 'full' : 'half');
+        return;
       }
-      // Unconditional: a queued setMounted(false) from a just-finished exit
-      // spring can otherwise apply AFTER a reopen and strand the sheet
-      // unmounted. With `mounted` in the deps below, that case re-runs this
-      // effect and the sheet re-enters instead of disappearing for good.
-      setMounted(true);
-      setLevel(targetTy === 0 ? 'full' : 'half');
       if (launchedTy.current === targetTy) {
         // The gesture release already started this exact spring — don't
         // restart it late (double-push glitch).

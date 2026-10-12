@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -36,14 +37,29 @@ export default function SelectionPill() {
         useNativeDriver: true,
       }).start();
     } else if (mounted) {
+      // Slightly longer exit (240ms) so the rising sheet overtakes the pill
+      // mid-motion — a 160ms pop-out left a visible gap at the bottom.
       Animated.timing(enter, {
         toValue: 0,
-        duration: 160,
+        duration: 240,
         useNativeDriver: true,
       }).start(() => setMounted(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // An upward swipe on the pill expands it too (same as tap) — claimed early
+  // so a fling starting on the pill never scrolls the map underneath.
+  const expandRef = useRef(expandFromPill);
+  expandRef.current = expandFromPill;
+  const swipeUp = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => g.dy < -12 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+      onPanResponderRelease: (_e, g) => {
+        if (g.dy < -12 || g.vy < -0.4) expandRef.current();
+      },
+    }),
+  ).current;
 
   if (!mounted || !item) {
     return null;
@@ -52,8 +68,7 @@ export default function SelectionPill() {
   const color =
     selectedKind === 'zone'
       ? item.zone_category_color || theme.accentLight
-      : theme[`sev${severityOf(item)}`];
-  const cat = (
+      : theme[`sev${severityOf(item)}`];  const cat = (
     (selectedKind === 'zone'
       ? item.zone_category_name
       : item.category_name || item.domain_name) || '—'
@@ -70,6 +85,7 @@ export default function SelectionPill() {
 
   return (
     <Animated.View
+      {...swipeUp.panHandlers}
       style={[
         styles.pill,
         {
