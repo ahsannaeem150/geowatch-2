@@ -45,6 +45,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { useAuth } from '../../context/AuthContext';
 import useSheetGesture from '../../hooks/useSheetGesture';
+import { severityOf, formatItemDate } from '../selection/PreviewCard';
 import {
   searchIncidents,
   searchZones,
@@ -848,6 +849,12 @@ function ResultsSheet({
     if (inDetail) {
       setShowDetail(true);
       setSortOpen(false);
+      // A fresh selection (e.g. map marker tap) while dismissed re-opens the
+      // sheet into the detail pane instead of leaving only the pill.
+      if (live.current.level === 'dismissed') {
+        setLevel('half');
+        springTo(live.current.halfTy);
+      }
       Animated.timing(bodyAnim, {
         toValue: 1,
         duration: 300,
@@ -892,9 +899,6 @@ function ResultsSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inEvidence]);
 
-  const closeDetailRef = useRef(onCloseDetail);
-  closeDetailRef.current = onCloseDetail;
-
   const live = useRef({});
   live.current = { level, halfTy, fullTy, sheetH, inDetail, inEvidence };
 
@@ -911,26 +915,20 @@ function ResultsSheet({
   const chooseTargetFn = ({ dy, vyMs, projected }) => {
     const s = live.current;
     // A clear flick UP flies straight to full; a flick DOWN steps one
-    // detent; a slow drag settles at the nearest detent. In LIST the down
-    // chain ends in a full dismiss (→ pill); in DETAIL it returns to the
-    // list at half instead — the sheet never dismisses from detail.
+    // detent; a slow drag settles at the nearest detent. The down chain ends
+    // in a full dismiss (→ floating pill) from BOTH list and detail — the
+    // detail state is kept, so the pill re-opens straight back into it.
     const dismissThresh = s.halfTy + (s.sheetH - s.halfTy) * 0.45;
-    const backToList = { lv: 'half', ty: s.halfTy, exitDetail: true };
     let target;
     if (vyMs < -1.0 && dy < -10) {
       target = { lv: 'full', ty: s.fullTy };
     } else if (vyMs > 1.0 && dy > 10) {
-      if (s.level === 'full') {
-        target = { lv: 'half', ty: s.halfTy };
-      } else {
-        target = s.inDetail
-          ? backToList
+      target =
+        s.level === 'full'
+          ? { lv: 'half', ty: s.halfTy }
           : { lv: 'dismissed', ty: s.sheetH };
-      }
     } else if (projected > dismissThresh) {
-      target = s.inDetail
-        ? backToList
-        : { lv: 'dismissed', ty: s.sheetH };
+      target = { lv: 'dismissed', ty: s.sheetH };
     } else {
       target =
         Math.abs(s.fullTy - projected) < Math.abs(s.halfTy - projected)
@@ -940,7 +938,6 @@ function ResultsSheet({
     return {
       ty: target.ty,
       after: () => {
-        if (target.exitDetail) closeDetailRef.current();
         if (target.lv !== s.level) {
           setLevel(target.lv);
           if (target.lv !== 'half') setSortOpen(false);
@@ -999,6 +996,14 @@ function ResultsSheet({
   };
 
   const sortLabel = SORTS.find((s) => s.key === sortMode)?.label || 'Newest';
+
+  // The sheet is full-screen tall and slides via translateY, so at the half
+  // detent the ScrollViews extend ~halfTy px below the screen edge. Without
+  // compensation, content shorter than that hidden tail is NOT scrollable at
+  // all (it "fits" offscreen) and longer lists lose their last rows. Pad each
+  // pane's content by the hidden amount so everything scrolls fully into the
+  // visible area (PeekSheet uses the same trick).
+  const bodyBottomPad = (level === 'half' ? halfTy : 0) + insets.bottom + 24;
 
   // Cross-slide interpolations (PeekSheet detail ↔ evidence parity).
   const listTranslate = bodyAnim.interpolate({
@@ -1238,7 +1243,10 @@ function ResultsSheet({
             ) : (
               <ScrollView
                 style={styles.stripList}
-                contentContainerStyle={styles.stripPad}
+                contentContainerStyle={[
+                  styles.stripPad,
+                  { paddingBottom: bodyBottomPad },
+                ]}
                 keyboardShouldPersistTaps="handled"
                 overScrollMode="never"
                 scrollEventThrottle={16}>
@@ -1334,7 +1342,7 @@ function ResultsSheet({
                   style={styles.stripList}
                   contentContainerStyle={[
                     styles.detailPad,
-                    { paddingBottom: insets.bottom + 24 },
+                    { paddingBottom: bodyBottomPad },
                   ]}
                   keyboardShouldPersistTaps="handled"
                   overScrollMode="never"
@@ -1359,7 +1367,7 @@ function ResultsSheet({
                   ]}>
                   <EvidenceBody
                     key={evidenceUpdate?.id}
-                    bottomPad={insets.bottom + 24}
+                    bottomPad={bodyBottomPad}
                   />
                 </Animated.View>
               ) : null}
@@ -1368,27 +1376,100 @@ function ResultsSheet({
         </View>
       </Animated.View>
 
-      {/* Dismissed → floating pill re-opens the sheet at half. */}
+      {/* Dismissed → floating pill re-opens the sheet at half. Two pill
+          faces: the LIST pill (results count) or, when the sheet was
+          dismissed from a detail pane, an INCIDENT pill carrying the
+          selection's identity. */}
       {level === 'dismissed' ? (
-        <Pressable
-          onPress={reopen}
-          style={({ pressed }) => [
-            styles.resultsPill,
-            {
-              bottom: insets.bottom + 16,
-              backgroundColor: pressed ? theme.bgElevated : theme.bgSurface,
-              borderColor: theme.accentSubtleBorder,
-            },
-          ]}>
-          <Text
-            style={[
-              styles.resultsPillText,
-              { color: theme.accentLight, fontFamily: theme.fontMono },
+        inDetail ? (
+          (() => {
+            const it = detail.item;
+            const isZone = detail.kind === 'zone';
+            const pillColor = isZone
+              ? it.zone_category_color || theme.accentLight
+              : theme[`sev${severityOf(it)}`];
+            const pillCat = (
+              (isZone
+                ? it.zone_category_name
+                : it.category_name || it.domain_name) || '—'
+            ).toUpperCase();
+            return (
+              <Pressable
+                onPress={reopen}
+                style={({ pressed }) => [
+                  styles.itemPill,
+                  {
+                    bottom: insets.bottom + 16,
+                    backgroundColor: pressed
+                      ? theme.bgElevated
+                      : theme.bgSurface,
+                    borderColor: theme.borderSubtle,
+                  },
+                ]}>
+                <View
+                  style={[styles.itemPillAccent, { backgroundColor: pillColor }]}
+                />
+                <View style={styles.itemPillBody}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.itemPillTitle, { color: theme.textPrimary }]}>
+                    {it.title}
+                  </Text>
+                  <View style={styles.itemPillMetaRow}>
+                    <View
+                      style={[styles.itemPillDot, { backgroundColor: pillColor }]}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.itemPillMeta,
+                        { color: theme.textMuted, fontFamily: theme.fontMono },
+                      ]}>
+                      {pillCat}
+                      {it.start_date
+                        ? ` · ${formatItemDate(it.start_date)}`
+                        : ''}
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  style={[styles.itemPillUp, { backgroundColor: theme.bgHover }]}>
+                  <ChevronUp size={13} color={theme.textSecondary} />
+                </View>
+              </Pressable>
+            );
+          })()
+        ) : (
+          <Pressable
+            onPress={reopen}
+            style={({ pressed }) => [
+              styles.resultsPill,
+              {
+                bottom: insets.bottom + 16,
+                backgroundColor: pressed ? theme.bgElevated : theme.bgSurface,
+                borderColor: theme.borderSubtle,
+              },
             ]}>
-            {total} RESULTS
-          </Text>
-          <ChevronUp size={13} color={theme.accentLight} />
-        </Pressable>
+            <View
+              style={[
+                styles.resultsPillChip,
+                {
+                  backgroundColor: theme.accentSubtleBg,
+                  borderColor: theme.accentSubtleBorder,
+                },
+              ]}>
+              <Search size={12} color={theme.accentLight} />
+            </View>
+            <Text
+              style={[
+                styles.resultsPillText,
+                { color: theme.textPrimary },
+              ]}>
+              {total} Results
+            </Text>
+            <ChevronUp size={14} color={theme.accentLight} />
+          </Pressable>
+        )
       ) : null}
     </View>
   );
@@ -2162,18 +2243,62 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    height: 42,
-    paddingHorizontal: 18,
-    borderRadius: 21,
+    gap: 9,
+    height: 46,
+    paddingHorizontal: 10,
+    paddingRight: 16,
+    borderRadius: 23,
     borderWidth: 1,
-    elevation: 6,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
   },
-  resultsPillText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+  resultsPillChip: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultsPillText: { fontSize: 12.5, fontWeight: '600' },
+  itemPill: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  itemPillAccent: { width: 3.5, height: 32, borderRadius: 2 },
+  itemPillBody: { flex: 1, minWidth: 0 },
+  itemPillTitle: { fontSize: 12.5, fontWeight: '600' },
+  itemPillMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 3,
+  },
+  itemPillDot: { width: 5, height: 5, borderRadius: 3 },
+  itemPillMeta: { fontSize: 9, letterSpacing: 0.3 },
+  itemPillUp: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // ─── filters bottom sheet ───
   filterWrap: {
     ...StyleSheet.absoluteFill,
