@@ -10,7 +10,6 @@ import {
   BackHandler,
   Dimensions,
   Easing,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -102,7 +101,6 @@ const QUICK_FILTERS = [
 // drags the sheet even when the list is scrolled — measured in canClaim via
 // the touch's pageY against the sheet's absolute top edge (locationY is
 // relative to the touched child and useless for this).
-const HEADER_DRAG_H = 64;
 
 const SOURCE_TYPES = [
   { key: 'x_post', label: 'X Post', pill: '𝕏 X Posts' },
@@ -803,10 +801,9 @@ export function PowerSearchBody({ overlay }) {
 // from the right); INSPECT runs on SelectionContext's evidence state with a
 // null global item, so the global sheet/panel never appear. Whole-sheet drag
 // shares the map PeekSheet's gesture engine (src/hooks/useSheetGesture.js)
-// in capture mode: only the header strip (locationY check) drags the sheet
-// up or down; body down-drags lower/dismiss only once the active pane is
-// scrolled to its top, and body up-drags always belong to the ScrollView
-// (scrollable at every detent).
+// in the same HEAD mode the PeekSheet uses: the panHandlers live on the
+// header strip (grabber + title row) only, so the pane ScrollViews stay
+// natively scrollable at every detent and never fight the sheet.
 function ResultsSheet({
   total,
   loading,
@@ -851,10 +848,6 @@ function ResultsSheet({
     if (inDetail) {
       setShowDetail(true);
       setSortOpen(false);
-      listScrollY.current = 0; // detail pane starts at its top
-      atTopRef.current = true;
-      setPaneAtTop(true);
-      setScrollArmed(false);
       Animated.timing(bodyAnim, {
         toValue: 1,
         duration: 300,
@@ -880,10 +873,6 @@ function ResultsSheet({
   useEffect(() => {
     if (inEvidence) {
       setShowEvidence(true);
-      listScrollY.current = 0; // evidence pane starts at its top
-      atTopRef.current = true;
-      setPaneAtTop(true);
-      setScrollArmed(false);
       Animated.timing(eviAnim, {
         toValue: 1,
         duration: 300,
@@ -909,7 +898,6 @@ function ResultsSheet({
   const live = useRef({});
   live.current = { level, halfTy, fullTy, sheetH, inDetail, inEvidence };
 
-  const listScrollY = useRef(0);
   // chooseTarget/getRestTy live behind a ref so both the capture engine and
   // its callbacks always read the current render's detent semantics.
   const getRestTyFn = () => {
@@ -965,181 +953,15 @@ function ResultsSheet({
 
   const { panResponder, springTo } = useSheetGesture({
     pos,
-    mode: 'capture',
-    canClaim: (g, e) => {
-      const s = live.current;
-      if (s.level === 'dismissed') return false;
-      // Header strip (grabber + "N RESULTS" + sort) always drags the sheet.
-      // The zone must be tested against the touch's START position (g.y0):
-      // a drag that begins in the body and merely CROSSES the header
-      // mid-gesture must not be hijacked. (locationY is relative to the
-      // touched child, not the sheet; sheetH == window height, so pos IS
-      // the sheet's absolute top edge.)
-      const startY = g?.y0 ?? e?.nativeEvent?.pageY;
-      if (startY != null) {
-        const top = pos.__getValue();
-        if (startY >= top - 8 && startY <= top + HEADER_DRAG_H) return true;
-      }
-      // Body up-drags NEVER claim the sheet — raising happens only from the
-      // header strip above or the results pill; the pane scrolls instead
-      // (natively, or via the pane wrapper responder while at its top).
-      if (g.dy < 0) return false;
-      // Body down-drags at the pane top are handled by the pane wrapper
-      // responder below; when scrolled, the touch belongs to the ScrollView.
-      return false;
-    },
+    // Head mode — identical to the map PeekSheet: the panHandlers sit on the
+    // header strip only, body ScrollViews stay natively scrollable at every
+    // detent and never fight the sheet. (The earlier capture-mode + manual
+    // pane-scroll arbitration was the source of the dead grabber, the
+    // scroll-start lag and the detail-pane scroll conflict.)
     getClamp: () => ({ top: live.current.fullTy, bottom: live.current.sheetH }),
     getRestTy: () => gestureFns.current.getRestTy(),
     chooseTarget: (args) => gestureFns.current.chooseTarget(args),
   });
-
-  // Pane-top gesture wrapper. Android's ScrollView intercepts vertical
-  // drags NATIVELY and RN terminates any JS responder claimed over the
-  // pane (verified: grant → terminate ~2ms, termination refusal ignored),
-  // and scrollTo is a no-op while scrollEnabled=false. So while a pane is
-  // parked at its top its ScrollView is DISABLED (paneAtTop state) —
-  // nothing can steal the gesture — and the wrapper's move-capture claim
-  // arbitrates:
-  // - down-drag → drives the sheet 1:1, release settles via the shared
-  //   chooseTarget (lower / dismiss / back-to-list);
-  // - up-drag   → arms scrollEnabled mid-gesture (scrollTo is a no-op
-  //   while disabled) and drives the pane via scrollTo, with a decay
-  //   fling on release; if the ScrollView's native intercept takes the
-  //   stream over instead (terminate), it finishes the drag natively;
-  // - tap       → no move, no claim; Pressables untouched.
-  // Once the pane is scrolled the ScrollView stays enabled and the wrapper
-  // never claims.
-  const atTopRef = useRef(true);
-  const [paneAtTop, setPaneAtTop] = useState(true);
-  const [scrollArmed, setScrollArmed] = useState(false);
-  const markScrollY = (y) => {
-    listScrollY.current = y;
-    const b = y <= 0.5;
-    atTopRef.current = b;
-    setPaneAtTop((prev) => (prev === b ? prev : b));
-  };
-  const paneScrollEnabled = !paneAtTop || scrollArmed;
-  const armPaneScroll = () => setScrollArmed(true);
-  const disarmPaneScroll = () => setScrollArmed(false);
-  const paneScrollRefs = useRef({ list: null, detail: null, evidence: null });
-  const setPaneRef = (pane) => (r) => {
-    paneScrollRefs.current[pane] = r;
-  };
-  const activePane = () =>
-    live.current.inEvidence ? 'evidence' : live.current.inDetail ? 'detail' : 'list';
-  const paneDrag = useRef({ mode: null, base: 0, samples: [] });
-  const flingAnim = useRef(null);
-  const stopPaneFling = () => {
-    if (flingAnim.current) {
-      flingAnim.current.stop();
-      flingAnim.current = null;
-    }
-  };
-  const settlePaneDrag = (source) => {
-    const d = paneDrag.current;
-    if (d.mode == null) return;
-    const samples = d.samples;
-    const last = samples[samples.length - 1];
-    let first = samples[0];
-    if (last) {
-      for (let i = samples.length - 1; i >= 0; i -= 1) {
-        if (last.t - samples[i].t > 100) break;
-        first = samples[i];
-      }
-    }
-    let vyMsRaw = 0;
-    if (last && first && last.t > first.t) {
-      vyMsRaw = (last.y - first.y) / (last.t - first.t);
-    }
-    const vyMs = Math.max(-3.5, Math.min(3.5, vyMsRaw));
-    d.mode = null;
-    if (d.kind === 'scroll') {
-      // Only fling when the wrapper still owns the gesture at release; a
-      // terminate means the native ScrollView took over mid-drag.
-      if (source !== 'release' || vyMs >= -0.3) return;
-      const pane = activePane();
-      const startY = listScrollY.current;
-      const val = new Animated.Value(startY);
-      const sub = val.addListener(({ value }) => {
-        paneScrollRefs.current[pane]?.scrollTo({
-          y: Math.max(0, value),
-          animated: false,
-        });
-      });
-      flingAnim.current = Animated.decay(val, {
-        velocity: -vyMs * 1000,
-        deceleration: 0.998,
-        useNativeDriver: true,
-      });
-      flingAnim.current.start(() => {
-        val.removeListener(sub);
-        flingAnim.current = null;
-      });
-      return;
-    }
-    if (d.kind !== 'sheet') return;
-    const restTy = gestureFns.current.getRestTy();
-    const dyTotal = last ? last.y - d.startPageY : 0;
-    if (Math.abs(dyTotal) < 12 && Math.abs(vyMsRaw) < 0.75) {
-      springTo(restTy);
-      return;
-    }
-    const endTy = Math.min(d.base + dyTotal, live.current.sheetH);
-    const projected = endTy + vyMs * 220;
-    const { ty, after, onDone } = gestureFns.current.chooseTarget({
-      dy: dyTotal,
-      vyMs,
-      endTy,
-      projected,
-      restTy,
-    });
-    springTo(ty, vyMs * 1000, onDone);
-    if (after) after();
-  };
-  const paneResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: () => false,
-      // Claim only while the pane is parked at its top; the pane's
-      // ScrollView is disabled then, so no native intercept can steal it.
-      onMoveShouldSetPanResponderCapture: (e, g) =>
-        atTopRef.current &&
-        Math.abs(g.dy) > 6 &&
-        Math.abs(g.dy) > Math.abs(g.dx),
-      onPanResponderTerminationRequest: () => true,
-      onPanResponderGrant: (e) => {
-        stopPaneFling();
-        paneDrag.current = {
-          mode: 'maybe',
-          kind: null,
-          base: pos.__getValue(),
-          startPageY: e.nativeEvent.pageY,
-          samples: [{ t: Date.now(), y: e.nativeEvent.pageY }],
-        };
-      },
-      onPanResponderMove: (e, g) => {
-        const d = paneDrag.current;
-        d.samples.push({ t: Date.now(), y: e.nativeEvent.pageY });
-        if (d.samples.length > 8) d.samples.shift();
-        if (d.mode === 'maybe') {
-          if (Math.abs(g.dy) < 10 || Math.abs(g.dy) <= Math.abs(g.dx)) return;
-          d.mode = 'locked';
-          d.kind = g.dy < 0 ? 'scroll' : 'sheet';
-          if (d.kind === 'scroll') armPaneScroll();
-        }
-        if (d.kind === 'scroll') {
-          paneScrollRefs.current[activePane()]?.scrollTo({
-            y: Math.max(0, -g.dy),
-            animated: false,
-          });
-        } else if (d.kind === 'sheet') {
-          pos.setValue(Math.min(d.base + g.dy, live.current.sheetH));
-        }
-      },
-      onPanResponderRelease: () => settlePaneDrag('release'),
-      onPanResponderTerminate: () => settlePaneDrag('terminate'),
-    }),
-  ).current;
 
   // Slide-in on mount (to the half detent).
   useEffect(() => {
@@ -1219,7 +1041,6 @@ function ResultsSheet({
   return (
     <View style={styles.sheetWrap} pointerEvents="box-none">
       <Animated.View
-        {...panResponder.panHandlers}
         style={[
           styles.sheet,
           {
@@ -1229,7 +1050,7 @@ function ResultsSheet({
             transform: [{ translateY: pos }],
           },
         ]}>
-        <View style={styles.sheetHead}>
+        <View style={styles.sheetHead} {...panResponder.panHandlers}>
           <View style={styles.grabberRow}>
             <View
               style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
@@ -1350,7 +1171,6 @@ function ResultsSheet({
         <View style={styles.bodyWrap}>
           <Animated.View
             pointerEvents={inDetail ? 'none' : 'auto'}
-            {...paneResponder.panHandlers}
             style={[
               styles.bodyFill,
               {
@@ -1417,18 +1237,11 @@ function ResultsSheet({
               </View>
             ) : (
               <ScrollView
-                ref={setPaneRef('list')}
                 style={styles.stripList}
                 contentContainerStyle={styles.stripPad}
                 keyboardShouldPersistTaps="handled"
                 overScrollMode="never"
-                scrollEventThrottle={16}
-                scrollEnabled={paneScrollEnabled}
-                onTouchStart={stopPaneFling}
-                onTouchEnd={disarmPaneScroll}
-                onScroll={(e) => {
-                  markScrollY(e.nativeEvent.contentOffset.y);
-                }}>
+                scrollEventThrottle={16}>
                 {total === 0 ? (
                   <View style={styles.stateBox}>
                     <Text style={[styles.stateText, { color: theme.textMuted }]}>
@@ -1501,7 +1314,6 @@ function ResultsSheet({
           {showDetail && detail ? (
             <Animated.View
               pointerEvents={inDetail ? 'auto' : 'none'}
-              {...paneResponder.panHandlers}
               style={[
                 styles.bodyOverlay,
                 {
@@ -1519,7 +1331,6 @@ function ResultsSheet({
                   },
                 ]}>
                 <ScrollView
-                  ref={setPaneRef('detail')}
                   style={styles.stripList}
                   contentContainerStyle={[
                     styles.detailPad,
@@ -1527,13 +1338,7 @@ function ResultsSheet({
                   ]}
                   keyboardShouldPersistTaps="handled"
                   overScrollMode="never"
-                  scrollEventThrottle={16}
-                  scrollEnabled={paneScrollEnabled}
-                  onTouchStart={stopPaneFling}
-                  onTouchEnd={disarmPaneScroll}
-                  onScroll={(e) => {
-                    markScrollY(e.nativeEvent.contentOffset.y);
-                  }}>
+                  scrollEventThrottle={16}>
                   {detail.kind === 'zone' ? (
                     <ZoneBody key={detail.item.id} item={detail.item} />
                   ) : (
@@ -1544,7 +1349,6 @@ function ResultsSheet({
               {showEvidence ? (
                 <Animated.View
                   pointerEvents={inEvidence ? 'auto' : 'none'}
-                  {...paneResponder.panHandlers}
                   style={[
                     styles.bodyOverlay,
                     {
@@ -1556,15 +1360,6 @@ function ResultsSheet({
                   <EvidenceBody
                     key={evidenceUpdate?.id}
                     bottomPad={insets.bottom + 24}
-                    scrollRef={setPaneRef('evidence')}
-                    scrollEnabled={paneScrollEnabled}
-                    onScroll={(e) => {
-                      markScrollY(e.nativeEvent.contentOffset.y);
-                    }}
-                    touchProps={{
-                      onTouchStart: stopPaneFling,
-                      onTouchEnd: disarmPaneScroll,
-                    }}
                   />
                 </Animated.View>
               ) : null}

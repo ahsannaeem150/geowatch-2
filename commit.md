@@ -12884,3 +12884,4 @@ feat(mobile): Power Search single-sheet navigation (Google Maps pattern) — the
 fix(mobile): PS results sheet — list now scrolls at the half detent without raising the sheet; sheet raise/lower is grabber/header-only, body down-drag moves the sheet only when the pane is at scroll-top (pane wrapper PanResponder + scroll-top-gated ScrollView enable, detent settle via the shared chooseTarget map; detail/evidence panes same rules). Verified T1–T9 on the physical device incl. PeekSheet regression
 chore: add connect-wireless cmd to start-mobile-intelmap24.sh (pair + connect + adb reverse in one)
 fix(mobile): hide selection pill while Power Search is open (pill no longer lingers over PS screen)
+fix(mobile): PS results sheet on head-mode gesture (grabber dead due to stale native-driven pos value + y0=0); panes natively scrollable, capture/pane-arbitration removed
