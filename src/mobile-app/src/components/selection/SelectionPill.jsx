@@ -12,6 +12,7 @@ import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
+import { useOverlay } from '../../context/OverlayContext';
 import { formatKm2, severityOf } from './PreviewCard';
 
 // Selection pill (prototype #sel-pill): compact bar shown when the peek /
@@ -21,7 +22,11 @@ export default function SelectionPill() {
   const insets = useSafeAreaInsets();
   const { view, item, isGhost, expandFromPill } = useSelection();
   const { selectedKind } = useMap();
-  const visible = view === 'pill' && !!item;
+  const { stack } = useOverlay();
+  // Power Search owns the screen (and its own result sheet) — the map's
+  // selection pill must not linger on top of it.
+  const psOpen = stack.some((o) => o.id === 'powerSearch');
+  const visible = view === 'pill' && !!item && !psOpen;
   const [mounted, setMounted] = React.useState(visible);
   const enter = useRef(new Animated.Value(visible ? 1 : 0)).current;
 
