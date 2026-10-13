@@ -178,6 +178,14 @@ the phone workflow, mirroring the web `start-/stop-intelmap24.sh` style:
 # Phone (re)plugged over USB → always run this first (sets adb reverse ports)
 ./scripts/start-mobile-intelmap24.sh connect
 
+# Wireless adb instead of USB → connect over WiFi, then same reverse ports.
+# Port = the one on the MAIN Wireless debugging screen (not the pairing port).
+./scripts/start-mobile-intelmap24.sh connect-wireless 192.168.0.100:41667
+
+# First time on a NEW phone → pair once (ip:port + 6-digit code from
+# "Pair device with pairing code"), then connect in the same command:
+./scripts/start-mobile-intelmap24.sh connect-wireless 192.168.0.100:41667 192.168.0.100:37547 641812
+
 # Mobile-only work: start just backend + Martin (all web apps stay stopped)
 # and stream their logs — Ctrl+C detaches, services keep running
 ./scripts/start-mobile-intelmap24.sh services

@@ -5,6 +5,17 @@
 # Usage: ./scripts/start-mobile-intelmap24.sh <target>
 #
 #   connect    adb reverse ports — run EVERY time the phone is (re)plugged
+#   connect-wireless <ip:port> [pair-ip:port pair-code]
+#              Wireless adb: connect to the phone over WiFi, then set the same
+#              adb reverse ports as 'connect'. If the phone was never paired,
+#              pass the PAIRING ip:port + 6-digit code from
+#              Settings → Developer options → Wireless debugging → "Pair device
+#              with pairing code" as the 2nd/3rd args (pair once, then only
+#              the plain form is needed — note the CONNECT port is the one on
+#              the main wireless-debugging screen, NOT the pairing port).
+#              Example:
+#                connect-wireless 192.168.0.100:41667
+#                connect-wireless 192.168.0.100:41667 192.168.0.100:37547 641812
 #   services   start ONLY backend (API + font glyphs) + martin — all three web
 #              apps stay stopped. Streams their logs (Ctrl+C detaches, services
 #              keep running)
@@ -46,6 +57,26 @@ cmd_connect() {
   echo "✓ adb reverse set: 3100 (API + fonts) · 8080 (Martin) · 8081 (Metro)"
 }
 
+cmd_connect_wireless() {
+  local target="${1:-}" pair_target="${2:-}" pair_code="${3:-}"
+  if [ -z "$target" ]; then
+    echo "✗ Usage: connect-wireless <ip:port> [pair-ip:port pair-code]"
+    echo "  ip:port = CONNECT address from the main Wireless debugging screen"
+    exit 1
+  fi
+  if [ -n "$pair_target" ]; then
+    if [ -z "$pair_code" ]; then
+      echo "✗ Pairing needs the 6-digit code too: connect-wireless $target $pair_target <code>"
+      exit 1
+    fi
+    echo "Pairing with $pair_target …"
+    adb pair "$pair_target" "$pair_code"
+  fi
+  echo "Connecting to $target …"
+  adb connect "$target"
+  cmd_connect
+}
+
 start_services() {
   "$ROOT_DIR/scripts/start-intelmap24.sh" backend martin --no-browser
 }
@@ -80,7 +111,8 @@ cmd_build() {
 }
 
 case "${1:-}" in
-  connect)  cmd_connect ;;
+  connect)          cmd_connect ;;
+  connect-wireless) shift; cmd_connect_wireless "$@" ;;
   services) cmd_services ;;
   metro)    cmd_metro ;;
   logs)     cmd_logs ;;
