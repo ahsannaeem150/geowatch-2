@@ -9,11 +9,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, X } from 'lucide-react-native';
+import { ChevronLeft, Map as MapIcon, X } from 'lucide-react-native';
 import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
+import { useOverlay } from '../../context/OverlayContext';
 import { MAP_STYLES } from '../../screens/map/mapStyles';
 import { locationLine, severityOf } from './PreviewCard';
 
@@ -49,7 +50,9 @@ function zoneBBox(geometry) {
 export default function EmbeddedMapPanel() {
   const { mode, theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { previewActive, item, closePreview, origin } = useSelection();
+  const { previewActive, item, closePreview, sendPreviewToMap, origin } =
+    useSelection();
+  const { closeAll } = useOverlay();
   const { selectedKind } = useMap();
   const { height: windowHeight } = useWindowDimensions();
   const height = Math.round(windowHeight * 0.54);
@@ -74,6 +77,13 @@ export default function EmbeddedMapPanel() {
   if (!visible) {
     return null;
   }
+
+  // Jump out of the origin surface to the real map with the item kept as
+  // the selection pill (camera already flew here when the preview opened).
+  const onViewOnMap = () => {
+    sendPreviewToMap();
+    closeAll();
+  };
 
   const isZone = selectedKind === 'zone';
   const pinColor = isZone
@@ -120,6 +130,7 @@ export default function EmbeddedMapPanel() {
           height,
           backgroundColor: theme.bgElevated,
           borderBottomColor: theme.borderSubtle,
+          opacity: enter,
           transform: [
             {
               translateY: enter.interpolate({
@@ -164,6 +175,27 @@ export default function EmbeddedMapPanel() {
           style={[styles.loc, { color: theme.textSecondary }]}>
           {locationLine(item)}
         </Text>
+        <Pressable
+          onPress={onViewOnMap}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.mapChip,
+            {
+              backgroundColor: pressed
+                ? theme.bgHover
+                : theme.accentSubtleBg,
+              borderColor: theme.accentLight,
+            },
+          ]}>
+          <MapIcon size={11} color={theme.accentLight} />
+          <Text
+            style={[
+              styles.mapChipText,
+              { color: theme.accentLight, fontFamily: theme.fontMono },
+            ]}>
+            MAP
+          </Text>
+        </Pressable>
         <Pressable
           onPress={closePreview}
           hitSlop={8}
@@ -262,6 +294,20 @@ const styles = StyleSheet.create({
   loc: {
     flex: 1,
     fontSize: 11,
+  },
+  mapChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  mapChipText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   canvas: {
     flex: 1,

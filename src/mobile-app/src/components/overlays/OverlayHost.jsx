@@ -17,6 +17,7 @@ import PeekSheet from '../selection/PeekSheet';
 import IncidentDrawer from '../selection/IncidentDrawer';
 import EvidencePanel from '../selection/EvidencePanel';
 import EmbeddedMapPanel from '../selection/EmbeddedMapPanel';
+import TabBar from '../../screens/map/components/TabBar';
 
 // Z-order model (rendered bottom → top, mirrors the prototype's z-indexes):
 // map < pill (32) < backdrop (55) < sheets/fullscreen/drawerLeft/topPanel
@@ -24,6 +25,12 @@ import EmbeddedMapPanel from '../selection/EmbeddedMapPanel';
 // < incident drawer (70) < modal (80) < toast
 
 const BACKDROP_TYPES = new Set(['sheet', 'drawerLeft', 'topPanel']);
+
+// Tab fullscreens (Incidents/Zones directories) keep the tab bar alive on
+// top of them — they read as tabs, not pushed pages — so they also enter
+// with a plain fade (no right-slide) and leave room for the bar below.
+const TAB_FULLSCREENS = new Set(['incidentsDirectory', 'zonesDirectory']);
+const TABBAR_SPACE = 62; // bar height above the safe-area inset
 
 function useEnter(progress) {
   useEffect(() => {
@@ -65,9 +72,10 @@ function FullscreenContainer({ overlay, children }) {
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
   useEnter(progress);
+  const isTabDir = TAB_FULLSCREENS.has(overlay.id);
   const translateX = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [60, 0],
+    outputRange: isTabDir ? [0, 0] : [60, 0],
   });
   const backgroundColor = overlay.props?.transparent
     ? 'transparent'
@@ -83,10 +91,12 @@ function FullscreenContainer({ overlay, children }) {
       StyleSheet.create({
         pad: {
           paddingTop: transparent ? 0 : insets.top + 8,
-          paddingBottom: transparent ? 0 : insets.bottom,
+          paddingBottom: transparent
+            ? 0
+            : insets.bottom + (isTabDir ? TABBAR_SPACE : 0),
         },
       }).pad,
-    [transparent, insets.top, insets.bottom],
+    [transparent, isTabDir, insets.top, insets.bottom],
   );
   return (
     <Animated.View
@@ -294,6 +304,13 @@ export default function OverlayHost() {
   // The sign-in gate must also cover the selection surfaces (drawer/evidence
   // star) — hoist it above them while keeping its bottom-sheet container.
   const signInOverlays = stack.filter((o) => o.id === 'signIn');
+  // Directory fullscreens are tab pages: the tab bar stays visible on top of
+  // them (MapScreen hides its own only for Power Search, so no duplicate —
+  // this one renders above the overlay, the map's sits underneath it).
+  const tabBarVisible =
+    !!topOverlay &&
+    topOverlay.type === 'fullscreen' &&
+    TAB_FULLSCREENS.has(topOverlay.id);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -304,6 +321,7 @@ export default function OverlayHost() {
         />
       ) : null}
       {baseOverlays.map(renderOverlay)}
+      {tabBarVisible ? <TabBar /> : null}
       {/* SelectionPill sits above the stack's overlays (e.g. Power Search's
           fullscreen container) but below the selection sheets — dismissing a
           PeekSheet over PS must leave the pill visible and tappable. */}

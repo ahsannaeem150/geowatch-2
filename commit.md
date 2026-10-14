@@ -12887,3 +12887,4 @@ fix(mobile): hide selection pill while Power Search is open (pill no longer ling
 fix(mobile): PS results sheet on head-mode gesture (grabber dead due to stale native-driven pos value + y0=0); panes natively scrollable, capture/pane-arbitration removed
 fix(mobile): PS detail down-drag dismisses to a pill (kept detail state, pill reopens into it); two modern pill designs (results chip pill + incident identity pill); pane bottom padding = hidden translateY amount so short content scrolls at half detent
 fix(mobile): PS results pill now full-width modern card; new marker tap while incident pill showing re-opens sheet into that incident (effect dep on item id)
+feat(mobile): incidents/zones directory polish — tab bar stays alive (fade-only entrance), filters converted to drag-dismiss bottom sheet with SHOW N RESULTS footer, embedded map panel gains View-on-map chip (drops to map pill)

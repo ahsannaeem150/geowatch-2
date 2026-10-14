@@ -291,6 +291,16 @@ export function SelectionProvider({ children }) {
     setOrigin(null);
   }, [origin, openOverlay]);
 
+  // "View on map" from the embedded panel: end the preview (no origin
+  // restore) but keep the item selected as the map pill — the caller closes
+  // the overlay stack, leaving the ring + pill on the main map.
+  const sendPreviewToMap = useCallback(() => {
+    setOrigin(null);
+    setEvidenceUpdate(null);
+    setEvidenceFrom(null);
+    setView('pill');
+  }, []);
+
   // Peek drag-down → collapse to the pill (same target as a map tap).
   const collapsePeek = useCallback(() => {
     setView('pill');
@@ -402,6 +412,7 @@ export function SelectionProvider({ children }) {
       selectFromMap,
       previewItemOnMap,
       closePreview,
+      sendPreviewToMap,
       expandFromPeek,
       collapsePeek,
       collapseToPeek,
@@ -430,6 +441,7 @@ export function SelectionProvider({ children }) {
       selectFromMap,
       previewItemOnMap,
       closePreview,
+      sendPreviewToMap,
       expandFromPeek,
       collapsePeek,
       collapseToPeek,

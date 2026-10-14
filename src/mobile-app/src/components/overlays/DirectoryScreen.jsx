@@ -12,8 +12,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Check,
   ChevronDown,
@@ -33,6 +35,7 @@ import { searchIncidents, searchZones } from '../../services/incidents.service';
 import { listCategories, listZoneCategories } from '../../services/taxonomy.service';
 import { DOMAINS, SEVERITIES, VERIFICATION_STATUSES, ZONE_OVERLAYS } from '../../constants';
 import { locationLine, severityOf } from '../selection/PreviewCard';
+import useSheetGesture from '../../hooks/useSheetGesture';
 
 // Directory fullscreens (prototype #dir-screen-incidents / #dir-screen-zones;
 // openDirectory/toggleDirFilters/setDirStatus/renderDirFiltersStatic/
@@ -530,12 +533,13 @@ export default function DirectoryScreen({ kind, overlay }) {
         )}
       </View>
 
-      {/* filters drawer (slides over results within the fullscreen) */}
+      {/* filters bottom sheet (Google Maps pattern — drag/flick to dismiss) */}
       {filtersOpen ? (
-        <FilterDrawer
+        <FilterSheet
           kind={kind}
           theme={theme}
           filterCount={filterCount}
+          total={visible.length}
           collapsed={collapsed}
           toggleAccordion={toggleAccordion}
           sevSel={sevSel}
@@ -670,46 +674,78 @@ function SkeletonRows({ theme }) {
   );
 }
 
-// ─── Filters drawer (prototype .dir-fdrawer + psf accordion pattern) ───
-function FilterDrawer(props) {
-  const { theme, close, filterCount } = props;
-  const slide = useRef(new Animated.Value(0)).current;
+// ─── Filters bottom sheet (Google Maps pattern; same gesture engine and
+// head-drag model as the Power Search filter sheet) ───
+function FilterSheet(props) {
+  const { theme, close, filterCount, total } = props;
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetH = Math.round(windowHeight * 0.85);
+  const pos = useRef(new Animated.Value(sheetH)).current;
+  const heightRef = useRef(sheetH);
+  heightRef.current = sheetH;
+  const closeRef = useRef(close);
+  closeRef.current = close;
+
+  const { panResponder, springTo } = useSheetGesture({
+    pos,
+    getClamp: () => ({ top: 0, bottom: heightRef.current }),
+    getRestTy: () => 0,
+    chooseTarget: ({ dy, vyMs, projected }) => {
+      const H = heightRef.current;
+      const flickDown = vyMs > 1.0 && dy > 10;
+      if (flickDown || projected > H * 0.35) {
+        // Slide all the way off WITH the finger's velocity, then close.
+        return { ty: H, onDone: () => closeRef.current() };
+      }
+      return { ty: 0 };
+    },
+  });
+
   useEffect(() => {
-    Animated.timing(slide, {
-      toValue: 1,
-      duration: 280,
-      useNativeDriver: true,
-    }).start();
-  }, [slide]);
-  const translateX = slide.interpolate({ inputRange: [0, 1], outputRange: [-340, 0] });
+    springTo(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animateClose = () =>
+    springTo(heightRef.current, 0, () => closeRef.current());
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <Pressable style={styles.drawerBackdrop} onPress={close} />
+      <Pressable style={styles.sheetBackdrop} onPress={animateClose} />
       <Animated.View
         style={[
-          styles.drawer,
+          styles.filterSheet,
           {
+            height: sheetH,
+            paddingBottom: insets.bottom,
             backgroundColor: theme.bgSurface,
-            borderRightColor: theme.borderSubtle,
-            transform: [{ translateX }],
+            borderColor: theme.borderSubtle,
+            transform: [{ translateY: pos }],
           },
         ]}>
-        <View style={[styles.drawerHead, { borderBottomColor: theme.borderSubtle }]}>
-          <Text style={[styles.drawerTitle, { color: theme.textPrimary, fontFamily: theme.fontHead }]}>
-            Filters
-          </Text>
-          {filterCount ? (
-            <View style={[styles.drawerBadge, { backgroundColor: theme.accentSubtleBg, borderColor: theme.accentSubtleBorder }]}>
-              <Text style={[styles.drawerBadgeText, { color: theme.accentLight, fontFamily: theme.fontMono }]}>
-                {filterCount}
-              </Text>
-            </View>
-          ) : null}
-          <View style={styles.flex1} />
-          <Pressable onPress={close} hitSlop={8} style={styles.drawerClose}>
-            <X size={15} color={theme.textSecondary} />
-          </Pressable>
+        <View
+          {...panResponder.panHandlers}
+          style={[styles.sheetHead, { borderBottomColor: theme.borderSubtle }]}>
+          <View style={styles.grabberRow}>
+            <View style={[styles.grabber, { backgroundColor: theme.borderSubtle }]} />
+          </View>
+          <View style={styles.sheetHeadRow}>
+            <Text style={[styles.drawerTitle, { color: theme.textPrimary, fontFamily: theme.fontHead }]}>
+              Filters
+            </Text>
+            {filterCount ? (
+              <View style={[styles.drawerBadge, { backgroundColor: theme.accentSubtleBg, borderColor: theme.accentSubtleBorder }]}>
+                <Text style={[styles.drawerBadgeText, { color: theme.accentLight, fontFamily: theme.fontMono }]}>
+                  {filterCount}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.flex1} />
+            <Pressable onPress={animateClose} hitSlop={8} style={styles.drawerClose}>
+              <X size={15} color={theme.textSecondary} />
+            </Pressable>
+          </View>
         </View>
         <ScrollView contentContainerStyle={styles.drawerBody}>
           <Accordion
@@ -880,6 +916,22 @@ function FilterDrawer(props) {
             </Text>
           </Pressable>
         </ScrollView>
+        <View style={[styles.sheetFooter, { borderTopColor: theme.borderSubtle }]}>
+          <Pressable
+            onPress={animateClose}
+            style={({ pressed }) => [
+              styles.showResultsBtn,
+              { backgroundColor: theme.accentLight, opacity: pressed ? 0.85 : 1 },
+            ]}>
+            <Text
+              style={[
+                styles.showResultsText,
+                { color: theme.bgDeep, fontFamily: theme.fontMono },
+              ]}>
+              SHOW {total} RESULTS
+            </Text>
+          </Pressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -1111,25 +1163,55 @@ const styles = StyleSheet.create({
   skelW72: { width: '72%' },
   skelW38: { width: '38%' },
   skelW54: { width: '54%' },
-  drawerBackdrop: {
+  sheetBackdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,.4)',
   },
-  drawer: {
+  filterSheet: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
     left: 0,
-    width: '82%',
-    borderRightWidth: 1,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  drawerHead: {
+  sheetHead: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  grabberRow: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  grabber: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+  },
+  sheetHeadRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  sheetFooter: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  showResultsBtn: {
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  showResultsText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   drawerTitle: { fontSize: 14, fontWeight: '600' },
   drawerBadge: {
