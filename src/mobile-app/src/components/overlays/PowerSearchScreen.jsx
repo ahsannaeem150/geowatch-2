@@ -850,7 +850,9 @@ function ResultsSheet({
       setShowDetail(true);
       setSortOpen(false);
       // A fresh selection (e.g. map marker tap) while dismissed re-opens the
-      // sheet into the detail pane instead of leaving only the pill.
+      // sheet into the detail pane instead of leaving only the pill. The dep
+      // on the item id matters: tapping a DIFFERENT marker while the pill is
+      // showing keeps inDetail=true, so only the id change re-fires this.
       if (live.current.level === 'dismissed') {
         setLevel('half');
         springTo(live.current.halfTy);
@@ -872,7 +874,7 @@ function ResultsSheet({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inDetail]);
+  }, [inDetail, detail?.item?.id]);
 
   // Second layer of the same cross-slide for detail → evidence.
   const eviAnim = useRef(new Animated.Value(0)).current;
@@ -1443,7 +1445,7 @@ function ResultsSheet({
           <Pressable
             onPress={reopen}
             style={({ pressed }) => [
-              styles.resultsPill,
+              styles.itemPill,
               {
                 bottom: insets.bottom + 16,
                 backgroundColor: pressed ? theme.bgElevated : theme.bgSurface,
@@ -1458,16 +1460,27 @@ function ResultsSheet({
                   borderColor: theme.accentSubtleBorder,
                 },
               ]}>
-              <Search size={12} color={theme.accentLight} />
+              <Search size={15} color={theme.accentLight} />
             </View>
-            <Text
-              style={[
-                styles.resultsPillText,
-                { color: theme.textPrimary },
-              ]}>
-              {total} Results
-            </Text>
-            <ChevronUp size={14} color={theme.accentLight} />
+            <View style={styles.itemPillBody}>
+              <Text
+                numberOfLines={1}
+                style={[styles.itemPillTitle, { color: theme.textPrimary }]}>
+                {total} Result{total === 1 ? '' : 's'}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.itemPillMeta,
+                  { color: theme.textMuted, fontFamily: theme.fontMono },
+                ]}>
+                TAP TO EXPAND
+              </Text>
+            </View>
+            <View
+              style={[styles.itemPillUp, { backgroundColor: theme.bgHover }]}>
+              <ChevronUp size={13} color={theme.textSecondary} />
+            </View>
           </Pressable>
         )
       ) : null}
@@ -2238,32 +2251,14 @@ const styles = StyleSheet.create({
   skelLine: { height: 10, borderRadius: 4 },
   skelW72: { width: '72%' },
   skelW38: { width: '38%' },
-  resultsPill: {
-    position: 'absolute',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    height: 46,
-    paddingHorizontal: 10,
-    paddingRight: 16,
-    borderRadius: 23,
-    borderWidth: 1,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-  },
   resultsPillChip: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resultsPillText: { fontSize: 12.5, fontWeight: '600' },
   itemPill: {
     position: 'absolute',
     left: 16,

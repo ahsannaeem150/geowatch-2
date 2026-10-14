@@ -12886,3 +12886,4 @@ chore: add connect-wireless cmd to start-mobile-intelmap24.sh (pair + connect + 
 fix(mobile): hide selection pill while Power Search is open (pill no longer lingers over PS screen)
 fix(mobile): PS results sheet on head-mode gesture (grabber dead due to stale native-driven pos value + y0=0); panes natively scrollable, capture/pane-arbitration removed
 fix(mobile): PS detail down-drag dismisses to a pill (kept detail state, pill reopens into it); two modern pill designs (results chip pill + incident identity pill); pane bottom padding = hidden translateY amount so short content scrolls at half detent
+fix(mobile): PS results pill now full-width modern card; new marker tap while incident pill showing re-opens sheet into that incident (effect dep on item id)
