@@ -25,8 +25,10 @@ export const OVERLAY_META = {
   commandPalette: { title: 'Search', hideHeader: true },
   searchHub: { title: 'Search', heightFraction: 0.82 },
   layers: { title: 'Map Layers', heightFraction: 0.6 },
-  activity: { title: 'Live Activity', heightFraction: 0.6 },
-  alerts: { title: 'Alerts', heightFraction: 0.6 },
+  // Activity + Alerts are tab destinations: fullscreen pages with their own
+  // header rows (back ‹ + title/subtitle + meta action), like directories.
+  activity: { title: 'Live Activity', hideHeader: true },
+  alerts: { title: 'Alerts', hideHeader: true },
   settings: { title: 'Settings', heightFraction: 0.7 },
   notifPrefs: { title: 'Notification Preferences', heightFraction: 0.7 },
   layersPref: { title: 'Default Map Layers', heightFraction: 0.7 },

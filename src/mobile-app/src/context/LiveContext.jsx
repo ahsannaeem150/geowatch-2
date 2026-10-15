@@ -318,7 +318,7 @@ export function LiveProvider({ children }) {
       setAwayBanner(null);
       if (view) {
         closeOverlay('alerts');
-        openOverlay({ id: 'activity', type: 'sheet' });
+        openOverlay({ id: 'activity', type: 'fullscreen' });
       }
     },
     [openOverlay, closeOverlay],

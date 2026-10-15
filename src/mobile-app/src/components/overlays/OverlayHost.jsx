@@ -26,10 +26,16 @@ import TabBar from '../../screens/map/components/TabBar';
 
 const BACKDROP_TYPES = new Set(['sheet', 'drawerLeft', 'topPanel']);
 
-// Tab fullscreens (Incidents/Zones directories) keep the tab bar alive on
-// top of them — they read as tabs, not pushed pages — so they also enter
-// with a plain fade (no right-slide) and leave room for the bar below.
-const TAB_FULLSCREENS = new Set(['incidentsDirectory', 'zonesDirectory']);
+// Tab fullscreens (Incidents/Zones directories, Activity, Alerts) keep the
+// tab bar alive on top of them — they read as tabs, not pushed pages — so
+// they also enter with a plain fade (no right-slide) and leave room for the
+// bar below.
+const TAB_FULLSCREENS = new Set([
+  'incidentsDirectory',
+  'zonesDirectory',
+  'activity',
+  'alerts',
+]);
 const TABBAR_SPACE = 62; // bar height above the safe-area inset
 
 function useEnter(progress) {
