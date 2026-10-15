@@ -12888,3 +12888,4 @@ fix(mobile): PS results sheet on head-mode gesture (grabber dead due to stale na
 fix(mobile): PS detail down-drag dismisses to a pill (kept detail state, pill reopens into it); two modern pill designs (results chip pill + incident identity pill); pane bottom padding = hidden translateY amount so short content scrolls at half detent
 fix(mobile): PS results pill now full-width modern card; new marker tap while incident pill showing re-opens sheet into that incident (effect dep on item id)
 feat(mobile): incidents/zones directory polish — tab bar stays alive (fade-only entrance), filters converted to drag-dismiss bottom sheet with SHOW N RESULTS footer, embedded map panel gains View-on-map chip (drops to map pill)
+fix(mobile): selection pill no longer lingers over other tabs — plain map-selection pill hides when any overlay opens (preview pills with an origin still persist)
