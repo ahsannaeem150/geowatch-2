@@ -73,9 +73,18 @@ export async function uploadMedia(req, res) {
       console.log('[MediaUpload] Processing video...');
       const processed = await processVideo(buffer, mimetype);
       processedBuffer = processed.processedBuffer;
+      width = processed.width;
+      height = processed.height;
       fileUrl = await storage.upload(processedBuffer, fullPath, mimetype);
       console.log('[MediaUpload] Video stored at:', fileUrl);
-      // Future: thumbnailUrl = processed.posterBuffer ? await storage.upload(...) : null;
+
+      if (processed.posterBuffer) {
+        const baseName = storedName.replace(/\.[^.]+$/, '');
+        const thumbName = generateThumbFilename(baseName, 'webp');
+        const thumbPath = `${folderPath}/${thumbName}`;
+        thumbnailUrl = await storage.upload(processed.posterBuffer, thumbPath, 'image/webp');
+        console.log('[MediaUpload] Video poster thumbnail stored at:', thumbnailUrl);
+      }
     }
 
     console.log('[MediaUpload] Creating DB record...');

@@ -33,6 +33,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
 import VideoPlayer from './VideoPlayer';
+import XPostEmbed from './XPostEmbed';
 import { Tag } from './PreviewCard';
 
 // Evidence panel (prototype #evi; openEvidence/closeEvi/switchPane/
@@ -77,11 +78,13 @@ function MediaGrid({ items, onOpen }) {
             ) : null}
             {isVideo ? (
               <>
+                <View style={styles.videoScrim} pointerEvents="none" />
                 <View style={[styles.videoBadge, styles.overlayDim]}>
                   <Play size={15} color="#fff" fill="#fff" />
                 </View>
-                <View style={[styles.videoTag, { backgroundColor: theme.accentLight }]}>
-                  <Text style={[styles.videoTagText, { color: theme.bgDeep, fontFamily: theme.fontMono }]}>
+                <View style={[styles.videoTag, styles.overlayDim]}>
+                  <Play size={8} color="#fff" fill="#fff" />
+                  <Text style={[styles.videoTagText, { fontFamily: theme.fontMono }]}>
                     VIDEO
                   </Text>
                 </View>
@@ -95,73 +98,85 @@ function MediaGrid({ items, onOpen }) {
 }
 
 function XPostCard({ post }) {
-  const { theme } = useTheme();
+  const { theme, mode } = useTheme();
   const { showToast } = useOverlay();
-  const name = post.account_display_name || post.account_username || 'X post';
-  const handle = post.account_username ? `@${post.account_username}` : '';
   const archiveImg = mediaUrl(post.archive_media_url || post.archive_media_thumbnail_url);
+  const archived = !!post.archived;
+
+  const actions = (
+    <View style={styles.xpActions}>
+      {post.source_url ? (
+        <Pressable
+          onPress={() => Linking.openURL(post.source_url).catch(() => showToast('Could not open link'))}
+          style={[styles.xpBtn, { borderColor: theme.borderSubtle, backgroundColor: theme.bgHover }]}>
+          <ExternalLink size={10} color={theme.textSecondary} />
+          <Text style={[styles.xpBtnText, { color: theme.textSecondary }]}>
+            {archived ? 'Try original' : 'Open on X'}
+          </Text>
+        </Pressable>
+      ) : null}
+      {post.source_url ? (
+        <Pressable
+          onPress={() => {
+            Clipboard.setString(post.source_url);
+            showToast('Link copied');
+          }}
+          style={[styles.xpBtn, { borderColor: theme.borderSubtle, backgroundColor: theme.bgHover }]}>
+          <Link2 size={10} color={theme.textSecondary} />
+          <Text style={[styles.xpBtnText, { color: theme.textSecondary }]}>Copy link</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+
+  // Web parity: archived/unavailable posts show the captured snapshot with a
+  // notice; live posts render the real tweet through X's embed widget.
+  if (archived) {
+    return (
+      <View
+        style={[
+          styles.xpCard,
+          { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+        ]}>
+        <View style={[styles.xpNotice, { backgroundColor: theme.bgHover }]}>
+          <Text style={[styles.xpNoticeText, { color: theme.textMuted }]}>
+            Original tweet is unavailable · showing archived snapshot
+          </Text>
+        </View>
+        {archiveImg ? (
+          <Image
+            source={{ uri: archiveImg }}
+            style={[styles.xpArchiveImg, { backgroundColor: theme.bgHover }]}
+            resizeMode="cover"
+          />
+        ) : post.description ? (
+          <Text style={[styles.xpDesc, { color: theme.textSecondary }]}>
+            {post.description}
+          </Text>
+        ) : null}
+        <Text style={[styles.xpArchived, { color: theme.sev2, fontFamily: theme.fontMono }]}>
+          ARCHIVED{post.archive_reason ? ` — ${post.archive_reason}` : ''}
+        </Text>
+        {actions}
+      </View>
+    );
+  }
 
   return (
     <View
       style={[
         styles.xpCard,
+        styles.xpCardLive,
         { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
       ]}>
-      <View style={styles.xpHead}>
-        <View style={[styles.xpAvatar, { backgroundColor: theme.bgHover }]}>
-          <Text style={[styles.xpAvatarText, { color: theme.textPrimary }]}>𝕏</Text>
-        </View>
-        <View style={styles.xpUser}>
-          <Text style={[styles.xpName, { color: theme.textPrimary }]} numberOfLines={1}>
-            {name}
-          </Text>
-          {handle ? (
-            <Text style={[styles.xpHandle, { color: theme.textMuted }]}>{handle}</Text>
-          ) : null}
-        </View>
-        <Text style={[styles.xpAgo, { color: theme.textMuted }]} numberOfLines={1}>
-          {ago(post.created_at)}
-        </Text>
-      </View>
-      {post.archived ? (
-        <Text
-          style={[styles.xpArchived, { color: theme.sev2, fontFamily: theme.fontMono }]}>
-          ARCHIVED{post.archive_reason ? ` — ${post.archive_reason}` : ''}
-        </Text>
-      ) : null}
-      {post.description ? (
+      {post.source_url ? (
+        <XPostEmbed url={post.source_url} text={post.description} dark={mode === 'dark'} />
+      ) : (
         <Text style={[styles.xpDesc, { color: theme.textSecondary }]}>
-          {post.description}
+          {post.description || 'X post'}
         </Text>
-      ) : null}
-      {archiveImg ? (
-        <Image
-          source={{ uri: archiveImg }}
-          style={[styles.xpArchiveImg, { backgroundColor: theme.bgHover }]}
-          resizeMode="cover"
-        />
-      ) : null}
-      <View style={styles.xpActions}>
-        {post.source_url ? (
-          <Pressable
-            onPress={() => Linking.openURL(post.source_url).catch(() => showToast('Could not open link'))}
-            style={[styles.xpBtn, { borderColor: theme.borderSubtle, backgroundColor: theme.bgHover }]}>
-            <ExternalLink size={10} color={theme.textSecondary} />
-            <Text style={[styles.xpBtnText, { color: theme.textSecondary }]}>Try original</Text>
-          </Pressable>
-        ) : null}
-        {post.source_url ? (
-          <Pressable
-            onPress={() => {
-              Clipboard.setString(post.source_url);
-              showToast('Link copied');
-            }}
-            style={[styles.xpBtn, { borderColor: theme.borderSubtle, backgroundColor: theme.bgHover }]}>
-            <Link2 size={10} color={theme.textSecondary} />
-            <Text style={[styles.xpBtnText, { color: theme.textSecondary }]}>Copy link</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      )}
+      {actions}
     </View>
   );
 }
@@ -768,6 +783,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  videoScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '42%',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
   videoBadge: {
     position: 'absolute',
     top: '50%',
@@ -787,11 +812,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 7,
     paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   videoTagText: {
     fontSize: 8.5,
     fontWeight: '700',
     letterSpacing: 1,
+    color: '#fff',
   },
   lbCounter: {
     position: 'absolute',
@@ -844,6 +873,19 @@ const styles = StyleSheet.create({
   xpAgo: {
     fontSize: 10.5,
     maxWidth: 90,
+  },
+  xpCardLive: {
+    padding: 10,
+  },
+  xpNotice: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  xpNoticeText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   xpArchived: {
     fontSize: 8.5,
