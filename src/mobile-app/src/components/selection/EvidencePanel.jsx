@@ -286,6 +286,7 @@ function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
           <View
             style={[
               styles.lbCaptionWrap,
+              { bottom: insets.bottom + 12 },
               current.file_type === 'video' ? styles.lbCaptionAboveControls : null,
             ]}>
             <Text style={styles.lbCaption}>{current.caption}</Text>

@@ -123,6 +123,8 @@ export default function VideoPlayer({ uri, poster, active }) {
           style={styles.barTrack}
           onLayout={(e) => setBarW(e.nativeEvent.layout.width)}
           onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => true}
+          onResponderTerminationRequest={() => false}
           onResponderGrant={(e) => seekTo(e.nativeEvent.locationX)}
           onResponderMove={(e) => seekTo(e.nativeEvent.locationX)}>
           <View style={[styles.barBg, styles.barTrackBg]}>
