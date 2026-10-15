@@ -12906,3 +12906,4 @@ feat(mobile): evidence panel now renders all four source types — articles + ad
 feat(backend): video poster thumbnails via ffmpeg — processVideo extracts 1s frame, webp thumb stored, width/height recorded; webs pick up automatically via thumbnail_url
 feat(mobile): X posts web parity — live tweets render via X widgets.js WebView embed (auto-height, fallback card), archived show snapshot + unavailable notice; media grid video distinction (poster thumb, scrim, play badge, VIDEO tag)
 fix(mobile): X embed no longer swallows scroll touches — WebView pointerEvents off + tap-through shield opens tweet deliberately
+feat(mobile): in-app tweet reader — tap on X embed opens fullscreen WebView modal (interactive, X media viewer works inside), no more external app switch

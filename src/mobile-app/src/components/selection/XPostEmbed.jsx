@@ -1,7 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import WebView from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+
+// In-app fullscreen tweet reader: tapping a (scroll-safe) list embed opens
+// the tweet on x.com inside a modal WebView instead of switching apps. The
+// reader is fully interactive — X's own media viewer / video playback work
+// inside it — and back returns to the evidence list.
 
 // Mobile port of the web XEmbed (shared/incident-detail/XPostCompactList.jsx):
 // the live tweet renders through X's official widgets.js inside a WebView —
@@ -30,6 +44,7 @@ export default function XPostEmbed({ url, text, dark }) {
   const { theme } = useTheme();
   const [height, setHeight] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [readerOpen, setReaderOpen] = useState(false);
   const gotHeight = useRef(false);
 
   const themeAttr = dark ? 'dark' : 'light';
@@ -94,10 +109,10 @@ export default function XPostEmbed({ url, text, dark }) {
       </View>
       {/* Tap-through shield: the WebView must not swallow scroll gestures or
           fire in-embed clicks on accidental touches. A deliberate tap opens
-          the tweet on X; scrolling passes straight to the parent list. */}
+          the in-app tweet reader; scrolling passes to the parent list. */}
       <Pressable
         style={StyleSheet.absoluteFill}
-        onPress={() => Linking.openURL(url).catch(() => {})}
+        onPress={() => setReaderOpen(true)}
       />
       {height === 0 ? (
         <View style={styles.loader} pointerEvents="none">
@@ -107,7 +122,53 @@ export default function XPostEmbed({ url, text, dark }) {
           </Text>
         </View>
       ) : null}
+      <TweetReader url={url} open={readerOpen} onClose={() => setReaderOpen(false)} />
     </View>
+  );
+}
+
+function TweetReader({ url, open, onClose }) {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
+      <View style={[styles.readerWrap, { backgroundColor: theme.bgDeep }]}>
+        <View
+          style={[
+            styles.readerHead,
+            {
+              paddingTop: insets.top + 8,
+              backgroundColor: theme.bgSurface,
+              borderBottomColor: theme.borderSubtle,
+            },
+          ]}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={8}
+            style={[styles.readerBack, { backgroundColor: theme.bgHover }]}>
+            <ChevronLeft size={18} color={theme.textPrimary} />
+          </Pressable>
+          <Text style={[styles.readerTitle, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+            POST
+          </Text>
+          <View style={styles.readerBack} />
+        </View>
+        {open ? (
+          <WebView
+            source={{ uri: url }}
+            style={styles.readerWeb}
+            javaScriptEnabled
+            domStorageEnabled
+            startInLoadingState
+            renderLoading={() => (
+              <View style={styles.readerLoading}>
+                <ActivityIndicator size="large" color={theme.textMuted} />
+              </View>
+            )}
+          />
+        ) : null}
+      </View>
+    </Modal>
   );
 }
 
@@ -141,5 +202,37 @@ const styles = StyleSheet.create({
   fallbackText: {
     fontSize: 12.5,
     lineHeight: 18,
+  },
+  readerWrap: {
+    flex: 1,
+  },
+  readerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  readerBack: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 11,
+    letterSpacing: 2.2,
+  },
+  readerWeb: {
+    flex: 1,
+  },
+  readerLoading: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
