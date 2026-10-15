@@ -12893,3 +12893,4 @@ feat(mobile): embedded map panel polish — interactive mini map (pan/pinch-zoom
 fix(mobile): preview sheet drag-down exits to origin list (no pill) — plain map selections still collapse to the pill
 feat(mobile): embedded map panel matches map/web styling — domain PNG markers with severity size + selection glow/ring for incidents, neon-fade zone stack (soft fill, glow, border, selected stroke)
 feat(mobile): Activity + Alerts promoted to fullscreen tab pages — fade entrance, tab bar alive, day-grouped feeds, type icon chips, alerts filter chips (All/Unread/Incidents/Zones), unread accent highlight, LIVE/OFFLINE header chip, MARK READ action; previews open with mini-map + sheet like directories
+feat(mobile): power search applied-filters strip — count chip + removable accent tags + CLEAR, separated from quick-filter shortcuts row

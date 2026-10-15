@@ -681,7 +681,8 @@ export function PowerSearchBody({ overlay }) {
             ) : null}
           </Pressable>
         </View>
-        {/* quick-filter chips first, then applied tags in the same row */}
+        {/* quick-filter shortcuts only — applied filters get their own strip
+            below so the active state never hides in the scroll */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -708,28 +709,63 @@ export function PowerSearchBody({ overlay }) {
               <ChevronDown size={11} color={theme.textMuted} />
             </Pressable>
           ))}
-          {tags.map((t) => (
-            <Pressable
-              key={t.key}
-              onPress={t.clear}
+        </ScrollView>
+        {/* Applied-filters strip (Airbnb/Zomato active-filter pattern): only
+            rendered while any filter is on; count chip left, removable tag
+            chips scroll in the middle, CLEAR pinned right. */}
+        {tags.length ? (
+          <View style={styles.stripRow}>
+            <View
               style={[
-                styles.chip,
-                {
-                  borderColor: theme.accentSubtleBorder,
-                  backgroundColor: theme.accentSubtleBg,
-                },
+                styles.stripCountChip,
+                { backgroundColor: theme.accentLight },
               ]}>
               <Text
                 style={[
-                  styles.chipText,
-                  { color: theme.accentLight, fontFamily: theme.fontMono },
+                  styles.stripCountText,
+                  { color: theme.bgDeep, fontFamily: theme.fontMono },
                 ]}>
-                {t.label}
+                {tags.length} ACTIVE
               </Text>
-              <X size={11} color={theme.accentLight} />
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.stripTags}>
+              {tags.map((t) => (
+                <Pressable
+                  key={t.key}
+                  onPress={t.clear}
+                  style={[
+                    styles.stripTag,
+                    {
+                      borderColor: theme.accentSubtleBorder,
+                      backgroundColor: theme.accentSubtleBg,
+                    },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.stripTagText,
+                      { color: theme.accentLight, fontFamily: theme.fontMono },
+                    ]}>
+                    {t.label}
+                  </Text>
+                  <X size={11} color={theme.accentLight} />
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable onPress={resetFilters} hitSlop={6} style={styles.stripClearBtn}>
+              <Text
+                style={[
+                  styles.stripClearText,
+                  { color: theme.textMuted, fontFamily: theme.fontMono },
+                ]}>
+                CLEAR
+              </Text>
             </Pressable>
-          ))}
-        </ScrollView>
+          </View>
+        ) : null}
       </View>
 
       {/* two-detent results sheet + dismiss pill */}
@@ -2105,6 +2141,49 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 12,
     paddingRight: 12,
+  },
+  stripRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 9,
+  },
+  stripCountChip: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  stripCountText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  stripTags: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingRight: 4,
+  },
+  stripTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  stripTagText: {
+    fontSize: 9.5,
+    letterSpacing: 0.4,
+  },
+  stripClearBtn: {
+    paddingVertical: 4,
+    paddingLeft: 2,
+  },
+  stripClearText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   chip: {
     flexDirection: 'row',
