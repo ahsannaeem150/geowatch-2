@@ -32,8 +32,8 @@ import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
+import { fetchTweet } from '../../services/x-post';
 import VideoPlayer from './VideoPlayer';
-import XPostEmbed from './XPostEmbed';
 import { Tag } from './PreviewCard';
 
 // Evidence panel (prototype #evi; openEvidence/closeEvi/switchPane/
@@ -97,11 +97,54 @@ function MediaGrid({ items, onOpen }) {
   );
 }
 
+function compactNum(n) {
+  if (n === null || n === undefined) {
+    return null;
+  }
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+}
+
+// Live tweet → native card (fxtwitter-resolved author/text/media/stats); its
+// media opens in the app's own swipe gallery. Archived posts keep the snapshot
+// view. Falls back to a plain text card if the tweet cannot be resolved.
 function XPostCard({ post }) {
-  const { theme, mode } = useTheme();
+  const { theme } = useTheme();
   const { showToast } = useOverlay();
   const archiveImg = mediaUrl(post.archive_media_url || post.archive_media_thumbnail_url);
   const archived = !!post.archived;
+  const [tweet, setTweet] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    if (!archived && post.source_url) {
+      fetchTweet(post.source_url).then((t) => {
+        if (alive) {
+          if (t) {
+            setTweet(t);
+          } else {
+            setFailed(true);
+          }
+        }
+      });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [archived, post.source_url]);
+
+  const galleryItems = useMemo(
+    () =>
+      (tweet?.media || []).map((m, i) => ({
+        id: `tw-${post.id}-${i}`,
+        file_type: m.type,
+        file_url: m.url,
+        thumbnail_url: m.thumb,
+        caption: null,
+      })),
+    [tweet, post.id],
+  );
 
   const actions = (
     <View style={styles.xpActions}>
@@ -130,7 +173,7 @@ function XPostCard({ post }) {
   );
 
   // Web parity: archived/unavailable posts show the captured snapshot with a
-  // notice; live posts render the real tweet through X's embed widget.
+  // notice; live posts render as native tweet cards.
   if (archived) {
     return (
       <View
@@ -162,21 +205,109 @@ function XPostCard({ post }) {
     );
   }
 
+  if (failed || (!tweet && !post.source_url)) {
+    return (
+      <View
+        style={[
+          styles.xpCard,
+          { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+        ]}>
+        <Text style={[styles.xpDesc, { color: theme.textSecondary }]}>
+          {post.description || 'X post'}
+        </Text>
+        {actions}
+      </View>
+    );
+  }
+
+  if (!tweet) {
+    return (
+      <View
+        style={[
+          styles.xpCard,
+          { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+        ]}>
+        <View style={styles.xpSkeletonRow}>
+          <View style={[styles.xpSkeletonAvatar, { backgroundColor: theme.bgHover }]} />
+          <View style={styles.xpSkeletonCol}>
+            <View style={[styles.xpSkeletonBar, { backgroundColor: theme.bgHover }]} />
+            <View
+              style={[styles.xpSkeletonBar, styles.xpSkeletonBarShort, { backgroundColor: theme.bgHover }]}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
         styles.xpCard,
-        styles.xpCardLive,
         { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
       ]}>
-      {post.source_url ? (
-        <XPostEmbed url={post.source_url} text={post.description} dark={mode === 'dark'} />
-      ) : (
-        <Text style={[styles.xpDesc, { color: theme.textSecondary }]}>
-          {post.description || 'X post'}
-        </Text>
-      )}
+      <View style={styles.xpHead}>
+        {tweet.avatar ? (
+          <Image source={{ uri: tweet.avatar }} style={styles.twAvatar} />
+        ) : (
+          <View style={[styles.xpAvatar, { backgroundColor: theme.bgHover }]}>
+            <Text style={[styles.xpAvatarText, { color: theme.textPrimary }]}>𝕏</Text>
+          </View>
+        )}
+        <View style={styles.xpUser}>
+          <Text style={[styles.xpName, { color: theme.textPrimary }]} numberOfLines={1}>
+            {tweet.name}
+          </Text>
+          <Text style={[styles.xpHandle, { color: theme.textMuted }]} numberOfLines={1}>
+            @{tweet.handle}
+          </Text>
+        </View>
+        <Text style={[styles.twGlyph, { color: theme.textMuted }]}>𝕏</Text>
+      </View>
+      {tweet.text ? (
+        <Text style={[styles.xpDesc, { color: theme.textSecondary }]}>{tweet.text}</Text>
+      ) : null}
+      {galleryItems.length ? (
+        <View style={styles.twMediaGrid}>
+          {galleryItems.map((m, i) => {
+            const isVideo = m.file_type === 'video';
+            const uri = mediaUrl(m.thumbnail_url || (!isVideo ? m.file_url : null));
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => setGalleryIndex(i)}
+                style={[styles.twMediaCell, { backgroundColor: theme.bgHover }]}>
+                {uri ? <Image source={{ uri }} style={styles.mediaImg} resizeMode="cover" /> : null}
+                {isVideo ? (
+                  <View style={[styles.videoBadge, styles.overlayDim]}>
+                    <Play size={15} color="#fff" fill="#fff" />
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+      <View style={styles.twStats}>
+        {tweet.likes !== null ? (
+          <Text style={[styles.twStat, { color: theme.textMuted }]}>♥ {compactNum(tweet.likes)}</Text>
+        ) : null}
+        {tweet.retweets !== null ? (
+          <Text style={[styles.twStat, { color: theme.textMuted }]}>↻ {compactNum(tweet.retweets)}</Text>
+        ) : null}
+        {tweet.date && isValid(tweet.date) ? (
+          <Text style={[styles.twStat, styles.twStatDate, { color: theme.textMuted }]}>
+            {format(tweet.date, 'dd MMM yyyy')}
+          </Text>
+        ) : null}
+      </View>
       {actions}
+      <MediaGalleryModal
+        items={galleryItems}
+        index={galleryIndex}
+        onIndexChange={setGalleryIndex}
+        onClose={() => setGalleryIndex(null)}
+      />
     </View>
   );
 }
@@ -876,6 +1007,63 @@ const styles = StyleSheet.create({
   },
   xpCardLive: {
     padding: 10,
+  },
+  twAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  twGlyph: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  twMediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  twMediaCell: {
+    width: '48.5%',
+    aspectRatio: 1.4,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  twStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 10,
+  },
+  twStat: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  twStatDate: {
+    flex: 1,
+    textAlign: 'right',
+  },
+  xpSkeletonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  xpSkeletonAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  xpSkeletonCol: {
+    flex: 1,
+    gap: 7,
+  },
+  xpSkeletonBar: {
+    height: 11,
+    borderRadius: 5,
+    width: '70%',
+  },
+  xpSkeletonBarShort: {
+    width: '40%',
   },
   xpNotice: {
     borderRadius: 8,

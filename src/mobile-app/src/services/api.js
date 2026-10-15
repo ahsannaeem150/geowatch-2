@@ -163,7 +163,15 @@ export function mediaUrl(url) {
   if (url.startsWith('/')) {
     return `${API_ORIGIN}${url}`;
   }
-  return url.replace(/^https?:\/\/[^/]+/, API_ORIGIN);
+  // Rewrite only our own backend hosts (LAN/dev variants) to the configured
+  // origin; genuinely external hosts (e.g. pbs.twimg.com) pass through.
+  const m = url.match(/^https?:\/\/([^/]+)/);
+  const host = m ? m[1].split(':')[0] : '';
+  const originHost = API_ORIGIN.replace(/^https?:\/\//, '').split(':')[0];
+  if (['localhost', '127.0.0.1', '10.0.2.2', originHost].includes(host)) {
+    return url.replace(/^https?:\/\/[^/]+/, API_ORIGIN);
+  }
+  return url;
 }
 
 export default api;

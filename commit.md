@@ -12907,3 +12907,5 @@ feat(backend): video poster thumbnails via ffmpeg — processVideo extracts 1s f
 feat(mobile): X posts web parity — live tweets render via X widgets.js WebView embed (auto-height, fallback card), archived show snapshot + unavailable notice; media grid video distinction (poster thumb, scrim, play badge, VIDEO tag)
 fix(mobile): X embed no longer swallows scroll touches — WebView pointerEvents off + tap-through shield opens tweet deliberately
 feat(mobile): in-app tweet reader — tap on X embed opens fullscreen WebView modal (interactive, X media viewer works inside), no more external app switch
+feat(mobile): native X-post cards via fxtwitter (avatar/text/stats/media) — tweet media opens in app swipe gallery, WebView embed + x.com reader removed (no nags, no app switch)
+fix(mobile): mediaUrl rewrites only local backend hosts, external media hosts pass through
