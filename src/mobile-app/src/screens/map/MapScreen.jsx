@@ -33,14 +33,14 @@ import AwayBanner from './components/AwayBanner';
 // severity, marker color/icon encode the domain (mirrors marker-builder.js).
 const SEVERITY_RADII = [6, 8, 10, 12, 14];
 
-function severityRadius(sev) {
+export function severityRadius(sev) {
   const n = Math.min(Math.max(parseInt(sev, 10) || 3, 1), 5);
   return SEVERITY_RADII[n - 1];
 }
 
 // Marker PNG canvas is 256px with the visible circle at d=176 — icon-size
 // scales the image so the circle renders at 2*severityRadius logical px.
-function markerIconSize(sev) {
+export function markerIconSize(sev) {
   return (2 * severityRadius(sev)) / 176;
 }
 

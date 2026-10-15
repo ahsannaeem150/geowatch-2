@@ -10,12 +10,20 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Map as MapIcon, X } from 'lucide-react-native';
-import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
+import { Camera, GeoJSONSource, Images, Layer, Map } from '@maplibre/maplibre-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { useOverlay } from '../../context/OverlayContext';
 import { MAP_STYLES } from '../../screens/map/mapStyles';
+import {
+  MARKER_IMAGES,
+  markerImageFor,
+} from '../../screens/map/markerImages';
+import {
+  markerIconSize,
+  severityRadius,
+} from '../../screens/map/MapScreen';
 import { locationLine, severityOf } from './PreviewCard';
 
 // Embedded map panel (prototype #emb-map): slides from the top over the
@@ -118,9 +126,20 @@ export default function EmbeddedMapPanel() {
     isZone && item.geometry
       ? {
           type: 'FeatureCollection',
-          features: [{ type: 'Feature', geometry: item.geometry, properties: {} }],
+          features: [
+            {
+              type: 'Feature',
+              geometry: item.geometry,
+              properties: { color: pinColor },
+            },
+          ],
         }
       : null;
+  // Point previews render the SAME web-style marker as the main map (domain
+  // PNG + severity size) with the selection glow + white ring baked in —
+  // this panel only ever shows the selected item.
+  const sev = severityOf(item);
+  const r = severityRadius(sev);
   const pointFC =
     !isZone && hasPoint
       ? {
@@ -129,7 +148,12 @@ export default function EmbeddedMapPanel() {
             {
               type: 'Feature',
               geometry: { type: 'Point', coordinates: [lng, lat] },
-              properties: {},
+              properties: {
+                icon: markerImageFor(item.domain_slug),
+                iconSize: markerIconSize(sev),
+                color: item.domain_color || '#6b7280',
+                r,
+              },
             },
           ],
         }
@@ -237,30 +261,77 @@ export default function EmbeddedMapPanel() {
           touchRotate={false}
           touchPitch={false}>
           <Camera initialViewState={viewState} />
+          <Images images={MARKER_IMAGES} />
           {zoneFC ? (
             <GeoJSONSource id="emb-zone" data={zoneFC}>
+              {/* Web "neon-fade" zone look — same stack as the main map:
+                  soft own-color fill, wide blurred glow, crisp border, plus
+                  the brighter selected stroke on top. */}
               <Layer
                 id="emb-zone-fill"
                 type="fill"
-                paint={{ 'fill-color': pinColor, 'fill-opacity': 0.2 }}
+                paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 }}
+              />
+              <Layer
+                id="emb-zone-glow"
+                type="line"
+                paint={{
+                  'line-color': ['get', 'color'],
+                  'line-width': 5,
+                  'line-blur': 3,
+                  'line-opacity': 0.4,
+                }}
               />
               <Layer
                 id="emb-zone-line"
                 type="line"
-                paint={{ 'line-color': pinColor, 'line-width': 2 }}
+                paint={{
+                  'line-color': ['get', 'color'],
+                  'line-width': 1.5,
+                  'line-opacity': 0.7,
+                }}
+              />
+              <Layer
+                id="emb-zone-selected"
+                type="line"
+                paint={{
+                  'line-color': ['get', 'color'],
+                  'line-width': 2.5,
+                  'line-opacity': 0.9,
+                }}
               />
             </GeoJSONSource>
           ) : null}
           {pointFC ? (
             <GeoJSONSource id="emb-point" data={pointFC}>
               <Layer
-                id="emb-point-circle"
+                id="emb-point-glow"
                 type="circle"
                 paint={{
-                  'circle-color': pinColor,
-                  'circle-radius': 7,
+                  'circle-color': ['get', 'color'],
+                  'circle-radius': ['*', ['get', 'r'], 1.5],
+                  'circle-blur': 1,
+                  'circle-opacity': 0.7,
+                }}
+              />
+              <Layer
+                id="emb-point-ring"
+                type="circle"
+                paint={{
+                  'circle-color': 'rgba(0,0,0,0)',
+                  'circle-radius': ['+', ['get', 'r'], 2],
                   'circle-stroke-width': 2,
-                  'circle-stroke-color': theme.bgDeep,
+                  'circle-stroke-color': '#ffffff',
+                }}
+              />
+              <Layer
+                id="emb-point-marker"
+                type="symbol"
+                layout={{
+                  'icon-image': ['get', 'icon'],
+                  'icon-size': ['get', 'iconSize'],
+                  'icon-allow-overlap': true,
+                  'icon-ignore-placement': true,
                 }}
               />
             </GeoJSONSource>
