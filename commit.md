@@ -12890,3 +12890,4 @@ fix(mobile): PS results pill now full-width modern card; new marker tap while in
 feat(mobile): incidents/zones directory polish — tab bar stays alive (fade-only entrance), filters converted to drag-dismiss bottom sheet with SHOW N RESULTS footer, embedded map panel gains View-on-map chip (drops to map pill)
 fix(mobile): selection pill no longer lingers over other tabs — plain map-selection pill hides when any overlay opens (preview pills with an origin still persist)
 feat(mobile): embedded map panel polish — interactive mini map (pan/pinch-zoom, rotate/pitch off, selected item only) + animated exit (slides up with fade instead of popping off on back)
+fix(mobile): preview sheet drag-down exits to origin list (no pill) — plain map selections still collapse to the pill

@@ -35,10 +35,12 @@ export default function PeekSheet() {
     view,
     item,
     selMode,
+    origin,
     expandFromPeek,
     collapsePeek,
     collapseToPeek,
     closeEvidence,
+    closePreview,
     evidenceUpdate,
     evidenceFrom,
   } = useSelection();
@@ -80,11 +82,13 @@ export default function PeekSheet() {
     level,
     halfTy,
     hiddenTy,
+    origin,
     evidenceFrom,
     expandFromPeek,
     collapsePeek,
     collapseToPeek,
     closeEvidence,
+    closePreview,
   };
 
   // Open / detent-change / close animations. If the change came from a
@@ -207,13 +211,14 @@ export default function PeekSheet() {
         return { ty: 0 };
       }
       if (flickDown || projected > H + (s.hiddenTy - H) * 0.35) {
-        // Collapse IMMEDIATELY: the pill springs in while this sheet keeps
-        // sliding down and fading — overlapping motion, no vanish-then-pop.
-        // The detent effect skips its duplicate spring (launchedTy), so the
-        // unmount rides on THIS spring's completion instead.
+        // Collapse IMMEDIATELY: the sheet keeps sliding down and fading. A
+        // PREVIEW (origin set — directory/profile) exits straight back to its
+        // list instead of resting as a pill; a plain map selection collapses
+        // to the pill as before. The detent effect skips its duplicate spring
+        // (launchedTy), so the unmount rides on THIS spring's completion.
         return {
           ty: s.hiddenTy,
-          after: s.collapsePeek,
+          after: s.origin ? s.closePreview : s.collapsePeek,
           onDone: () => {
             if (!wantOpen.current) setMounted(false);
           },
