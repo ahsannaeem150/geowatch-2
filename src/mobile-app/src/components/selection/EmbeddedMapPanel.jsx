@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -19,10 +19,11 @@ import { MAP_STYLES } from '../../screens/map/mapStyles';
 import { locationLine, severityOf } from './PreviewCard';
 
 // Embedded map panel (prototype #emb-map): slides from the top over the
-// origin surface during a list-driven preview. Real non-interactive mini
-// MapLibre map (same bundled style as the main map): point incidents get a
+// origin surface during a list-driven preview. Interactive mini MapLibre
+// map (same bundled style as the main map): point incidents get a
 // severity-colored marker at zoom ~10, zones render their polygon fitted to
-// its bbox. All gestures + ornaments off; the real map stays behind.
+// its bbox; pan/pinch-zoom are on, rotate/pitch stay off. Only the picked
+// item renders here — the real map stays behind.
 
 function zoneBBox(geometry) {
   const pts = [];
@@ -61,9 +62,11 @@ export default function EmbeddedMapPanel() {
   // the PS controls, so it stays out of that flow.
   const visible = previewActive && !!item && origin?.id !== 'powerSearch';
   const enter = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(visible);
 
   useEffect(() => {
     if (visible) {
+      setMounted(true);
       enter.setValue(0);
       Animated.timing(enter, {
         toValue: 1,
@@ -71,10 +74,20 @@ export default function EmbeddedMapPanel() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
+    } else if (mounted) {
+      // Exit mirrors the entrance (slide back up + fade) so a back/close
+      // never pops the panel off mid-frame while the sheet slides away.
+      Animated.timing(enter, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => setMounted(false));
     }
-  }, [visible, enter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
-  if (!visible) {
+  if (!mounted || !item) {
     return null;
   }
 
@@ -214,9 +227,12 @@ export default function EmbeddedMapPanel() {
           logo={false}
           compass={false}
           scaleBar={false}
-          dragPan={false}
-          touchZoom={false}
-          doubleTapZoom={false}
+          // Interactive but scoped: pan/pinch/double-tap zoom on, rotate and
+          // pitch off so the surface never disorients. Only the picked item
+          // is rendered — the real map stays behind with everything else.
+          dragPan
+          touchZoom
+          doubleTapZoom
           doubleTapHoldZoom={false}
           touchRotate={false}
           touchPitch={false}>
