@@ -235,12 +235,12 @@ export default function PeekSheet() {
     return null;
   }
 
-  // Bottom padding must clear BOTH the off-screen tail at the half detent
-  // (halfTy) and the floating tab bar (62 + safe-area inset) that overlays
-  // the sheet at every level — otherwise the last rows (e.g. X posts) hide
-  // under the tab bar and feel "cut off".
+  // Bottom padding must clear the off-screen tail at the half detent
+  // (halfTy) — plus the floating tab bar (62 + safe-area inset), which only
+  // overlays the sheet at HALF; at full the sheet covers it, so adding the
+  // bar height there would just leave dead space under the last row.
   const halfBottomPad =
-    (level === 'half' ? halfTy : 0) + 62 + insets.bottom + 16;
+    level === 'half' ? halfTy + 62 + insets.bottom + 16 : insets.bottom + 16;
   const detailTranslate = bodyAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -windowWidth * 0.35],

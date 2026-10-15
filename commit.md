@@ -12901,3 +12901,4 @@ feat(mobile): X-style video player (react-native-video) — tap play/pause, seek
 chore(mobile): test incident seeded via API — flash floods Rawalpindi (3 updates, 2 X posts, 2 articles, admin note, 4 images, 2 videos)
 fix(mobile): gallery caption lifted above phone nav bar (safe-area inset); seek bar claims touches so scrubbing no longer swipes to the next media page
 fix(mobile): peek-sheet/evidence scroll bottom pad now clears the floating tab bar (62 + safe inset) at both detents — last X posts no longer hidden under it
+fix(mobile): evidence scroll bottom pad tightened — tab-bar clearance only at half detent, no dead space at full
