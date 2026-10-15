@@ -3,77 +3,185 @@ import { createPortal } from 'react-dom';
 import { Icons, SOURCE_TYPE_ICONS } from './IncidentIcons.jsx';
 import { relativeTime, sortPinned } from './IncidentUtils.js';
 import { FeaturedCollapsedRow } from './SourceCards.jsx';
+import { extractTweetRef, fetchTweet } from './x-post.js';
+import Lightbox from './Lightbox.jsx';
 
-let twitterScriptPromise = null;
-function loadTwitterScript() {
-  if (twitterScriptPromise) return twitterScriptPromise;
-  if (typeof window === 'undefined') return Promise.resolve();
-  if (window.twttr?.widgets) return Promise.resolve(window.twttr);
-  twitterScriptPromise = new Promise((resolve) => {
-    const script = document.createElement('script');
-    script.src = 'https://platform.twitter.com/widgets.js';
-    script.async = true;
-    script.charset = 'utf-8';
-    script.onload = () => resolve(window.twttr);
-    document.body.appendChild(script);
-  });
-  return twitterScriptPromise;
+const TwIcons = {
+  reply: (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  ),
+  repeat: (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="17 1 21 5 17 9" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <polyline points="7 23 3 19 7 15" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </svg>
+  ),
+  heart: (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  ),
+  play: (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  ),
+};
+
+function compactNum(n) {
+  if (n === null || n === undefined) return null;
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 }
 
-function getTweetId(url) {
-  try {
-    const u = new URL(url);
-    const parts = u.pathname.split('/').filter(Boolean);
-    const idx = parts.indexOf('status');
-    if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
-  } catch {
-    // ignore
-  }
-  return null;
+function fmtTweetDate(d) {
+  if (!d || Number.isNaN(d.getTime())) return '';
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${time} · ${date}`;
 }
 
+function fmtDuration(s) {
+  if (s == null) return null;
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// Native X-embed-lookalike card: resolves the live tweet via fxtwitter and
+// renders avatar/name/badge/text/media-mosaic/stats ourselves. Media opens in
+// the shared Lightbox (swipe/arrow navigation). If the tweet cannot be
+// resolved (deleted/blocked), onRender is never fired — the caller's render
+// timeout then triggers the availability check, exactly as the old widget
+// flow did, and the card degrades to the plain text card until archived.
 export function XEmbed({ post, onRender }) {
-  const ref = useRef(null);
-  const [loaded, setLoaded] = useState(false);
-  const tweetId = getTweetId(post.tweetUrl);
+  const [tweet, setTweet] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // { items, index }
+  const ref = extractTweetRef(post.tweetUrl);
 
-  if (!tweetId) {
+  useEffect(() => {
+    let alive = true;
+    if (ref) {
+      fetchTweet(post.tweetUrl).then((t) => {
+        if (!alive) return;
+        if (t) {
+          setTweet(t);
+          onRender?.();
+        } else {
+          setFailed(true);
+        }
+      });
+    }
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.tweetUrl]);
+
+  if (!ref || failed) {
     return <XPostCard post={post} />;
   }
 
-  useEffect(() => {
-    let cancelled = false;
-    const render = async () => {
-      try {
-        const twttr = await loadTwitterScript();
-        if (!ref.current || cancelled) return;
-        await twttr.widgets.load(ref.current);
-        if (!cancelled) setLoaded(true);
-      } catch {
-        // ignore
-      }
-    };
-    render();
-    return () => {
-      cancelled = true;
-    };
-  }, [post.tweetUrl]);
-
-  useEffect(() => {
-    if (loaded) onRender?.();
-  }, [loaded, onRender]);
-
-  return (
-    <div className="id-x-embed">
-      <blockquote ref={ref} className="twitter-tweet" data-theme="dark" data-conversation="none">
-        <a href={post.tweetUrl} target="_blank" rel="noreferrer">
-          {post.text}
-        </a>
-      </blockquote>
-      {!loaded && (
+  if (!tweet) {
+    return (
+      <div className="id-x-embed">
         <div className="id-x-embed__loader">
           {SOURCE_TYPE_ICONS.x_post} Loading post…
         </div>
+      </div>
+    );
+  }
+
+  const lbItems = tweet.media.map((m) => ({
+    url: m.type === 'video' ? m.thumb || m.url : m.url,
+    type: m.type,
+    videoUrl: m.type === 'video' ? m.url : null,
+    caption: null,
+  }));
+  const mosaicCount = Math.min(tweet.media.length, 4);
+
+  return (
+    <div className="id-tw">
+      <div className="id-tw__head">
+        {tweet.avatar ? (
+          <img src={tweet.avatar} alt={tweet.name} className="id-tw__avatar" loading="lazy" />
+        ) : (
+          <span className="id-tw__avatar id-tw__avatar--fallback">{SOURCE_TYPE_ICONS.x_post}</span>
+        )}
+        <div className="id-tw__user">
+          <div className="id-tw__name-row">
+            <span className="id-tw__name">{tweet.name}</span>
+            {tweet.verified && (
+              <span
+                className={`id-tw__badge ${tweet.verifiedType === 'organization' ? 'id-tw__badge--gold' : ''}`}
+                title="Verified"
+              >
+                {Icons.check}
+              </span>
+            )}
+          </div>
+          <span className="id-tw__handle">@{tweet.handle}</span>
+        </div>
+        <span className="id-tw__logo">{Icons.xLogo}</span>
+      </div>
+
+      {tweet.text ? <div className="id-tw__text">{tweet.text}</div> : null}
+
+      {tweet.media.length > 0 && (
+        <div className="id-tw__mosaic" data-count={mosaicCount}>
+          {tweet.media.slice(0, 4).map((m, i) => {
+            const uri = m.type === 'video' ? m.thumb : m.url;
+            const dur = m.type === 'video' ? fmtDuration(m.duration) : null;
+            const style =
+              tweet.media.length === 1 && m.width && m.height
+                ? { aspectRatio: `${Math.min(1.91, Math.max(0.8, m.width / m.height))}` }
+                : undefined;
+            return (
+              <button
+                key={`${m.url}-${i}`}
+                type="button"
+                className="id-tw__cell"
+                style={style}
+                onClick={() => setLightbox({ items: lbItems, index: i })}>
+                {uri && <img src={uri} alt="" loading="lazy" />}
+                {m.type === 'video' && (
+                  <span className="id-tw__play">{TwIcons.play}</span>
+                )}
+                {dur && <span className="id-tw__dur">{dur}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {tweet.date ? (
+        <div className="id-tw__time">
+          {fmtTweetDate(tweet.date)}
+          {tweet.views !== null && ` · ${compactNum(tweet.views)} Views`}
+        </div>
+      ) : null}
+
+      <div className="id-tw__stats">
+        {tweet.replies !== null && (
+          <span className="id-tw__stat">{TwIcons.reply} {compactNum(tweet.replies)}</span>
+        )}
+        {tweet.retweets !== null && (
+          <span className="id-tw__stat">{TwIcons.repeat} {compactNum(tweet.retweets)}</span>
+        )}
+        {tweet.likes !== null && (
+          <span className="id-tw__stat">{TwIcons.heart} {compactNum(tweet.likes)}</span>
+        )}
+      </div>
+
+      {lightbox && (
+        <Lightbox
+          items={lightbox.items}
+          startIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

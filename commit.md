@@ -12911,3 +12911,5 @@ feat(mobile): native X-post cards via fxtwitter (avatar/text/stats/media) — tw
 fix(mobile): mediaUrl rewrites only local backend hosts, external media hosts pass through
 feat(mobile): X-embed-style tweet cards — black/white card per theme, X media mosaic (1/2/3/4 layouts), verified badge (blue/gold), duration chips, views+stats row, Open on X/Copy actions
 chore(mobile): 3 multi-media test tweets added to flood report (2-photo, photo+video mixed x2)
+feat(web): native tweet cards via fxtwitter replace X widget embeds — media opens in in-app lightbox (video playback supported), Open on X/Copy link external actions; shared XEmbed covers all 3 apps
+chore: add scripts/check-web-xpost-cards.mjs visual check

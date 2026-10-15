@@ -66,7 +66,11 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
       )}
 
       <div className="id-lightbox__content" onClick={(e) => e.stopPropagation()}>
-        <img src={current.url} alt={current.caption} />
+        {current.type === 'video' && current.videoUrl ? (
+          <video src={current.videoUrl} poster={current.url} controls autoPlay playsInline />
+        ) : (
+          <img src={current.url} alt={current.caption} />
+        )}
         {current.caption && <div className="id-lightbox__caption">{current.caption}</div>}
         {items.length > 1 && (
           <div className="id-lightbox__counter">
