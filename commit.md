@@ -12905,3 +12905,4 @@ fix(mobile): evidence scroll bottom pad tightened — tab-bar clearance only at 
 feat(mobile): evidence panel now renders all four source types — articles + admin notes sections, per-type tabs (All/Media/𝕏/Articles/Notes) with counts, article cards (publisher host, open/copy link), truncatable admin notes
 feat(backend): video poster thumbnails via ffmpeg — processVideo extracts 1s frame, webp thumb stored, width/height recorded; webs pick up automatically via thumbnail_url
 feat(mobile): X posts web parity — live tweets render via X widgets.js WebView embed (auto-height, fallback card), archived show snapshot + unavailable notice; media grid video distinction (poster thumb, scrim, play badge, VIDEO tag)
+fix(mobile): X embed no longer swallows scroll touches — WebView pointerEvents off + tap-through shield opens tweet deliberately

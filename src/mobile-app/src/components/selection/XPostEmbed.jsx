@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import WebView from 'react-native-webview';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -72,26 +72,35 @@ export default function XPostEmbed({ url, text, dark }) {
 
   return (
     <View style={[styles.wrap, { height: height || MIN_HEIGHT }]}>
-      <WebView
-        originWhitelist={['*']}
-        source={{ html }}
-        style={styles.webview}
-        scrollEnabled={false}
-        showsVerticalScrollIndicator={false}
-        javaScriptEnabled
-        domStorageEnabled
-        injectedJavaScript={HEIGHT_POLLER}
-        onMessage={(e) => {
-          const h = Number(e.nativeEvent.data);
-          if (Number.isFinite(h) && h > 0) {
-            gotHeight.current = true;
-            setHeight(Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, h)));
-          }
-        }}
-        onError={() => setFailed(true)}
+      <View style={styles.flex} pointerEvents="none">
+        <WebView
+          originWhitelist={['*']}
+          source={{ html }}
+          style={styles.webview}
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+          javaScriptEnabled
+          domStorageEnabled
+          injectedJavaScript={HEIGHT_POLLER}
+          onMessage={(e) => {
+            const h = Number(e.nativeEvent.data);
+            if (Number.isFinite(h) && h > 0) {
+              gotHeight.current = true;
+              setHeight(Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, h)));
+            }
+          }}
+          onError={() => setFailed(true)}
+        />
+      </View>
+      {/* Tap-through shield: the WebView must not swallow scroll gestures or
+          fire in-embed clicks on accidental touches. A deliberate tap opens
+          the tweet on X; scrolling passes straight to the parent list. */}
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={() => Linking.openURL(url).catch(() => {})}
       />
       {height === 0 ? (
-        <View style={styles.loader}>
+        <View style={styles.loader} pointerEvents="none">
           <ActivityIndicator size="small" color={theme.textMuted} />
           <Text style={[styles.loaderText, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
             Loading post…
@@ -106,6 +115,9 @@ const styles = StyleSheet.create({
   wrap: {
     borderRadius: 10,
     overflow: 'hidden',
+  },
+  flex: {
+    flex: 1,
   },
   webview: {
     flex: 1,
