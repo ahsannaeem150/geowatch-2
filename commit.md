@@ -12902,3 +12902,4 @@ chore(mobile): test incident seeded via API — flash floods Rawalpindi (3 updat
 fix(mobile): gallery caption lifted above phone nav bar (safe-area inset); seek bar claims touches so scrubbing no longer swipes to the next media page
 fix(mobile): peek-sheet/evidence scroll bottom pad now clears the floating tab bar (62 + safe inset) at both detents — last X posts no longer hidden under it
 fix(mobile): evidence scroll bottom pad tightened — tab-bar clearance only at half detent, no dead space at full
+feat(mobile): evidence panel now renders all four source types — articles + admin notes sections, per-type tabs (All/Media/𝕏/Articles/Notes) with counts, article cards (publisher host, open/copy link), truncatable admin notes

@@ -19,7 +19,9 @@ import {
   Camera,
   ChevronLeft,
   ExternalLink,
+  FileText,
   Link2,
+  Newspaper,
   Play,
   Star,
   X,
@@ -182,6 +184,95 @@ function XPostList({ items }) {
   );
 }
 
+function urlHost(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function ArticleCard({ article }) {
+  const { theme } = useTheme();
+  const { showToast } = useOverlay();
+  const host = urlHost(article.source_url);
+  return (
+    <View
+      style={[
+        styles.artCard,
+        { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+      ]}>
+      <Pressable
+        onPress={() =>
+          article.source_url
+            ? Linking.openURL(article.source_url).catch(() => showToast('Could not open link'))
+            : null
+        }
+        style={styles.artMain}>
+        <View style={[styles.artIcon, { backgroundColor: theme.accentSubtleBg }]}>
+          <Newspaper size={15} color={theme.accentLight} />
+        </View>
+        <View style={styles.artBody}>
+          <Text style={[styles.artTitle, { color: theme.textPrimary }]} numberOfLines={3}>
+            {article.description || host || 'News article'}
+          </Text>
+          {host ? (
+            <Text style={[styles.artPub, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+              {host}
+            </Text>
+          ) : null}
+        </View>
+        {article.source_url ? <ExternalLink size={13} color={theme.textMuted} /> : null}
+      </Pressable>
+      {article.source_url ? (
+        <View style={styles.artActions}>
+          <Pressable
+            onPress={() => {
+              Clipboard.setString(article.source_url);
+              showToast('Link copied');
+            }}
+            style={[styles.xpBtn, { borderColor: theme.borderSubtle, backgroundColor: theme.bgHover }]}>
+            <Link2 size={10} color={theme.textSecondary} />
+            <Text style={[styles.xpBtnText, { color: theme.textSecondary }]}>Copy link</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function AdminNoteCard({ note }) {
+  const { theme } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const TRUNCATE_AT = 140;
+  const text = note.description || '';
+  const isLong = text.length > TRUNCATE_AT;
+  const display = expanded || !isLong ? text : `${text.slice(0, TRUNCATE_AT)}…`;
+  return (
+    <View
+      style={[
+        styles.noteCard,
+        { backgroundColor: theme.accentSubtleBg, borderColor: theme.accentSubtleBorder },
+      ]}>
+      <View style={styles.noteLabelRow}>
+        <FileText size={11} color={theme.accentLight} />
+        <Text style={[styles.noteLabel, { color: theme.accentLight, fontFamily: theme.fontMono }]}>
+          ADMIN NOTE
+        </Text>
+        <Text style={[styles.noteAgo, { color: theme.textMuted }]}>{ago(note.created_at)}</Text>
+      </View>
+      <Text style={[styles.noteText, { color: theme.textSecondary }]}>{display}</Text>
+      {isLong ? (
+        <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={6}>
+          <Text style={[styles.noteMore, { color: theme.accentLight }]}>
+            {expanded ? 'Show less' : 'Read more'}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 // Pan-on-Android image page: render the image larger than the viewport
 // inside a bidirectional ScrollView (no pinch-zoom lib in the dep set).
 function GalleryImage({ item, width, height }) {
@@ -315,21 +406,26 @@ export function EvidenceBody({ bottomPad = 0 }) {
 
   // Update-attached evidence, falling back to the incident-level aggregate
   // when the update itself has none (web evidence-rail parity).
-  const { mediaItems, xItems } = useMemo(() => {
+  const { mediaItems, xItems, articleItems, noteItems } = useMemo(() => {
     const u = evidenceUpdate;
     if (!u) {
-      return { mediaItems: [], xItems: [] };
+      return { mediaItems: [], xItems: [], articleItems: [], noteItems: [] };
     }
     const detail = selectedId ? getCachedDetail(selectedId) : null;
-    const allMedia = (detail?.timeline || []).flatMap((t) => t.media || []);
-    const allX = (detail?.timeline || []).flatMap(
-      (t) => t.sources?.x_post || [],
-    );
+    const tl = detail?.timeline || [];
+    const allMedia = tl.flatMap((t) => t.media || []);
+    const allX = tl.flatMap((t) => t.sources?.x_post || []);
+    const allArticles = tl.flatMap((t) => t.sources?.news_article || []);
+    const allNotes = tl.flatMap((t) => t.sources?.admin_note || []);
     const ownMedia = u.media || [];
     const ownX = u.sources?.x_post || [];
+    const ownArticles = u.sources?.news_article || [];
+    const ownNotes = u.sources?.admin_note || [];
     return {
       mediaItems: ownMedia.length ? ownMedia : allMedia,
       xItems: ownX.length ? ownX : allX,
+      articleItems: ownArticles.length ? ownArticles : allArticles,
+      noteItems: ownNotes.length ? ownNotes : allNotes,
     };
   }, [evidenceUpdate, selectedId, getCachedDetail]);
 
@@ -339,10 +435,13 @@ export function EvidenceBody({ bottomPad = 0 }) {
 
   const u = evidenceUpdate;
   const verified = u.verification_status === 'verified';
+  const total = mediaItems.length + xItems.length + articleItems.length + noteItems.length;
   const tabs = [
-    { key: 'all', label: `All (${mediaItems.length + xItems.length})` },
-    { key: 'media', label: `Media (${mediaItems.length})`, icon: true },
+    { key: 'all', label: `All (${total})` },
+    { key: 'media', label: `Media (${mediaItems.length})`, icon: 'camera' },
     { key: 'xposts', label: `𝕏 Posts (${xItems.length})` },
+    { key: 'articles', label: `Articles (${articleItems.length})`, icon: 'news' },
+    { key: 'notes', label: `Notes (${noteItems.length})`, icon: 'note' },
   ];
 
   return (
@@ -375,14 +474,15 @@ export function EvidenceBody({ bottomPad = 0 }) {
             backgroundColor: active ? theme.accentSubtleBg : 'transparent',
             borderColor: active ? theme.accentSubtleBorder : theme.borderSubtle,
           };
+          const iconColor = active ? theme.accentLight : theme.textSecondary;
           return (
             <Pressable
               key={t.key}
               onPress={() => setTab(t.key)}
               style={[styles.tabBtn, tabStyle]}>
-              {t.icon ? (
-                <Camera size={11} color={active ? theme.accentLight : theme.textSecondary} />
-              ) : null}
+              {t.icon === 'camera' ? <Camera size={11} color={iconColor} /> : null}
+              {t.icon === 'news' ? <Newspaper size={11} color={iconColor} /> : null}
+              {t.icon === 'note' ? <FileText size={11} color={iconColor} /> : null}
               <Text
                 style={[
                   styles.tabText,
@@ -402,16 +502,16 @@ export function EvidenceBody({ bottomPad = 0 }) {
         style={styles.body}
         showsVerticalScrollIndicator={false}
         overScrollMode="never">
-        {tab !== 'xposts' ? (
+        {tab === 'all' || tab === 'media' ? (
           <>
             <Text
               style={[styles.secLabel, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
-              MEDIA
+              MEDIA ({mediaItems.length})
             </Text>
             <MediaGrid items={mediaItems} onOpen={setLbIndex} />
           </>
         ) : null}
-        {tab !== 'media' ? (
+        {tab === 'all' || tab === 'xposts' ? (
           <>
             <Text
               style={[
@@ -422,6 +522,52 @@ export function EvidenceBody({ bottomPad = 0 }) {
               X POSTS ({xItems.length})
             </Text>
             <XPostList items={xItems} />
+          </>
+        ) : null}
+        {tab === 'all' || tab === 'articles' ? (
+          <>
+            <Text
+              style={[
+                styles.secLabel,
+                styles.xSecLabel,
+                { color: theme.textMuted, fontFamily: theme.fontMono },
+              ]}>
+              ARTICLES ({articleItems.length})
+            </Text>
+            {articleItems.length ? (
+              <View>
+                {articleItems.map((a) => (
+                  <ArticleCard key={a.id} article={a} />
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.empty, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+                — no articles linked —
+              </Text>
+            )}
+          </>
+        ) : null}
+        {tab === 'all' || tab === 'notes' ? (
+          <>
+            <Text
+              style={[
+                styles.secLabel,
+                styles.xSecLabel,
+                { color: theme.textMuted, fontFamily: theme.fontMono },
+              ]}>
+              ADMIN NOTES ({noteItems.length})
+            </Text>
+            {noteItems.length ? (
+              <View>
+                {noteItems.map((n) => (
+                  <AdminNoteCard key={n.id} note={n} />
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.empty, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+                — no admin notes —
+              </Text>
+            )}
           </>
         ) : null}
         <View style={bottomPad > 0 ? { height: bottomPad } : styles.tailPad} />
@@ -733,6 +879,73 @@ const styles = StyleSheet.create({
   xpBtnText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  artCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 10,
+  },
+  artMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  artIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artBody: {
+    flex: 1,
+  },
+  artTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  artPub: {
+    fontSize: 10,
+    letterSpacing: 0.6,
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  artActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 11,
+  },
+  noteCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 10,
+  },
+  noteLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  noteLabel: {
+    fontSize: 9,
+    letterSpacing: 1.6,
+    fontWeight: '700',
+    flex: 1,
+  },
+  noteAgo: {
+    fontSize: 10.5,
+  },
+  noteText: {
+    fontSize: 12.5,
+    lineHeight: 18.5,
+    marginTop: 8,
+  },
+  noteMore: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    marginTop: 7,
   },
   tailPad: {
     height: 28,
