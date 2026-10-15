@@ -3,6 +3,7 @@ import {
   Animated,
   Clipboard,
   Easing,
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -19,6 +20,7 @@ import {
   ChevronLeft,
   ExternalLink,
   Link2,
+  Play,
   Star,
   X,
 } from 'lucide-react-native';
@@ -28,6 +30,7 @@ import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
+import VideoPlayer from './VideoPlayer';
 import { Tag } from './PreviewCard';
 
 // Evidence panel (prototype #evi; openEvidence/closeEvi/switchPane/
@@ -59,17 +62,29 @@ function MediaGrid({ items, onOpen }) {
   }
   return (
     <View style={styles.mediaGrid}>
-      {items.map((m) => {
-        const uri = mediaUrl(m.thumbnail_url || m.file_url);
-        if (!uri) {
-          return null;
-        }
+      {items.map((m, i) => {
+        const isVideo = m.file_type === 'video';
+        const uri = mediaUrl(m.thumbnail_url || (!isVideo ? m.file_url : null));
         return (
           <Pressable
             key={m.id}
-            onPress={() => onOpen(m)}
+            onPress={() => onOpen(i)}
             style={[styles.mediaCell, { backgroundColor: theme.bgHover, borderColor: theme.borderSubtle }]}>
-            <Image source={{ uri }} style={styles.mediaImg} resizeMode="cover" />
+            {uri ? (
+              <Image source={{ uri }} style={styles.mediaImg} resizeMode="cover" />
+            ) : null}
+            {isVideo ? (
+              <>
+                <View style={[styles.videoBadge, styles.overlayDim]}>
+                  <Play size={15} color="#fff" fill="#fff" />
+                </View>
+                <View style={[styles.videoTag, { backgroundColor: theme.accentLight }]}>
+                  <Text style={[styles.videoTagText, { color: theme.bgDeep, fontFamily: theme.fontMono }]}>
+                    VIDEO
+                  </Text>
+                </View>
+              </>
+            ) : null}
           </Pressable>
         );
       })}
@@ -167,6 +182,120 @@ function XPostList({ items }) {
   );
 }
 
+// Pan-on-Android image page: render the image larger than the viewport
+// inside a bidirectional ScrollView (no pinch-zoom lib in the dep set).
+function GalleryImage({ item, width, height }) {
+  const uri = mediaUrl(item.file_url || item.thumbnail_url);
+  const w = parseFloat(item.width) || 0;
+  const h = parseFloat(item.height) || 0;
+  const scale = 1.6;
+  const imgW = width * scale;
+  const imgH = w > 0 && h > 0 ? (imgW * h) / w : height * 0.7;
+  return (
+    <ScrollView
+      style={styles.lbScroll}
+      contentContainerStyle={styles.lbContent}
+      maximumZoomScale={3}
+      minimumZoomScale={1}
+      bouncesZoom
+      centerContent
+      showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}>
+      {uri ? (
+        <Image
+          source={{ uri }}
+          style={{ width: imgW, height: imgH }}
+          resizeMode="contain"
+        />
+      ) : null}
+    </ScrollView>
+  );
+}
+
+// Swipe gallery modal: horizontal paging over all media items (images +
+// videos), counter chip top-left, per-page caption, ✕ closes.
+function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
+  const { theme } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const current = items[index] || null;
+
+  return (
+    <Modal
+      visible={index !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}>
+      <View style={styles.lbWrap}>
+        {index !== null ? (
+          <FlatList
+            data={items}
+            horizontal
+            pagingEnabled
+            initialScrollIndex={index}
+            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+            keyExtractor={(m) => String(m.id)}
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) =>
+              onIndexChange(
+                Math.max(
+                  0,
+                  Math.min(
+                    items.length - 1,
+                    Math.round(e.nativeEvent.contentOffset.x / width),
+                  ),
+                ),
+              )
+            }
+            renderItem={({ item, index: i }) => (
+              <View style={{ width, height }}>
+                {item.file_type === 'video' ? (
+                  <VideoPlayer
+                    uri={mediaUrl(item.file_url)}
+                    poster={mediaUrl(item.thumbnail_url)}
+                    active={i === index}
+                  />
+                ) : (
+                  <GalleryImage item={item} width={width} height={height} />
+                )}
+              </View>
+            )}
+          />
+        ) : null}
+        {items.length > 1 ? (
+          <View
+            style={[
+              styles.lbCounter,
+              { top: insets.top + 16 }, styles.overlayDim,
+            ]}>
+            <Text style={[styles.lbCounterText, { fontFamily: theme.fontMono }]}>
+              {(index ?? 0) + 1} / {items.length}
+            </Text>
+          </View>
+        ) : null}
+        <Pressable
+          onPress={onClose}
+          hitSlop={10}
+          style={[
+            styles.lbClose,
+            { top: insets.top + 10 }, styles.overlayDim,
+          ]}>
+          <X size={18} color="#f2f2f2" />
+        </Pressable>
+        {current?.caption ? (
+          <View
+            style={[
+              styles.lbCaptionWrap,
+              current.file_type === 'video' ? styles.lbCaptionAboveControls : null,
+            ]}>
+            <Text style={styles.lbCaption}>{current.caption}</Text>
+          </View>
+        ) : null}
+      </View>
+    </Modal>
+  );
+}
+
 // Evidence content (title, tabs, media grid, X posts, lightbox) — shared by
 // the fullscreen panel (direct mode / zones) and the peek sheet's inline
 // evidence sub-view.
@@ -175,13 +304,12 @@ export function EvidenceBody({ bottomPad = 0 }) {
   const { showToast } = useOverlay();
   const { selectedId } = useMap();
   const { evidenceUpdate, getCachedDetail } = useSelection();
-  const { width, height } = useWindowDimensions();
   const [tab, setTab] = useState('all');
-  const [lightbox, setLightbox] = useState(null);
+  const [lbIndex, setLbIndex] = useState(null);
 
   useEffect(() => {
     setTab('all');
-    setLightbox(null);
+    setLbIndex(null);
   }, [evidenceUpdate?.id]);
 
   // Update-attached evidence, falling back to the incident-level aggregate
@@ -215,15 +343,6 @@ export function EvidenceBody({ bottomPad = 0 }) {
     { key: 'media', label: `Media (${mediaItems.length})`, icon: true },
     { key: 'xposts', label: `𝕏 Posts (${xItems.length})` },
   ];
-
-  const lbUri = lightbox ? mediaUrl(lightbox.file_url || lightbox.thumbnail_url) : null;
-  const lbW = parseFloat(lightbox?.width) || 0;
-  const lbH = parseFloat(lightbox?.height) || 0;
-  // Pan-on-Android: render the image larger than the viewport inside a
-  // bidirectional ScrollView (no pinch-zoom lib in the dep set).
-  const lbScale = 1.6;
-  const lbImgW = width * lbScale;
-  const lbImgH = lbW > 0 && lbH > 0 ? (lbImgW * lbH) / lbW : height * 0.7;
 
   return (
     <View style={styles.bodyWrap}>
@@ -288,7 +407,7 @@ export function EvidenceBody({ bottomPad = 0 }) {
               style={[styles.secLabel, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
               MEDIA
             </Text>
-            <MediaGrid items={mediaItems} onOpen={setLightbox} />
+            <MediaGrid items={mediaItems} onOpen={setLbIndex} />
           </>
         ) : null}
         {tab !== 'media' ? (
@@ -307,42 +426,12 @@ export function EvidenceBody({ bottomPad = 0 }) {
         <View style={bottomPad > 0 ? { height: bottomPad } : styles.tailPad} />
       </ScrollView>
 
-      <Modal
-        visible={!!lightbox}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLightbox(null)}>
-        <View style={styles.lbWrap}>
-          <ScrollView
-            style={styles.lbScroll}
-            contentContainerStyle={styles.lbContent}
-            maximumZoomScale={3}
-            minimumZoomScale={1}
-            bouncesZoom
-            centerContent
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}>
-            {lbUri ? (
-              <Image
-                source={{ uri: lbUri }}
-                style={{ width: lbImgW, height: lbImgH }}
-                resizeMode="contain"
-              />
-            ) : null}
-          </ScrollView>
-          <Pressable
-            onPress={() => setLightbox(null)}
-            hitSlop={10}
-            style={[styles.lbClose, { backgroundColor: theme.bgHover }]}>
-            <X size={18} color="#f2f2f2" />
-          </Pressable>
-          {lightbox?.caption ? (
-            <View style={styles.lbCaptionWrap}>
-              <Text style={styles.lbCaption}>{lightbox.caption}</Text>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
+      <MediaGalleryModal
+        items={mediaItems}
+        index={lbIndex}
+        onIndexChange={setLbIndex}
+        onClose={() => setLbIndex(null)}
+      />
     </View>
   );
 }
@@ -532,6 +621,46 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  videoBadge: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -19,
+    marginTop: -19,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoTag: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  videoTagText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  lbCounter: {
+    position: 'absolute',
+    left: 18,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  lbCounterText: {
+    color: '#e5e7eb',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  overlayDim: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
   xpCard: {
     borderWidth: 1,
     borderRadius: 12,
@@ -609,7 +738,10 @@ const styles = StyleSheet.create({
   },
   lbWrap: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.94)',
+    backgroundColor: '#000',
+  },
+  lbCaptionAboveControls: {
+    bottom: 118,
   },
   lbScroll: {
     flex: 1,

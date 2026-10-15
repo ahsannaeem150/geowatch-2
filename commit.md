@@ -12896,3 +12896,6 @@ feat(mobile): Activity + Alerts promoted to fullscreen tab pages — fade entran
 feat(mobile): power search applied-filters strip — count chip + removable accent tags + CLEAR, separated from quick-filter shortcuts row
 fix(mobile): hardware back on power-search filter sheet closes only the sheet (filters stay applied) instead of exiting the whole screen
 fix(mobile): hardware back on incidents-directory filter sheet closes only the sheet instead of exiting to map
+feat(mobile): evidence swipe gallery — paging FlatList lightbox over all media (images pan-zoom + videos), counter chip, per-page caption
+feat(mobile): X-style video player (react-native-video) — tap play/pause, seek bar, time, mute; grid cells get VIDEO badge
+chore(mobile): test incident seeded via API — flash floods Rawalpindi (3 updates, 2 X posts, 2 articles, admin note, 4 images, 2 videos)
