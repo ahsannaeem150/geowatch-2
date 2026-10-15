@@ -1585,6 +1585,17 @@ function PsFilterSheet(props) {
   const animateClose = () =>
     springTo(heightRef.current, 0, () => closeRef.current());
 
+  // Hardware back closes just this sheet (selections are already applied
+  // live) — it must NOT fall through and close the whole Power Search screen.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      animateClose();
+      return true;
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const accProps = { ...props, onSectionLayout: recordSectionY };
 
   const pickDate = (iso) => {
