@@ -16,13 +16,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  BadgeCheck,
   Camera,
   ChevronLeft,
   ExternalLink,
   FileText,
+  Heart,
   Link2,
+  MessageCircle,
   Newspaper,
   Play,
+  Repeat2,
   Star,
   X,
 } from 'lucide-react-native';
@@ -104,11 +108,98 @@ function compactNum(n) {
   return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 }
 
+function fmtDuration(s) {
+  if (s == null) {
+    return null;
+  }
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// X-embed look-alike palette: black card in dark mode, white in light mode.
+function tweetPalette(mode) {
+  return mode === 'dark'
+    ? { card: '#000000', border: '#2f3336', name: '#e7e9ea', sub: '#71767b', text: '#e7e9ea', hover: '#16181c' }
+    : { card: '#ffffff', border: '#cfd9de', name: '#0f1419', sub: '#536471', text: '#0f1419', hover: '#f7f9f9' };
+}
+
+// X-style media mosaic: 1 = full-bleed, 2 = split, 3 = tall-left stack, 4 = 2x2.
+function TweetMosaic({ items, onOpen, tw }) {
+  const n = items.length;
+  if (!n) {
+    return null;
+  }
+  const renderCell = (m, i, style) => {
+    const isVideo = m.file_type === 'video';
+    const uri = mediaUrl(m.thumbnail_url || (!isVideo ? m.file_url : null));
+    const dur = m.duration != null ? fmtDuration(m.duration) : null;
+    return (
+      <Pressable
+        key={m.id}
+        onPress={() => onOpen(i)}
+        style={[styles.mosaicCell, { backgroundColor: tw.hover }, style]}>
+        {uri ? <Image source={{ uri }} style={styles.mediaImg} resizeMode="cover" /> : null}
+        {isVideo ? (
+          <View style={[styles.videoBadge, styles.overlayDim]}>
+            <Play size={15} color="#fff" fill="#fff" />
+          </View>
+        ) : null}
+        {dur ? (
+          <View style={[styles.durChip, styles.overlayDim]}>
+            <Text style={styles.durChipText}>{dur}</Text>
+          </View>
+        ) : null}
+      </Pressable>
+    );
+  };
+
+  if (n === 1) {
+    const m = items[0];
+    const ratio = m.width && m.height ? Math.min(1.91, Math.max(0.8, m.width / m.height)) : 1.6;
+    return (
+      <View style={[styles.mosaic, { borderColor: tw.border }]}>
+        {renderCell(m, 0, { aspectRatio: ratio })}
+      </View>
+    );
+  }
+  if (n === 2) {
+    return (
+      <View style={[styles.mosaic, styles.mosaicRow, { borderColor: tw.border }, styles.mosaicTwo]}>
+        {renderCell(items[0], 0, styles.mosaicFlex)}
+        {renderCell(items[1], 1, styles.mosaicFlex)}
+      </View>
+    );
+  }
+  if (n === 3) {
+    return (
+      <View style={[styles.mosaic, styles.mosaicRow, { borderColor: tw.border }, styles.mosaicThree]}>
+        {renderCell(items[0], 0, styles.mosaicFlex)}
+        <View style={styles.mosaicCol}>
+          {renderCell(items[1], 1, styles.mosaicFlex)}
+          {renderCell(items[2], 2, styles.mosaicFlex)}
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.mosaic, { borderColor: tw.border }, styles.mosaicFour]}>
+      <View style={styles.mosaicRowFlex}>
+        {renderCell(items[0], 0, styles.mosaicFlex)}
+        {renderCell(items[1], 1, styles.mosaicFlex)}
+      </View>
+      <View style={styles.mosaicRowFlex}>
+        {renderCell(items[2], 2, styles.mosaicFlex)}
+        {renderCell(items[3], 3, styles.mosaicFlex)}
+      </View>
+    </View>
+  );
+}
+
 // Live tweet → native card (fxtwitter-resolved author/text/media/stats); its
 // media opens in the app's own swipe gallery. Archived posts keep the snapshot
 // view. Falls back to a plain text card if the tweet cannot be resolved.
 function XPostCard({ post }) {
-  const { theme } = useTheme();
+  const { theme, mode } = useTheme();
   const { showToast } = useOverlay();
   const archiveImg = mediaUrl(post.archive_media_url || post.archive_media_thumbnail_url);
   const archived = !!post.archived;
@@ -141,6 +232,9 @@ function XPostCard({ post }) {
         file_type: m.type,
         file_url: m.url,
         thumbnail_url: m.thumb,
+        width: m.width,
+        height: m.height,
+        duration: m.duration,
         caption: null,
       })),
     [tweet, post.id],
@@ -240,68 +334,87 @@ function XPostCard({ post }) {
     );
   }
 
+  const tw = tweetPalette(mode);
+  const badgeColor = tweet.verifiedType === 'organization' ? '#e3b008' : '#1d9bf0';
   return (
     <View
       style={[
-        styles.xpCard,
-        { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+        styles.twCard,
+        { backgroundColor: tw.card, borderColor: tw.border },
       ]}>
       <View style={styles.xpHead}>
         {tweet.avatar ? (
           <Image source={{ uri: tweet.avatar }} style={styles.twAvatar} />
         ) : (
-          <View style={[styles.xpAvatar, { backgroundColor: theme.bgHover }]}>
-            <Text style={[styles.xpAvatarText, { color: theme.textPrimary }]}>𝕏</Text>
+          <View style={[styles.xpAvatar, { backgroundColor: tw.hover }]}>
+            <Text style={[styles.xpAvatarText, { color: tw.name }]}>𝕏</Text>
           </View>
         )}
         <View style={styles.xpUser}>
-          <Text style={[styles.xpName, { color: theme.textPrimary }]} numberOfLines={1}>
-            {tweet.name}
-          </Text>
-          <Text style={[styles.xpHandle, { color: theme.textMuted }]} numberOfLines={1}>
+          <View style={styles.twNameRow}>
+            <Text style={[styles.xpName, { color: tw.name }]} numberOfLines={1}>
+              {tweet.name}
+            </Text>
+            {tweet.verified ? <BadgeCheck size={14} color={badgeColor} fill={badgeColor} /> : null}
+          </View>
+          <Text style={[styles.xpHandle, { color: tw.sub }]} numberOfLines={1}>
             @{tweet.handle}
           </Text>
         </View>
-        <Text style={[styles.twGlyph, { color: theme.textMuted }]}>𝕏</Text>
+        <Text style={[styles.twGlyph, { color: tw.name }]}>𝕏</Text>
       </View>
       {tweet.text ? (
-        <Text style={[styles.xpDesc, { color: theme.textSecondary }]}>{tweet.text}</Text>
+        <Text style={[styles.twText, { color: tw.text }]}>{tweet.text}</Text>
       ) : null}
-      {galleryItems.length ? (
-        <View style={styles.twMediaGrid}>
-          {galleryItems.map((m, i) => {
-            const isVideo = m.file_type === 'video';
-            const uri = mediaUrl(m.thumbnail_url || (!isVideo ? m.file_url : null));
-            return (
-              <Pressable
-                key={m.id}
-                onPress={() => setGalleryIndex(i)}
-                style={[styles.twMediaCell, { backgroundColor: theme.bgHover }]}>
-                {uri ? <Image source={{ uri }} style={styles.mediaImg} resizeMode="cover" /> : null}
-                {isVideo ? (
-                  <View style={[styles.videoBadge, styles.overlayDim]}>
-                    <Play size={15} color="#fff" fill="#fff" />
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
+      <TweetMosaic items={galleryItems} onOpen={setGalleryIndex} tw={tw} />
+      {tweet.date && isValid(tweet.date) ? (
+        <Text style={[styles.twTime, { color: tw.sub }]}>
+          {format(tweet.date, 'h:mm a · MMM d, yyyy')}
+          {tweet.views !== null ? ` · ${compactNum(tweet.views)} Views` : ''}
+        </Text>
       ) : null}
-      <View style={styles.twStats}>
-        {tweet.likes !== null ? (
-          <Text style={[styles.twStat, { color: theme.textMuted }]}>♥ {compactNum(tweet.likes)}</Text>
+      <View style={[styles.twStatsBar, { borderTopColor: tw.border }]}>
+        {tweet.replies !== null ? (
+          <View style={styles.twStatItem}>
+            <MessageCircle size={13} color={tw.sub} />
+            <Text style={[styles.twStat, { color: tw.sub }]}>{compactNum(tweet.replies)}</Text>
+          </View>
         ) : null}
         {tweet.retweets !== null ? (
-          <Text style={[styles.twStat, { color: theme.textMuted }]}>↻ {compactNum(tweet.retweets)}</Text>
+          <View style={styles.twStatItem}>
+            <Repeat2 size={14} color={tw.sub} />
+            <Text style={[styles.twStat, { color: tw.sub }]}>{compactNum(tweet.retweets)}</Text>
+          </View>
         ) : null}
-        {tweet.date && isValid(tweet.date) ? (
-          <Text style={[styles.twStat, styles.twStatDate, { color: theme.textMuted }]}>
-            {format(tweet.date, 'dd MMM yyyy')}
-          </Text>
+        {tweet.likes !== null ? (
+          <View style={styles.twStatItem}>
+            <Heart size={13} color={tw.sub} />
+            <Text style={[styles.twStat, { color: tw.sub }]}>{compactNum(tweet.likes)}</Text>
+          </View>
+        ) : null}
+        <View style={styles.twStatSpacer} />
+        {post.source_url ? (
+          <Pressable
+            onPress={() => Linking.openURL(post.source_url).catch(() => showToast('Could not open link'))}
+            hitSlop={6}
+            style={styles.twStatItem}>
+            <ExternalLink size={12} color={tw.sub} />
+            <Text style={[styles.twStat, { color: tw.sub }]}>Open on X</Text>
+          </Pressable>
+        ) : null}
+        {post.source_url ? (
+          <Pressable
+            onPress={() => {
+              Clipboard.setString(post.source_url);
+              showToast('Link copied');
+            }}
+            hitSlop={6}
+            style={styles.twStatItem}>
+            <Link2 size={12} color={tw.sub} />
+            <Text style={[styles.twStat, { color: tw.sub }]}>Copy</Text>
+          </Pressable>
         ) : null}
       </View>
-      {actions}
       <MediaGalleryModal
         items={galleryItems}
         index={galleryIndex}
@@ -1017,31 +1130,92 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  twMediaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
+  twCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
   },
-  twMediaCell: {
-    width: '48.5%',
-    aspectRatio: 1.4,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  twStats: {
+  twNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 4,
+  },
+  twText: {
+    fontSize: 13.5,
+    lineHeight: 19,
     marginTop: 10,
+  },
+  twTime: {
+    fontSize: 11.5,
+    marginTop: 12,
+  },
+  twStatsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  twStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  twStatSpacer: {
+    flex: 1,
+  },
+  mosaic: {
+    borderWidth: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 12,
+  },
+  mosaicRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  mosaicTwo: {
+    aspectRatio: 1.78,
+  },
+  mosaicThree: {
+    aspectRatio: 1.5,
+  },
+  mosaicFour: {
+    aspectRatio: 1.6,
+  },
+  mosaicRowFlex: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 2,
+  },
+  mosaicCol: {
+    flex: 1,
+    gap: 2,
+  },
+  mosaicFlex: {
+    flex: 1,
+  },
+  mosaicCell: {
+    overflow: 'hidden',
+  },
+  durChip: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  durChipText: {
+    color: '#fff',
+    fontSize: 9.5,
+    fontWeight: '700',
   },
   twStat: {
     fontSize: 11.5,
     fontWeight: '500',
-  },
-  twStatDate: {
-    flex: 1,
-    textAlign: 'right',
   },
   xpSkeletonRow: {
     flexDirection: 'row',
