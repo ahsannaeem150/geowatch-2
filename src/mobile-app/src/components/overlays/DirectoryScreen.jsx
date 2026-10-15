@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import {
   Animated,
+  BackHandler,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -709,6 +710,17 @@ function FilterSheet(props) {
 
   const animateClose = () =>
     springTo(heightRef.current, 0, () => closeRef.current());
+
+  // Hardware back closes just this sheet (selections apply live) — it must
+  // NOT fall through and exit the directory screen.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      animateClose();
+      return true;
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
