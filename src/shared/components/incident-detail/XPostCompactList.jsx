@@ -283,6 +283,7 @@ export default function XPostCompactList({
   const sortedPosts = useMemo(() => sortPinned(posts, featuredId), [posts, featuredId]);
   const [openIds, setOpenIds] = useState(new Set());
   const [renderedIds, setRenderedIds] = useState(new Set());
+  const [loadedIds, setLoadedIds] = useState(new Set());
   const [query, setQuery] = useState('');
   const [copiedId, setCopiedId] = useState(null);
   const [page, setPage] = useState(1);
@@ -324,6 +325,9 @@ export default function XPostCompactList({
       next.delete(postId);
       return next;
     });
+    // The tweet rendered live — that IS proof of availability, so suppress
+    // every auto-check for this post (TTL refresh and render timeout alike).
+    setLoadedIds((prev) => new Set(prev).add(postId));
   };
 
   const filtered = useMemo(
@@ -360,6 +364,7 @@ export default function XPostCompactList({
     for (const post of pagePosts) {
       if (!openIds.has(post.id)) continue;
       activeIds.add(post.id);
+      if (loadedIds.has(post.id)) continue;
 
       const age = post.lastCheckedAt
         ? Date.now() - new Date(post.lastCheckedAt).getTime()
@@ -397,7 +402,7 @@ export default function XPostCompactList({
       for (const timer of checkTimers.current.values()) clearTimeout(timer);
       checkTimers.current.clear();
     };
-  }, [openIds, pagePosts, startRenderTimeout]);
+  }, [openIds, pagePosts, startRenderTimeout, loadedIds]);
 
   useEffect(() => {
     const priorityIds = sortedPosts.filter((p) => p.pinned || p.id === featuredId).map((p) => p.id);

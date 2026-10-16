@@ -12917,3 +12917,6 @@ fix(web+mobile): verified badge now proper blue circle + white tick (custom SVG,
 style(web): tweet card text 13.5px → 15px
 feat(web): custom lightbox video player (play/pause, draggable seek, time, mute; muted autoplay; codec-error fallback with direct link) replacing native controls
 chore: scripts/check-xpost-fixes.mjs verification utility
+fix(backend): X-post availability check now uses fxtwitter (same signal as the UI) with oEmbed fallback — stops available tweets being falsely archived
+fix(web): rendered tweets no longer trigger availability auto-checks (render = proof of availability); no more checking-spinner → false "unavailable" flips
+chore: scripts/check-xpost-stayalive.mjs verification utility
