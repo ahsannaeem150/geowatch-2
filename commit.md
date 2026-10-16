@@ -12913,3 +12913,7 @@ feat(mobile): X-embed-style tweet cards — black/white card per theme, X media 
 chore(mobile): 3 multi-media test tweets added to flood report (2-photo, photo+video mixed x2)
 feat(web): native tweet cards via fxtwitter replace X widget embeds — media opens in in-app lightbox (video playback supported), Open on X/Copy link external actions; shared XEmbed covers all 3 apps
 chore: add scripts/check-web-xpost-cards.mjs visual check
+fix(web+mobile): verified badge now proper blue circle + white tick (custom SVG, gold for orgs) on tweet cards
+style(web): tweet card text 13.5px → 15px
+feat(web): custom lightbox video player (play/pause, draggable seek, time, mute; muted autoplay; codec-error fallback with direct link) replacing native controls
+chore: scripts/check-xpost-fixes.mjs verification utility

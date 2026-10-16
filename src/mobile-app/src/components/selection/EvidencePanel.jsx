@@ -15,8 +15,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Path } from 'react-native-svg';
 import {
-  BadgeCheck,
   Camera,
   ChevronLeft,
   ExternalLink,
@@ -114,6 +114,23 @@ function fmtDuration(s) {
   }
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// Twitter-style verified badge: filled circle + white tick (gold for orgs).
+function VerifiedBadge({ gold }) {
+  return (
+    <Svg width={15} height={15} viewBox="0 0 24 24">
+      <Circle cx={12} cy={12} r={10} fill={gold ? '#e3b008' : '#1d9bf0'} />
+      <Path
+        d="M8 12.5l2.5 2.5L16 9.5"
+        stroke="#fff"
+        strokeWidth={2.4}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
 }
 
 // X-embed look-alike palette: black card in dark mode, white in light mode.
@@ -335,7 +352,6 @@ function XPostCard({ post }) {
   }
 
   const tw = tweetPalette(mode);
-  const badgeColor = tweet.verifiedType === 'organization' ? '#e3b008' : '#1d9bf0';
   return (
     <View
       style={[
@@ -355,7 +371,7 @@ function XPostCard({ post }) {
             <Text style={[styles.xpName, { color: tw.name }]} numberOfLines={1}>
               {tweet.name}
             </Text>
-            {tweet.verified ? <BadgeCheck size={14} color={badgeColor} fill={badgeColor} /> : null}
+            {tweet.verified ? <VerifiedBadge gold={tweet.verifiedType === 'organization'} /> : null}
           </View>
           <Text style={[styles.xpHandle, { color: tw.sub }]} numberOfLines={1}>
             @{tweet.handle}

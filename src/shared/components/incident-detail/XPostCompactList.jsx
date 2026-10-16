@@ -32,6 +32,15 @@ const TwIcons = {
   ),
 };
 
+function VerifiedBadge({ gold }) {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-label="Verified" role="img">
+      <circle cx="12" cy="12" r="10" fill={gold ? '#e3b008' : '#1d9bf0'} />
+      <path d="M8 12.5l2.5 2.5L16 9.5" stroke="#fff" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function compactNum(n) {
   if (n === null || n === undefined) return null;
   return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
@@ -116,10 +125,10 @@ export function XEmbed({ post, onRender }) {
             <span className="id-tw__name">{tweet.name}</span>
             {tweet.verified && (
               <span
-                className={`id-tw__badge ${tweet.verifiedType === 'organization' ? 'id-tw__badge--gold' : ''}`}
+                className="id-tw__badge"
                 title="Verified"
               >
-                {Icons.check}
+                <VerifiedBadge gold={tweet.verifiedType === 'organization'} />
               </span>
             )}
           </div>
