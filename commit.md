@@ -12928,3 +12928,5 @@ fix(mobile): power-search sheet cut off the last timeline update at full detent 
 fix(mobile): power-search sheet bottom pad now measured live (measureInWindow on pos settle) — no more trapped last row or dead gap at any detent/header state
 feat(web): tweets feed-style — all tweets default expanded (pageSize 8); compact card: 32px avatar, inline handle, slim bar w/ admin ⋯ dropdown (Feature/Pin/Edit/Delete, Escape+backdrop close), icon-only actions in stats row
 chore: scripts/check-xmenu-tmp.mjs verification utility
+style(web): expanded tweet slim bar no longer repeats relative time (date already lives in the card stats row)
+feat(web): archived tweet snapshot card drops "Try original"/"Copy link" — dead links when the tweet is gone; keeps Check status/Unarchive for admins

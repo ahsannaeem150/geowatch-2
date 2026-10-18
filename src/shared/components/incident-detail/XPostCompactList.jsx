@@ -510,7 +510,6 @@ export default function XPostCompactList({
                         {Icons.pin}
                       </span>
                     )}
-                    <span className="id-x-compact__time">{relativeTime(post.timestamp)}</span>
                   </span>
                   <span className="id-x-compact__bar-tools">
                     {isAdmin && (
@@ -650,17 +649,6 @@ export default function XPostCompactList({
                   )}
                   <ArchivedPost post={post} onOpen={() => setLightbox(post)} />
                   <div className="id-x-iconrow">
-                    <a className="id-x-iconbtn" href={post.tweetUrl} target="_blank" rel="noreferrer" title="Try original">
-                      {Icons.external}
-                    </a>
-                    <button
-                      type="button"
-                      className="id-x-iconbtn"
-                      onClick={() => copyLink(post)}
-                      title={copiedId === post.id ? 'Copied!' : 'Copy link'}
-                    >
-                      {copiedId === post.id ? Icons.check : Icons.link}
-                    </button>
                     {onCheckSource && (
                       <button
                         type="button"
