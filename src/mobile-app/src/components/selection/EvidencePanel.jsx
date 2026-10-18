@@ -271,12 +271,12 @@ export function XPostCard({ post }) {
               thumbnail_url: post.archive_media_thumbnail_url,
               width: post.archive_media_width,
               height: post.archive_media_height,
-              caption: post.archive_reason || 'Archived snapshot',
+              caption: 'Original tweet is unavailable',
               fit: 'contain',
             },
           ]
         : [],
-    [archiveImg, post.id, post.archive_media_url, post.archive_media_thumbnail_url, post.archive_media_width, post.archive_media_height, post.archive_reason],
+    [archiveImg, post.id, post.archive_media_url, post.archive_media_thumbnail_url, post.archive_media_width, post.archive_media_height],
   );
 
   const actions = archived ? null : (
