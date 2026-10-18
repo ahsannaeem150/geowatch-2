@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dimensions } from 'react-native';
 import { STORAGE_KEYS } from '../constants';
 import { getIncident } from '../services/incidents.service';
+import { subscribeSse } from '../services/sse.service';
 import { zoneBBox, zoneCentroid } from '../utils/zoneGeometry';
 import { useMap } from './MapContext';
 import { useOverlay } from './OverlayContext';
@@ -119,6 +120,23 @@ export function SelectionProvider({ children }) {
 
   const getCachedDetail = useCallback(
     (id) => detailCache.current.get(id) || null,
+    [],
+  );
+
+  // SSE invalidation: an incident/timeline mutation drops the cached detail
+  // so the next open (or a live drawer refetch) sees the fresh payload.
+  useEffect(
+    () =>
+      subscribeSse((evt) => {
+        if (!evt || typeof evt.type !== 'string') return;
+        if (!evt.type.startsWith('incident_') && !evt.type.startsWith('timeline_')) return;
+        const id = evt.incident?.id || evt.incident_id;
+        if (id) {
+          detailCache.current.delete(id);
+        } else {
+          detailCache.current.clear();
+        }
+      }),
     [],
   );
 

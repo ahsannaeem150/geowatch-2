@@ -18,6 +18,7 @@ import {
   ChevronRight,
   FileText,
   Link2,
+  Star,
 } from 'lucide-react-native';
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
@@ -25,6 +26,7 @@ import { useOverlay } from '../../context/OverlayContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
 import { IncidentCard } from './PreviewCard';
+import { XPostCard, ArticleCard, AdminNoteCard } from './EvidencePanel';
 
 // Incident drawer (prototype #drawer / renderDrawer): fullscreen details
 // surface. Fetches GET /incidents/:id on open (cached in SelectionContext so
@@ -52,9 +54,22 @@ function updateCounts(update) {
 export function TimelineNode({ update, label, onInspect }) {
   const { theme } = useTheme();
   const { xCount, camCount } = updateCounts(update);
-  const thumb = mediaUrl(
-    update?.media?.[0]?.thumbnail_url || update?.media?.[0]?.file_url,
-  );
+  // Featured evidence mirrors the web rail: an explicitly featured item is
+  // shown prominently on the node; with no feature the first media item is
+  // the fallback thumbnail.
+  const featured = update?.featured_item || null;
+  const featuredMedia =
+    featured?.source_type === 'media'
+      ? (update?.media || []).find((m) => m.id === featured.item_id)
+      : null;
+  const featuredSource =
+    featured && featured.source_type !== 'media'
+      ? (update?.sources?.[featured.source_type] || []).find(
+          (s) => s.id === featured.item_id,
+        )
+      : null;
+  const thumbSrc = featuredMedia || update?.media?.[0];
+  const thumb = mediaUrl(thumbSrc?.thumbnail_url || thumbSrc?.file_url);
   const verified = update?.verification_status === 'verified';
   return (
     <View style={styles.tlNode}>
@@ -93,6 +108,29 @@ export function TimelineNode({ update, label, onInspect }) {
           <Text style={[styles.tlSummary, { color: theme.textSecondary }]}>
             {update.details}
           </Text>
+        ) : null}
+        {featured ? (
+          <View style={styles.tlFeatRow}>
+            <Star size={10} color={theme.accentLight} fill={theme.accentLight} />
+            <Text
+              style={[
+                styles.tlFeatLabel,
+                { color: theme.accentLight, fontFamily: theme.fontMono },
+              ]}>
+              FEATURED
+            </Text>
+          </View>
+        ) : null}
+        {featuredSource ? (
+          <View style={styles.tlFeatCard} pointerEvents="box-none">
+            {featured.source_type === 'x_post' ? (
+              <XPostCard post={featuredSource} />
+            ) : featured.source_type === 'news_article' ? (
+              <ArticleCard article={featuredSource} />
+            ) : featured.source_type === 'admin_note' ? (
+              <AdminNoteCard note={featuredSource} />
+            ) : null}
+          </View>
         ) : null}
         {thumb ? (
           <Image
@@ -488,6 +526,20 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 8,
     marginTop: 10,
+  },
+  tlFeatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+  },
+  tlFeatLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+  },
+  tlFeatCard: {
+    marginTop: 6,
   },
   tlFoot: {
     flexDirection: 'row',

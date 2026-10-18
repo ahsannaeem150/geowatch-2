@@ -215,7 +215,7 @@ function TweetMosaic({ items, onOpen, tw }) {
 // Live tweet → native card (fxtwitter-resolved author/text/media/stats); its
 // media opens in the app's own swipe gallery. Archived posts keep the snapshot
 // view. Falls back to a plain text card if the tweet cannot be resolved.
-function XPostCard({ post }) {
+export function XPostCard({ post }) {
   const { theme, mode } = useTheme();
   const { showToast } = useOverlay();
   const archiveImg = mediaUrl(post.archive_media_url || post.archive_media_thumbnail_url);
@@ -467,7 +467,7 @@ function urlHost(url) {
   }
 }
 
-function ArticleCard({ article }) {
+export function ArticleCard({ article }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const host = urlHost(article.source_url);
@@ -516,7 +516,7 @@ function ArticleCard({ article }) {
   );
 }
 
-function AdminNoteCard({ note }) {
+export function AdminNoteCard({ note }) {
   const { theme } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const TRUNCATE_AT = 140;

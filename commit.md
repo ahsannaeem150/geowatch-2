@@ -12920,3 +12920,5 @@ chore: scripts/check-xpost-fixes.mjs verification utility
 fix(backend): X-post availability check now uses fxtwitter (same signal as the UI) with oEmbed fallback — stops available tweets being falsely archived
 fix(web): rendered tweets no longer trigger availability auto-checks (render = proof of availability); no more checking-spinner → false "unavailable" flips
 chore: scripts/check-xpost-stayalive.mjs verification utility
+feat(mobile): timeline nodes show featured evidence (★ FEATURED label + native tweet card / article / note / featured media thumb), fallback to first media — mirrors web rail
+fix(mobile): SSE incident/timeline events now invalidate the detail cache in SelectionContext (stale featured/evidence after edits)
