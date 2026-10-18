@@ -85,15 +85,9 @@ export default function PeekSheet() {
   // Scroll-edge trackers for the nested-scroll handoff: the body capture
   // responder below only steals a drag when the visible pane's ScrollView is
   // pinned at the edge the gesture would cross (Google Maps pattern).
+  // tailPad is assigned at render time next to halfBottomPad below.
   const detailEdge = useScrollEdge();
   const eviEdge = useScrollEdge();
-  // At the half detent the sheet's body extends ~halfTy below the screen and
-  // the ScrollView pads for it — treat that off-screen tail as already "the
-  // end" so the up-swipe handoff fires when the last REAL row is in view.
-  detailEdge.tailPad.current =
-    level === 'half' ? halfTy + 62 + insets.bottom : 0;
-  eviEdge.tailPad.current =
-    level === 'half' ? halfTy + 62 + insets.bottom : 0;
   const itemId = item?.id;
   useEffect(() => {
     detailEdge.reset();
@@ -316,12 +310,26 @@ export default function PeekSheet() {
     return null;
   }
 
-  // Bottom padding must clear the off-screen tail at the half detent
-  // (halfTy) — plus the floating tab bar (62 + safe-area inset), which only
-  // overlays the sheet at HALF; at full the sheet covers it, so adding the
-  // bar height there would just leave dead space under the last row.
-  const halfBottomPad =
-    level === 'half' ? halfTy + 62 + insets.bottom + 16 : insets.bottom + 16;
+  // Bottom padding, derived analytically from the sheet geometry. The body
+  // ScrollView's bottom sits at (windowHeight + targetTy - insets.bottom), so
+  // the off-screen overflow is exactly targetTy - insets.bottom. Pad by that
+  // overflow plus the floating tab bar (62 + inset) which only overlays the
+  // sheet at HALF — at full the sheet covers it, so no allowance there.
+  // The old fixed formula (halfTy + 62 + inset + 16) overshot the real
+  // overflow, leaving a long dead tail the user could fling into (~20% empty
+  // screen), and its matching tailPad fired the expand handoff ~1300px before
+  // the real content end. Both now use the exact numbers, and because the pad
+  // is keyed to the COMMITTED detent it swaps at gesture release — the
+  // content-size change hides inside the sheet's own spring instead of
+  // flicking after the sheet settles.
+  const atFull = targetTy === 0;
+  const tailAllowance = atFull ? 16 : 62 + insets.bottom + 16;
+  const offscreenTail = Math.max(0, targetTy - insets.bottom);
+  const halfBottomPad = offscreenTail + tailAllowance;
+  // Scrolling into the visible tail (pad minus the off-screen part) already
+  // feels like "the end" — the handoff fires there, not far early.
+  detailEdge.tailPad.current = tailAllowance;
+  eviEdge.tailPad.current = tailAllowance;
   const detailTranslate = bodyAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -windowWidth * 0.35],

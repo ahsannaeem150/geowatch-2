@@ -1,42 +1,42 @@
-import React, { forwardRef, useMemo } from 'react';
-import { ScrollView } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import React, { forwardRef } from 'react';
+import { ScrollView as RNScrollView } from 'react-native';
+import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 
 // ScrollView that joins a sheet's scroll-edge handoff (Google Maps pattern).
 // The sheet's handoff pan (useSheetGesture) lives on an ANCESTOR
-// GestureDetector; here a Native gesture wrapping a PLAIN RN ScrollView is
-// related to that pan via requireExternalGestureToFail — the native scroll
-// WAITS for the pan's per-touch decision instead of cancelling it: at the
-// scroll edge the pan activates (sheet drags), anywhere else the pan fails
-// and scrolling proceeds natively.
+// GestureDetector; this scroll view waits for the pan's per-touch decision
+// via `waitFor`: at the scroll edge the pan activates (the native scroll
+// cancels and the sheet drags), anywhere else the pan fails and scrolling
+// proceeds natively.
 //
-// RNGH's own ScrollView must NOT be used for this — it ships a preapplied
-// native handler that activates immediately and cancels the pan before its
-// onTouchesMove can even decide (verified on-device).
+// Two earlier wirings failed on-device:
+// - RNGH ScrollView with NO relation: its preapplied native handler
+//   activates immediately and cancels the pan before it can decide.
+// - Plain RN ScrollView + Gesture.Native().requireExternalGestureToFail(pan):
+//   the pan's fail lets the Native gesture activate, which steals the touch
+//   stream from RN's own scroll responder mid-drag on some panes (scroll
+//   begins, then dies after ~25dp with no endDrag — verified on-device).
+// `waitFor={pan}` gets the same "scroll waits for the pan" semantics through
+// RNGH's own native handler, which coordinates the cancellation cleanly.
 const HandoffScrollView = forwardRef(function HandoffScrollView(
   { handoffGesture, children, ...props },
   ref,
 ) {
-  const nativeGesture = useMemo(
-    () =>
-      handoffGesture
-        ? Gesture.Native().requireExternalGestureToFail(handoffGesture)
-        : null,
-    [handoffGesture],
-  );
-  if (!nativeGesture) {
+  if (!handoffGesture) {
     return (
-      <ScrollView ref={ref} overScrollMode="never" {...props}>
+      <RNScrollView ref={ref} overScrollMode="never" {...props}>
         {children}
-      </ScrollView>
+      </RNScrollView>
     );
   }
   return (
-    <GestureDetector gesture={nativeGesture}>
-      <ScrollView ref={ref} overScrollMode="never" {...props}>
-        {children}
-      </ScrollView>
-    </GestureDetector>
+    <GHScrollView
+      ref={ref}
+      overScrollMode="never"
+      waitFor={handoffGesture}
+      {...props}>
+      {children}
+    </GHScrollView>
   );
 });
 
