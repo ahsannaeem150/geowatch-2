@@ -12931,3 +12931,4 @@ chore: scripts/check-xmenu-tmp.mjs verification utility
 style(web): expanded tweet slim bar no longer repeats relative time (date already lives in the card stats row)
 feat(web): archived tweet snapshot card drops "Try original"/"Copy link" — dead links when the tweet is gone; keeps Check status/Unarchive for admins
 chore: scripts/check-xarchived-tmp.mjs — archived-tweet snapshot UI verification
+fix(web): archived tweet snapshot lightbox now portals to body by default — sidebar's CSS transform was trapping position:fixed inside the drawer

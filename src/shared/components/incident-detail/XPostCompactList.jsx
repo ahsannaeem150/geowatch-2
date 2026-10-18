@@ -284,7 +284,7 @@ export default function XPostCompactList({
   featuredId,
   collapsedId = null,
   onExpandCollapsed,
-  archivedLightboxPortal = false,
+  archivedLightboxPortal = true,
 }) {
   const isAdmin = mode === 'admin' || mode === 'superadmin';
   const sortedPosts = useMemo(() => sortPinned(posts, featuredId), [posts, featuredId]);
