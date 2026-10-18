@@ -1035,13 +1035,14 @@ function ResultsSheet({
 
   const sortLabel = SORTS.find((s) => s.key === sortMode)?.label || 'Newest';
 
-  // The sheet is full-screen tall and slides via translateY, so at the half
-  // detent the ScrollViews extend ~halfTy px below the screen edge. Without
-  // compensation, content shorter than that hidden tail is NOT scrollable at
-  // all (it "fits" offscreen) and longer lists lose their last rows. Pad each
-  // pane's content by the hidden amount so everything scrolls fully into the
-  // visible area (PeekSheet uses the same trick).
-  const bodyBottomPad = (level === 'half' ? halfTy : 0) + insets.bottom + 24;
+  // The sheet is full-screen tall and slides via translateY, so the
+  // ScrollViews extend ~<detent>Ty px below the screen edge at BOTH detents
+  // (halfTy at half, fullTy at full). Without compensation, content shorter
+  // than that hidden tail is NOT scrollable at all (it "fits" offscreen) and
+  // longer lists lose their last rows. Pad each pane's content by the hidden
+  // amount so everything scrolls fully into the visible area (PeekSheet uses
+  // the same trick).
+  const bodyBottomPad = (level === 'half' ? halfTy : fullTy) + insets.bottom + 24;
 
   // Cross-slide interpolations (PeekSheet detail ↔ evidence parity).
   const listTranslate = bodyAnim.interpolate({

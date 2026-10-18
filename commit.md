@@ -12924,3 +12924,4 @@ feat(mobile): timeline nodes show featured evidence (★ FEATURED label + native
 fix(mobile): SSE incident/timeline events now invalidate the detail cache in SelectionContext (stale featured/evidence after edits)
 feat(mobile): timeline media mosaic (1/2/3/4-cell layouts, +N overflow overlay, video play badges) tapping into the shared swipe gallery — mirrors web behavior (featured item wins; otherwise up to 4 media thumbs)
 fix(mobile): mosaic thumbnails/overlay not rendering — absoluteFillObject inside Pressable fails on new arch; use explicit 100% width/height
+fix(mobile): power-search sheet cut off the last timeline update at full detent — ScrollView tail is hidden by fullTy there too, not just halfTy; pad accordingly
