@@ -257,7 +257,24 @@ export function XPostCard({ post }) {
     [tweet, post.id],
   );
 
-  const actions = (
+  const archiveGalleryItems = useMemo(
+    () =>
+      archiveImg
+        ? [
+            {
+              id: `arch-${post.id}`,
+              file_type: 'image',
+              file_url: post.archive_media_url || post.archive_media_thumbnail_url,
+              thumbnail_url: post.archive_media_thumbnail_url,
+              caption: post.archive_reason || 'Archived snapshot',
+              fit: 'contain',
+            },
+          ]
+        : [],
+    [archiveImg, post.id, post.archive_media_url, post.archive_media_thumbnail_url, post.archive_reason],
+  );
+
+  const actions = archived ? null : (
     <View style={styles.xpActions}>
       {post.source_url ? (
         <Pressable
@@ -298,11 +315,13 @@ export function XPostCard({ post }) {
           </Text>
         </View>
         {archiveImg ? (
-          <Image
-            source={{ uri: archiveImg }}
-            style={[styles.xpArchiveImg, { backgroundColor: theme.bgHover }]}
-            resizeMode="cover"
-          />
+          <Pressable onPress={() => setGalleryIndex(0)}>
+            <Image
+              source={{ uri: archiveImg }}
+              style={[styles.xpArchiveImg, { backgroundColor: theme.bgHover }]}
+              resizeMode="contain"
+            />
+          </Pressable>
         ) : post.description ? (
           <Text style={[styles.xpDesc, { color: theme.textSecondary }]}>
             {post.description}
@@ -311,7 +330,12 @@ export function XPostCard({ post }) {
         <Text style={[styles.xpArchived, { color: theme.sev2, fontFamily: theme.fontMono }]}>
           ARCHIVED{post.archive_reason ? ` — ${post.archive_reason}` : ''}
         </Text>
-        {actions}
+        <MediaGalleryModal
+          items={archiveGalleryItems}
+          index={galleryIndex}
+          onIndexChange={setGalleryIndex}
+          onClose={() => setGalleryIndex(null)}
+        />
       </View>
     );
   }
@@ -554,7 +578,7 @@ function GalleryImage({ item, width, height }) {
   const uri = mediaUrl(item.file_url || item.thumbnail_url);
   const w = parseFloat(item.width) || 0;
   const h = parseFloat(item.height) || 0;
-  const scale = 1.6;
+  const scale = item.fit === 'contain' ? 1 : 1.6;
   const imgW = width * scale;
   const imgH = w > 0 && h > 0 ? (imgW * h) / w : height * 0.7;
   return (

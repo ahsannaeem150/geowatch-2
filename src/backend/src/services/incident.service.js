@@ -340,6 +340,7 @@ export async function getEventById(id) {
        FROM incident_media m
        LEFT JOIN users u ON m.uploaded_by = u.id
        WHERE m.incident_id = $1
+         AND NOT EXISTS (SELECT 1 FROM incident_sources s WHERE s.archive_media_id = m.id)
        ORDER BY m.pinned DESC, m.display_order ASC, m.created_at ASC`,
       [id]
     ),

@@ -12932,3 +12932,5 @@ style(web): expanded tweet slim bar no longer repeats relative time (date alread
 feat(web): archived tweet snapshot card drops "Try original"/"Copy link" — dead links when the tweet is gone; keeps Check status/Unarchive for admins
 chore: scripts/check-xarchived-tmp.mjs — archived-tweet snapshot UI verification
 fix(web): archived tweet snapshot lightbox now portals to body by default — sidebar's CSS transform was trapping position:fixed inside the drawer
+fix(backend): archive snapshot media no longer leaks into incident media lists (NOT EXISTS archive_media_id filter on detail + media list queries)
+fix(mobile): archived tweet card — dead Try-original/Copy-link buttons removed, snapshot renders contain (uncropped) and taps into the fullscreen gallery (fit=contain, no 1.6x crop)

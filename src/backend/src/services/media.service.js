@@ -8,6 +8,7 @@ export async function listMediaByIncident(incidentId) {
             uploaded_by, created_at
      FROM incident_media
      WHERE incident_id = $1
+       AND NOT EXISTS (SELECT 1 FROM incident_sources s WHERE s.archive_media_id = incident_media.id)
      ORDER BY pinned DESC, display_order ASC, created_at DESC`,
     [incidentId]
   );
