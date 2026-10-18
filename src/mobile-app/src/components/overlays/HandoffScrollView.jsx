@@ -26,14 +26,14 @@ const HandoffScrollView = forwardRef(function HandoffScrollView(
   );
   if (!nativeGesture) {
     return (
-      <ScrollView ref={ref} {...props}>
+      <ScrollView ref={ref} overScrollMode="never" {...props}>
         {children}
       </ScrollView>
     );
   }
   return (
     <GestureDetector gesture={nativeGesture}>
-      <ScrollView ref={ref} {...props}>
+      <ScrollView ref={ref} overScrollMode="never" {...props}>
         {children}
       </ScrollView>
     </GestureDetector>

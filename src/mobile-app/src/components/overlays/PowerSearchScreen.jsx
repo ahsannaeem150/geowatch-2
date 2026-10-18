@@ -1031,13 +1031,14 @@ function ResultsSheet({
     getClamp: () => ({ top: live.current.fullTy, bottom: live.current.sheetH }),
     getRestTy: () => gestureFns.current.getRestTy(),
     chooseTarget: (args) => gestureFns.current.chooseTarget(args),
-    // Scroll-edge handoff (Google Maps pattern): full detent + pane at its
-    // top + drag down → pull the sheet down; half detent + pane at its end +
-    // drag up → expand the sheet. Between the edges the pane scrolls.
+    // Scroll-edge handoff (Google Maps pattern): pane at its top + drag down
+    // steps the sheet one detent down (full → half → dismissed pill); half
+    // detent + pane at its end + drag up → expand the sheet. Between the
+    // edges the pane scrolls.
     handoff: {
       canDragDown: () => {
         const s = live.current;
-        if (s.level !== 'full') return false;
+        if (s.level !== 'full' && s.level !== 'half') return false;
         const e = s.inEvidence ? s.eviEdge : s.inDetail ? s.detailEdge : s.listEdge;
         return e.atTop.current;
       },

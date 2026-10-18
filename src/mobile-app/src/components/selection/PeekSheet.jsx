@@ -238,9 +238,12 @@ export default function PeekSheet() {
       // scrolled to its end, an up-drag expands the sheet. Between the edges
       // the pane scrolls natively.
       handoff: {
+        // At FULL + pane top a down-drag steps to half; at HALF + pane top it
+        // continues to the pill (Google Maps: dragging down past the content
+        // top always moves the sheet one detent down).
         canDragDown: () => {
           const s = live.current;
-          if (s.level !== 'full') return false;
+          if (s.level !== 'full' && s.level !== 'half') return false;
           const e = s.inEvidence ? s.eviEdge : s.detailEdge;
           return e.atTop.current;
         },
