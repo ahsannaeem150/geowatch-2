@@ -30,6 +30,13 @@ const TwIcons = {
       <path d="M8 5v14l11-7z" />
     </svg>
   ),
+  dots: (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  ),
 };
 
 function VerifiedBadge({ gold }) {
@@ -65,7 +72,7 @@ function fmtDuration(s) {
 // resolved (deleted/blocked), onRender is never fired — the caller's render
 // timeout then triggers the availability check, exactly as the old widget
 // flow did, and the card degrades to the plain text card until archived.
-export function XEmbed({ post, onRender }) {
+export function XEmbed({ post, onRender, footActions }) {
   const [tweet, setTweet] = useState(null);
   const [failed, setFailed] = useState(false);
   const [lightbox, setLightbox] = useState(null); // { items, index }
@@ -131,8 +138,8 @@ export function XEmbed({ post, onRender }) {
                 <VerifiedBadge gold={tweet.verifiedType === 'organization'} />
               </span>
             )}
+            <span className="id-tw__handle">@{tweet.handle}</span>
           </div>
-          <span className="id-tw__handle">@{tweet.handle}</span>
         </div>
         <span className="id-tw__logo">{Icons.xLogo}</span>
       </div>
@@ -166,14 +173,13 @@ export function XEmbed({ post, onRender }) {
         </div>
       )}
 
-      {tweet.date ? (
-        <div className="id-tw__time">
-          {fmtTweetDate(tweet.date)}
-          {tweet.views !== null && ` · ${compactNum(tweet.views)} Views`}
-        </div>
-      ) : null}
-
       <div className="id-tw__stats">
+        {tweet.date ? (
+          <span className="id-tw__stat id-tw__stat--date">
+            {fmtTweetDate(tweet.date)}
+            {tweet.views !== null && ` · ${compactNum(tweet.views)} views`}
+          </span>
+        ) : null}
         {tweet.replies !== null && (
           <span className="id-tw__stat">{TwIcons.reply} {compactNum(tweet.replies)}</span>
         )}
@@ -183,6 +189,7 @@ export function XEmbed({ post, onRender }) {
         {tweet.likes !== null && (
           <span className="id-tw__stat">{TwIcons.heart} {compactNum(tweet.likes)}</span>
         )}
+        {footActions ? <span className="id-tw__foot-actions">{footActions}</span> : null}
       </div>
 
       {lightbox && (
@@ -265,7 +272,7 @@ export function XPostCard({ post }) {
 
 export default function XPostCompactList({
   posts,
-  pageSize = 5,
+  pageSize = 8,
   mode = 'user',
   onEditItem,
   onDeleteItem,
@@ -290,6 +297,17 @@ export default function XPostCompactList({
   const [lightbox, setLightbox] = useState(null);
   const [checkingIds, setCheckingIds] = useState(new Set());
   const [autoCheckedIds, setAutoCheckedIds] = useState(new Set());
+  const [menuFor, setMenuFor] = useState(null);
+
+  // Escape closes the admin overflow menu (backdrop click already does).
+  useEffect(() => {
+    if (menuFor === null) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuFor(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuFor]);
   const checkTimers = useRef(new Map());
   const checkerRef = useRef(onAutoCheck ?? onCheckSource);
   checkerRef.current = onAutoCheck ?? onCheckSource;
@@ -404,12 +422,15 @@ export default function XPostCompactList({
     };
   }, [openIds, pagePosts, startRenderTimeout, loadedIds]);
 
+  // Feed-style: every post starts expanded (this is the dedicated evidence
+  // view — per-item expand clicks just hid evidence). Collapse stays
+  // available per card and via "Collapse all".
   useEffect(() => {
-    const priorityIds = sortedPosts.filter((p) => p.pinned || p.id === featuredId).map((p) => p.id);
-    if (!priorityIds.length) return;
-    setOpenIds((prev) => new Set([...prev, ...priorityIds]));
-    setRenderedIds((prev) => new Set([...prev, ...priorityIds]));
-  }, [sortedPosts, featuredId]);
+    const ids = sortedPosts.map((p) => p.id);
+    if (!ids.length) return;
+    setOpenIds((prev) => new Set([...prev, ...ids]));
+    setRenderedIds((prev) => new Set([...prev, ...ids]));
+  }, [sortedPosts]);
 
   const openAll = () => {
     const next = new Set(openIds);
@@ -474,105 +495,146 @@ export default function XPostCompactList({
           const isOpen = openIds.has(post.id);
           return (
             <div key={post.id} className={`id-x-compact__item ${isOpen ? 'open' : ''}`} data-featured={featuredId === post.id || undefined}>
-              <button className="id-x-compact__summary" onClick={() => toggle(post.id)}>
-                <img src={post.authorAvatar} alt={post.author} className="id-x-compact__avatar" loading="lazy" />
-                <span className="id-x-compact__main">
-                  <span className="id-x-compact__top">
-                    <span className="id-x-compact__author-line">
-                      <span className="id-x-compact__name">{post.author}</span>
-                      <span className="id-x-compact__handle">{post.handle}</span>
-                      {featuredId === post.id && (
-                        <span className="id-x-compact__featured" title="Featured in update card">
-                          {Icons.star}
-                        </span>
-                      )}
-                      {post.pinned && featuredId !== post.id && (
-                        <span className="id-x-compact__pinned" title="Pinned to top">
-                          {Icons.pin}
-                        </span>
-                      )}
-                    </span>
-                    <span className="id-x-compact__time">{relativeTime(post.timestamp)}</span>
-                    {isAdmin && (
-                      <span className="id-x-compact__admin">
-                        {onFeatureItem && (
-                          <button
-                            type="button"
-                            className={`id-x-compact__feature-btn ${featuredId === post.id ? 'active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onFeatureItem?.(post.id);
-                            }}
-                            title={featuredId === post.id ? 'Remove from featured' : 'Feature this post'}
-                          >
-                            {Icons.star}
-                            <span>{featuredId === post.id ? 'Featured' : 'Feature'}</span>
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className={post.pinned ? 'pin active' : 'pin'}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onPinItem?.(post, !post.pinned);
-                          }}
-                          title={post.pinned ? 'Unpin from top' : 'Pin to top'}
-                        >
-                          {Icons.pin}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditItem?.(post);
-                          }}
-                          title="Edit"
-                        >
-                          {Icons.edit}
-                        </button>
-                        <button
-                          type="button"
-                          className="danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteItem?.(post.id);
-                          }}
-                          title="Delete"
-                        >
-                          {Icons.trash}
-                        </button>
+              {isOpen ? (
+                // Expanded: slim control strip — the card itself carries the
+                // identity, so the old full summary row is not repeated here.
+                <div className="id-x-compact__bar">
+                  <span className="id-x-compact__bar-meta">
+                    {featuredId === post.id && (
+                      <span className="id-x-compact__featured" title="Featured in update card">
+                        {Icons.star}
                       </span>
                     )}
-                    <span className="id-x-compact__chevron">{isOpen ? '▲' : '▼'}</span>
+                    {post.pinned && featuredId !== post.id && (
+                      <span className="id-x-compact__pinned" title="Pinned to top">
+                        {Icons.pin}
+                      </span>
+                    )}
+                    <span className="id-x-compact__time">{relativeTime(post.timestamp)}</span>
                   </span>
-                </span>
-              </button>
+                  <span className="id-x-compact__bar-tools">
+                    {isAdmin && (
+                      <span className="id-x-menu-wrap">
+                        <button
+                          type="button"
+                          className="id-x-iconbtn"
+                          title="Post actions"
+                          onClick={() => setMenuFor(menuFor === post.id ? null : post.id)}
+                        >
+                          {TwIcons.dots}
+                        </button>
+                        {menuFor === post.id && (
+                          <>
+                            <div className="id-x-menu__backdrop" onClick={() => setMenuFor(null)} />
+                            <div className="id-x-menu">
+                              {onFeatureItem && (
+                                <button type="button" onClick={() => { setMenuFor(null); onFeatureItem(post.id); }}>
+                                  {Icons.star} {featuredId === post.id ? 'Unfeature' : 'Feature'}
+                                </button>
+                              )}
+                              {onPinItem && (
+                                <button type="button" onClick={() => { setMenuFor(null); onPinItem(post, !post.pinned); }}>
+                                  {Icons.pin} {post.pinned ? 'Unpin from top' : 'Pin to top'}
+                                </button>
+                              )}
+                              {onEditItem && (
+                                <button type="button" onClick={() => { setMenuFor(null); onEditItem(post); }}>
+                                  {Icons.edit} Edit
+                                </button>
+                              )}
+                              {onDeleteItem && (
+                                <button
+                                  type="button"
+                                  className="danger"
+                                  onClick={() => { setMenuFor(null); onDeleteItem(post.id); }}
+                                >
+                                  {Icons.trash} Delete
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="id-x-iconbtn"
+                      title="Collapse"
+                      onClick={() => toggle(post.id)}
+                    >
+                      ▲
+                    </button>
+                  </span>
+                </div>
+              ) : (
+                <button className="id-x-compact__summary" onClick={() => toggle(post.id)}>
+                  <img src={post.authorAvatar} alt={post.author} className="id-x-compact__avatar" loading="lazy" />
+                  <span className="id-x-compact__main">
+                    <span className="id-x-compact__top">
+                      <span className="id-x-compact__author-line">
+                        <span className="id-x-compact__name">{post.author}</span>
+                        <span className="id-x-compact__handle">{post.handle}</span>
+                        {featuredId === post.id && (
+                          <span className="id-x-compact__featured" title="Featured in update card">
+                            {Icons.star}
+                          </span>
+                        )}
+                        {post.pinned && featuredId !== post.id && (
+                          <span className="id-x-compact__pinned" title="Pinned to top">
+                            {Icons.pin}
+                          </span>
+                        )}
+                      </span>
+                      <span className="id-x-compact__time">{relativeTime(post.timestamp)}</span>
+                      <span className="id-x-compact__chevron">▼</span>
+                    </span>
+                  </span>
+                </button>
+              )}
 
               {renderedIds.has(post.id) && !post.archived && (
                 <div className="id-x-compact__embed">
-                  <XEmbed post={post} onRender={() => clearRenderTimeout(post.id)} />
+                  <XEmbed
+                    post={post}
+                    onRender={() => clearRenderTimeout(post.id)}
+                    footActions={
+                      isOpen ? (
+                        <>
+                          <a
+                            className="id-x-iconbtn"
+                            href={post.tweetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open on X"
+                          >
+                            {Icons.external}
+                          </a>
+                          <button
+                            type="button"
+                            className="id-x-iconbtn"
+                            onClick={() => copyLink(post)}
+                            title={copiedId === post.id ? 'Copied!' : 'Copy link'}
+                          >
+                            {copiedId === post.id ? Icons.check : Icons.link}
+                          </button>
+                          {onArchiveSource && (
+                            <button
+                              type="button"
+                              className="id-x-iconbtn"
+                              title="Archive"
+                              onClick={() => onArchiveSource(post)}
+                            >
+                              {Icons.image}
+                            </button>
+                          )}
+                        </>
+                      ) : null
+                    }
+                  />
                   {checkingIds.has(post.id) && (
                     <div className="id-x-checking-notice">
                       <span className="id-x-checking-notice__spinner" />
                       Checking for an archived snapshot if this tweet doesn't load…
-                    </div>
-                  )}
-                  {isOpen && (
-                    <div className="id-x-compact__actions">
-                      <a className="id-x-compact__action" href={post.tweetUrl} target="_blank" rel="noreferrer">
-                        {Icons.external} Open on X
-                      </a>
-                      <button className="id-x-compact__action" onClick={() => copyLink(post)}>
-                        {Icons.link} {copiedId === post.id ? 'Copied!' : 'Copy link'}
-                      </button>
-                      {onArchiveSource && (
-                        <button
-                          className="id-x-compact__action"
-                          onClick={() => onArchiveSource(post)}
-                        >
-                          {Icons.image} Archive
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
@@ -587,27 +649,36 @@ export default function XPostCompactList({
                     </div>
                   )}
                   <ArchivedPost post={post} onOpen={() => setLightbox(post)} />
-                  <div className="id-x-compact__actions">
-                    <a className="id-x-compact__action" href={post.tweetUrl} target="_blank" rel="noreferrer">
-                      {Icons.external} Try original
+                  <div className="id-x-iconrow">
+                    <a className="id-x-iconbtn" href={post.tweetUrl} target="_blank" rel="noreferrer" title="Try original">
+                      {Icons.external}
                     </a>
-                    <button className="id-x-compact__action" onClick={() => copyLink(post)}>
-                      {Icons.link} {copiedId === post.id ? 'Copied!' : 'Copy link'}
+                    <button
+                      type="button"
+                      className="id-x-iconbtn"
+                      onClick={() => copyLink(post)}
+                      title={copiedId === post.id ? 'Copied!' : 'Copy link'}
+                    >
+                      {copiedId === post.id ? Icons.check : Icons.link}
                     </button>
                     {onCheckSource && (
                       <button
-                        className="id-x-compact__action"
+                        type="button"
+                        className="id-x-iconbtn"
+                        title="Check status"
                         onClick={() => onCheckSource(post)}
                       >
-                        {Icons.refresh} Check status
+                        {Icons.refresh}
                       </button>
                     )}
                     {onArchiveSource && (
                       <button
-                        className="id-x-compact__action"
+                        type="button"
+                        className="id-x-iconbtn"
+                        title="Unarchive"
                         onClick={() => onArchiveSource(post)}
                       >
-                        {Icons.undo} Unarchive
+                        {Icons.undo}
                       </button>
                     )}
                   </div>
