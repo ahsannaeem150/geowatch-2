@@ -20,6 +20,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  GestureDetector,
+} from 'react-native-gesture-handler';
+import HandoffScrollView from './HandoffScrollView';
+import {
   ArrowRight,
   Calendar,
   Check,
@@ -45,6 +49,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { useAuth } from '../../context/AuthContext';
 import useSheetGesture from '../../hooks/useSheetGesture';
+import useScrollEdge from '../../hooks/useScrollEdge';
 import { severityOf, formatItemDate } from '../selection/PreviewCard';
 import {
   searchIncidents,
@@ -938,7 +943,29 @@ function ResultsSheet({
   }, [inEvidence]);
 
   const live = useRef({});
-  live.current = { level, halfTy, fullTy, sheetH, inDetail, inEvidence };
+  // Scroll-edge trackers (one per pane) for the nested-scroll handoff: the
+  // body capture responder only steals a drag when the VISIBLE pane's
+  // ScrollView is pinned at the edge the gesture would cross.
+  const listEdge = useScrollEdge();
+  const detailEdge = useScrollEdge();
+  const eviEdge = useScrollEdge();
+  live.current = {
+    level,
+    halfTy,
+    fullTy,
+    sheetH,
+    inDetail,
+    inEvidence,
+    listEdge,
+    detailEdge,
+    eviEdge,
+  };
+  const detailId = detail?.item?.id;
+  useEffect(() => {
+    detailEdge.reset();
+    eviEdge.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailId]);
 
   // chooseTarget/getRestTy live behind a ref so both the capture engine and
   // its callbacks always read the current render's detent semantics.
@@ -986,16 +1013,28 @@ function ResultsSheet({
   const gestureFns = useRef({});
   gestureFns.current = { getRestTy: getRestTyFn, chooseTarget: chooseTargetFn };
 
-  const { panResponder, springTo } = useSheetGesture({
+  const { panResponder, handoffGesture, springTo } = useSheetGesture({
     pos,
-    // Head mode — identical to the map PeekSheet: the panHandlers sit on the
-    // header strip only, body ScrollViews stay natively scrollable at every
-    // detent and never fight the sheet. (The earlier capture-mode + manual
-    // pane-scroll arbitration was the source of the dead grabber, the
-    // scroll-start lag and the detail-pane scroll conflict.)
     getClamp: () => ({ top: live.current.fullTy, bottom: live.current.sheetH }),
     getRestTy: () => gestureFns.current.getRestTy(),
     chooseTarget: (args) => gestureFns.current.chooseTarget(args),
+    // Scroll-edge handoff (Google Maps pattern): full detent + pane at its
+    // top + drag down → pull the sheet down; half detent + pane at its end +
+    // drag up → expand the sheet. Between the edges the pane scrolls.
+    handoff: {
+      canDragDown: () => {
+        const s = live.current;
+        if (s.level !== 'full') return false;
+        const e = s.inEvidence ? s.eviEdge : s.inDetail ? s.detailEdge : s.listEdge;
+        return e.atTop.current;
+      },
+      canDragUp: () => {
+        const s = live.current;
+        if (s.level !== 'half') return false;
+        const e = s.inEvidence ? s.eviEdge : s.inDetail ? s.detailEdge : s.listEdge;
+        return e.atEnd.current;
+      },
+    },
   });
 
   // Slide-in on mount (to the half detent).
@@ -1069,6 +1108,11 @@ function ResultsSheet({
   }, [windowHeight, insets.bottom]);
   const bodyBottomPad =
     measuredPad ?? (level === 'half' ? halfTy : fullTy) + 12;
+  // Off-screen tail = padding minus its small safety margin; scrolling into
+  // the tail already feels like "the end", so the handoff fires there.
+  listEdge.tailPad.current = Math.max(0, bodyBottomPad - 12);
+  detailEdge.tailPad.current = Math.max(0, bodyBottomPad - 12);
+  eviEdge.tailPad.current = Math.max(0, bodyBottomPad - 12);
 
   // Cross-slide interpolations (PeekSheet detail ↔ evidence parity).
   const listTranslate = bodyAnim.interpolate({
@@ -1238,7 +1282,8 @@ function ResultsSheet({
           </View>
         ) : null}
 
-        <View style={styles.bodyWrap} ref={bodyWrapRef} collapsable={false}>
+        <GestureDetector gesture={handoffGesture}>
+          <View style={styles.bodyWrap} ref={bodyWrapRef} collapsable={false}>
           <Animated.View
             pointerEvents={inDetail ? 'none' : 'auto'}
             style={[
@@ -1306,7 +1351,8 @@ function ResultsSheet({
                 </Pressable>
               </View>
             ) : (
-              <ScrollView
+              <HandoffScrollView
+                handoffGesture={handoffGesture}
                 style={styles.stripList}
                 contentContainerStyle={[
                   styles.stripPad,
@@ -1314,7 +1360,10 @@ function ResultsSheet({
                 ]}
                 keyboardShouldPersistTaps="handled"
                 overScrollMode="never"
-                scrollEventThrottle={16}>
+                scrollEventThrottle={16}
+                onScroll={listEdge.onScroll}
+                onLayout={listEdge.onLayout}
+                onContentSizeChange={listEdge.onContentSizeChange}>
                 {total === 0 ? (
                   <View style={styles.stateBox}>
                     <Text style={[styles.stateText, { color: theme.textMuted }]}>
@@ -1380,7 +1429,7 @@ function ResultsSheet({
                     ) : null}
                   </>
                 )}
-              </ScrollView>
+              </HandoffScrollView>
             )}
           </Animated.View>
 
@@ -1403,7 +1452,8 @@ function ResultsSheet({
                     opacity: eviParOpacity,
                   },
                 ]}>
-                <ScrollView
+                <HandoffScrollView
+                  handoffGesture={handoffGesture}
                   style={styles.stripList}
                   contentContainerStyle={[
                     styles.detailPad,
@@ -1411,13 +1461,16 @@ function ResultsSheet({
                   ]}
                   keyboardShouldPersistTaps="handled"
                   overScrollMode="never"
-                  scrollEventThrottle={16}>
+                  scrollEventThrottle={16}
+                  onScroll={detailEdge.onScroll}
+                  onLayout={detailEdge.onLayout}
+                  onContentSizeChange={detailEdge.onContentSizeChange}>
                   {detail.kind === 'zone' ? (
                     <ZoneBody key={detail.item.id} item={detail.item} />
                   ) : (
                     <DrawerBody key={detail.item.id} item={detail.item} />
                   )}
-                </ScrollView>
+                </HandoffScrollView>
               </Animated.View>
               {showEvidence ? (
                 <Animated.View
@@ -1433,12 +1486,19 @@ function ResultsSheet({
                   <EvidenceBody
                     key={evidenceUpdate?.id}
                     bottomPad={bodyBottomPad}
+                    handoffGesture={handoffGesture}
+                    scrollHandlers={{
+                      onScroll: eviEdge.onScroll,
+                      onLayout: eviEdge.onLayout,
+                      onContentSizeChange: eviEdge.onContentSizeChange,
+                    }}
                   />
                 </Animated.View>
               ) : null}
             </Animated.View>
           ) : null}
-        </View>
+          </View>
+        </GestureDetector>
       </Animated.View>
 
       {/* Dismissed → floating pill re-opens the sheet at half. Two pill
@@ -1588,7 +1648,8 @@ function PsFilterSheet(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { panResponder, springTo } = useSheetGesture({
+  const edge = useScrollEdge();
+  const { panResponder, handoffGesture, springTo } = useSheetGesture({
     pos,
     getClamp: () => ({ top: 0, bottom: heightRef.current }),
     getRestTy: () => 0,
@@ -1601,6 +1662,11 @@ function PsFilterSheet(props) {
         return { ty: H, onDone: () => closeRef.current() };
       }
       return { ty: 0 };
+    },
+    // Scroll-edge handoff: filter list pinned at its top + drag down on the
+    // body pulls the sheet closed; otherwise the list scrolls natively.
+    handoff: {
+      canDragDown: () => edge.atTop.current,
     },
   });
 
@@ -1706,11 +1772,18 @@ function PsFilterSheet(props) {
             </Pressable>
           </View>
         </View>
-        <ScrollView
-          ref={scrollRef}
-          style={styles.flex1}
-          contentContainerStyle={styles.filterBody}
-          keyboardShouldPersistTaps="handled">
+        <GestureDetector gesture={handoffGesture}>
+          <View style={styles.flex1}>
+          <HandoffScrollView
+            ref={scrollRef}
+            handoffGesture={handoffGesture}
+            style={styles.flex1}
+            contentContainerStyle={styles.filterBody}
+            keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            onScroll={edge.onScroll}
+            onLayout={edge.onLayout}
+            onContentSizeChange={edge.onContentSizeChange}>
           <PsAccordion
             id="type"
             title="Type"
@@ -2017,7 +2090,9 @@ function PsFilterSheet(props) {
               </Text>
             )}
           </PsAccordion>
-        </ScrollView>
+          </HandoffScrollView>
+          </View>
+        </GestureDetector>
         <View
           style={[
             styles.filterFooter,

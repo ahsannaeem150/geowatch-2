@@ -3,12 +3,12 @@ import {
   Animated,
   BackHandler,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
+import { SheetScrollView } from './SheetContainer';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
@@ -118,7 +118,7 @@ export function NotifPrefsBody() {
   const { notifPrefs, setNotifPref } = useLive();
   const { showToast } = useOverlay();
   return (
-    <ScrollView contentContainerStyle={styles.bodyPad}>
+    <SheetScrollView contentContainerStyle={styles.bodyPad}>
       {NOTIF_ROWS.map((row, i) => {
         const on = notifPrefs[row.key] !== false;
         return (
@@ -149,7 +149,7 @@ export function NotifPrefsBody() {
           />
         );
       })}
-    </ScrollView>
+    </SheetScrollView>
   );
 }
 
@@ -303,7 +303,7 @@ export default function SettingsSheet() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.bodyPad}>
+    <SheetScrollView contentContainerStyle={styles.bodyPad}>
       <SectionLabel theme={theme}>APPEARANCE</SectionLabel>
       <SetRow
         name="Theme"
@@ -357,7 +357,7 @@ export default function SettingsSheet() {
           Preferences are stored locally on this device.
         </Text>
       </View>
-    </ScrollView>
+    </SheetScrollView>
   );
 }
 

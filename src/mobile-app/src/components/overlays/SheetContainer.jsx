@@ -1,17 +1,68 @@
-import React, { useEffect, useRef } from 'react';
+import React, {
+  createContext,
+  forwardRef,
+  useContext,
+  useEffect,
+  useRef,
+} from 'react';
 import {
   Animated,
   Pressable,
+
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import useSheetGesture from '../../hooks/useSheetGesture';
+import useScrollEdge from '../../hooks/useScrollEdge';
+import HandoffScrollView from './HandoffScrollView';
+
+// Registry of the sheet body's scroll-edge trackers plus the container's
+// handoff pan. SheetScrollView (below) registers itself here; the container's
+// handoff responder pulls the sheet closed on a body down-drag only when
+// EVERY registered scroll view is pinned at its top (an empty registry = no
+// scrollable body = always allow).
+export const SheetHandoffContext = createContext(null);
+
+export const SheetScrollView = forwardRef(function SheetScrollView(
+  { onScroll, onLayout, onContentSizeChange, ...props },
+  ref,
+) {
+  const ctx = useContext(SheetHandoffContext);
+  const registry = ctx?.registry ?? null;
+  const edge = useScrollEdge();
+  useEffect(() => {
+    if (!registry) return undefined;
+    registry.add(edge);
+    return () => registry.delete(edge);
+  }, [registry, edge]);
+  return (
+    <HandoffScrollView
+      ref={ref}
+      handoffGesture={ctx?.handoffGesture ?? null}
+      {...props}
+      scrollEventThrottle={props.scrollEventThrottle ?? 16}
+      onScroll={(e) => {
+        edge.onScroll(e);
+        if (onScroll) onScroll(e);
+      }}
+      onLayout={(e) => {
+        edge.onLayout(e);
+        if (onLayout) onLayout(e);
+      }}
+      onContentSizeChange={(w, h) => {
+        edge.onContentSizeChange(w, h);
+        if (onContentSizeChange) onContentSizeChange(w, h);
+      }}
+    />
+  );
+});
 
 // Bottom sheet container: grabber handle, title row, swipe-down-to-close.
 // Gesture runs on the shared engine (src/hooks/useSheetGesture.js) so every
@@ -34,7 +85,8 @@ export default function SheetContainer({ overlay, children }) {
   const closeRef = useRef(() => {});
   closeRef.current = () => closeOverlay(overlay.id);
 
-  const { panResponder, springTo } = useSheetGesture({
+  const edgeRegistry = useRef(new Set()).current;
+  const { panResponder, handoffGesture, springTo } = useSheetGesture({
     pos,
     getClamp: () => ({ top: 0, bottom: heightRef.current }),
     getRestTy: () => 0,
@@ -47,6 +99,16 @@ export default function SheetContainer({ overlay, children }) {
         return { ty: H, onDone: () => closeRef.current() };
       }
       return { ty: 0 };
+    },
+    // Scroll-edge handoff: body down-drag closes the sheet only when the
+    // sheet's scrollable content (SheetScrollView) is pinned at its top.
+    handoff: {
+      canDragDown: () => {
+        for (const e of edgeRegistry) {
+          if (!e.atTop.current) return false;
+        }
+        return true;
+      },
     },
   });
 
@@ -112,7 +174,14 @@ export default function SheetContainer({ overlay, children }) {
             ) : null}
           </View>
         )}
-        <View style={styles.body}>{children}</View>
+        <GestureDetector gesture={handoffGesture}>
+          <View style={styles.body}>
+            <SheetHandoffContext.Provider
+              value={{ registry: edgeRegistry, handoffGesture }}>
+              {children}
+            </SheetHandoffContext.Provider>
+          </View>
+        </GestureDetector>
       </Animated.View>
     </View>
   );

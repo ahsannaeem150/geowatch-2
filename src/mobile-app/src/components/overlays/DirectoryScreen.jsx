@@ -18,6 +18,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  GestureDetector,
+} from 'react-native-gesture-handler';
+import HandoffScrollView from './HandoffScrollView';
+import {
   Check,
   ChevronDown,
   ChevronLeft,
@@ -37,6 +41,7 @@ import { listCategories, listZoneCategories } from '../../services/taxonomy.serv
 import { DOMAINS, SEVERITIES, VERIFICATION_STATUSES, ZONE_OVERLAYS } from '../../constants';
 import { locationLine, severityOf } from '../selection/PreviewCard';
 import useSheetGesture from '../../hooks/useSheetGesture';
+import useScrollEdge from '../../hooks/useScrollEdge';
 
 // Directory fullscreens (prototype #dir-screen-incidents / #dir-screen-zones;
 // openDirectory/toggleDirFilters/setDirStatus/renderDirFiltersStatic/
@@ -688,7 +693,8 @@ function FilterSheet(props) {
   const closeRef = useRef(close);
   closeRef.current = close;
 
-  const { panResponder, springTo } = useSheetGesture({
+  const edge = useScrollEdge();
+  const { panResponder, handoffGesture, springTo } = useSheetGesture({
     pos,
     getClamp: () => ({ top: 0, bottom: heightRef.current }),
     getRestTy: () => 0,
@@ -700,6 +706,11 @@ function FilterSheet(props) {
         return { ty: H, onDone: () => closeRef.current() };
       }
       return { ty: 0 };
+    },
+    // Scroll-edge handoff: filter list pinned at its top + drag down on the
+    // body pulls the sheet closed; otherwise the list scrolls natively.
+    handoff: {
+      canDragDown: () => edge.atTop.current,
     },
   });
 
@@ -759,7 +770,15 @@ function FilterSheet(props) {
             </Pressable>
           </View>
         </View>
-        <ScrollView contentContainerStyle={styles.drawerBody}>
+        <GestureDetector gesture={handoffGesture}>
+          <View style={styles.flex1}>
+          <HandoffScrollView
+            handoffGesture={handoffGesture}
+            contentContainerStyle={styles.drawerBody}
+            scrollEventThrottle={16}
+            onScroll={edge.onScroll}
+            onLayout={edge.onLayout}
+            onContentSizeChange={edge.onContentSizeChange}>
           <Accordion
             id="severity"
             title="Severity"
@@ -927,7 +946,9 @@ function FilterSheet(props) {
               Reset all filters
             </Text>
           </Pressable>
-        </ScrollView>
+          </HandoffScrollView>
+          </View>
+        </GestureDetector>
         <View style={[styles.sheetFooter, { borderTopColor: theme.borderSubtle }]}>
           <Pressable
             onPress={animateClose}

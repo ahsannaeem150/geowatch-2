@@ -7,6 +7,7 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { OverlayProvider } from './context/OverlayContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -78,8 +79,9 @@ function Root() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
+    <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+      <SafeAreaProvider>
+        <ThemeProvider>
         <OverlayProvider>
           <AuthProvider>
             <MapProvider>
@@ -91,8 +93,9 @@ export default function App() {
             </MapProvider>
           </AuthProvider>
         </OverlayProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

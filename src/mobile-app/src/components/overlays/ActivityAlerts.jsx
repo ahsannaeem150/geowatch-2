@@ -12,7 +12,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SheetScrollView } from './SheetContainer';
 import { format, isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns';
 import { Bell, ChevronLeft, CircleCheck, Hexagon, Plus, RefreshCw } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
@@ -348,12 +349,12 @@ export function ActivitySheetBody({ overlay }) {
           </View>
         }
       />
-      <ScrollView
+      <SheetScrollView
         style={styles.flex}
         contentContainerStyle={styles.listPad}
         showsVerticalScrollIndicator={false}>
         {body}
-      </ScrollView>
+      </SheetScrollView>
     </View>
   );
 }
@@ -452,7 +453,7 @@ export function AlertsSheetBody({ overlay }) {
           );
         })}
       </View>
-      <ScrollView
+      <SheetScrollView
         style={styles.flex}
         contentContainerStyle={styles.listPad}
         showsVerticalScrollIndicator={false}>
@@ -533,7 +534,7 @@ export function AlertsSheetBody({ overlay }) {
             }
           />
         )}
-      </ScrollView>
+      </SheetScrollView>
     </View>
   );
 }

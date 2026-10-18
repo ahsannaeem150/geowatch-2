@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SheetScrollView } from './SheetContainer';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
@@ -122,7 +123,7 @@ export default function LayersSheet() {
   ).length;
 
   return (
-    <ScrollView
+    <SheetScrollView
       style={styles.scroll}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}>
@@ -160,7 +161,7 @@ export default function LayersSheet() {
           theme={theme}
         />
       ))}
-    </ScrollView>
+    </SheetScrollView>
   );
 }
 

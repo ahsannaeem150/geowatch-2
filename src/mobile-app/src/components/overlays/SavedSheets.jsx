@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SheetScrollView } from './SheetContainer';
 import { Bookmark, History } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
@@ -142,12 +143,12 @@ export function BookmarksSheetBody() {
         count={`${signedIn ? saved.length : 0} SAVED`}
         note="Synced to your account"
       />
-      <ScrollView
+      <SheetScrollView
         style={styles.list}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}>
         {body}
-      </ScrollView>
+      </SheetScrollView>
     </View>
   );
 }
@@ -194,12 +195,12 @@ export function HistorySheetBody() {
         noteColor={history.length ? theme.danger : undefined}
         onNotePress={history.length ? clearHistory : undefined}
       />
-      <ScrollView
+      <SheetScrollView
         style={styles.list}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}>
         {body}
-      </ScrollView>
+      </SheetScrollView>
     </View>
   );
 }

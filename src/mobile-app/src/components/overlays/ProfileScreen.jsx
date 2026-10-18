@@ -2,11 +2,11 @@ import React from 'react';
 import {
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SheetScrollView } from './SheetContainer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell,
@@ -100,7 +100,7 @@ export function ProfilePageBody() {
   };
 
   return (
-    <ScrollView
+    <SheetScrollView
       style={styles.page}
       contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
       showsVerticalScrollIndicator={false}>
@@ -271,7 +271,7 @@ export function ProfilePageBody() {
         ]}>
         INTELMAP24 · V0.1.0 · © 2026
       </Text>
-    </ScrollView>
+    </SheetScrollView>
   );
 }
 
@@ -402,12 +402,12 @@ export function ProfilePanelBody({ overlay }) {
           </Pressable>
         ) : null}
       </View>
-      <ScrollView
+      <SheetScrollView
         style={styles.panelBody}
         contentContainerStyle={styles.panelBodyContent}
         showsVerticalScrollIndicator={false}>
         {body}
-      </ScrollView>
+      </SheetScrollView>
     </View>
   );
 }

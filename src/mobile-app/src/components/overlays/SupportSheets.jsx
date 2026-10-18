@@ -1,5 +1,6 @@
 import React from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SheetScrollView } from './SheetContainer';
 import { ChevronRight, Mail } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
@@ -11,7 +12,7 @@ import pkg from '../../../package.json';
 export function AboutSheetBody() {
   const { theme } = useTheme();
   return (
-    <ScrollView contentContainerStyle={styles.body}>
+    <SheetScrollView contentContainerStyle={styles.body}>
       <Text
         style={[
           styles.brand,
@@ -44,7 +45,7 @@ export function AboutSheetBody() {
         ]}>
         © 2026 INTELMAP24
       </Text>
-    </ScrollView>
+    </SheetScrollView>
   );
 }
 
@@ -57,7 +58,7 @@ export function HelpSheetBody() {
     );
   };
   return (
-    <ScrollView contentContainerStyle={styles.body}>
+    <SheetScrollView contentContainerStyle={styles.body}>
       <Pressable
         onPress={openMail}
         style={({ pressed }) => [
@@ -93,7 +94,7 @@ export function HelpSheetBody() {
           email — every report is read.
         </Text>
       </View>
-    </ScrollView>
+    </SheetScrollView>
   );
 }
 

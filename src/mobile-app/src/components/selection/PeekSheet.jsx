@@ -3,18 +3,20 @@ import {
   Animated,
   Easing,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import useSheetGesture from '../../hooks/useSheetGesture';
+import useScrollEdge from '../../hooks/useScrollEdge';
+import HandoffScrollView from '../overlays/HandoffScrollView';
 import { ZoneBody } from './ZoneSheet';
 import { DrawerBody } from './IncidentDrawer';
 import { EvidenceBody } from './EvidencePanel';
@@ -80,6 +82,25 @@ export default function PeekSheet() {
           : halfTy
         : halfTy;
 
+  // Scroll-edge trackers for the nested-scroll handoff: the body capture
+  // responder below only steals a drag when the visible pane's ScrollView is
+  // pinned at the edge the gesture would cross (Google Maps pattern).
+  const detailEdge = useScrollEdge();
+  const eviEdge = useScrollEdge();
+  // At the half detent the sheet's body extends ~halfTy below the screen and
+  // the ScrollView pads for it — treat that off-screen tail as already "the
+  // end" so the up-swipe handoff fires when the last REAL row is in view.
+  detailEdge.tailPad.current =
+    level === 'half' ? halfTy + 62 + insets.bottom : 0;
+  eviEdge.tailPad.current =
+    level === 'half' ? halfTy + 62 + insets.bottom : 0;
+  const itemId = item?.id;
+  useEffect(() => {
+    detailEdge.reset();
+    eviEdge.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId]);
+
   // The pan responder is created once, so it reads live state through this
   // ref — stale closures were the source of the grabber jumpiness.
   const live = useRef({});
@@ -90,6 +111,9 @@ export default function PeekSheet() {
     hiddenTy,
     origin,
     evidenceFrom,
+    inEvidence,
+    detailEdge,
+    eviEdge,
     expandFromPeek,
     collapsePeek,
     collapseToPeek,
@@ -189,11 +213,30 @@ export default function PeekSheet() {
   // implementation every sheet in the app uses. launchedTy lets the detent
   // effect above skip re-firing a spring the gesture release already
   // launched (double-push glitch on heavy screens).
-  const { panResponder, pendingVy, launchedTy } = useSheetGesture({
-    pos,
-    getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
-    getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
-    chooseTarget: ({ dy, vyMs, projected, restTy }) => {
+  const { panResponder, handoffGesture, pendingVy, launchedTy } =
+    useSheetGesture({
+      pos,
+      getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
+      getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
+      // Scroll-edge handoff: at FULL detent with the pane scrolled to its top,
+      // a down-drag on the body pulls the sheet down; at HALF with the pane
+      // scrolled to its end, an up-drag expands the sheet. Between the edges
+      // the pane scrolls natively.
+      handoff: {
+        canDragDown: () => {
+          const s = live.current;
+          if (s.level !== 'full') return false;
+          const e = s.inEvidence ? s.eviEdge : s.detailEdge;
+          return e.atTop.current;
+        },
+        canDragUp: () => {
+          const s = live.current;
+          if (s.level !== 'half') return false;
+          const e = s.inEvidence ? s.eviEdge : s.detailEdge;
+          return e.atEnd.current;
+        },
+      },
+      chooseTarget: ({ dy, vyMs, projected, restTy }) => {
       const s = live.current;
       const H = s.halfTy;
       // A clear flick snaps in its direction even over a short distance —
@@ -349,7 +392,8 @@ export default function PeekSheet() {
             </Text>
           ) : null}
         </View>
-        <View style={styles.bodyWrap}>
+        <GestureDetector gesture={handoffGesture}>
+          <View style={styles.bodyWrap}>
           <Animated.View
             pointerEvents={inEvidence ? 'none' : 'auto'}
             style={[
@@ -359,13 +403,17 @@ export default function PeekSheet() {
                 opacity: detailOpacity,
               },
             ]}>
-            <ScrollView
+            <HandoffScrollView
+              handoffGesture={handoffGesture}
               style={styles.body}
               contentContainerStyle={{ paddingBottom: halfBottomPad }}
               showsVerticalScrollIndicator={false}
-              scrollEventThrottle={16}>
+              scrollEventThrottle={16}
+              onScroll={detailEdge.onScroll}
+              onLayout={detailEdge.onLayout}
+              onContentSizeChange={detailEdge.onContentSizeChange}>
               {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
-            </ScrollView>
+            </HandoffScrollView>
           </Animated.View>
           {showEvidence ? (
             <Animated.View
@@ -381,10 +429,17 @@ export default function PeekSheet() {
               <EvidenceBody
                 key={evidenceUpdate?.id}
                 bottomPad={halfBottomPad}
+                handoffGesture={handoffGesture}
+                scrollHandlers={{
+                  onScroll: eviEdge.onScroll,
+                  onLayout: eviEdge.onLayout,
+                  onContentSizeChange: eviEdge.onContentSizeChange,
+                }}
               />
             </Animated.View>
           ) : null}
-        </View>
+          </View>
+        </GestureDetector>
       </Animated.View>
     </View>
   );

@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HandoffScrollView from '../overlays/HandoffScrollView';
 import Svg, { Circle, Path } from 'react-native-svg';
 import {
   Camera,
@@ -696,7 +697,7 @@ export function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
 // Evidence content (title, tabs, media grid, X posts, lightbox) — shared by
 // the fullscreen panel (direct mode / zones) and the peek sheet's inline
 // evidence sub-view.
-export function EvidenceBody({ bottomPad = 0 }) {
+export function EvidenceBody({ bottomPad = 0, scrollHandlers, handoffGesture }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { selectedId } = useMap();
@@ -803,10 +804,13 @@ export function EvidenceBody({ bottomPad = 0 }) {
         })}
       </View>
 
-      <ScrollView
+      <HandoffScrollView
+        handoffGesture={handoffGesture}
         style={styles.body}
         showsVerticalScrollIndicator={false}
-        overScrollMode="never">
+        overScrollMode="never"
+        scrollEventThrottle={16}
+        {...scrollHandlers}>
         {tab === 'all' || tab === 'media' ? (
           <>
             <Text
@@ -876,7 +880,7 @@ export function EvidenceBody({ bottomPad = 0 }) {
           </>
         ) : null}
         <View style={bottomPad > 0 ? { height: bottomPad } : styles.tailPad} />
-      </ScrollView>
+      </HandoffScrollView>
 
       <MediaGalleryModal
         items={mediaItems}

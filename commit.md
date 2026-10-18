@@ -12939,3 +12939,5 @@ style(mobile): archived snapshot fullscreen caption simplified to "Original twee
 perf(backend): tweet archive snapshots now captured at deviceScaleFactor 2 (1100px wide, ~16KB webp) — sharp on high-density phone screens
 feat(mobile): evidence panel now obeys sheet detents — grabber down goes full→half→pill instead of bouncing back to the timeline; pill tap restores the evidence panel in place (pill = minimize, not reset)
 fix(mobile): back from evidence keeps the sheet at its current detent (sheetLevelRef) instead of jumping to full
+feat(mobile): Google Maps-style scroll-edge handoff on every bottom sheet — content scrolls natively, at scroll-end an up-swipe expands the sheet and at scroll-top+full a down-drag collapses/closes it (useScrollEdge + RNGH handoff pan)
+fix(mobile): handoff via HandoffScrollView (plain RN ScrollView + Gesture.Native requireExternalGestureToFail) — RNGH ScrollView's preapplied handler was cancelling the pan before it could decide
