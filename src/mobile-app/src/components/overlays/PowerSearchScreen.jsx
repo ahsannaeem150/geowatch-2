@@ -19,9 +19,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  GestureDetector,
-} from 'react-native-gesture-handler';
+import { GestureDetector } from 'react-native-gesture-handler';
 import HandoffScrollView from './HandoffScrollView';
 import {
   ArrowRight,
@@ -962,6 +960,11 @@ function ResultsSheet({
   const listEdge = useScrollEdge();
   const detailEdge = useScrollEdge();
   const eviEdge = useScrollEdge();
+  // Refs to the panes' HandoffScrollViews — the handoff pans block these
+  // natively (useSheetGesture scrollRefs) so the scroll waits for the pan.
+  const listScrollRef = useRef(null);
+  const detailScrollRef = useRef(null);
+  const eviScrollRef = useRef(null);
   live.current = {
     level,
     halfTy,
@@ -979,6 +982,16 @@ function ResultsSheet({
     eviEdge.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailId]);
+
+  // The result list UNMOUNTS while a search loads (skeleton placeholder) and
+  // remounts fresh (scroll offset 0) when results land. A fresh ScrollView
+  // emits no onScroll at offset 0, so without this resync the edge tracker
+  // keeps the pre-search offset and atTopNow stays stuck false (dead
+  // down-drag handoff on a freshly-searched list).
+  useEffect(() => {
+    if (loading) listEdge.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   // chooseTarget/getRestTy live behind a ref so both the capture engine and
   // its callbacks always read the current render's detent semantics.
@@ -1036,18 +1049,22 @@ function ResultsSheet({
     // detent + pane at its end + drag up → expand the sheet. Between the
     // edges the pane scrolls.
     handoff: {
-      canDragDown: () => {
-        const s = live.current;
-        if (s.level !== 'full' && s.level !== 'half') return false;
-        const e = s.inEvidence ? s.eviEdge : s.inDetail ? s.detailEdge : s.listEdge;
-        return e.atTop.current;
-      },
-      canDragUp: () => {
-        const s = live.current;
-        if (s.level !== 'half') return false;
-        const e = s.inEvidence ? s.eviEdge : s.inDetail ? s.detailEdge : s.listEdge;
-        return e.atEnd.current;
-      },
+      dragDownEnabled:
+        (level === 'full' || level === 'half') &&
+        (inEvidence
+          ? eviEdge.atTopNow
+          : inDetail
+            ? detailEdge.atTopNow
+            : listEdge.atTopNow),
+      dragUpEnabled:
+        level === 'half' &&
+        (inEvidence
+          ? eviEdge.atEndNow
+          : inDetail
+            ? detailEdge.atEndNow
+            : listEdge.atEndNow),
+      scrollRefs: [listScrollRef, detailScrollRef, eviScrollRef],
+      epoch: `${inDetail}-${inEvidence}`,
     },
   });
 
@@ -1366,7 +1383,7 @@ function ResultsSheet({
               </View>
             ) : (
               <HandoffScrollView
-                handoffGesture={handoffGesture}
+                ref={listScrollRef}
                 style={styles.stripList}
                 contentContainerStyle={[
                   styles.stripPad,
@@ -1374,6 +1391,7 @@ function ResultsSheet({
                 ]}
                 keyboardShouldPersistTaps="handled"
                 overScrollMode="never"
+                scrollEnabled={listEdge.scrollableNow}
                 scrollEventThrottle={16}
                 onScroll={listEdge.onScroll}
                 onLayout={listEdge.onLayout}
@@ -1467,7 +1485,7 @@ function ResultsSheet({
                   },
                 ]}>
                 <HandoffScrollView
-                  handoffGesture={handoffGesture}
+                  ref={detailScrollRef}
                   style={styles.stripList}
                   contentContainerStyle={[
                     styles.detailPad,
@@ -1475,6 +1493,7 @@ function ResultsSheet({
                   ]}
                   keyboardShouldPersistTaps="handled"
                   overScrollMode="never"
+                  scrollEnabled={detailEdge.scrollableNow}
                   scrollEventThrottle={16}
                   onScroll={detailEdge.onScroll}
                   onLayout={detailEdge.onLayout}
@@ -1500,8 +1519,9 @@ function ResultsSheet({
                   <EvidenceBody
                     key={evidenceUpdate?.id}
                     bottomPad={bodyBottomPad}
-                    handoffGesture={handoffGesture}
+                    scrollRef={eviScrollRef}
                     scrollHandlers={{
+                      scrollEnabled: eviEdge.scrollableNow,
                       onScroll: eviEdge.onScroll,
                       onLayout: eviEdge.onLayout,
                       onContentSizeChange: eviEdge.onContentSizeChange,
@@ -1680,7 +1700,8 @@ function PsFilterSheet(props) {
     // Scroll-edge handoff: filter list pinned at its top + drag down on the
     // body pulls the sheet closed; otherwise the list scrolls natively.
     handoff: {
-      canDragDown: () => edge.atTop.current,
+      dragDownEnabled: edge.atTopNow,
+      scrollRefs: [scrollRef],
     },
   });
 
@@ -1790,10 +1811,10 @@ function PsFilterSheet(props) {
           <View style={styles.flex1}>
           <HandoffScrollView
             ref={scrollRef}
-            handoffGesture={handoffGesture}
             style={styles.flex1}
             contentContainerStyle={styles.filterBody}
             keyboardShouldPersistTaps="handled"
+            scrollEnabled={edge.scrollableNow}
             scrollEventThrottle={16}
             onScroll={edge.onScroll}
             onLayout={edge.onLayout}

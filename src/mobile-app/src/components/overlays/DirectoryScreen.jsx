@@ -17,9 +17,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  GestureDetector,
-} from 'react-native-gesture-handler';
+import { GestureDetector } from 'react-native-gesture-handler';
 import HandoffScrollView from './HandoffScrollView';
 import {
   Check,
@@ -694,6 +692,9 @@ function FilterSheet(props) {
   closeRef.current = close;
 
   const edge = useScrollEdge();
+  // Ref to the body's HandoffScrollView — the handoff pan blocks it natively
+  // (useSheetGesture scrollRefs) so the scroll waits for the pan.
+  const scrollRef = useRef(null);
   const { panResponder, handoffGesture, springTo } = useSheetGesture({
     pos,
     getClamp: () => ({ top: 0, bottom: heightRef.current }),
@@ -710,7 +711,8 @@ function FilterSheet(props) {
     // Scroll-edge handoff: filter list pinned at its top + drag down on the
     // body pulls the sheet closed; otherwise the list scrolls natively.
     handoff: {
-      canDragDown: () => edge.atTop.current,
+      dragDownEnabled: edge.atTopNow,
+      scrollRefs: [scrollRef],
     },
   });
 
@@ -773,8 +775,9 @@ function FilterSheet(props) {
         <GestureDetector gesture={handoffGesture}>
           <View style={styles.flex1}>
           <HandoffScrollView
-            handoffGesture={handoffGesture}
+            ref={scrollRef}
             contentContainerStyle={styles.drawerBody}
+            scrollEnabled={edge.scrollableNow}
             scrollEventThrottle={16}
             onScroll={edge.onScroll}
             onLayout={edge.onLayout}

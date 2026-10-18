@@ -88,12 +88,26 @@ export default function PeekSheet() {
   // tailPad is assigned at render time next to halfBottomPad below.
   const detailEdge = useScrollEdge();
   const eviEdge = useScrollEdge();
+  // Refs to the panes' HandoffScrollViews — the handoff pans block these
+  // natively (useSheetGesture scrollRefs) so the scroll waits for the pan.
+  const detailScrollRef = useRef(null);
+  const eviScrollRef = useRef(null);
   const itemId = item?.id;
   useEffect(() => {
     detailEdge.reset();
     eviEdge.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
+
+  // The evidence pane UNMOUNTS when it slides out (showEvidence) — e.g. on a
+  // collapse to the pill — and remounts fresh (scroll offset 0) on restore.
+  // A fresh ScrollView emits no onScroll at offset 0, so without this resync
+  // the edge tracker keeps the pre-unmount offset and atTopNow stays stuck
+  // false (dead down-drag handoff after a pill restore — verified on-device).
+  useEffect(() => {
+    if (inEvidence) eviEdge.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inEvidence, evidenceUpdate?.id]);
 
   // The pan responder is created once, so it reads live state through this
   // ref — stale closures were the source of the grabber jumpiness.
@@ -232,21 +246,18 @@ export default function PeekSheet() {
       // scrolled to its end, an up-drag expands the sheet. Between the edges
       // the pane scrolls natively.
       handoff: {
-        // At FULL + pane top a down-drag steps to half; at HALF + pane top it
-        // continues to the pill (Google Maps: dragging down past the content
-        // top always moves the sheet one detent down).
-        canDragDown: () => {
-          const s = live.current;
-          if (s.level !== 'full' && s.level !== 'half') return false;
-          const e = s.inEvidence ? s.eviEdge : s.detailEdge;
-          return e.atTop.current;
-        },
-        canDragUp: () => {
-          const s = live.current;
-          if (s.level !== 'half') return false;
-          const e = s.inEvidence ? s.eviEdge : s.detailEdge;
-          return e.atEnd.current;
-        },
+        // Render-time enable flags (see useSheetGesture): at FULL or HALF
+        // with the pane scrolled to its top, a body down-drag steps the
+        // sheet down; at HALF with the pane scrolled to its end, an up-drag
+        // expands it. Between the edges the pane scrolls natively.
+        dragDownEnabled:
+          (level === 'full' || level === 'half') &&
+          (inEvidence ? eviEdge.atTopNow : detailEdge.atTopNow),
+        dragUpEnabled:
+          level === 'half' &&
+          (inEvidence ? eviEdge.atEndNow : detailEdge.atEndNow),
+        scrollRefs: [detailScrollRef, eviScrollRef],
+        epoch: inEvidence,
       },
       chooseTarget: ({ dy, vyMs, projected, restTy }) => {
       const s = live.current;
@@ -430,10 +441,11 @@ export default function PeekSheet() {
               },
             ]}>
             <HandoffScrollView
-              handoffGesture={handoffGesture}
+              ref={detailScrollRef}
               style={styles.body}
               contentContainerStyle={{ paddingBottom: halfBottomPad }}
               showsVerticalScrollIndicator={false}
+              scrollEnabled={detailEdge.scrollableNow}
               scrollEventThrottle={16}
               onScroll={detailEdge.onScroll}
               onLayout={detailEdge.onLayout}
@@ -455,8 +467,9 @@ export default function PeekSheet() {
               <EvidenceBody
                 key={evidenceUpdate?.id}
                 bottomPad={halfBottomPad}
-                handoffGesture={handoffGesture}
+                scrollRef={eviScrollRef}
                 scrollHandlers={{
+                  scrollEnabled: eviEdge.scrollableNow,
                   onScroll: eviEdge.onScroll,
                   onLayout: eviEdge.onLayout,
                   onContentSizeChange: eviEdge.onContentSizeChange,

@@ -1,9 +1,12 @@
 import React, {
   createContext,
   forwardRef,
+  useCallback,
   useContext,
   useEffect,
+  useImperativeHandle,
   useRef,
+  useState,
 } from 'react';
 import {
   Animated,
@@ -23,11 +26,12 @@ import useSheetGesture from '../../hooks/useSheetGesture';
 import useScrollEdge from '../../hooks/useScrollEdge';
 import HandoffScrollView from './HandoffScrollView';
 
-// Registry of the sheet body's scroll-edge trackers plus the container's
-// handoff pan. SheetScrollView (below) registers itself here; the container's
-// handoff responder pulls the sheet closed on a body down-drag only when
-// EVERY registered scroll view is pinned at its top (an empty registry = no
-// scrollable body = always allow).
+// Registry of the sheet body's scroll-edge trackers plus their scroll view
+// refs. SheetScrollView (below) registers itself here; the container's
+// handoff pan pulls the sheet closed on a body down-drag only when EVERY
+// registered scroll view is pinned at its top (an empty registry = no
+// scrollable body = always allow), and blocks the registered scroll views
+// natively (useSheetGesture scrollRefs) so they wait for the pan.
 export const SheetHandoffContext = createContext(null);
 
 export const SheetScrollView = forwardRef(function SheetScrollView(
@@ -36,17 +40,28 @@ export const SheetScrollView = forwardRef(function SheetScrollView(
 ) {
   const ctx = useContext(SheetHandoffContext);
   const registry = ctx?.registry ?? null;
-  const edge = useScrollEdge();
+  const bump = ctx?.bump ?? null;
+  const edge = useScrollEdge(bump ?? undefined);
+  const innerRef = useRef(null);
+  useImperativeHandle(ref, () => innerRef.current);
   useEffect(() => {
     if (!registry) return undefined;
-    registry.add(edge);
-    return () => registry.delete(edge);
-  }, [registry, edge]);
+    // atTop is a stable ref across renders, so one entry per mount is enough
+    // (edge state flips re-render the container via bump, not re-registry).
+    const entry = { atTop: edge.atTop, ref: innerRef };
+    registry.add(entry);
+    if (bump) bump();
+    return () => {
+      registry.delete(entry);
+      if (bump) bump();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registry, bump]);
   return (
     <HandoffScrollView
-      ref={ref}
-      handoffGesture={ctx?.handoffGesture ?? null}
+      ref={innerRef}
       {...props}
+      scrollEnabled={edge.scrollableNow}
       scrollEventThrottle={props.scrollEventThrottle ?? 16}
       onScroll={(e) => {
         edge.onScroll(e);
@@ -86,6 +101,16 @@ export default function SheetContainer({ overlay, children }) {
   closeRef.current = () => closeOverlay(overlay.id);
 
   const edgeRegistry = useRef(new Set()).current;
+  // Registry edges live in child SheetScrollViews — their flips (and mounts)
+  // don't re-render this component on their own, so each child bumps this
+  // version via the context and the handoff enable flag + scroll relations
+  // below stay honest.
+  const [edgeVersion, setEdgeVersion] = useState(0);
+  const bumpEdges = useCallback(() => setEdgeVersion((v) => v + 1), []);
+  let allAtTop = edgeVersion >= 0; // edgeVersion re-renders on registry flips
+  edgeRegistry.forEach((e) => {
+    if (!e.atTop.current) allAtTop = false;
+  });
   const { panResponder, handoffGesture, springTo } = useSheetGesture({
     pos,
     getClamp: () => ({ top: 0, bottom: heightRef.current }),
@@ -103,12 +128,9 @@ export default function SheetContainer({ overlay, children }) {
     // Scroll-edge handoff: body down-drag closes the sheet only when the
     // sheet's scrollable content (SheetScrollView) is pinned at its top.
     handoff: {
-      canDragDown: () => {
-        for (const e of edgeRegistry) {
-          if (!e.atTop.current) return false;
-        }
-        return true;
-      },
+      dragDownEnabled: allAtTop,
+      scrollRefs: [...edgeRegistry].map((e) => e.ref),
+      epoch: edgeVersion,
     },
   });
 
@@ -177,7 +199,7 @@ export default function SheetContainer({ overlay, children }) {
         <GestureDetector gesture={handoffGesture}>
           <View style={styles.body}>
             <SheetHandoffContext.Provider
-              value={{ registry: edgeRegistry, handoffGesture }}>
+              value={{ registry: edgeRegistry, bump: bumpEdges }}>
               {children}
             </SheetHandoffContext.Provider>
           </View>

@@ -697,7 +697,7 @@ export function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
 // Evidence content (title, tabs, media grid, X posts, lightbox) — shared by
 // the fullscreen panel (direct mode / zones) and the peek sheet's inline
 // evidence sub-view.
-export function EvidenceBody({ bottomPad = 0, scrollHandlers, handoffGesture }) {
+export function EvidenceBody({ bottomPad = 0, scrollHandlers, scrollRef }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { selectedId } = useMap();
@@ -805,7 +805,7 @@ export function EvidenceBody({ bottomPad = 0, scrollHandlers, handoffGesture }) 
       </View>
 
       <HandoffScrollView
-        handoffGesture={handoffGesture}
+        ref={scrollRef}
         style={styles.body}
         showsVerticalScrollIndicator={false}
         overScrollMode="never"
