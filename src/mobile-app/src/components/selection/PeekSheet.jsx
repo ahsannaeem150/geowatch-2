@@ -209,6 +209,21 @@ export default function PeekSheet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inEvidence, bodyAnim]);
 
+  // Safety net: a reverse animation interrupted by the sheet unmounting (or
+  // by a new selection) never fires its completion callback, which used to
+  // leave bodyAnim stuck near 1 — detail pane invisible and an EMPTY white
+  // evidence overlay on top (every sheet opened afterwards rendered blank
+  // white until an app restart). Whenever there is no live evidence context,
+  // snap the cross-slide back to the detail pane unconditionally.
+  useEffect(() => {
+    if (!inEvidence && !evidenceUpdate) {
+      bodyAnim.stopAnimation();
+      bodyAnim.setValue(0);
+      setShowEvidence(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inEvidence, evidenceUpdate, itemId]);
+
   // Shared gesture engine (src/hooks/useSheetGesture.js) — the reference
   // implementation every sheet in the app uses. launchedTy lets the detent
   // effect above skip re-firing a spring the gesture release already
@@ -415,7 +430,7 @@ export default function PeekSheet() {
               {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
             </HandoffScrollView>
           </Animated.View>
-          {showEvidence ? (
+          {showEvidence && evidenceUpdate ? (
             <Animated.View
               pointerEvents={inEvidence ? 'auto' : 'none'}
               style={[

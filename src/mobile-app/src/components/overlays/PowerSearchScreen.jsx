@@ -942,6 +942,19 @@ function ResultsSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inEvidence]);
 
+  // Safety net (PeekSheet parity): an interrupted reverse animation never
+  // fires its completion callback, which can leave the cross-slide stuck —
+  // list invisible under an EMPTY white evidence overlay. Whenever there is
+  // no live evidence context, snap back to the detail pane unconditionally.
+  useEffect(() => {
+    if (!inEvidence && !evidenceUpdate) {
+      eviAnim.stopAnimation();
+      eviAnim.setValue(0);
+      setShowEvidence(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inEvidence, evidenceUpdate, detail?.item?.id]);
+
   const live = useRef({});
   // Scroll-edge trackers (one per pane) for the nested-scroll handoff: the
   // body capture responder only steals a drag when the VISIBLE pane's
@@ -1472,7 +1485,7 @@ function ResultsSheet({
                   )}
                 </HandoffScrollView>
               </Animated.View>
-              {showEvidence ? (
+              {showEvidence && evidenceUpdate ? (
                 <Animated.View
                   pointerEvents={inEvidence ? 'auto' : 'none'}
                   style={[
