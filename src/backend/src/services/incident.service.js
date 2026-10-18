@@ -323,7 +323,9 @@ export async function getEventById(id) {
               s.created_by, s.created_at,
               u.full_name AS created_by_name,
               am.file_url AS archive_media_url,
-              am.thumbnail_url AS archive_media_thumbnail_url
+              am.thumbnail_url AS archive_media_thumbnail_url,
+              am.width AS archive_media_width,
+              am.height AS archive_media_height
        FROM incident_sources s
        LEFT JOIN users u ON s.created_by = u.id
        LEFT JOIN source_accounts sa ON s.account_id = sa.id

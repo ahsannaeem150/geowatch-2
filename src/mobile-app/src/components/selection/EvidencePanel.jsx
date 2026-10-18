@@ -219,6 +219,9 @@ export function XPostCard({ post }) {
   const { theme, mode } = useTheme();
   const { showToast } = useOverlay();
   const archiveImg = mediaUrl(post.archive_media_url || post.archive_media_thumbnail_url);
+  const aw = parseFloat(post.archive_media_width) || 0;
+  const ah = parseFloat(post.archive_media_height) || 0;
+  const archiveAspect = aw > 0 && ah > 0 ? aw / ah : null;
   const archived = !!post.archived;
   const [tweet, setTweet] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -266,12 +269,14 @@ export function XPostCard({ post }) {
               file_type: 'image',
               file_url: post.archive_media_url || post.archive_media_thumbnail_url,
               thumbnail_url: post.archive_media_thumbnail_url,
+              width: post.archive_media_width,
+              height: post.archive_media_height,
               caption: post.archive_reason || 'Archived snapshot',
               fit: 'contain',
             },
           ]
         : [],
-    [archiveImg, post.id, post.archive_media_url, post.archive_media_thumbnail_url, post.archive_reason],
+    [archiveImg, post.id, post.archive_media_url, post.archive_media_thumbnail_url, post.archive_media_width, post.archive_media_height, post.archive_reason],
   );
 
   const actions = archived ? null : (
@@ -318,8 +323,12 @@ export function XPostCard({ post }) {
           <Pressable onPress={() => setGalleryIndex(0)}>
             <Image
               source={{ uri: archiveImg }}
-              style={[styles.xpArchiveImg, { backgroundColor: theme.bgHover }]}
-              resizeMode="contain"
+              style={[
+                styles.xpArchiveImg,
+                { backgroundColor: theme.bgHover },
+                archiveAspect ? { height: undefined, aspectRatio: archiveAspect } : null,
+              ]}
+              resizeMode={archiveAspect ? 'cover' : 'contain'}
             />
           </Pressable>
         ) : post.description ? (
@@ -327,9 +336,6 @@ export function XPostCard({ post }) {
             {post.description}
           </Text>
         ) : null}
-        <Text style={[styles.xpArchived, { color: theme.sev2, fontFamily: theme.fontMono }]}>
-          ARCHIVED{post.archive_reason ? ` — ${post.archive_reason}` : ''}
-        </Text>
         <MediaGalleryModal
           items={archiveGalleryItems}
           index={galleryIndex}
