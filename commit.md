@@ -12936,3 +12936,4 @@ fix(backend): archive snapshot media no longer leaks into incident media lists (
 fix(mobile): archived tweet card — dead Try-original/Copy-link buttons removed, snapshot renders contain (uncropped) and taps into the fullscreen gallery (fit=contain, no 1.6x crop)
 fix(mobile): archived tweet card — ARCHIVED reason line removed; snapshot now full-width at true aspect (backend sources query exposes archive_media_width/height; fullscreen gallery uses exact dims)
 style(mobile): archived snapshot fullscreen caption simplified to "Original tweet is unavailable"
+perf(backend): tweet archive snapshots now captured at deviceScaleFactor 2 (1100px wide, ~16KB webp) — sharp on high-density phone screens
