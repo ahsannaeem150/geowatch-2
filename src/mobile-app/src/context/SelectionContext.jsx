@@ -336,10 +336,12 @@ export function SelectionProvider({ children }) {
     setView('drawer');
   }, []);
 
-  // Pill tap → half-detent bottom sheet (prototype expandSelection).
+  // Pill tap → half-detent bottom sheet (prototype expandSelection). A pill
+  // reached FROM the evidence panel restores that panel — the pill is a
+  // minimize, not a reset to the timeline.
   const expandFromPill = useCallback(() => {
-    setView('peek');
-  }, []);
+    setView(evidenceUpdate ? 'evidence' : 'peek');
+  }, [evidenceUpdate]);
 
   // Full-detent back (also the evidence ✕ — closes both layers):
   // preview → peek+emb; plain selection → pill.

@@ -12937,3 +12937,4 @@ fix(mobile): archived tweet card — dead Try-original/Copy-link buttons removed
 fix(mobile): archived tweet card — ARCHIVED reason line removed; snapshot now full-width at true aspect (backend sources query exposes archive_media_width/height; fullscreen gallery uses exact dims)
 style(mobile): archived snapshot fullscreen caption simplified to "Original tweet is unavailable"
 perf(backend): tweet archive snapshots now captured at deviceScaleFactor 2 (1100px wide, ~16KB webp) — sharp on high-density phone screens
+feat(mobile): evidence panel now obeys sheet detents — grabber down goes full→half→pill instead of bouncing back to the timeline; pill tap restores the evidence panel in place (pill = minimize, not reset)

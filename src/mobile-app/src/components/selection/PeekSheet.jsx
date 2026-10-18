@@ -195,11 +195,25 @@ export default function PeekSheet() {
       const flickUp = vyMs < -1.0 && dy < -10;
       const flickDown = vyMs > 1.0 && dy > 10;
       if (s.view === 'evidence') {
-        const backTy = s.evidenceFrom === 'drawer' ? 0 : H;
-        if (flickDown || projected > restTy + 120) {
-          return { ty: backTy, after: s.closeEvidence };
+        // Evidence obeys the SAME detents as the detail view: full → half,
+        // half → pill. The pill keeps evidenceUpdate mounted, so a pill tap
+        // restores the evidence panel exactly where the user left it.
+        if (restTy === 0) {
+          if (flickDown || projected > H * 0.45) {
+            return { ty: H, after: () => setLevel('half') };
+          }
+          return { ty: 0 };
         }
-        if ((flickUp || projected < H * 0.5) && restTy !== 0) {
+        if (flickDown || projected > H + (s.hiddenTy - H) * 0.35) {
+          return {
+            ty: s.hiddenTy,
+            after: s.collapsePeek,
+            onDone: () => {
+              if (!wantOpen.current) setMounted(false);
+            },
+          };
+        }
+        if (flickUp || projected < H * 0.5) {
           return { ty: 0, after: () => setLevel('full') };
         }
         return { ty: restTy };
