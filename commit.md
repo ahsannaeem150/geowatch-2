@@ -12930,3 +12930,4 @@ feat(web): tweets feed-style — all tweets default expanded (pageSize 8); compa
 chore: scripts/check-xmenu-tmp.mjs verification utility
 style(web): expanded tweet slim bar no longer repeats relative time (date already lives in the card stats row)
 feat(web): archived tweet snapshot card drops "Try original"/"Copy link" — dead links when the tweet is gone; keeps Check status/Unarchive for admins
+chore: scripts/check-xarchived-tmp.mjs — archived-tweet snapshot UI verification
