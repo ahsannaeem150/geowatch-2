@@ -74,6 +74,10 @@ export function SelectionProvider({ children }) {
   // View the evidence panel was opened from ('drawer' | 'peek') — back
   // returns there instead of hardcoding the drawer.
   const [evidenceFrom, setEvidenceFrom] = useState(null);
+  // Live sheet detent ('half' | 'full'), written by PeekSheet. closeEvidence
+  // reads it so back keeps the sheet where the user left it instead of
+  // jumping to the detent the panel was originally opened at.
+  const sheetLevelRef = useRef('half');
   // View history (prototype pushHistory): newest-first, deduped, cap 20,
   // persisted. Entries: { kind, id, when, item } — item is the full list-row
   // snapshot so preview-on-map works even after the date range moves on.
@@ -196,9 +200,13 @@ export function SelectionProvider({ children }) {
   );
 
   const closeEvidence = useCallback(() => {
-    setView(evidenceFrom && evidenceFrom !== 'evidence' ? evidenceFrom : 'drawer');
+    // Return to the surface the panel came from, but at the CURRENT detent —
+    // a user who dragged evidence to half and hits back lands on the detail
+    // at half, not back at full.
+    const lvl = sheetLevelRef.current;
+    setView(lvl === 'half' ? 'peek' : 'drawer');
     setEvidenceFrom(null);
-  }, [evidenceFrom]);
+  }, []);
 
   // ─── Transitions ───
 
@@ -445,6 +453,7 @@ export function SelectionProvider({ children }) {
       getCachedDetail,
       openEvidence,
       closeEvidence,
+      sheetLevelRef,
       history,
       clearHistory,
     }),

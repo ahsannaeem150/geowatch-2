@@ -43,6 +43,7 @@ export default function PeekSheet() {
     closePreview,
     evidenceUpdate,
     evidenceFrom,
+    sheetLevelRef,
   } = useSelection();
   const { selectedKind } = useMap();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -62,6 +63,11 @@ export default function PeekSheet() {
 
   const [mounted, setMounted] = useState(active);
   const [level, setLevel] = useState('half');
+  // Keep the context's live detent ref in sync — closeEvidence reads it to
+  // return to the detail at the SAME detent the user left evidence at.
+  useEffect(() => {
+    if (sheetLevelRef) sheetLevelRef.current = level;
+  }, [level, sheetLevelRef]);
   const pos = useRef(new Animated.Value(hiddenTy)).current;
   const wantOpen = useRef(true);
 
