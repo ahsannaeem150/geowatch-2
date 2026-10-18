@@ -580,7 +580,7 @@ function GalleryImage({ item, width, height }) {
 
 // Swipe gallery modal: horizontal paging over all media items (images +
 // videos), counter chip top-left, per-page caption, ✕ closes.
-function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
+export function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
   const { theme } = useTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();

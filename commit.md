@@ -12922,3 +12922,5 @@ fix(web): rendered tweets no longer trigger availability auto-checks (render = p
 chore: scripts/check-xpost-stayalive.mjs verification utility
 feat(mobile): timeline nodes show featured evidence (★ FEATURED label + native tweet card / article / note / featured media thumb), fallback to first media — mirrors web rail
 fix(mobile): SSE incident/timeline events now invalidate the detail cache in SelectionContext (stale featured/evidence after edits)
+feat(mobile): timeline media mosaic (1/2/3/4-cell layouts, +N overflow overlay, video play badges) tapping into the shared swipe gallery — mirrors web behavior (featured item wins; otherwise up to 4 media thumbs)
+fix(mobile): mosaic thumbnails/overlay not rendering — absoluteFillObject inside Pressable fails on new arch; use explicit 100% width/height

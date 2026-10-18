@@ -18,6 +18,7 @@ import {
   ChevronRight,
   FileText,
   Link2,
+  Play,
   Star,
 } from 'lucide-react-native';
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
@@ -26,7 +27,7 @@ import { useOverlay } from '../../context/OverlayContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
 import { IncidentCard } from './PreviewCard';
-import { XPostCard, ArticleCard, AdminNoteCard } from './EvidencePanel';
+import { XPostCard, ArticleCard, AdminNoteCard, MediaGalleryModal } from './EvidencePanel';
 
 // Incident drawer (prototype #drawer / renderDrawer): fullscreen details
 // surface. Fetches GET /incidents/:id on open (cached in SelectionContext so
@@ -50,17 +51,41 @@ function updateCounts(update) {
   return { xCount, camCount };
 }
 
+// Media cell for the timeline mosaic: thumbnail + play badge for videos.
+function MediaCell({ item, style, onOpen, overlay }) {
+  const { theme } = useTheme();
+  const isVideo = item?.file_type === 'video';
+  const uri = mediaUrl(item?.thumbnail_url || (!isVideo ? item?.file_url : null));
+  return (
+    <Pressable onPress={onOpen} style={[styles.tlCell, { backgroundColor: theme.bgHover }, style]}>
+      {uri ? <Image source={{ uri }} style={styles.tlCellImg} resizeMode="cover" /> : null}
+      {item?.file_type === 'video' ? (
+        <View style={styles.tlCellPlay}>
+          <Play size={14} color="#fff" fill="#fff" />
+        </View>
+      ) : null}
+      {overlay ? (
+        <View style={styles.tlCellMore}>
+          <Text style={styles.tlCellMoreText}>{overlay}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 // Exported: the zone sheet reuses the same node for its Restriction Timeline.
 export function TimelineNode({ update, label, onInspect }) {
   const { theme } = useTheme();
   const { xCount, camCount } = updateCounts(update);
+  const [galleryIndex, setGalleryIndex] = useState(null);
   // Featured evidence mirrors the web rail: an explicitly featured item is
-  // shown prominently on the node; with no feature the first media item is
-  // the fallback thumbnail.
+  // shown on the node INSTEAD of the media strip. With no feature the media
+  // items render as a tappable mosaic (max 4 cells, "+N" on the last).
   const featured = update?.featured_item || null;
+  const mediaItems = update?.media || [];
   const featuredMedia =
     featured?.source_type === 'media'
-      ? (update?.media || []).find((m) => m.id === featured.item_id)
+      ? mediaItems.find((m) => m.id === featured.item_id)
       : null;
   const featuredSource =
     featured && featured.source_type !== 'media'
@@ -68,8 +93,8 @@ export function TimelineNode({ update, label, onInspect }) {
           (s) => s.id === featured.item_id,
         )
       : null;
-  const thumbSrc = featuredMedia || update?.media?.[0];
-  const thumb = mediaUrl(thumbSrc?.thumbnail_url || thumbSrc?.file_url);
+  const mosaicItems = featured ? [] : mediaItems.slice(0, 4);
+  const mosaicExtra = mediaItems.length - mosaicItems.length;
   const verified = update?.verification_status === 'verified';
   return (
     <View style={styles.tlNode}>
@@ -132,13 +157,80 @@ export function TimelineNode({ update, label, onInspect }) {
             ) : null}
           </View>
         ) : null}
-        {thumb ? (
-          <Image
-            source={{ uri: thumb }}
-            style={[styles.tlThumb, { backgroundColor: theme.bgHover }]}
-            resizeMode="cover"
+        {featuredMedia ? (
+          <MediaCell
+            item={featuredMedia}
+            style={styles.tlFeatMedia}
+            onOpen={() =>
+              setGalleryIndex(
+                Math.max(0, mediaItems.findIndex((m) => m.id === featuredMedia.id)),
+              )
+            }
           />
         ) : null}
+        {!featured && mosaicItems.length === 1 ? (
+          <MediaCell
+            item={mosaicItems[0]}
+            style={styles.tlFeatMedia}
+            onOpen={() => setGalleryIndex(0)}
+          />
+        ) : null}
+        {!featured && mosaicItems.length === 2 ? (
+          <View style={[styles.tlMosaicRow, styles.tlMosaicFirst]}>
+            {mosaicItems.map((m, i) => (
+              <MediaCell
+                key={m.id}
+                item={m}
+                style={styles.tlCellFlex}
+                onOpen={() => setGalleryIndex(i)}
+              />
+            ))}
+          </View>
+        ) : null}
+        {!featured && mosaicItems.length === 3 ? (
+          <View style={[styles.tlMosaicRow, styles.tlMosaicFirst, styles.tlMosaicTall]}>
+            <MediaCell
+              item={mosaicItems[0]}
+              style={styles.tlCellTall}
+              onOpen={() => setGalleryIndex(0)}
+            />
+            <View style={styles.tlCellStack}>
+              <MediaCell
+                item={mosaicItems[1]}
+                style={styles.tlCellFlex}
+                onOpen={() => setGalleryIndex(1)}
+              />
+              <MediaCell
+                item={mosaicItems[2]}
+                style={styles.tlCellFlex}
+                onOpen={() => setGalleryIndex(2)}
+              />
+            </View>
+          </View>
+        ) : null}
+        {!featured && mosaicItems.length === 4 ? (
+          <View style={styles.tlMosaicGrid}>
+            <View style={styles.tlMosaicRow}>
+              <MediaCell item={mosaicItems[0]} style={styles.tlCellFlex} onOpen={() => setGalleryIndex(0)} />
+              <MediaCell item={mosaicItems[1]} style={styles.tlCellFlex} onOpen={() => setGalleryIndex(1)} />
+            </View>
+            <View style={styles.tlMosaicRow}>
+              <MediaCell item={mosaicItems[2]} style={styles.tlCellFlex} onOpen={() => setGalleryIndex(2)} />
+              <MediaCell
+                item={mosaicItems[3]}
+                style={styles.tlCellFlex}
+                onOpen={() => setGalleryIndex(3)}
+                overlay={mosaicExtra > 0 ? `+${mosaicExtra}` : null}
+              />
+            </View>
+          </View>
+        ) : null}
+        <MediaGalleryModal
+          items={mediaItems}
+          index={galleryIndex}
+          onIndexChange={setGalleryIndex}
+          onClose={() => setGalleryIndex(null)}
+        />
         <View style={styles.tlFoot}>
           <View style={styles.tlCounts}>
             {xCount ? (
@@ -521,12 +613,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     lineHeight: 19,
   },
-  tlThumb: {
-    width: '100%',
-    height: 120,
-    borderRadius: 8,
-    marginTop: 10,
-  },
   tlFeatRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -540,6 +626,72 @@ const styles = StyleSheet.create({
   },
   tlFeatCard: {
     marginTop: 6,
+  },
+  tlFeatMedia: {
+    marginTop: 8,
+    height: 150,
+  },
+  tlCell: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tlCellImg: {
+    width: '100%',
+    height: '100%',
+  },
+  tlCellPlay: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tlCellMore: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tlCellMoreText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  tlMosaicRow: {
+    flexDirection: 'row',
+    gap: 4,
+    flex: 1,
+  },
+  tlMosaicFirst: {
+    marginTop: 8,
+    height: 120,
+    flex: 0,
+  },
+  tlMosaicTall: {
+    height: 160,
+  },
+  tlMosaicGrid: {
+    marginTop: 8,
+    height: 200,
+    gap: 4,
+  },
+  tlCellTall: {
+    flex: 1.6,
+  },
+  tlCellStack: {
+    flex: 1,
+    gap: 4,
+  },
+  tlCellFlex: {
+    flex: 1,
   },
   tlFoot: {
     flexDirection: 'row',
