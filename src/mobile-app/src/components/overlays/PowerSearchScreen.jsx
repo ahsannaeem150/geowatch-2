@@ -1035,14 +1035,40 @@ function ResultsSheet({
 
   const sortLabel = SORTS.find((s) => s.key === sortMode)?.label || 'Newest';
 
-  // The sheet is full-screen tall and slides via translateY, so the
-  // ScrollViews extend ~<detent>Ty px below the screen edge at BOTH detents
-  // (halfTy at half, fullTy at full). Without compensation, content shorter
-  // than that hidden tail is NOT scrollable at all (it "fits" offscreen) and
-  // longer lists lose their last rows. Pad each pane's content by the hidden
-  // amount so everything scrolls fully into the visible area (PeekSheet uses
-  // the same trick).
-  const bodyBottomPad = (level === 'half' ? halfTy : fullTy) + insets.bottom + 24;
+  // The sheet is full-screen tall and slides via translateY, so each pane's
+  // ScrollView extends below the screen edge by an amount that depends on the
+  // CURRENT resting position — and fullTy itself shifts when the search header
+  // re-measures (chips strip, keyboard, detail mode). Detent-based padding
+  // therefore either trapped the last rows below the edge or over-shot and
+  // left a dead gap. Measure the body container's real on-screen overflow
+  // after each settle and pad by exactly that (+ nav-bar inset + margin).
+  const bodyWrapRef = useRef(null);
+  const [measuredPad, setMeasuredPad] = useState(null);
+  useEffect(() => {
+    let settle = null;
+    const measure = () => {
+      bodyWrapRef.current?.measureInWindow((x, y, w, h) => {
+        // App window already ends at the nav bar — pad only the overflow.
+        const overflow = y + h - windowHeight;
+        setMeasuredPad(Math.max(0, Math.round(overflow)) + 12);
+      });
+    };
+    // Re-measure whenever the sheet's translateY stops moving (covers detent
+    // snaps, header re-measures, keyboard resizes — any settle).
+    const sub = pos.addListener(() => {
+      if (settle) clearTimeout(settle);
+      settle = setTimeout(measure, 250);
+    });
+    const first = setTimeout(measure, 500);
+    return () => {
+      pos.removeListener(sub);
+      if (settle) clearTimeout(settle);
+      clearTimeout(first);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowHeight, insets.bottom]);
+  const bodyBottomPad =
+    measuredPad ?? (level === 'half' ? halfTy : fullTy) + 12;
 
   // Cross-slide interpolations (PeekSheet detail ↔ evidence parity).
   const listTranslate = bodyAnim.interpolate({
@@ -1212,7 +1238,7 @@ function ResultsSheet({
           </View>
         ) : null}
 
-        <View style={styles.bodyWrap}>
+        <View style={styles.bodyWrap} ref={bodyWrapRef} collapsable={false}>
           <Animated.View
             pointerEvents={inDetail ? 'none' : 'auto'}
             style={[
