@@ -84,23 +84,21 @@ export default function PeekSheet() {
   // update stays glued in place the whole way. pad = pos + 62 keeps the end
   // pinned at y = fullH - 62 (tab bar's top edge) at every sheet position.
   //
-  // The listener is reliable ONLY because every pos animation runs on the JS
-  // thread (jsSprings in useSheetGesture + useNativeDriver:false below): a
-  // JS-driven value's listener fires synchronously every frame, so pad and
-  // pos commit in the same batch — no cross-thread race. With native-driven
-  // pos the listener's updates arrived coalesced (bursts with 100-170ms
-  // gaps → the scroll offset clamped in visible jumps) and the listener
-  // silently DIED after an unmount/remount cycle (pad stuck at a stale
-  // value → runaway scroll into the pad, or a mis-measured non-scrollable
-  // body — all verified on-device). Do not reintroduce native springs here.
+  // The pad is driven EXPLICITLY from JS — here in the detent effect and
+  // inside useSheetGesture (springTo/grabber/handoff) — NEVER via
+  // pos.addListener: the listener DIES silently across the sheet's
+  // unmount/remount cycle (pill → new incident → stuck pad → content rides
+  // the sheet then snaps, runaway scroll into the pad, dead edges — the
+  // "State 2" bug, verified on-device in three separate sessions). With
+  // jsSprings, pad and pos springs share the same JS frame clock → no flick.
   const padAnim = useRef(new Animated.Value(hiddenTy + 62)).current;
-  useEffect(() => {
-    const applyPad = (v) => padAnim.setValue(Math.max(0, v + 62));
-    applyPad(pos.__getValue());
-    const sub = pos.addListener(({ value }) => applyPad(value));
-    return () => pos.removeListener(sub);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pos]);
+  const padSpringTo = (ty, velocity, springCfg) =>
+    Animated.spring(padAnim, {
+      ...springCfg,
+      toValue: Math.max(0, ty + 62),
+      velocity,
+      useNativeDriver: false,
+    }).start();
 
   const targetTy =
     view === 'drawer'
@@ -219,6 +217,12 @@ export default function PeekSheet() {
         pendingVy.current = 0;
         return;
       }
+      padSpringTo(targetTy, pendingVy.current, {
+        damping: 22,
+        stiffness: 220,
+        mass: 0.9,
+        overshootClamping: true,
+      });
       Animated.spring(pos, {
         toValue: targetTy,
         damping: 22,
@@ -252,6 +256,11 @@ export default function PeekSheet() {
         setMounted(false);
         return;
       }
+      padSpringTo(hiddenTy, pendingVy.current, {
+        damping: 26,
+        stiffness: 260,
+        mass: 0.9,
+      });
       Animated.spring(pos, {
         toValue: hiddenTy,
         damping: 26,
@@ -317,9 +326,11 @@ export default function PeekSheet() {
   const { panResponder, handoffGesture, pendingVy, launchedTy } =
     useSheetGesture({
       pos,
-      // JS-thread springs keep the listener-synced bottom pad frame-locked
-      // to the sheet (see the padAnim comment above).
+      // JS-thread springs keep pos and the explicitly-driven bottom pad on
+      // one frame clock (see the padAnim comment above).
       jsSprings: true,
+      pad: padAnim,
+      padOffset: 62,
       getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
       getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
       // Scroll-edge handoff: at FULL detent with the pane scrolled to its top,
