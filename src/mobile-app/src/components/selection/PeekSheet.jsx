@@ -83,14 +83,24 @@ export default function PeekSheet() {
   // with the sheet's rise, so the upper content reveals smoothly and the end
   // update stays glued in place the whole way. pad = pos + 62 keeps the end
   // pinned at y = fullH - 62 (tab bar's top edge) at every sheet position.
-  const padAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const applyPad = (v) => padAnim.setValue(Math.max(0, v + 62));
-    applyPad(pos.__getValue());
-    const sub = pos.addListener(({ value }) => applyPad(value));
-    return () => pos.removeListener(sub);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pos]);
+  //
+  // Driven EXPLICITLY from JS, never via pos.addListener: on a native-driven
+  // value the listener's updates arrive coalesced (bursts with 100-170ms
+  // gaps → the scroll offset clamps in visible jumps = the fast-flick
+  // glitch) and the listener silently DIES after an unmount/remount cycle
+  // (pad stuck at a stale value → runaway scroll into the pad, or a
+  // mis-measured non-scrollable body — both verified on-device). The drive
+  // points: useSheetGesture (drag frames + gesture springs) and the detent
+  // effect below (open/close springs) — pad spring params mirror the sheet
+  // spring so the curves track frame-for-frame.
+  const padAnim = useRef(new Animated.Value(hiddenTy + 62)).current;
+  const padSpringTo = (ty, velocity, springCfg) =>
+    Animated.spring(padAnim, {
+      ...springCfg,
+      toValue: Math.max(0, ty + 62),
+      velocity,
+      useNativeDriver: false,
+    }).start();
 
   const targetTy =
     view === 'drawer'
@@ -166,6 +176,7 @@ export default function PeekSheet() {
         // fired it on an unmounted view and then restarted it a frame later,
         // which was the visible jump/glitch on the pill → sheet handoff.
         pos.setValue(hiddenTy);
+        padAnim.setValue(hiddenTy + 62);
         setMounted(true);
         return;
       }
@@ -180,10 +191,25 @@ export default function PeekSheet() {
         launchedTy.current === targetTy ||
         Math.abs(pos.__getValue() - targetTy) < 1
       ) {
+        // Gesture-driven skips own the pad spring already; the pos≈target
+        // path can still hold a stale pad (e.g. after a dev reload) — snap
+        // it to the committed detent.
+        if (
+          launchedTy.current !== targetTy &&
+          Math.abs(padAnim.__getValue() - (targetTy + 62)) > 1
+        ) {
+          padAnim.setValue(Math.max(0, targetTy + 62));
+        }
         launchedTy.current = null;
         pendingVy.current = 0;
         return;
       }
+      padSpringTo(targetTy, pendingVy.current, {
+        damping: 22,
+        stiffness: 220,
+        mass: 0.9,
+        overshootClamping: true,
+      });
       Animated.spring(pos, {
         toValue: targetTy,
         damping: 22,
@@ -201,10 +227,21 @@ export default function PeekSheet() {
         launchedTy.current === hiddenTy ||
         Math.abs(pos.__getValue() - hiddenTy) < 1
       ) {
+        if (
+          launchedTy.current !== hiddenTy &&
+          Math.abs(padAnim.__getValue() - (hiddenTy + 62)) > 1
+        ) {
+          padAnim.setValue(hiddenTy + 62);
+        }
         launchedTy.current = null;
         pendingVy.current = 0;
         return;
       }
+      padSpringTo(hiddenTy, pendingVy.current, {
+        damping: 26,
+        stiffness: 260,
+        mass: 0.9,
+      });
       Animated.spring(pos, {
         toValue: hiddenTy,
         damping: 26,
@@ -270,6 +307,8 @@ export default function PeekSheet() {
   const { panResponder, handoffGesture, pendingVy, launchedTy } =
     useSheetGesture({
       pos,
+      pad: padAnim,
+      padOffset: 62,
       getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
       getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
       // Scroll-edge handoff: at FULL detent with the pane scrolled to its top,
