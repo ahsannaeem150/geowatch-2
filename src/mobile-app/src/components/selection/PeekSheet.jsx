@@ -73,6 +73,25 @@ export default function PeekSheet() {
   const pos = useRef(new Animated.Value(hiddenTy)).current;
   const wantOpen = useRef(true);
 
+  // Bottom content pad that TRACKS the sheet's live position. The pad is
+  // (off-screen sheet tail) + (tab-bar clearance): the tab bar (zIndex 60)
+  // overlays the sheet's bottom at BOTH detents, so the content end should
+  // rest just above the tab bar's top edge. Keying the pad to the committed
+  // detent used to swap it in one shot at gesture release — Android then
+  // clamped the scroll offset instantly and the content SNAPPED (the flick
+  // on half→full expands). Tracking pos instead makes the pad shrink in sync
+  // with the sheet's rise, so the upper content reveals smoothly and the end
+  // update stays glued in place the whole way. pad = pos + 62 keeps the end
+  // pinned at y = fullH - 62 (tab bar's top edge) at every sheet position.
+  const padAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const applyPad = (v) => padAnim.setValue(Math.max(0, v + 62));
+    applyPad(pos.__getValue());
+    const sub = pos.addListener(({ value }) => applyPad(value));
+    return () => pos.removeListener(sub);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos]);
+
   const targetTy =
     view === 'drawer'
       ? 0
@@ -150,9 +169,17 @@ export default function PeekSheet() {
         setMounted(true);
         return;
       }
-      if (launchedTy.current === targetTy) {
-        // The gesture release already started this exact spring — don't
-        // restart it late (double-push glitch).
+      // Skip when the gesture release already launched this exact spring
+      // (launchedTy) OR when the sheet is already AT the target — the detent
+      // effect's render→effect pass (~250ms on this heavy screen) can lose
+      // the race to the gesture spring's completion, which clears launchedTy;
+      // the late effect then fired a duplicate spring with the stale
+      // pendingVy, which was the visible land-then-jolt glitch on scroll
+      // handoffs. pos≈target means there is genuinely nothing to animate.
+      if (
+        launchedTy.current === targetTy ||
+        Math.abs(pos.__getValue() - targetTy) < 1
+      ) {
         launchedTy.current = null;
         pendingVy.current = 0;
         return;
@@ -169,7 +196,11 @@ export default function PeekSheet() {
       pendingVy.current = 0;
     } else if (mounted) {
       wantOpen.current = false;
-      if (launchedTy.current === hiddenTy) {
+      // Same late-effect race guard as the open branch above.
+      if (
+        launchedTy.current === hiddenTy ||
+        Math.abs(pos.__getValue() - hiddenTy) < 1
+      ) {
         launchedTy.current = null;
         pendingVy.current = 0;
         return;
@@ -321,26 +352,11 @@ export default function PeekSheet() {
     return null;
   }
 
-  // Bottom padding, derived analytically from the sheet geometry. The body
-  // ScrollView's bottom sits at (windowHeight + targetTy - insets.bottom), so
-  // the off-screen overflow is exactly targetTy - insets.bottom. Pad by that
-  // overflow plus the floating tab bar (62 + inset) which only overlays the
-  // sheet at HALF — at full the sheet covers it, so no allowance there.
-  // The old fixed formula (halfTy + 62 + inset + 16) overshot the real
-  // overflow, leaving a long dead tail the user could fling into (~20% empty
-  // screen), and its matching tailPad fired the expand handoff ~1300px before
-  // the real content end. Both now use the exact numbers, and because the pad
-  // is keyed to the COMMITTED detent it swaps at gesture release — the
-  // content-size change hides inside the sheet's own spring instead of
-  // flicking after the sheet settles.
-  const atFull = targetTy === 0;
-  const tailAllowance = atFull ? 16 : 62 + insets.bottom + 16;
-  const offscreenTail = Math.max(0, targetTy - insets.bottom);
-  const halfBottomPad = offscreenTail + tailAllowance;
-  // Scrolling into the visible tail (pad minus the off-screen part) already
-  // feels like "the end" — the handoff fires there, not far early.
-  detailEdge.tailPad.current = tailAllowance;
-  eviEdge.tailPad.current = tailAllowance;
+  // Scrolling into the visible tail (the pad's on-screen part) already feels
+  // like "the end" — the handoff fires there, not far early. The pad itself
+  // is the animated padAnim spacer above (tracks the live sheet position).
+  detailEdge.tailPad.current = 62 + insets.bottom;
+  eviEdge.tailPad.current = 62 + insets.bottom;
   const detailTranslate = bodyAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -windowWidth * 0.35],
@@ -443,7 +459,6 @@ export default function PeekSheet() {
             <HandoffScrollView
               ref={detailScrollRef}
               style={styles.body}
-              contentContainerStyle={{ paddingBottom: halfBottomPad }}
               showsVerticalScrollIndicator={false}
               scrollEnabled={detailEdge.scrollableNow}
               scrollEventThrottle={16}
@@ -451,6 +466,7 @@ export default function PeekSheet() {
               onLayout={detailEdge.onLayout}
               onContentSizeChange={detailEdge.onContentSizeChange}>
               {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
+              <Animated.View style={{ height: padAnim }} />
             </HandoffScrollView>
           </Animated.View>
           {showEvidence && evidenceUpdate ? (
@@ -466,7 +482,7 @@ export default function PeekSheet() {
               ]}>
               <EvidenceBody
                 key={evidenceUpdate?.id}
-                bottomPad={halfBottomPad}
+                bottomPad={padAnim}
                 scrollRef={eviScrollRef}
                 scrollHandlers={{
                   scrollEnabled: eviEdge.scrollableNow,

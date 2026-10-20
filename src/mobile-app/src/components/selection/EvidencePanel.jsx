@@ -879,7 +879,7 @@ export function EvidenceBody({ bottomPad = 0, scrollHandlers, scrollRef }) {
             )}
           </>
         ) : null}
-        <View style={bottomPad > 0 ? { height: bottomPad } : styles.tailPad} />
+        <Animated.View style={bottomPad ? { height: bottomPad } : styles.tailPad} />
       </HandoffScrollView>
 
       <MediaGalleryModal
