@@ -84,23 +84,23 @@ export default function PeekSheet() {
   // update stays glued in place the whole way. pad = pos + 62 keeps the end
   // pinned at y = fullH - 62 (tab bar's top edge) at every sheet position.
   //
-  // Driven EXPLICITLY from JS, never via pos.addListener: on a native-driven
-  // value the listener's updates arrive coalesced (bursts with 100-170ms
-  // gaps → the scroll offset clamps in visible jumps = the fast-flick
-  // glitch) and the listener silently DIES after an unmount/remount cycle
-  // (pad stuck at a stale value → runaway scroll into the pad, or a
-  // mis-measured non-scrollable body — both verified on-device). The drive
-  // points: useSheetGesture (drag frames + gesture springs) and the detent
-  // effect below (open/close springs) — pad spring params mirror the sheet
-  // spring so the curves track frame-for-frame.
+  // The listener is reliable ONLY because every pos animation runs on the JS
+  // thread (jsSprings in useSheetGesture + useNativeDriver:false below): a
+  // JS-driven value's listener fires synchronously every frame, so pad and
+  // pos commit in the same batch — no cross-thread race. With native-driven
+  // pos the listener's updates arrived coalesced (bursts with 100-170ms
+  // gaps → the scroll offset clamped in visible jumps) and the listener
+  // silently DIED after an unmount/remount cycle (pad stuck at a stale
+  // value → runaway scroll into the pad, or a mis-measured non-scrollable
+  // body — all verified on-device). Do not reintroduce native springs here.
   const padAnim = useRef(new Animated.Value(hiddenTy + 62)).current;
-  const padSpringTo = (ty, velocity, springCfg) =>
-    Animated.spring(padAnim, {
-      ...springCfg,
-      toValue: Math.max(0, ty + 62),
-      velocity,
-      useNativeDriver: false,
-    }).start();
+  useEffect(() => {
+    const applyPad = (v) => padAnim.setValue(Math.max(0, v + 62));
+    applyPad(pos.__getValue());
+    const sub = pos.addListener(({ value }) => applyPad(value));
+    return () => pos.removeListener(sub);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos]);
 
   const targetTy =
     view === 'drawer'
@@ -115,12 +115,27 @@ export default function PeekSheet() {
   // responder below only steals a drag when the visible pane's ScrollView is
   // pinned at the edge the gesture would cross (Google Maps pattern).
   // tailPad is assigned at render time next to halfBottomPad below.
-  const detailEdge = useScrollEdge();
-  const eviEdge = useScrollEdge();
+  // relEpoch bumps on every edge flip so the handoff pans re-resolve their
+  // scroll-view relation AFTER a freshly mounted pane's ref has attached
+  // (at the mount render eviScrollRef is still null, so the first relation
+  // would silently miss the evidence ScrollView — the scrollable flip fires
+  // one commit later, once onLayout/onContentSizeChange have run).
+  const [relEpoch, bumpRelEpoch] = useState(0);
   // Refs to the panes' HandoffScrollViews — the handoff pans block these
-  // natively (useSheetGesture scrollRefs) so the scroll waits for the pan.
+  // natively (useSheetGesture scrollRefs) so the scroll waits for the pan,
+  // and useScrollEdge re-pins a stale offset through them when the animated
+  // bottom pad shrinks the content mid-fling. Declared before the edge hooks
+  // (TDZ) since they are passed straight in.
   const detailScrollRef = useRef(null);
   const eviScrollRef = useRef(null);
+  const detailEdge = useScrollEdge(
+    () => bumpRelEpoch((c) => c + 1),
+    detailScrollRef,
+  );
+  const eviEdge = useScrollEdge(
+    () => bumpRelEpoch((c) => c + 1),
+    eviScrollRef,
+  );
   const itemId = item?.id;
   useEffect(() => {
     detailEdge.reset();
@@ -204,12 +219,6 @@ export default function PeekSheet() {
         pendingVy.current = 0;
         return;
       }
-      padSpringTo(targetTy, pendingVy.current, {
-        damping: 22,
-        stiffness: 220,
-        mass: 0.9,
-        overshootClamping: true,
-      });
       Animated.spring(pos, {
         toValue: targetTy,
         damping: 22,
@@ -217,38 +226,39 @@ export default function PeekSheet() {
         mass: 0.9,
         velocity: pendingVy.current,
         overshootClamping: true,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
       pendingVy.current = 0;
     } else if (mounted) {
       wantOpen.current = false;
-      // Same late-effect race guard as the open branch above.
-      if (
-        launchedTy.current === hiddenTy ||
-        Math.abs(pos.__getValue() - hiddenTy) < 1
-      ) {
-        if (
-          launchedTy.current !== hiddenTy &&
-          Math.abs(padAnim.__getValue() - (hiddenTy + 62)) > 1
-        ) {
-          padAnim.setValue(hiddenTy + 62);
-        }
+      // Same late-effect race guard as the open branch above. Two cases:
+      // - the gesture spring owns the slide (launchedTy) — its completion
+      //   commits the state change (deferred after), which re-runs this
+      //   effect and lands in the second case;
+      // - the slide already finished (pos≈hidden, nothing owns it) — unmount
+      //   right here. This case OWNS the unmount: the gesture's deferred
+      //   after only commits the view state, so without it a dismissed sheet
+      //   would stay mounted invisibly off-screen.
+      if (launchedTy.current === hiddenTy) {
         launchedTy.current = null;
         pendingVy.current = 0;
         return;
       }
-      padSpringTo(hiddenTy, pendingVy.current, {
-        damping: 26,
-        stiffness: 260,
-        mass: 0.9,
-      });
+      if (Math.abs(pos.__getValue() - hiddenTy) < 1) {
+        if (Math.abs(padAnim.__getValue() - (hiddenTy + 62)) > 1) {
+          padAnim.setValue(hiddenTy + 62);
+        }
+        pendingVy.current = 0;
+        setMounted(false);
+        return;
+      }
       Animated.spring(pos, {
         toValue: hiddenTy,
         damping: 26,
         stiffness: 260,
         mass: 0.9,
         velocity: pendingVy.current,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start(() => {
         if (!wantOpen.current) setMounted(false);
       });
@@ -307,8 +317,9 @@ export default function PeekSheet() {
   const { panResponder, handoffGesture, pendingVy, launchedTy } =
     useSheetGesture({
       pos,
-      pad: padAnim,
-      padOffset: 62,
+      // JS-thread springs keep the listener-synced bottom pad frame-locked
+      // to the sheet (see the padAnim comment above).
+      jsSprings: true,
       getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
       getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
       // Scroll-edge handoff: at FULL detent with the pane scrolled to its top,
@@ -327,7 +338,7 @@ export default function PeekSheet() {
           level === 'half' &&
           (inEvidence ? eviEdge.atEndNow : detailEdge.atEndNow),
         scrollRefs: [detailScrollRef, eviScrollRef],
-        epoch: inEvidence,
+        epoch: `${inEvidence ? 'e' : 'd'}${relEpoch}`,
       },
       chooseTarget: ({ dy, vyMs, projected, restTy }) => {
       const s = live.current;
@@ -347,13 +358,7 @@ export default function PeekSheet() {
           return { ty: 0 };
         }
         if (flickDown || projected > H + (s.hiddenTy - H) * 0.35) {
-          return {
-            ty: s.hiddenTy,
-            after: s.collapsePeek,
-            onDone: () => {
-              if (!wantOpen.current) setMounted(false);
-            },
-          };
+          return { ty: s.hiddenTy, after: s.collapsePeek };
         }
         if (flickUp || projected < H * 0.5) {
           return { ty: 0, after: () => setLevel('full') };
@@ -370,14 +375,11 @@ export default function PeekSheet() {
         // Collapse IMMEDIATELY: the sheet keeps sliding down and fading. A
         // PREVIEW (origin set — directory/profile) exits straight back to its
         // list instead of resting as a pill; a plain map selection collapses
-        // to the pill as before. The detent effect skips its duplicate spring
-        // (launchedTy), so the unmount rides on THIS spring's completion.
+        // to the pill as before. The commit (after) fires at this spring's
+        // completion; the detent effect then lands on pos≈hidden and unmounts.
         return {
           ty: s.hiddenTy,
           after: s.origin ? s.closePreview : s.collapsePeek,
-          onDone: () => {
-            if (!wantOpen.current) setMounted(false);
-          },
         };
       }
       if (flickUp || projected < H * 0.55) {

@@ -36,12 +36,21 @@ import { LegacyScrollView } from 'react-native-gesture-handler';
 // - A JS responder-capture pull-down around this view: Android's ScrollView
 //   intercepts the stream natively and JS gets onResponderTerminate ~20dp
 //   after grant — a JS responder can never win against it.
+// on Android RN clips off-screen children by default; during fast flings
+// with images still decoding (content height growing under the gesture)
+// the clipped views can fail to reattach — the pane renders blank white
+// below its header and only a remount heals it. These sheet bodies are
+// short (≤ ~30 items), so clipping buys nothing and the artifact is worse.
 const HandoffScrollView = forwardRef(function HandoffScrollView(
   { children, ...props },
   ref,
 ) {
   return (
-    <LegacyScrollView ref={ref} overScrollMode="never" {...props}>
+    <LegacyScrollView
+      ref={ref}
+      overScrollMode="never"
+      removeClippedSubviews={false}
+      {...props}>
       {children}
     </LegacyScrollView>
   );

@@ -13,7 +13,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 //   the RNGH handoff pans. Enabling must be set BETWEEN touches (a per-touch
 //   JS decision loses the activation race against the native scroll view —
 //   verified on-device), so edge changes re-render the sheet.
-export default function useScrollEdge(onFlip) {
+export default function useScrollEdge(onFlip, scrollRef) {
   const atTop = useRef(true);
   const atEnd = useRef(false);
   const tailPad = useRef(0);
@@ -26,9 +26,30 @@ export default function useScrollEdge(onFlip) {
   });
   const onFlipRef = useRef(onFlip);
   onFlipRef.current = onFlip;
+  const scrollRefRef = useRef(scrollRef);
+  scrollRefRef.current = scrollRef;
 
   const recompute = useCallback(() => {
     const { y, viewH, contentH } = dims.current;
+    // Re-pin a stale scroll offset when the content height SHRINKS beneath
+    // the offset. Sheets pad their body with a position-animated bottom
+    // spacer that shrinks during an expand; RN does not reliably re-clamp
+    // scrollY when the shrink lands under an in-flight momentum fling — the
+    // native scroller keeps writing its pre-computed finalY and the pane
+    // lands deep inside the pad: a blank white sheet whose content only
+    // reappears after scrolling back (verified on-device). A non-animated
+    // scrollTo cancels the fling AND clamps. The 40dp deadband is deliberate:
+    // per-frame pad shrink overshoots by ≤ ~27dp, which RN's own
+    // content-size clamp absorbs invisibly — instant-correcting those tiny
+    // lags from JS lands a frame late and reads as a jerk (verified); only
+    // fling-scale overshoots (hundreds of dp) are forced back.
+    const ref = scrollRefRef.current;
+    if (ref?.current && viewH > 0 && contentH > 0) {
+      const maxY = Math.max(0, contentH - viewH);
+      if (y > maxY + 40) {
+        ref.current.scrollTo?.({ y: maxY, animated: false });
+      }
+    }
     const top = y <= 1;
     // Content shorter than the viewport counts as BOTH edges reached.
     // tailPad: bottom padding that exists only to compensate the sheet's
@@ -108,6 +129,9 @@ export default function useScrollEdge(onFlip) {
       atEndNow: edges.atEndNow,
       scrollableNow: edges.scrollableNow,
       tailPad,
+      // Live {y, viewH, contentH} — sheets with a position-animated bottom
+      // pad read this to clamp a stale scroll offset while the pad shrinks.
+      dims,
       onScroll,
       onLayout,
       onContentSizeChange,

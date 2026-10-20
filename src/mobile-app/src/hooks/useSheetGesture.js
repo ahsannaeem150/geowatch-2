@@ -31,15 +31,19 @@ export default function useSheetGesture({
   chooseTarget, // ({ dy, vyMs, endTy, projected, restTy }) => { ty, after?, onDone? }
   mode = 'head', // 'head': responder claims on move | 'capture': whole-sheet capture
   canClaim, // capture mode only: (gestureState, event) => bool
-  pad, // optional Animated.Value tracking pos + padOffset (bottom content pad)
-  // — driven from JS on EVERY frame of every move: setValue alongside the
-  // finger during drags, and a synchronized JS spring during programmatic
-  // springs. Do NOT sync it via pos.addListener: on a native-driven value
-  // the listener's updates arrive in coalesced bursts (visible content
-  // clamp-flick near spring end) and silently DIE after an unmount/remount
-  // cycle (pad stuck at a stale value → dead or runaway scroll — both
-  // verified on-device).
-  padOffset = 0,
+  jsSprings = false, // run programmatic springs on the JS thread. Needed when
+  // a caller syncs a LAYOUT prop (e.g. a bottom content pad keyed to the live
+  // sheet position) off pos via addListener: a native-driven pos animates on
+  // the UI thread's clock while the listener/layout runs on the JS clock, and
+  // the two never stay frame-consistent — the native spring lands instantly
+  // while the pad catches up in one late batch, clamping the scroll offset in
+  // a visible snap (verified on-device). With JS springs, pos and listener
+  // updates share one frame loop and one commit batch, so pad ≡ pos + offset
+  // on every rendered frame even through JS stalls (both integrate over the
+  // same elapsed time). Sheets without a synced layout prop keep the native
+  // driver. Note a JS-driven value's listener fires synchronously EVERY
+  // frame — the coalesced-bursts/listener-death failure modes were both
+  // native-driver forwarding artifacts.
   handoff, // optional { dragDownEnabled: bool, dragUpEnabled: bool,
   // scrollRefs: ref[], epoch: any } — when set, a SECOND gesture
   // (handoffGesture, RNGH pan pair) is returned for the sheet body: it steals
@@ -61,41 +65,22 @@ export default function useSheetGesture({
   // The pan responder is created once, so every config callback is read
   // through this ref — stale closures were the source of grabber jumpiness.
   const cfg = useRef({});
-  cfg.current = { getClamp, getRestTy, chooseTarget, canClaim, handoff, pad, padOffset };
+  cfg.current = { getClamp, getRestTy, chooseTarget, canClaim, handoff };
 
-  // The pad follows the same spring curve as the sheet, on the JS thread:
-  // identical spring parameters started in the same tick track each other
-  // frame-for-frame, so the content end stays pinned instead of clamping in
-  // bursts (the native listener path did — the release flick).
-  const padSpringTo = (ty, velocity) => {
-    if (!pad) return;
-    Animated.spring(pad, {
-      toValue: ty + padOffset,
-      damping: 22,
-      stiffness: 260,
-      mass: 0.9,
-      velocity,
-      overshootClamping: true,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const springTo = (ty, velocity = 0, onDone) => {
-    padSpringTo(ty, velocity);
-    return Animated.spring(pos, {
+  const springTo = (ty, velocity = 0, onDone) =>
+    Animated.spring(pos, {
       toValue: ty,
       damping: 22,
       stiffness: 260,
       mass: 0.9,
       velocity,
       overshootClamping: true,
-      useNativeDriver: true,
+      useNativeDriver: !jsSprings,
     }).start(({ finished }) => {
       if (!finished) return;
       if (launchedTy.current === ty) launchedTy.current = null;
       if (onDone) onDone();
     });
-  };
 
   // Shared release/settle for every drag source (grabber PanResponder, RNGH
   // handoff pan, JS pull-down): samples → clamped velocity → projected rest →
@@ -121,8 +106,16 @@ export default function useSheetGesture({
     });
     pendingVy.current = vy;
     launchedTy.current = ty;
-    springTo(ty, vy, onDone);
-    if (after) after();
+    // The state commit (after) runs at SPRING COMPLETION, not at launch:
+    // firing it here triggers a heavy context re-render that blocks the JS
+    // thread for ~150ms, and a JS-driven spring then catches up over the
+    // stalled wall-time in ONE frame — the sheet teleports (verified
+    // on-device). The caller's detent effect already guards the late arrival
+    // via launchedTy / pos≈target, so the commit is invisible at the end.
+    springTo(ty, vy, () => {
+      if (onDone) onDone();
+      if (after) after();
+    });
   };
 
   const verticalClaim = (_e, g) =>
@@ -134,7 +127,6 @@ export default function useSheetGesture({
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
       pos.stopAnimation();
-      cfg.current.pad?.stopAnimation();
       startTy.current = pos.__getValue();
       pendingVy.current = 0;
       moveSamples.current = [{ t: Date.now(), y: startTy.current }];
@@ -146,7 +138,6 @@ export default function useSheetGesture({
       const clamped =
         abs < top ? top + (abs - top) * 0.3 : Math.min(abs, bottom);
       pos.setValue(clamped - startTy.current);
-      cfg.current.pad?.setValue(Math.max(0, clamped + cfg.current.padOffset));
       const samples = moveSamples.current;
       samples.push({ t: Date.now(), y: clamped });
       if (samples.length > 8) samples.shift();
@@ -195,8 +186,11 @@ export default function useSheetGesture({
         });
         pendingVy.current = vy;
         launchedTy.current = ty;
-        springTo(ty, vy, onDone);
-        if (after) after();
+        // after is deferred to spring completion — see finishDrag.
+        springTo(ty, vy, () => {
+          if (onDone) onDone();
+          if (after) after();
+        });
       },
       onPanResponderTerminate: () => {
         pos.flattenOffset();
@@ -252,13 +246,22 @@ export default function useSheetGesture({
   // orchestrator). blocksExternalGesture on the pans resolves refs at
   // detector attach time and registers reliably.
   //
+  // The relation is applied PER PAN and only while that pan is enabled.
+  // Edge flips arrive from scroll events, i.e. mid-fling; recreating the
+  // pans then is only a config+relation UPDATE (same native handler tags —
+  // needsToReattach checks count/name/thread only), but a DISABLED pan that
+  // keeps a blocksExternalGesture relation never resolves its awaiting
+  // scroll handler — the pane's scroll deadlocks until remount (verified
+  // on-device: freeze after the first scroll's atTop flip, scroll dead until
+  // a pill cycle). An enabled pan always resolves (fails within a few px on
+  // a wrong-direction drag), so only enabled pans may block.
+  //
   // RNGH reports translation/velocity reliably on Android, so no sampling.
   const dragDownEnabled = !!handoff?.dragDownEnabled;
   const dragUpEnabled = !!handoff?.dragUpEnabled;
   const handoffEpoch = handoff?.epoch ?? 0;
   const onHandoffStart = () => {
     pos.stopAnimation();
-    cfg.current.pad?.stopAnimation();
     startTy.current = pos.__getValue();
     pendingVy.current = 0;
   };
@@ -268,7 +271,6 @@ export default function useSheetGesture({
     const clamped =
       abs < top ? top + (abs - top) * 0.3 : Math.min(abs, bottom);
     pos.setValue(clamped);
-    cfg.current.pad?.setValue(Math.max(0, clamped + cfg.current.padOffset));
   };
   const onHandoffEnd = (e) => {
     finishDrag(e.translationY, e.velocityY / 1000);
@@ -292,8 +294,10 @@ export default function useSheetGesture({
       .onUpdate(onHandoffUpdate)
       .onEnd(onHandoffEnd);
     if (scrollRefs.length) {
-      down.blocksExternalGesture(...scrollRefs);
-      up.blocksExternalGesture(...scrollRefs);
+      // Only an ENABLED pan may block the scroll views — a disabled pan's
+      // relation would deadlock their native handler (see comment above).
+      if (dragDownEnabled) down.blocksExternalGesture(...scrollRefs);
+      if (dragUpEnabled) up.blocksExternalGesture(...scrollRefs);
     }
     return [down, up];
     // eslint-disable-next-line react-hooks/exhaustive-deps
