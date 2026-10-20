@@ -109,11 +109,20 @@ export default function useScrollEdge(onFlip, scrollRef) {
   );
 
   const reset = useCallback(() => {
-    dims.current = { y: 0, viewH: 0, contentH: 0 };
+    // Force the edge flags back to a fresh-scroll-top state, but PRESERVE the
+    // measurements: on a same-mount content swap (incident A → B at the same
+    // detent) onLayout does NOT re-fire (the view's layout is unchanged), so
+    // zeroing viewH/contentH strands scrollable=false → scrollEnabled stuck
+    // false → dead scroll until a full remount (pill → reopen "fixed" it —
+    // verified on-device). Stale dims self-correct via the next
+    // onScroll/onContentSizeChange; a fresh pane mount re-reports both anyway.
+    dims.current = { ...dims.current, y: 0 };
     atTop.current = true;
     atEnd.current = false;
-    scrollableRef.current = false;
-    setEdges({ atTopNow: true, atEndNow: false, scrollableNow: false });
+    const { viewH, contentH } = dims.current;
+    const scrollable = contentH > 0 && viewH > 0 && contentH > viewH + 8;
+    scrollableRef.current = scrollable;
+    setEdges({ atTopNow: true, atEndNow: false, scrollableNow: scrollable });
     if (onFlipRef.current) onFlipRef.current();
   }, []);
 
