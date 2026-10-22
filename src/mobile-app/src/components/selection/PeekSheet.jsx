@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -65,6 +65,13 @@ export default function PeekSheet() {
 
   const [mounted, setMounted] = useState(active);
   const [level, setLevel] = useState('half');
+  // Hardware-texture layer while the sheet MOVES (grabs, handoffs, springs):
+  // a translate then costs one GPU texture move per frame instead of a
+  // display-list re-record of the whole pane subtree (measured: renderThread
+  // ~9.5ms/frame on the evidence pane — the judder source). OFF at rest so
+  // content scrolling keeps the normal (cheap) raster path.
+  const [moving, setMoving] = useState(false);
+  const onMotionChange = useCallback((m) => setMoving(m), []);
   // Keep the context's live detent ref in sync — closeEvidence reads it to
   // return to the detail at the SAME detent the user left evidence at.
   useEffect(() => {
@@ -84,21 +91,16 @@ export default function PeekSheet() {
   // update stays glued in place the whole way. pad = pos + 62 keeps the end
   // pinned at y = fullH - 62 (tab bar's top edge) at every sheet position.
   //
-  // The pad is driven EXPLICITLY from JS — here in the detent effect and
-  // inside useSheetGesture (springTo/grabber/handoff) — NEVER via
-  // pos.addListener: the listener DIES silently across the sheet's
-  // unmount/remount cycle (pill → new incident → stuck pad → content rides
-  // the sheet then snaps, runaway scroll into the pad, dead edges — the
-  // "State 2" bug, verified on-device in three separate sessions). With
-  // jsSprings, pad and pos springs share the same JS frame clock → no flick.
-  const padAnim = useRef(new Animated.Value(hiddenTy + 62)).current;
-  const padSpringTo = (ty, velocity, springCfg) =>
-    Animated.spring(padAnim, {
-      ...springCfg,
-      toValue: Math.max(0, ty + 62),
-      velocity,
-      useNativeDriver: false,
-    }).start();
+  // The pad is a DERIVED node — Animated.add(pos, 62) — not a second value:
+  // it can never diverge, die, or go stale (a pos.addListener dies silently
+  // across the sheet's unmount/remount cycle → the "State 2" bug; a mirrored
+  // JS spring doubles the per-frame commit cost — both verified on-device).
+  // One value stream also halves the JS-driven commit traffic per frame.
+  // pos is clamped ≥ 0, so pad ≥ 62 always (no max() node needed). Because a
+  // layout prop (height) consumes the node, pos MUST stay JS-driven
+  // (jsSprings in useSheetGesture) — a native-driven parent can't feed a
+  // JS-consumed prop without coalesced listener hops.
+  const bottomPad = useRef(Animated.add(pos, 62)).current;
 
   const targetTy =
     view === 'drawer'
@@ -189,7 +191,6 @@ export default function PeekSheet() {
         // fired it on an unmounted view and then restarted it a frame later,
         // which was the visible jump/glitch on the pill → sheet handoff.
         pos.setValue(hiddenTy);
-        padAnim.setValue(hiddenTy + 62);
         setMounted(true);
         return;
       }
@@ -204,25 +205,10 @@ export default function PeekSheet() {
         launchedTy.current === targetTy ||
         Math.abs(pos.__getValue() - targetTy) < 1
       ) {
-        // Gesture-driven skips own the pad spring already; the pos≈target
-        // path can still hold a stale pad (e.g. after a dev reload) — snap
-        // it to the committed detent.
-        if (
-          launchedTy.current !== targetTy &&
-          Math.abs(padAnim.__getValue() - (targetTy + 62)) > 1
-        ) {
-          padAnim.setValue(Math.max(0, targetTy + 62));
-        }
         launchedTy.current = null;
         pendingVy.current = 0;
         return;
       }
-      padSpringTo(targetTy, pendingVy.current, {
-        damping: 22,
-        stiffness: 220,
-        mass: 0.9,
-        overshootClamping: true,
-      });
       Animated.spring(pos, {
         toValue: targetTy,
         damping: 22,
@@ -249,18 +235,10 @@ export default function PeekSheet() {
         return;
       }
       if (Math.abs(pos.__getValue() - hiddenTy) < 1) {
-        if (Math.abs(padAnim.__getValue() - (hiddenTy + 62)) > 1) {
-          padAnim.setValue(hiddenTy + 62);
-        }
         pendingVy.current = 0;
         setMounted(false);
         return;
       }
-      padSpringTo(hiddenTy, pendingVy.current, {
-        damping: 26,
-        stiffness: 260,
-        mass: 0.9,
-      });
       Animated.spring(pos, {
         toValue: hiddenTy,
         damping: 26,
@@ -326,11 +304,10 @@ export default function PeekSheet() {
   const { panResponder, handoffGesture, pendingVy, launchedTy } =
     useSheetGesture({
       pos,
-      // JS-thread springs keep pos and the explicitly-driven bottom pad on
-      // one frame clock (see the padAnim comment above).
+      // JS-thread springs: the bottom pad is Animated.add(pos, 62) feeding a
+      // layout prop, so pos must stay on the JS thread (see bottomPad above).
       jsSprings: true,
-      pad: padAnim,
-      padOffset: 62,
+      onMotionChange,
       getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
       getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
       // Scroll-edge handoff: at FULL detent with the pane scrolled to its top,
@@ -406,7 +383,7 @@ export default function PeekSheet() {
 
   // Scrolling into the visible tail (the pad's on-screen part) already feels
   // like "the end" — the handoff fires there, not far early. The pad itself
-  // is the animated padAnim spacer above (tracks the live sheet position).
+  // is the derived bottomPad spacer above (tracks the live sheet position).
   detailEdge.tailPad.current = 62 + insets.bottom;
   eviEdge.tailPad.current = 62 + insets.bottom;
   const detailTranslate = bodyAnim.interpolate({
@@ -438,6 +415,7 @@ export default function PeekSheet() {
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <Animated.View
+        renderToHardwareTextureAndroid={moving}
         style={[
           styles.sheet,
           {
@@ -518,7 +496,7 @@ export default function PeekSheet() {
               onLayout={detailEdge.onLayout}
               onContentSizeChange={detailEdge.onContentSizeChange}>
               {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
-              <Animated.View style={{ height: padAnim }} />
+              <Animated.View style={{ height: bottomPad }} />
             </HandoffScrollView>
           </Animated.View>
           {showEvidence && evidenceUpdate ? (
@@ -534,7 +512,7 @@ export default function PeekSheet() {
               ]}>
               <EvidenceBody
                 key={evidenceUpdate?.id}
-                bottomPad={padAnim}
+                bottomPad={bottomPad}
                 scrollRef={eviScrollRef}
                 scrollHandlers={{
                   scrollEnabled: eviEdge.scrollableNow,

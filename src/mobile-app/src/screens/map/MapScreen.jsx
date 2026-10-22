@@ -486,10 +486,14 @@ export default function MapScreen() {
       <Map
         style={styles.map}
         mapStyle={MAP_STYLES[mode]}
-        // GLSurfaceView ("surface") renders corrupt tiles/text under the
-        // emulator's SwiftShader GL stack; TextureView + the Vulkan variant
-        // (gradle.properties nativeVariant=vulkan) renders correctly.
-        androidView="texture"
+        // GLSurfaceView ("surface") composites in hardware for free.
+        // TextureView forces every map frame through the app window's own GPU
+        // pass (full-screen quad + composite in RenderThread) — measured
+        // ~6-7ms/frame more expensive on a physical device, enough to break
+        // 60fps during sheet transitions. Use "texture" ONLY on the emulator
+        // (its SwiftShader GL stack renders corrupt tiles/text otherwise;
+        // pair with gradle.properties nativeVariant=vulkan).
+        androidView="surface"
         compassEnabled={false}
         onRegionDidChange={handleRegionDidChange}
         onPress={handleMapPress}

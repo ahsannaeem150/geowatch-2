@@ -32,23 +32,13 @@ export default function useSheetGesture({
   mode = 'head', // 'head': responder claims on move | 'capture': whole-sheet capture
   canClaim, // capture mode only: (gestureState, event) => bool
   jsSprings = false, // run programmatic springs on the JS thread. Needed when
-  // a caller syncs a LAYOUT prop (e.g. a bottom content pad keyed to the live
-  // sheet position) to pos: a native-driven pos animates on the UI thread's
-  // clock while the pad spring runs on the JS clock, and the two never stay
-  // frame-consistent — the native spring lands instantly while the pad
-  // catches up in one late batch, clamping the scroll offset in a visible
-  // snap (verified on-device). With JS springs, pos and pad share one frame
-  // loop and one commit batch on every rendered frame. Sheets without a
-  // synced layout prop keep the native driver.
-  pad, // optional Animated.Value = pos + padOffset (bottom content pad) —
-  // driven EXPLICITLY from JS on every frame of every move: setValue
-  // alongside the finger during drags, and a synchronized JS spring during
-  // programmatic springs. NEVER via pos.addListener: a listener on pos
-  // silently DIES across the sheet's unmount/remount cycle (pill → new
-  // incident), leaving the pad stuck at a stale value — content rides the
-  // sheet then snaps back, runaway scroll into the pad, mis-measured edges
-  // (all verified on-device, three separate sessions).
-  padOffset = 0,
+  // a caller feeds pos into a LAYOUT prop through a derived node (PeekSheet's
+  // bottom pad is Animated.add(pos, 62) → a spacer's height): a layout prop
+  // can only be JS-driven, and a native-driven pos would force the pad to
+  // chase it over coalesced listener hops — landing late in visible clamp
+  // snaps (verified on-device). With JS springs, pos and its derived pad
+  // commit in one batch on every rendered frame. Sheets without a synced
+  // layout prop keep the native driver.
   handoff, // optional { dragDownEnabled: bool, dragUpEnabled: bool,
   // scrollRefs: ref[], epoch: any } — when set, a SECOND gesture
   // (handoffGesture, RNGH pan pair) is returned for the sheet body: it steals
@@ -62,6 +52,11 @@ export default function useSheetGesture({
   // (blocksExternalGesture) so the scroll waits for the pan to fail before
   // it may activate. epoch must change whenever the set of live scroll views
   // changes (pane switches, scroll mounts) so the relations re-resolve.
+  onMotionChange, // optional (moving: bool) — fired when the sheet starts /
+  // stops moving (grabs, handoff pans, springs incl. programmatic). Callers
+  // use it to promote the sheet to a hardware texture layer while it moves,
+  // so a translate costs a GPU texture move instead of a display-list
+  // re-record of the pane subtree.
 }) {
   const startTy = useRef(0);
   const moveSamples = useRef([]);
@@ -70,27 +65,27 @@ export default function useSheetGesture({
   // The pan responder is created once, so every config callback is read
   // through this ref — stale closures were the source of grabber jumpiness.
   const cfg = useRef({});
-  cfg.current = { getClamp, getRestTy, chooseTarget, canClaim, handoff, pad, padOffset };
-
-  // The pad follows the same spring curve as the sheet, on the JS thread:
-  // identical spring parameters started in the same tick track each other
-  // frame-for-frame, so the content end stays pinned instead of clamping in
-  // bursts.
-  const padSpringTo = (ty, velocity) => {
-    if (!pad) return;
-    Animated.spring(pad, {
-      toValue: Math.max(0, ty + padOffset),
-      damping: 22,
-      stiffness: 260,
-      mass: 0.9,
-      velocity,
-      overshootClamping: true,
-      useNativeDriver: false,
-    }).start();
+  cfg.current = {
+    getClamp,
+    getRestTy,
+    chooseTarget,
+    canClaim,
+    handoff,
+    onMotionChange,
+  };
+  // Overlapping motion sources (a grab interrupting a spring, a handoff pan
+  // rolling into its settle spring) nest, so "is the sheet moving" is a
+  // counter, not a flag — every +1 has exactly one matching -1.
+  const motionCount = useRef(0);
+  const motionBump = (d) => {
+    const next = Math.max(0, motionCount.current + d);
+    if (next === motionCount.current) return;
+    motionCount.current = next;
+    cfg.current.onMotionChange?.(next > 0);
   };
 
   const springTo = (ty, velocity = 0, onDone) => {
-    padSpringTo(ty, velocity);
+    motionBump(+1);
     return Animated.spring(pos, {
       toValue: ty,
       damping: 22,
@@ -100,6 +95,10 @@ export default function useSheetGesture({
       overshootClamping: true,
       useNativeDriver: !jsSprings,
     }).start(({ finished }) => {
+      // Every spring start has exactly one completion callback (interrupted
+      // springs fire it with finished=false), so the decrement balances
+      // unconditionally.
+      motionBump(-1);
       if (!finished) return;
       if (launchedTy.current === ty) launchedTy.current = null;
       if (onDone) onDone();
@@ -150,8 +149,8 @@ export default function useSheetGesture({
   const handlers = {
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
+      motionBump(+1);
       pos.stopAnimation();
-      cfg.current.pad?.stopAnimation();
       startTy.current = pos.__getValue();
       pendingVy.current = 0;
       moveSamples.current = [{ t: Date.now(), y: startTy.current }];
@@ -163,12 +162,12 @@ export default function useSheetGesture({
       const clamped =
         abs < top ? top + (abs - top) * 0.3 : Math.min(abs, bottom);
       pos.setValue(clamped - startTy.current);
-      cfg.current.pad?.setValue(Math.max(0, clamped + cfg.current.padOffset));
       const samples = moveSamples.current;
       samples.push({ t: Date.now(), y: clamped });
       if (samples.length > 8) samples.shift();
     },
     onPanResponderRelease: (_e, g) => {
+        motionBump(-1);
         pos.flattenOffset(); // merge offset back → absolute value again
         const restTy = cfg.current.getRestTy();
         // Release velocity from our own samples (px/ms): slope across the
@@ -219,6 +218,7 @@ export default function useSheetGesture({
         });
       },
       onPanResponderTerminate: () => {
+        motionBump(-1);
         pos.flattenOffset();
         moveSamples.current = [];
         springTo(cfg.current.getRestTy());
@@ -287,18 +287,20 @@ export default function useSheetGesture({
   const dragUpEnabled = !!handoff?.dragUpEnabled;
   const handoffEpoch = handoff?.epoch ?? 0;
   const onHandoffStart = () => {
+    motionBump(+1);
     pos.stopAnimation();
-    cfg.current.pad?.stopAnimation();
     startTy.current = pos.__getValue();
     pendingVy.current = 0;
   };
+  // Fires after onEnd OR on cancel — the pan's own +1 always returns here;
+  // the settle spring launched from onEnd carries its own +1 meanwhile.
+  const onHandoffFinalize = () => motionBump(-1);
   const onHandoffUpdate = (e) => {
     const { top, bottom } = cfg.current.getClamp();
     const abs = startTy.current + e.translationY;
     const clamped =
       abs < top ? top + (abs - top) * 0.3 : Math.min(abs, bottom);
     pos.setValue(clamped);
-    cfg.current.pad?.setValue(Math.max(0, clamped + cfg.current.padOffset));
   };
   const onHandoffEnd = (e) => {
     finishDrag(e.translationY, e.velocityY / 1000);
@@ -312,7 +314,8 @@ export default function useSheetGesture({
       .failOffsetX([-16, 16])
       .onStart(onHandoffStart)
       .onUpdate(onHandoffUpdate)
-      .onEnd(onHandoffEnd);
+      .onEnd(onHandoffEnd)
+      .onFinalize(onHandoffFinalize);
     const up = Gesture.Pan()
       .enabled(dragUpEnabled)
       .activeOffsetY(-4)
@@ -320,7 +323,8 @@ export default function useSheetGesture({
       .failOffsetX([-16, 16])
       .onStart(onHandoffStart)
       .onUpdate(onHandoffUpdate)
-      .onEnd(onHandoffEnd);
+      .onEnd(onHandoffEnd)
+      .onFinalize(onHandoffFinalize);
     if (scrollRefs.length) {
       // Only an ENABLED pan may block the scroll views — a disabled pan's
       // relation would deadlock their native handler (see comment above).
