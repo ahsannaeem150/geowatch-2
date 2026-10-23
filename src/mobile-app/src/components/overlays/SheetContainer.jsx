@@ -35,7 +35,14 @@ import HandoffScrollView from './HandoffScrollView';
 export const SheetHandoffContext = createContext(null);
 
 export const SheetScrollView = forwardRef(function SheetScrollView(
-  { onScroll, onLayout, onContentSizeChange, ...props },
+  {
+    onScroll,
+    onScrollEndDrag,
+    onMomentumScrollEnd,
+    onLayout,
+    onContentSizeChange,
+    ...props
+  },
   ref,
 ) {
   const ctx = useContext(SheetHandoffContext);
@@ -66,6 +73,14 @@ export const SheetScrollView = forwardRef(function SheetScrollView(
       onScroll={(e) => {
         edge.onScroll(e);
         if (onScroll) onScroll(e);
+      }}
+      onScrollEndDrag={(e) => {
+        edge.onScrollEndDrag(e);
+        if (onScrollEndDrag) onScrollEndDrag(e);
+      }}
+      onMomentumScrollEnd={(e) => {
+        edge.onMomentumScrollEnd(e);
+        if (onMomentumScrollEnd) onMomentumScrollEnd(e);
       }}
       onLayout={(e) => {
         edge.onLayout(e);

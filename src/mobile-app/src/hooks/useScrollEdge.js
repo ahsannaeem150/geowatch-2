@@ -92,6 +92,30 @@ export default function useScrollEdge(onFlip, scrollRef) {
     [recompute],
   );
 
+  // Drag/fling END events are one-shot — not a coalesced stream like onScroll
+  // — so the final settle offset always lands here even when the last
+  // onScroll frame (y→0) is dropped by Fabric event coalescing. Without this
+  // a stale y of a few px at the VISUAL top strands atTop=false permanently
+  // (recompute has no top-side self-heal and nothing re-fires until the next
+  // real scroll): the down-drag handoff pan stays disabled, the drag then has
+  // no owner at all (scroll-top + overScrollMode=never → the ScrollView
+  // doesn't intercept either), and the touch falls through to child
+  // pressables — a "stuck" drag ending inside the tall timeline card fires
+  // its INSPECT onPress on finger-lift (phantom evidence open seconds after
+  // the gesture, verified on-device).
+  const onSettle = useCallback(
+    (e) => {
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      dims.current = {
+        y: contentOffset.y,
+        viewH: layoutMeasurement.height,
+        contentH: contentSize.height,
+      };
+      recompute();
+    },
+    [recompute],
+  );
+
   const onLayout = useCallback(
     (e) => {
       dims.current = { ...dims.current, viewH: e.nativeEvent.layout.height };
@@ -142,10 +166,12 @@ export default function useScrollEdge(onFlip, scrollRef) {
       // pad read this to clamp a stale scroll offset while the pad shrinks.
       dims,
       onScroll,
+      onScrollEndDrag: onSettle,
+      onMomentumScrollEnd: onSettle,
       onLayout,
       onContentSizeChange,
       reset,
     }),
-    [edges, onScroll, onLayout, onContentSizeChange, reset],
+    [edges, onScroll, onSettle, onLayout, onContentSizeChange, reset],
   );
 }

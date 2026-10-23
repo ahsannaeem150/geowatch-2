@@ -493,6 +493,8 @@ export default function PeekSheet() {
               scrollEnabled={detailEdge.scrollableNow}
               scrollEventThrottle={16}
               onScroll={detailEdge.onScroll}
+              onScrollEndDrag={detailEdge.onScrollEndDrag}
+              onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
               onLayout={detailEdge.onLayout}
               onContentSizeChange={detailEdge.onContentSizeChange}>
               {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
@@ -517,6 +519,8 @@ export default function PeekSheet() {
                 scrollHandlers={{
                   scrollEnabled: eviEdge.scrollableNow,
                   onScroll: eviEdge.onScroll,
+                  onScrollEndDrag: eviEdge.onScrollEndDrag,
+                  onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
                   onLayout: eviEdge.onLayout,
                   onContentSizeChange: eviEdge.onContentSizeChange,
                 }}

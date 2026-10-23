@@ -1394,6 +1394,8 @@ function ResultsSheet({
                 scrollEnabled={listEdge.scrollableNow}
                 scrollEventThrottle={16}
                 onScroll={listEdge.onScroll}
+                onScrollEndDrag={listEdge.onScrollEndDrag}
+                onMomentumScrollEnd={listEdge.onMomentumScrollEnd}
                 onLayout={listEdge.onLayout}
                 onContentSizeChange={listEdge.onContentSizeChange}>
                 {total === 0 ? (
@@ -1496,6 +1498,8 @@ function ResultsSheet({
                   scrollEnabled={detailEdge.scrollableNow}
                   scrollEventThrottle={16}
                   onScroll={detailEdge.onScroll}
+                  onScrollEndDrag={detailEdge.onScrollEndDrag}
+                  onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
                   onLayout={detailEdge.onLayout}
                   onContentSizeChange={detailEdge.onContentSizeChange}>
                   {detail.kind === 'zone' ? (
@@ -1523,6 +1527,8 @@ function ResultsSheet({
                     scrollHandlers={{
                       scrollEnabled: eviEdge.scrollableNow,
                       onScroll: eviEdge.onScroll,
+                      onScrollEndDrag: eviEdge.onScrollEndDrag,
+                      onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
                       onLayout: eviEdge.onLayout,
                       onContentSizeChange: eviEdge.onContentSizeChange,
                     }}
@@ -1817,6 +1823,8 @@ function PsFilterSheet(props) {
             scrollEnabled={edge.scrollableNow}
             scrollEventThrottle={16}
             onScroll={edge.onScroll}
+            onScrollEndDrag={edge.onScrollEndDrag}
+            onMomentumScrollEnd={edge.onMomentumScrollEnd}
             onLayout={edge.onLayout}
             onContentSizeChange={edge.onContentSizeChange}>
           <PsAccordion
