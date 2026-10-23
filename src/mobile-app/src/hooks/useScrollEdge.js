@@ -30,7 +30,8 @@ export default function useScrollEdge(onFlip, scrollRef) {
   scrollRefRef.current = scrollRef;
 
   const recompute = useCallback(() => {
-    const { y, viewH, contentH } = dims.current;
+    let { y } = dims.current;
+    const { viewH, contentH } = dims.current;
     // Re-pin a stale scroll offset when the content height SHRINKS beneath
     // the offset. Sheets pad their body with a position-animated bottom
     // spacer that shrinks during an expand; RN does not reliably re-clamp
@@ -43,14 +44,34 @@ export default function useScrollEdge(onFlip, scrollRef) {
     // content-size clamp absorbs invisibly — instant-correcting those tiny
     // lags from JS lands a frame late and reads as a jerk (verified); only
     // fling-scale overshoots (hundreds of dp) are forced back.
+    //
+    // The programmatic scrollTo's onScroll can itself be dropped/coalesced,
+    // and NO scroll-end event fires for programmatic scrolls — so record the
+    // corrected offset ourselves. On a pane that just became non-scrollable
+    // (short content at FULL: scrollEnabled=false) nothing else ever will:
+    // a stale y there strands atTop=false forever, the down-drag handoff
+    // stays disabled, and ownerless drags fall through to child pressables
+    // (a "scroll" ending inside the tall timeline card fires its INSPECT
+    // onPress — phantom evidence opens, verified on-device).
     const ref = scrollRefRef.current;
     if (ref?.current && viewH > 0 && contentH > 0) {
       const maxY = Math.max(0, contentH - viewH);
       if (y > maxY + 40) {
         ref.current.scrollTo?.({ y: maxY, animated: false });
+        y = maxY;
+        dims.current = { ...dims.current, y };
       }
     }
-    const top = y <= 1;
+    const scrollable = contentH > 0 && viewH > 0 && contentH > viewH + 8;
+    // A NON-scrollable pane is definitionally pinned at its top (maxY = 0 —
+    // RN clamps the offset and the re-pin above enforces it). Never trust a
+    // possibly-stale y here: with scrollEnabled=false no future scroll event
+    // can correct it. A non-scrollable ScrollView also still activates its
+    // RNGH native gesture instantly on touch (nothing to wait for), which
+    // cancels the sheet's handoff pans before they can fire — callers pass
+    // scrollEnabled={scrollableNow} so the dead scroll view stops competing
+    // (verified on-device).
+    const top = scrollable ? y <= 1 : true;
     // Content shorter than the viewport counts as BOTH edges reached.
     // tailPad: bottom padding that exists only to compensate the sheet's
     // off-screen tail at a partial detent — scrolling INTO it already feels
@@ -60,12 +81,6 @@ export default function useScrollEdge(onFlip, scrollRef) {
       contentH > 0 &&
       viewH > 0 &&
       y + viewH >= contentH - tailPad.current - 8;
-    // Whether the content actually overflows the viewport. A NON-scrollable
-    // ScrollView still activates its RNGH native gesture instantly on touch
-    // (nothing to wait for), which cancels the sheet's handoff pans before
-    // they can fire — callers must pass scrollEnabled={scrollableNow} so the
-    // dead scroll view stops competing (verified on-device).
-    const scrollable = contentH > 0 && viewH > 0 && contentH > viewH + 8;
     if (
       top !== atTop.current ||
       end !== atEnd.current ||
