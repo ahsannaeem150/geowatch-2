@@ -781,6 +781,7 @@ function FilterSheet(props) {
             scrollEventThrottle={16}
             onScroll={edge.onScroll}
             onScrollEndDrag={edge.onScrollEndDrag}
+            onMomentumScrollBegin={edge.onMomentumScrollBegin}
             onMomentumScrollEnd={edge.onMomentumScrollEnd}
             onLayout={edge.onLayout}
             onContentSizeChange={edge.onContentSizeChange}>

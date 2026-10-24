@@ -84,7 +84,7 @@ export default function useSheetGesture({
     cfg.current.onMotionChange?.(next > 0);
   };
 
-  const springTo = (ty, velocity = 0, onDone) => {
+  const springTo = (ty, velocity = 0, onDone, params) => {
     motionBump(+1);
     return Animated.spring(pos, {
       toValue: ty,
@@ -93,6 +93,7 @@ export default function useSheetGesture({
       mass: 0.9,
       velocity,
       overshootClamping: true,
+      ...params,
       useNativeDriver: !jsSprings,
     }).start(({ finished }) => {
       // Every spring start has exactly one completion callback (interrupted
@@ -345,5 +346,8 @@ export default function useSheetGesture({
     springTo,
     pendingVy,
     launchedTy,
+    // Live "is the sheet moving" counter — callers launching their own
+    // springs via springTo read this to avoid double-counting motion.
+    motionRef: motionCount,
   };
 }

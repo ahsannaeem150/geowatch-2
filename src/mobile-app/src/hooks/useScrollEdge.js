@@ -19,6 +19,7 @@ export default function useScrollEdge(onFlip, scrollRef) {
   const tailPad = useRef(0);
   const dims = useRef({ y: 0, viewH: 0, contentH: 0 });
   const scrollableRef = useRef(false);
+  const momentumActive = useRef(false);
   const [edges, setEdges] = useState({
     atTopNow: true,
     atEndNow: false,
@@ -32,18 +33,20 @@ export default function useScrollEdge(onFlip, scrollRef) {
   const recompute = useCallback(() => {
     let { y } = dims.current;
     const { viewH, contentH } = dims.current;
-    // Re-pin a stale scroll offset when the content height SHRINKS beneath
-    // the offset. Sheets pad their body with a position-animated bottom
-    // spacer that shrinks during an expand; RN does not reliably re-clamp
-    // scrollY when the shrink lands under an in-flight momentum fling — the
-    // native scroller keeps writing its pre-computed finalY and the pane
-    // lands deep inside the pad: a blank white sheet whose content only
-    // reappears after scrolling back (verified on-device). A non-animated
-    // scrollTo cancels the fling AND clamps. The 40dp deadband is deliberate:
-    // per-frame pad shrink overshoots by ≤ ~27dp, which RN's own
-    // content-size clamp absorbs invisibly — instant-correcting those tiny
-    // lags from JS lands a frame late and reads as a jerk (verified); only
-    // fling-scale overshoots (hundreds of dp) are forced back.
+    // Re-pin a stale scroll offset ONLY while a momentum fling owns the
+    // scroller. That is the case that needs it: RN does not reliably re-clamp
+    // scrollY when the pad shrink lands mid-fling — the native scroller keeps
+    // writing its pre-computed finalY and the pane lands deep inside the pad
+    // (blank white sheet until scrolled back — verified on-device). The
+    // non-animated scrollTo cancels the fling AND clamps; the 40dp deadband
+    // keeps it to fling-scale overshoots.
+    //
+    // When NO fling is active the re-pin must stay silent: Android's layout
+    // clamp already tracks a shrinking pad EXACTLY on every committed frame
+    // (the smooth slow-drag expand), while a JS scrollTo computed from this
+    // dims snapshot is 1-2 frames stale — it lands late and FIGHTS the native
+    // clamp: one-frame content down-then-up oscillation on fast flick expands,
+    // plus a residual few-px end offset at rest (both verified on-device).
     //
     // The programmatic scrollTo's onScroll can itself be dropped/coalesced,
     // and NO scroll-end event fires for programmatic scrolls — so record the
@@ -54,10 +57,15 @@ export default function useScrollEdge(onFlip, scrollRef) {
     // (a "scroll" ending inside the tall timeline card fires its INSPECT
     // onPress — phantom evidence opens, verified on-device).
     const ref = scrollRefRef.current;
-    if (ref?.current && viewH > 0 && contentH > 0) {
+    if (momentumActive.current && ref?.current && viewH > 0 && contentH > 0) {
       const maxY = Math.max(0, contentH - viewH);
       if (y > maxY + 40) {
-        ref.current.scrollTo?.({ y: maxY, animated: false });
+        // scrollToEnd, not scrollTo(maxY): the end offset must come from the
+        // NATIVE current sizes — a JS-computed maxY from this dims snapshot
+        // can overshoot the true native bound by a few px, and a programmatic
+        // offset beyond the bound is never auto-corrected (leaves a residual
+        // shift the next detent change inherits — verified on-device).
+        ref.current.scrollToEnd?.({ animated: false });
         y = maxY;
         dims.current = { ...dims.current, y };
       }
@@ -118,18 +126,41 @@ export default function useScrollEdge(onFlip, scrollRef) {
   // pressables — a "stuck" drag ending inside the tall timeline card fires
   // its INSPECT onPress on finger-lift (phantom evidence open seconds after
   // the gesture, verified on-device).
-  const onSettle = useCallback(
+  //
+  // Both settle paths ALSO run the exact end clamp: even with
+  // overScrollMode="never" a fast release can leave the offset a few px PAST
+  // the content end and RN never pulls it back (verified on-device: content
+  // stuck 16px into overscroll after an up-flick at the end) — and the next
+  // detent change then inherits the residue as a visible content shift.
+  const settleWithClamp = useCallback(
     (e) => {
+      // A settle event ends any momentum phase (a fling that follows a drag
+      // re-arms the flag via onMomentumScrollBegin afterwards).
+      momentumActive.current = false;
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
       dims.current = {
         y: contentOffset.y,
         viewH: layoutMeasurement.height,
         contentH: contentSize.height,
       };
+      const ref = scrollRefRef.current;
+      const { y, viewH, contentH } = dims.current;
+      if (ref?.current && viewH > 0 && contentH > 0) {
+        const maxY = Math.max(0, contentH - viewH);
+        if (y > maxY + 1) {
+          // scrollToEnd lands on the true native end offset (see recompute).
+          ref.current.scrollToEnd?.({ animated: false });
+          dims.current = { ...dims.current, y: maxY };
+        }
+      }
       recompute();
     },
     [recompute],
   );
+
+  const onMomentumScrollBegin = useCallback(() => {
+    momentumActive.current = true;
+  }, []);
 
   const onLayout = useCallback(
     (e) => {
@@ -142,6 +173,24 @@ export default function useScrollEdge(onFlip, scrollRef) {
   const onContentSizeChange = useCallback(
     (_w, h) => {
       dims.current = { ...dims.current, contentH: h };
+      // End clamp on pad shrink: the position-tracked bottom pad commits one
+      // layout AFTER the sheet's translateY frame, so the native scroll clamp
+      // always reacts a frame late — harmless mid-motion, but the spring's
+      // LAST frame leaves a few-px overshoot residue that nothing else cleans
+      // (verified on-device). scrollToEnd targets the NATIVE current end — it
+      // is never stale, so it agrees with the native clamp instead of
+      // fighting it (a JS-computed scrollTo(maxY) from this snapshot DID
+      // fight: one-frame oscillation on flick expands — verified). Fire on
+      // every commit, idle or moving; only an active fling owns the scroller
+      // (the mid-fling re-pin + settle clamp cover that path). In the
+      // "rested above the end" case y < maxY, so this stays silent.
+      if (!momentumActive.current) {
+        const { y, viewH, contentH } = dims.current;
+        if (viewH > 0 && contentH > 0 && y > contentH - viewH + 1) {
+          scrollRefRef.current?.current?.scrollToEnd?.({ animated: false });
+          dims.current = { ...dims.current, y: Math.max(0, contentH - viewH) };
+        }
+      }
       recompute();
     },
     [recompute],
@@ -181,12 +230,21 @@ export default function useScrollEdge(onFlip, scrollRef) {
       // pad read this to clamp a stale scroll offset while the pad shrinks.
       dims,
       onScroll,
-      onScrollEndDrag: onSettle,
-      onMomentumScrollEnd: onSettle,
+      onScrollEndDrag: settleWithClamp,
+      onMomentumScrollBegin,
+      onMomentumScrollEnd: settleWithClamp,
       onLayout,
       onContentSizeChange,
       reset,
     }),
-    [edges, onScroll, onSettle, onLayout, onContentSizeChange, reset],
+    [
+      edges,
+      onScroll,
+      settleWithClamp,
+      onMomentumScrollBegin,
+      onLayout,
+      onContentSizeChange,
+      reset,
+    ],
   );
 }

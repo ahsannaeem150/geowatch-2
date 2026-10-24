@@ -38,6 +38,7 @@ export const SheetScrollView = forwardRef(function SheetScrollView(
   {
     onScroll,
     onScrollEndDrag,
+    onMomentumScrollBegin,
     onMomentumScrollEnd,
     onLayout,
     onContentSizeChange,
@@ -77,6 +78,10 @@ export const SheetScrollView = forwardRef(function SheetScrollView(
       onScrollEndDrag={(e) => {
         edge.onScrollEndDrag(e);
         if (onScrollEndDrag) onScrollEndDrag(e);
+      }}
+      onMomentumScrollBegin={(e) => {
+        edge.onMomentumScrollBegin(e);
+        if (onMomentumScrollBegin) onMomentumScrollBegin(e);
       }}
       onMomentumScrollEnd={(e) => {
         edge.onMomentumScrollEnd(e);

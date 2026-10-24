@@ -79,6 +79,8 @@ export default function PeekSheet() {
   }, [level, sheetLevelRef]);
   const pos = useRef(new Animated.Value(hiddenTy)).current;
   const wantOpen = useRef(true);
+  const justMounted = useRef(false);
+  const sheetLaidOut = useRef(false);
 
   // Bottom content pad that TRACKS the sheet's live position. The pad is
   // (off-screen sheet tail) + (tab-bar clearance): the tab bar (zIndex 60)
@@ -191,6 +193,8 @@ export default function PeekSheet() {
         // fired it on an unmounted view and then restarted it a frame later,
         // which was the visible jump/glitch on the pill → sheet handoff.
         pos.setValue(hiddenTy);
+        justMounted.current = true;
+        sheetLaidOut.current = false;
         setMounted(true);
         return;
       }
@@ -209,16 +213,46 @@ export default function PeekSheet() {
         pendingVy.current = 0;
         return;
       }
-      Animated.spring(pos, {
-        toValue: targetTy,
-        damping: 22,
-        stiffness: 220,
-        mass: 0.9,
-        velocity: pendingVy.current,
-        overshootClamping: true,
-        useNativeDriver: false,
-      }).start();
-      pendingVy.current = 0;
+      // Route through the shared engine's springTo so the motion counter
+      // (hardware layer via onMotionChange) covers the entry spring too — a
+      // bare Animated.spring here ran WITHOUT the layer on the heaviest
+      // mount frame, which was the visible pill → mid stutter.
+      const launchEntry = () => {
+        // A grab that began during the mount frame already owns the motion.
+        if (motionRef.current !== 0) return;
+        springTo(targetTy, pendingVy.current, undefined, { stiffness: 220 });
+        pendingVy.current = 0;
+      };
+      if (justMounted.current) {
+        justMounted.current = false;
+        // Wait until the freshly mounted sheet has committed a native layout
+        // AND presented a few frames before starting the entry spring: a
+        // JS-thread spring is time-based, so if it starts while the mount's
+        // first heavy draw still blocks the render thread, its first computed
+        // value skips ahead by the blocked time — the visible mid-flight
+        // teleport on pill → mid (verified on-device: ~550px in one frame).
+        // The sheet waits off-screen at hiddenTy, so the delay is invisible.
+        let cancelled = false;
+        let laidOutAt = -1;
+        let frames = 0;
+        const tick = () => {
+          if (cancelled) return;
+          if (sheetLaidOut.current && laidOutAt < 0) laidOutAt = frames;
+          frames += 1;
+          const ready = laidOutAt >= 0 && frames - laidOutAt >= 3;
+          if (ready || frames > 12) {
+            launchEntry();
+            return;
+          }
+          requestAnimationFrame(tick);
+        };
+        const raf = requestAnimationFrame(tick);
+        return () => {
+          cancelled = true;
+          cancelAnimationFrame(raf);
+        };
+      }
+      launchEntry();
     } else if (mounted) {
       wantOpen.current = false;
       // Same late-effect race guard as the open branch above. Two cases:
@@ -239,16 +273,14 @@ export default function PeekSheet() {
         setMounted(false);
         return;
       }
-      Animated.spring(pos, {
-        toValue: hiddenTy,
-        damping: 26,
-        stiffness: 260,
-        mass: 0.9,
-        velocity: pendingVy.current,
-        useNativeDriver: false,
-      }).start(() => {
-        if (!wantOpen.current) setMounted(false);
-      });
+      springTo(
+        hiddenTy,
+        pendingVy.current,
+        () => {
+          if (!wantOpen.current) setMounted(false);
+        },
+        { damping: 26 },
+      );
       pendingVy.current = 0;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -301,7 +333,7 @@ export default function PeekSheet() {
   // implementation every sheet in the app uses. launchedTy lets the detent
   // effect above skip re-firing a spring the gesture release already
   // launched (double-push glitch on heavy screens).
-  const { panResponder, handoffGesture, pendingVy, launchedTy } =
+  const { panResponder, handoffGesture, springTo, pendingVy, launchedTy, motionRef } =
     useSheetGesture({
       pos,
       // JS-thread springs: the bottom pad is Animated.add(pos, 62) feeding a
@@ -416,6 +448,9 @@ export default function PeekSheet() {
     <View style={styles.wrap} pointerEvents="box-none">
       <Animated.View
         renderToHardwareTextureAndroid={moving}
+        onLayout={() => {
+          sheetLaidOut.current = true;
+        }}
         style={[
           styles.sheet,
           {
@@ -494,6 +529,7 @@ export default function PeekSheet() {
               scrollEventThrottle={16}
               onScroll={detailEdge.onScroll}
               onScrollEndDrag={detailEdge.onScrollEndDrag}
+              onMomentumScrollBegin={detailEdge.onMomentumScrollBegin}
               onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
               onLayout={detailEdge.onLayout}
               onContentSizeChange={detailEdge.onContentSizeChange}>
@@ -520,6 +556,7 @@ export default function PeekSheet() {
                   scrollEnabled: eviEdge.scrollableNow,
                   onScroll: eviEdge.onScroll,
                   onScrollEndDrag: eviEdge.onScrollEndDrag,
+                  onMomentumScrollBegin: eviEdge.onMomentumScrollBegin,
                   onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
                   onLayout: eviEdge.onLayout,
                   onContentSizeChange: eviEdge.onContentSizeChange,

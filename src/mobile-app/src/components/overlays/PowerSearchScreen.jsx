@@ -1395,6 +1395,7 @@ function ResultsSheet({
                 scrollEventThrottle={16}
                 onScroll={listEdge.onScroll}
                 onScrollEndDrag={listEdge.onScrollEndDrag}
+                onMomentumScrollBegin={listEdge.onMomentumScrollBegin}
                 onMomentumScrollEnd={listEdge.onMomentumScrollEnd}
                 onLayout={listEdge.onLayout}
                 onContentSizeChange={listEdge.onContentSizeChange}>
@@ -1499,6 +1500,7 @@ function ResultsSheet({
                   scrollEventThrottle={16}
                   onScroll={detailEdge.onScroll}
                   onScrollEndDrag={detailEdge.onScrollEndDrag}
+                  onMomentumScrollBegin={detailEdge.onMomentumScrollBegin}
                   onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
                   onLayout={detailEdge.onLayout}
                   onContentSizeChange={detailEdge.onContentSizeChange}>
@@ -1528,6 +1530,7 @@ function ResultsSheet({
                       scrollEnabled: eviEdge.scrollableNow,
                       onScroll: eviEdge.onScroll,
                       onScrollEndDrag: eviEdge.onScrollEndDrag,
+                      onMomentumScrollBegin: eviEdge.onMomentumScrollBegin,
                       onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
                       onLayout: eviEdge.onLayout,
                       onContentSizeChange: eviEdge.onContentSizeChange,
@@ -1824,6 +1827,7 @@ function PsFilterSheet(props) {
             scrollEventThrottle={16}
             onScroll={edge.onScroll}
             onScrollEndDrag={edge.onScrollEndDrag}
+            onMomentumScrollBegin={edge.onMomentumScrollBegin}
             onMomentumScrollEnd={edge.onMomentumScrollEnd}
             onLayout={edge.onLayout}
             onContentSizeChange={edge.onContentSizeChange}>
