@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Clipboard,
@@ -217,7 +217,7 @@ function TweetMosaic({ items, onOpen, tw }) {
 // Live tweet → native card (fxtwitter-resolved author/text/media/stats); its
 // media opens in the app's own swipe gallery. Archived posts keep the snapshot
 // view. Falls back to a plain text card if the tweet cannot be resolved.
-export function XPostCard({ post }) {
+export const XPostCard = React.memo(function XPostCard({ post }) {
   const { theme, mode } = useTheme();
   const { showToast } = useOverlay();
   const archiveImg = mediaUrl(post.archive_media_url || post.archive_media_thumbnail_url);
@@ -338,12 +338,14 @@ export function XPostCard({ post }) {
             {post.description}
           </Text>
         ) : null}
-        <MediaGalleryModal
-          items={archiveGalleryItems}
-          index={galleryIndex}
-          onIndexChange={setGalleryIndex}
-          onClose={() => setGalleryIndex(null)}
-        />
+        {galleryIndex !== null ? (
+          <MediaGalleryModal
+            items={archiveGalleryItems}
+            index={galleryIndex}
+            onIndexChange={setGalleryIndex}
+            onClose={() => setGalleryIndex(null)}
+          />
+        ) : null}
       </View>
     );
   }
@@ -463,15 +465,17 @@ export function XPostCard({ post }) {
           </Pressable>
         ) : null}
       </View>
-      <MediaGalleryModal
-        items={galleryItems}
-        index={galleryIndex}
-        onIndexChange={setGalleryIndex}
-        onClose={() => setGalleryIndex(null)}
-      />
+      {galleryIndex !== null ? (
+        <MediaGalleryModal
+          items={galleryItems}
+          index={galleryIndex}
+          onIndexChange={setGalleryIndex}
+          onClose={() => setGalleryIndex(null)}
+        />
+      ) : null}
     </View>
   );
-}
+});
 
 function XPostList({ items }) {
   const { theme } = useTheme();
@@ -710,10 +714,16 @@ export const EvidenceBody = React.memo(function EvidenceBody({
   const { evidenceUpdate, getCachedDetail } = useSelection();
   const [tab, setTab] = useState('all');
   const [lbIndex, setLbIndex] = useState(null);
+  const [deferredContent, setDeferredContent] = useState(false);
 
   useEffect(() => {
     setTab('all');
     setLbIndex(null);
+    setDeferredContent(false);
+    const timer = setTimeout(() => {
+      startTransition(() => setDeferredContent(true));
+    }, 320);
+    return () => clearTimeout(timer);
   }, [evidenceUpdate?.id]);
 
   // Update-attached evidence, falling back to the incident-level aggregate
@@ -740,6 +750,8 @@ export const EvidenceBody = React.memo(function EvidenceBody({
       noteItems: ownNotes.length ? ownNotes : allNotes,
     };
   }, [evidenceUpdate, selectedId, getCachedDetail]);
+
+  const showDeferredContent = deferredContent || tab !== 'all';
 
   if (!evidenceUpdate) {
     return null;
@@ -823,7 +835,9 @@ export const EvidenceBody = React.memo(function EvidenceBody({
               style={[styles.secLabel, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
               MEDIA ({mediaItems.length})
             </Text>
-            <MediaGrid items={mediaItems} onOpen={setLbIndex} />
+            {showDeferredContent ? (
+              <MediaGrid items={mediaItems} onOpen={setLbIndex} />
+            ) : null}
           </>
         ) : null}
         {tab === 'all' || tab === 'xposts' ? (
@@ -836,10 +850,10 @@ export const EvidenceBody = React.memo(function EvidenceBody({
               ]}>
               X POSTS ({xItems.length})
             </Text>
-            <XPostList items={xItems} />
+            {showDeferredContent ? <XPostList items={xItems} /> : null}
           </>
         ) : null}
-        {tab === 'all' || tab === 'articles' ? (
+        {showDeferredContent && (tab === 'all' || tab === 'articles') ? (
           <>
             <Text
               style={[
@@ -862,7 +876,7 @@ export const EvidenceBody = React.memo(function EvidenceBody({
             )}
           </>
         ) : null}
-        {tab === 'all' || tab === 'notes' ? (
+        {showDeferredContent && (tab === 'all' || tab === 'notes') ? (
           <>
             <Text
               style={[
@@ -892,12 +906,14 @@ export const EvidenceBody = React.memo(function EvidenceBody({
         )}
       </HandoffScrollView>
 
-      <MediaGalleryModal
-        items={mediaItems}
-        index={lbIndex}
-        onIndexChange={setLbIndex}
-        onClose={() => setLbIndex(null)}
-      />
+      {lbIndex !== null ? (
+        <MediaGalleryModal
+          items={mediaItems}
+          index={lbIndex}
+          onIndexChange={setLbIndex}
+          onClose={() => setLbIndex(null)}
+        />
+      ) : null}
     </View>
   );
 });

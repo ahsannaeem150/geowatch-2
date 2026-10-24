@@ -225,12 +225,14 @@ export function TimelineNode({ update, label, onInspect }) {
             </View>
           </View>
         ) : null}
-        <MediaGalleryModal
-          items={mediaItems}
-          index={galleryIndex}
-          onIndexChange={setGalleryIndex}
-          onClose={() => setGalleryIndex(null)}
-        />
+        {galleryIndex !== null ? (
+          <MediaGalleryModal
+            items={mediaItems}
+            index={galleryIndex}
+            onIndexChange={setGalleryIndex}
+            onClose={() => setGalleryIndex(null)}
+          />
+        ) : null}
         <View style={styles.tlFoot}>
           <View style={styles.tlCounts}>
             {xCount ? (
