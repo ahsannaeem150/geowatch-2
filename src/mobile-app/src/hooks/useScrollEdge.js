@@ -81,14 +81,19 @@ export default function useScrollEdge(onFlip, scrollRef) {
     // (verified on-device).
     const top = scrollable ? y <= 1 : true;
     // Content shorter than the viewport counts as BOTH edges reached.
-    // tailPad: bottom padding that exists only to compensate the sheet's
-    // off-screen tail at a partial detent — scrolling INTO it already feels
-    // like "the end" to the user, so the handoff fires there, not at the
-    // pixel-perfect content end.
+    // tailPad: optional early-fire allowance for the end edge. Keep it 0 on
+    // sheets whose bottom pad SHRINKS during the expand (PeekSheet's derived
+    // pad): an early-fired expand starts with the offset short of maxY, and
+    // the pad-shrink clamp only engages once maxY falls to that stop offset —
+    // the content rides up with the sheet by the shortfall first (slow drag:
+    // visible px shift; fast flick: one-frame snap — device-verified). At the
+    // true pixel end the clamp tracks the pad exactly and content stays
+    // stationary at any speed. The 2dp slack is float-rounding fuzz only —
+    // any larger window reintroduces the shortfall.
     const end =
       contentH > 0 &&
       viewH > 0 &&
-      y + viewH >= contentH - tailPad.current - 8;
+      y + viewH >= contentH - tailPad.current - 2;
     if (
       top !== atTop.current ||
       end !== atEnd.current ||
@@ -172,6 +177,27 @@ export default function useScrollEdge(onFlip, scrollRef) {
 
   const onContentSizeChange = useCallback(
     (_w, h) => {
+      // "Was the pane pinned at its end BEFORE this commit?" — captured from
+      // the pre-update dims. The native clamp only ever pulls the offset DOWN
+      // (pad shrink); nothing pushes it UP when the pad RE-GROWS (bounce-back
+      // settle to half, full→half drag, half→pill collapse). Without a
+      // growth-side re-pin a failed expand leaves the offset ~100dp above the
+      // end: the last card visibly sits lower than before the gesture, atEnd
+      // flips off, the next up-swipe scrolls content instead of expanding the
+      // sheet, and the NEXT expand inherits the shortfall as a content snap
+      // (device-verified). Pinned-at-end is a stable identity here: tracking
+      // the growth keeps the content visually stationary through the whole
+      // bounce and preserves the end state across pill round-trips.
+      // The scrollable guard is load-bearing: a NON-scrollable pane has
+      // maxY = 0, so y = 0 satisfies "at end" trivially — without the guard
+      // the NEXT tall content commit (incident A short → incident B tall on
+      // the same mounted ScrollView) would re-pin a fresh pane to its BOTTOM.
+      const { y: prevY, viewH: prevViewH, contentH: prevContentH } =
+        dims.current;
+      const wasAtEnd =
+        prevViewH > 0 &&
+        prevContentH > prevViewH + 8 &&
+        prevY >= Math.max(0, prevContentH - prevViewH) - 2;
       dims.current = { ...dims.current, contentH: h };
       // End clamp on pad shrink: the position-tracked bottom pad commits one
       // layout AFTER the sheet's translateY frame, so the native scroll clamp
@@ -186,9 +212,14 @@ export default function useScrollEdge(onFlip, scrollRef) {
       // "rested above the end" case y < maxY, so this stays silent.
       if (!momentumActive.current) {
         const { y, viewH, contentH } = dims.current;
-        if (viewH > 0 && contentH > 0 && y > contentH - viewH + 1) {
-          scrollRefRef.current?.current?.scrollToEnd?.({ animated: false });
-          dims.current = { ...dims.current, y: Math.max(0, contentH - viewH) };
+        if (viewH > 0 && contentH > 0) {
+          const maxY = Math.max(0, contentH - viewH);
+          if (y > maxY + 1 || (wasAtEnd && maxY > y + 1)) {
+            scrollRefRef.current?.current?.scrollToEnd?.({
+              animated: false,
+            });
+            dims.current = { ...dims.current, y: maxY };
+          }
         }
       }
       recompute();

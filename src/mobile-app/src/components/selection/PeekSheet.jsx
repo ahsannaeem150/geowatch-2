@@ -116,7 +116,6 @@ export default function PeekSheet() {
   // Scroll-edge trackers for the nested-scroll handoff: the body capture
   // responder below only steals a drag when the visible pane's ScrollView is
   // pinned at the edge the gesture would cross (Google Maps pattern).
-  // tailPad is assigned at render time next to halfBottomPad below.
   // relEpoch bumps on every edge flip so the handoff pans re-resolve their
   // scroll-view relation AFTER a freshly mounted pane's ref has attached
   // (at the mount render eviScrollRef is still null, so the first relation
@@ -413,11 +412,15 @@ export default function PeekSheet() {
     return null;
   }
 
-  // Scrolling into the visible tail (the pad's on-screen part) already feels
-  // like "the end" — the handoff fires there, not far early. The pad itself
-  // is the derived bottomPad spacer above (tracks the live sheet position).
-  detailEdge.tailPad.current = 62 + insets.bottom;
-  eviEdge.tailPad.current = 62 + insets.bottom;
+  // tailPad stays 0 (the hook default): the expand handoff may fire ONLY at
+  // the true pixel end. Any early-fire window lets the gesture start with the
+  // scroll offset short of maxY, and because the bottom pad shrinks 1:1 with
+  // the sheet's rise, the native clamp doesn't engage until maxY falls to the
+  // stop offset — the content first rides UP with the sheet by that shortfall
+  // (slow drag: visible few-px shift; fast flick: one-frame snap), then pins.
+  // With the offset pinned at maxY from frame one, the clamp tracks the pad
+  // shrink exactly and the content stays stationary at every speed
+  // (device-verified).
   const detailTranslate = bodyAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -windowWidth * 0.35],
