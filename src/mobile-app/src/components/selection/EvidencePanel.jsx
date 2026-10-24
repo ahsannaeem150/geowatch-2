@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Reanimated from 'react-native-reanimated';
 import HandoffScrollView from '../overlays/HandoffScrollView';
 import Svg, { Circle, Path } from 'react-native-svg';
 import {
@@ -697,7 +698,12 @@ export function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
 // Evidence content (title, tabs, media grid, X posts, lightbox) — shared by
 // the fullscreen panel (direct mode / zones) and the peek sheet's inline
 // evidence sub-view.
-export function EvidenceBody({ bottomPad = 0, scrollHandlers, scrollRef }) {
+export const EvidenceBody = React.memo(function EvidenceBody({
+  bottomPad = 0,
+  bottomPadStyle,
+  scrollHandlers,
+  scrollRef,
+}) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { selectedId } = useMap();
@@ -879,7 +885,11 @@ export function EvidenceBody({ bottomPad = 0, scrollHandlers, scrollRef }) {
             )}
           </>
         ) : null}
-        <Animated.View style={bottomPad ? { height: bottomPad } : styles.tailPad} />
+        {bottomPadStyle ? (
+          <Reanimated.View style={bottomPadStyle} />
+        ) : (
+          <Animated.View style={bottomPad ? { height: bottomPad } : styles.tailPad} />
+        )}
       </HandoffScrollView>
 
       <MediaGalleryModal
@@ -890,7 +900,7 @@ export function EvidenceBody({ bottomPad = 0, scrollHandlers, scrollRef }) {
       />
     </View>
   );
-}
+});
 
 export default function EvidencePanel() {
   const { theme } = useTheme();

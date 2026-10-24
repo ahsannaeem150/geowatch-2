@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -14,7 +14,13 @@ import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
-import useSheetGesture from '../../hooks/useSheetGesture';
+import Reanimated, {
+  Extrapolate,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import useReanimatedSheetGesture from '../../hooks/useReanimatedSheetGesture';
 import useScrollEdge from '../../hooks/useScrollEdge';
 import HandoffScrollView from '../overlays/HandoffScrollView';
 import { ZoneBody } from './ZoneSheet';
@@ -77,32 +83,24 @@ export default function PeekSheet() {
   useEffect(() => {
     if (sheetLevelRef) sheetLevelRef.current = level;
   }, [level, sheetLevelRef]);
-  const pos = useRef(new Animated.Value(hiddenTy)).current;
+  const pos = useSharedValue(hiddenTy);
   const wantOpen = useRef(true);
   const justMounted = useRef(false);
   const sheetLaidOut = useRef(false);
 
-  // Bottom content pad that TRACKS the sheet's live position. The pad is
-  // (off-screen sheet tail) + (tab-bar clearance): the tab bar (zIndex 60)
-  // overlays the sheet's bottom at BOTH detents, so the content end should
-  // rest just above the tab bar's top edge. Keying the pad to the committed
-  // detent used to swap it in one shot at gesture release — Android then
-  // clamped the scroll offset instantly and the content SNAPPED (the flick
-  // on half→full expands). Tracking pos instead makes the pad shrink in sync
-  // with the sheet's rise, so the upper content reveals smoothly and the end
-  // update stays glued in place the whole way. pad = pos + 62 keeps the end
-  // pinned at y = fullH - 62 (tab bar's top edge) at every sheet position.
-  //
-  // The pad is a DERIVED node — Animated.add(pos, 62) — not a second value:
-  // it can never diverge, die, or go stale (a pos.addListener dies silently
-  // across the sheet's unmount/remount cycle → the "State 2" bug; a mirrored
-  // JS spring doubles the per-frame commit cost — both verified on-device).
-  // One value stream also halves the JS-driven commit traffic per frame.
-  // pos is clamped ≥ 0, so pad ≥ 62 always (no max() node needed). Because a
-  // layout prop (height) consumes the node, pos MUST stay JS-driven
-  // (jsSprings in useSheetGesture) — a native-driven parent can't feed a
-  // JS-consumed prop without coalesced listener hops.
-  const bottomPad = useRef(Animated.add(pos, 62)).current;
+  // Position and the off-screen-tail pad share one UI-thread value stream.
+  const bottomPadStyle = useAnimatedStyle(() => ({
+    height: pos.value + 62,
+  }));
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: pos.value }],
+    opacity: interpolate(
+      pos.value,
+      [halfTy, hiddenTy],
+      [1, 0.25],
+      Extrapolate.CLAMP,
+    ),
+  }));
 
   const targetTy =
     view === 'drawer'
@@ -123,7 +121,7 @@ export default function PeekSheet() {
   // one commit later, once onLayout/onContentSizeChange have run).
   const [relEpoch, bumpRelEpoch] = useState(0);
   // Refs to the panes' HandoffScrollViews — the handoff pans block these
-  // natively (useSheetGesture scrollRefs) so the scroll waits for the pan,
+  // natively (useReanimatedSheetGesture scrollRefs) so the scroll waits for the pan,
   // and useScrollEdge re-pins a stale offset through them when the animated
   // bottom pad shrinks the content mid-fling. Declared before the edge hooks
   // (TDZ) since they are passed straight in.
@@ -137,6 +135,15 @@ export default function PeekSheet() {
     () => bumpRelEpoch((c) => c + 1),
     eviScrollRef,
   );
+  const wasMoving = useRef(false);
+  const detailMotionEnd = detailEdge.onSheetMotionEnd;
+  const evidenceMotionEnd = eviEdge.onSheetMotionEnd;
+  useEffect(() => {
+    if (wasMoving.current && !moving) {
+      (inEvidence ? evidenceMotionEnd : detailMotionEnd)();
+    }
+    wasMoving.current = moving;
+  }, [moving, inEvidence, detailMotionEnd, evidenceMotionEnd]);
   const itemId = item?.id;
   useEffect(() => {
     detailEdge.reset();
@@ -191,7 +198,7 @@ export default function PeekSheet() {
         // attached view. Starting the spring in the same pass as setMounted
         // fired it on an unmounted view and then restarted it a frame later,
         // which was the visible jump/glitch on the pill → sheet handoff.
-        pos.setValue(hiddenTy);
+        pos.value = hiddenTy;
         justMounted.current = true;
         sheetLaidOut.current = false;
         setMounted(true);
@@ -206,7 +213,7 @@ export default function PeekSheet() {
       // handoffs. pos≈target means there is genuinely nothing to animate.
       if (
         launchedTy.current === targetTy ||
-        Math.abs(pos.__getValue() - targetTy) < 1
+        Math.abs(pos.value - targetTy) < 1
       ) {
         launchedTy.current = null;
         pendingVy.current = 0;
@@ -224,13 +231,9 @@ export default function PeekSheet() {
       };
       if (justMounted.current) {
         justMounted.current = false;
-        // Wait until the freshly mounted sheet has committed a native layout
-        // AND presented a few frames before starting the entry spring: a
-        // JS-thread spring is time-based, so if it starts while the mount's
-        // first heavy draw still blocks the render thread, its first computed
-        // value skips ahead by the blocked time — the visible mid-flight
-        // teleport on pill → mid (verified on-device: ~550px in one frame).
-        // The sheet waits off-screen at hiddenTy, so the delay is invisible.
+        // Let the freshly mounted sheet commit its native layout and present
+        // a few frames before the entry spring. The sheet waits off-screen,
+        // so this avoids a heavy first draw without a visible delay.
         let cancelled = false;
         let laidOutAt = -1;
         let frames = 0;
@@ -267,7 +270,7 @@ export default function PeekSheet() {
         pendingVy.current = 0;
         return;
       }
-      if (Math.abs(pos.__getValue() - hiddenTy) < 1) {
+      if (Math.abs(pos.value - hiddenTy) < 1) {
         pendingVy.current = 0;
         setMounted(false);
         return;
@@ -328,16 +331,9 @@ export default function PeekSheet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inEvidence, evidenceUpdate, itemId]);
 
-  // Shared gesture engine (src/hooks/useSheetGesture.js) — the reference
-  // implementation every sheet in the app uses. launchedTy lets the detent
-  // effect above skip re-firing a spring the gesture release already
-  // launched (double-push glitch on heavy screens).
-  const { panResponder, handoffGesture, springTo, pendingVy, launchedTy, motionRef } =
-    useSheetGesture({
+  const { headGesture, handoffGesture, springTo, pendingVy, launchedTy, motionRef } =
+    useReanimatedSheetGesture({
       pos,
-      // JS-thread springs: the bottom pad is Animated.add(pos, 62) feeding a
-      // layout prop, so pos must stay on the JS thread (see bottomPad above).
-      jsSprings: true,
       onMotionChange,
       getClamp: () => ({ top: 0, bottom: live.current.hiddenTy }),
       getRestTy: () => (live.current.level === 'full' ? 0 : live.current.halfTy),
@@ -346,7 +342,7 @@ export default function PeekSheet() {
       // scrolled to its end, an up-drag expands the sheet. Between the edges
       // the pane scrolls natively.
       handoff: {
-        // Render-time enable flags (see useSheetGesture): at FULL or HALF
+        // Render-time enable flags (see useReanimatedSheetGesture): at FULL or HALF
         // with the pane scrolled to its top, a body down-drag steps the
         // sheet down; at HALF with the pane scrolled to its end, an up-drag
         // expands it. Between the edges the pane scrolls natively.
@@ -408,6 +404,27 @@ export default function PeekSheet() {
     },
   });
 
+  const evidenceScrollHandlers = useMemo(
+    () => ({
+      scrollEnabled: eviEdge.scrollableNow,
+      onScroll: eviEdge.onScroll,
+      onScrollEndDrag: eviEdge.onScrollEndDrag,
+      onMomentumScrollBegin: eviEdge.onMomentumScrollBegin,
+      onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
+      onLayout: eviEdge.onLayout,
+      onContentSizeChange: eviEdge.onContentSizeChange,
+    }),
+    [
+      eviEdge.scrollableNow,
+      eviEdge.onScroll,
+      eviEdge.onScrollEndDrag,
+      eviEdge.onMomentumScrollBegin,
+      eviEdge.onMomentumScrollEnd,
+      eviEdge.onLayout,
+      eviEdge.onContentSizeChange,
+    ],
+  );
+
   if (!mounted || !item) {
     return null;
   }
@@ -439,17 +456,9 @@ export default function PeekSheet() {
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
-  // Subtle fade as the sheet travels below the half detent toward dismissal,
-  // so it visually hands off to the incoming pill instead of hard-cutting.
-  const sheetOpacity = pos.interpolate({
-    inputRange: [halfTy, hiddenTy],
-    outputRange: [1, 0.25],
-    extrapolate: 'clamp',
-  });
-
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <Animated.View
+      <Reanimated.View
         renderToHardwareTextureAndroid={moving}
         onLayout={() => {
           sheetLaidOut.current = true;
@@ -461,115 +470,107 @@ export default function PeekSheet() {
             paddingBottom: insets.bottom,
             backgroundColor: theme.bgSurface,
             borderColor: theme.borderSubtle,
-            transform: [{ translateY: pos }],
-            opacity: sheetOpacity,
           },
+          sheetAnimatedStyle,
         ]}>
-        <View
-          {...panResponder.panHandlers}
-          style={[
-            styles.head,
-            inEvidence ? styles.headEvidence : null,
-          ]}>
-          <View style={styles.grabberRow}>
-            <View
-              style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
-            />
-          </View>
-          {inEvidence ? (
-            <Pressable
-              onPress={closeEvidence}
-              hitSlop={10}
-              style={({ pressed }) => [
-                styles.headBtn,
-                styles.headBtnLeft,
-                { backgroundColor: pressed ? theme.bgHover : theme.bgElevated },
-              ]}>
-              <ChevronLeft size={16} color={theme.textSecondary} />
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={level === 'full' ? collapseToPeek : expandFromPeek}
-              hitSlop={10}
-              style={({ pressed }) => [
-                styles.headBtn,
-                { backgroundColor: pressed ? theme.bgHover : theme.bgElevated },
-              ]}>
-              {level === 'full' ? (
-                <ChevronDown size={16} color={theme.textSecondary} />
-              ) : (
-                <ChevronUp size={16} color={theme.textSecondary} />
-              )}
-            </Pressable>
-          )}
-          {inEvidence ? (
-            <Text
-              style={[
-                styles.headTitle,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}
-              numberOfLines={1}>
-              UPDATE EVIDENCE
-            </Text>
-          ) : null}
-        </View>
-        <GestureDetector gesture={handoffGesture}>
-          <View style={styles.bodyWrap}>
-          <Animated.View
-            pointerEvents={inEvidence ? 'none' : 'auto'}
+        <GestureDetector gesture={headGesture}>
+          <View
             style={[
-              styles.bodyFill,
-              {
-                transform: [{ translateX: detailTranslate }],
-                opacity: detailOpacity,
-              },
+              styles.head,
+              inEvidence ? styles.headEvidence : null,
             ]}>
-            <HandoffScrollView
-              ref={detailScrollRef}
-              style={styles.body}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={detailEdge.scrollableNow}
-              scrollEventThrottle={16}
-              onScroll={detailEdge.onScroll}
-              onScrollEndDrag={detailEdge.onScrollEndDrag}
-              onMomentumScrollBegin={detailEdge.onMomentumScrollBegin}
-              onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
-              onLayout={detailEdge.onLayout}
-              onContentSizeChange={detailEdge.onContentSizeChange}>
-              {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
-              <Animated.View style={{ height: bottomPad }} />
-            </HandoffScrollView>
-          </Animated.View>
-          {showEvidence && evidenceUpdate ? (
-            <Animated.View
-              pointerEvents={inEvidence ? 'auto' : 'none'}
-              style={[
-                styles.bodyOverlay,
-                {
-                  backgroundColor: theme.bgSurface,
-                  transform: [{ translateX: evidenceTranslate }],
-                  opacity: evidenceOpacity,
-                },
-              ]}>
-              <EvidenceBody
-                key={evidenceUpdate?.id}
-                bottomPad={bottomPad}
-                scrollRef={eviScrollRef}
-                scrollHandlers={{
-                  scrollEnabled: eviEdge.scrollableNow,
-                  onScroll: eviEdge.onScroll,
-                  onScrollEndDrag: eviEdge.onScrollEndDrag,
-                  onMomentumScrollBegin: eviEdge.onMomentumScrollBegin,
-                  onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
-                  onLayout: eviEdge.onLayout,
-                  onContentSizeChange: eviEdge.onContentSizeChange,
-                }}
+            <View style={styles.grabberRow}>
+              <View
+                style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
               />
-            </Animated.View>
-          ) : null}
+            </View>
+            {inEvidence ? (
+              <Pressable
+                onPress={closeEvidence}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  styles.headBtn,
+                  styles.headBtnLeft,
+                  { backgroundColor: pressed ? theme.bgHover : theme.bgElevated },
+                ]}>
+                <ChevronLeft size={16} color={theme.textSecondary} />
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={level === 'full' ? collapseToPeek : expandFromPeek}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  styles.headBtn,
+                  { backgroundColor: pressed ? theme.bgHover : theme.bgElevated },
+                ]}>
+                {level === 'full' ? (
+                  <ChevronDown size={16} color={theme.textSecondary} />
+                ) : (
+                  <ChevronUp size={16} color={theme.textSecondary} />
+                )}
+              </Pressable>
+            )}
+            {inEvidence ? (
+              <Text
+                style={[
+                  styles.headTitle,
+                  { color: theme.textMuted, fontFamily: theme.fontMono },
+                ]}
+                numberOfLines={1}>
+                UPDATE EVIDENCE
+              </Text>
+            ) : null}
           </View>
         </GestureDetector>
-      </Animated.View>
+        <GestureDetector gesture={handoffGesture}>
+          <View style={styles.bodyWrap}>
+            <Animated.View
+              pointerEvents={inEvidence ? 'none' : 'auto'}
+              style={[
+                styles.bodyFill,
+                {
+                  transform: [{ translateX: detailTranslate }],
+                  opacity: detailOpacity,
+                },
+              ]}>
+              <HandoffScrollView
+                ref={detailScrollRef}
+                style={styles.body}
+                showsVerticalScrollIndicator={false}
+                scrollEnabled={detailEdge.scrollableNow}
+                scrollEventThrottle={16}
+                onScroll={detailEdge.onScroll}
+                onScrollEndDrag={detailEdge.onScrollEndDrag}
+                onMomentumScrollBegin={detailEdge.onMomentumScrollBegin}
+                onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
+                onLayout={detailEdge.onLayout}
+                onContentSizeChange={detailEdge.onContentSizeChange}>
+                {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
+                <Reanimated.View style={bottomPadStyle} />
+              </HandoffScrollView>
+            </Animated.View>
+            {showEvidence && evidenceUpdate ? (
+              <Animated.View
+                pointerEvents={inEvidence ? 'auto' : 'none'}
+                style={[
+                  styles.bodyOverlay,
+                  {
+                    backgroundColor: theme.bgSurface,
+                    transform: [{ translateX: evidenceTranslate }],
+                    opacity: evidenceOpacity,
+                  },
+                ]}>
+                <EvidenceBody
+                  key={evidenceUpdate?.id}
+                  bottomPadStyle={bottomPadStyle}
+                  scrollRef={eviScrollRef}
+                  scrollHandlers={evidenceScrollHandlers}
+                />
+              </Animated.View>
+            ) : null}
+          </View>
+        </GestureDetector>
+      </Reanimated.View>
     </View>
   );
 }

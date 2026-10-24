@@ -288,7 +288,7 @@ function Skeleton({ theme }) {
 
 // Full incident detail body (summary card + actions + timeline) — shared by
 // the fullscreen drawer (direct mode) and the multi-detent peek sheet.
-export function DrawerBody({ item }) {
+export const DrawerBody = React.memo(function DrawerBody({ item }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { openEvidence, fetchDetail, getCachedDetail } = useSelection();
@@ -424,7 +424,7 @@ export function DrawerBody({ item }) {
       <View style={styles.tailPad} />
     </View>
   );
-}
+});
 
 export default function IncidentDrawer() {
   const { theme } = useTheme();

@@ -199,22 +199,13 @@ export default function useScrollEdge(onFlip, scrollRef) {
         prevContentH > prevViewH + 8 &&
         prevY >= Math.max(0, prevContentH - prevViewH) - 2;
       dims.current = { ...dims.current, contentH: h };
-      // End clamp on pad shrink: the position-tracked bottom pad commits one
-      // layout AFTER the sheet's translateY frame, so the native scroll clamp
-      // always reacts a frame late — harmless mid-motion, but the spring's
-      // LAST frame leaves a few-px overshoot residue that nothing else cleans
-      // (verified on-device). scrollToEnd targets the NATIVE current end — it
-      // is never stale, so it agrees with the native clamp instead of
-      // fighting it (a JS-computed scrollTo(maxY) from this snapshot DID
-      // fight: one-frame oscillation on flick expands — verified). Fire on
-      // every commit, idle or moving; only an active fling owns the scroller
-      // (the mid-fling re-pin + settle clamp cover that path). In the
-      // "rested above the end" case y < maxY, so this stays silent.
+      // Shrinking is left to Android's native clamp. A JS correction on every
+      // content-size commit uses an older offset and visibly fights the clamp.
       if (!momentumActive.current) {
         const { y, viewH, contentH } = dims.current;
         if (viewH > 0 && contentH > 0) {
           const maxY = Math.max(0, contentH - viewH);
-          if (y > maxY + 1 || (wasAtEnd && maxY > y + 1)) {
+          if (wasAtEnd && maxY > y + 1) {
             scrollRefRef.current?.current?.scrollToEnd?.({
               animated: false,
             });
@@ -226,6 +217,17 @@ export default function useScrollEdge(onFlip, scrollRef) {
     },
     [recompute],
   );
+
+  const onSheetMotionEnd = useCallback(() => {
+    const { y, viewH, contentH } = dims.current;
+    if (!scrollRefRef.current?.current || viewH <= 0 || contentH <= 0) return;
+    const maxY = Math.max(0, contentH - viewH);
+    if ((atEnd.current || y > maxY + 1) && Math.abs(y - maxY) > 1) {
+      scrollRefRef.current.current.scrollToEnd?.({ animated: false });
+      dims.current = { ...dims.current, y: maxY };
+      recompute();
+    }
+  }, [recompute]);
 
   const reset = useCallback(() => {
     // Force the edge flags back to a fresh-scroll-top state, but PRESERVE the
@@ -266,6 +268,7 @@ export default function useScrollEdge(onFlip, scrollRef) {
       onMomentumScrollEnd: settleWithClamp,
       onLayout,
       onContentSizeChange,
+      onSheetMotionEnd,
       reset,
     }),
     [
@@ -275,6 +278,7 @@ export default function useScrollEdge(onFlip, scrollRef) {
       onMomentumScrollBegin,
       onLayout,
       onContentSizeChange,
+      onSheetMotionEnd,
       reset,
     ],
   );

@@ -12,7 +12,7 @@ import { TimelineNode } from './IncidentDrawer';
 // render from list data instantly, the timeline fetches GET /incidents/:id
 // (SelectionContext cache → instant reopen). No own ScrollView — the sheet
 // supplies it.
-export function ZoneBody({ item }) {
+export const ZoneBody = React.memo(function ZoneBody({ item }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { openEvidence, fetchDetail, getCachedDetail } = useSelection();
@@ -140,7 +140,7 @@ export function ZoneBody({ item }) {
       <View style={styles.tailPad} />
     </View>
   );
-}
+});
 
 export default ZoneBody;
 
