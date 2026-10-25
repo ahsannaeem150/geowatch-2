@@ -309,6 +309,7 @@ export default function useSheetGesture({
   const handoffPans = useMemo(() => {
     const scrollRefs = (handoff?.scrollRefs ?? []).filter(Boolean);
     const down = Gesture.Pan()
+      .runOnJS(true)
       .enabled(dragDownEnabled)
       .activeOffsetY(4)
       .failOffsetY(-4)
@@ -318,6 +319,7 @@ export default function useSheetGesture({
       .onEnd(onHandoffEnd)
       .onFinalize(onHandoffFinalize);
     const up = Gesture.Pan()
+      .runOnJS(true)
       .enabled(dragUpEnabled)
       .activeOffsetY(-4)
       .failOffsetY(4)
