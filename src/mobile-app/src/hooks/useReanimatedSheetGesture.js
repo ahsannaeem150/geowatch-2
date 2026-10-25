@@ -36,6 +36,7 @@ export default function useReanimatedSheetGesture({
 
   const springTo = useCallback(
     (ty, velocity = 0, onDone, params) => {
+      launchedTy.current = ty;
       motionBump(1);
       const complete = (finished) => {
         motionBump(-1);

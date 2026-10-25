@@ -20,6 +20,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector } from 'react-native-gesture-handler';
+import { useSharedValue } from 'react-native-reanimated';
+import DetentSheet from '../sheets/DetentSheet';
 import HandoffScrollView from './HandoffScrollView';
 import {
   ArrowRight,
@@ -832,18 +834,12 @@ export function PowerSearchBody({ overlay }) {
 // ─── Two-detent results sheet + dismiss pill ───
 // ONE sheet with internal list ↔ detail (↔ evidence) navigation — the PS
 // screen never opens the global PeekSheet. Detents: half (~52%) and full
-// (just below the solid top block). From LIST, a down-flick from half (or a
-// deep projection) dismisses the sheet fully off the bottom; a floating
-// "N RESULTS ▴" pill then re-opens it at half, always back on the list. In
-// DETAIL the same down-gesture returns to the list at half — the sheet never
-// dismisses straight from detail. Detail/evidence cross-slide mirrors the
-// PeekSheet's detail ↔ evidence cinematic (parallax left + fade / slide in
-// from the right); INSPECT runs on SelectionContext's evidence state with a
-// null global item, so the global sheet/panel never appear. Whole-sheet drag
-// shares the map PeekSheet's gesture engine (src/hooks/useSheetGesture.js)
-// in the same HEAD mode the PeekSheet uses: the panHandlers live on the
-// header strip (grabber + title row) only, so the pane ScrollViews stay
-// natively scrollable at every detent and never fight the sheet.
+// (just below the solid top block). A down-flick from half dismisses the
+// sheet fully off the bottom; a floating results/item pill restores it at
+// half, preserving the current list/detail state. Detail/evidence cross-slide
+// mirrors PeekSheet. Detent motion and scroll handoffs use the shared
+// DetentSheet; the header's grabber/title row owns drags and pane ScrollViews
+// stay natively scrollable at every detent.
 function ResultsSheet({
   total,
   loading,
@@ -873,7 +869,12 @@ function ResultsSheet({
 
   const [level, setLevel] = useState('half'); // 'half'|'full'|'dismissed'
   const [sortOpen, setSortOpen] = useState(false);
-  const pos = useRef(new Animated.Value(sheetH)).current; // mounts hidden
+  const pos = useSharedValue(sheetH);
+  const sheetController = useRef(null);
+  const resizeMounted = useRef(false);
+  const springTo = (...args) => sheetController.current?.(...args);
+  const targetTy =
+    level === 'full' ? fullTy : level === 'half' ? halfTy : sheetH;
 
   const inDetail = !!detail;
   const inEvidence = inDetail && selectionView === 'evidence' && !!evidenceUpdate;
@@ -960,8 +961,8 @@ function ResultsSheet({
   const listEdge = useScrollEdge();
   const detailEdge = useScrollEdge();
   const eviEdge = useScrollEdge();
-  // Refs to the panes' HandoffScrollViews — the handoff pans block these
-  // natively (useSheetGesture scrollRefs) so the scroll waits for the pan.
+  // Refs to the panes' HandoffScrollViews — the shared handoff pans block
+  // these natively so the scroll waits for the pan.
   const listScrollRef = useRef(null);
   const detailScrollRef = useRef(null);
   const eviScrollRef = useRef(null);
@@ -1039,55 +1040,17 @@ function ResultsSheet({
   const gestureFns = useRef({});
   gestureFns.current = { getRestTy: getRestTyFn, chooseTarget: chooseTargetFn };
 
-  const { panResponder, handoffGesture, springTo } = useSheetGesture({
-    pos,
-    getClamp: () => ({ top: live.current.fullTy, bottom: live.current.sheetH }),
-    getRestTy: () => gestureFns.current.getRestTy(),
-    chooseTarget: (args) => gestureFns.current.chooseTarget(args),
-    // Scroll-edge handoff (Google Maps pattern): pane at its top + drag down
-    // steps the sheet one detent down (full → half → dismissed pill); half
-    // detent + pane at its end + drag up → expand the sheet. Between the
-    // edges the pane scrolls.
-    handoff: {
-      dragDownEnabled:
-        (level === 'full' || level === 'half') &&
-        (inEvidence
-          ? eviEdge.atTopNow
-          : inDetail
-            ? detailEdge.atTopNow
-            : listEdge.atTopNow),
-      dragUpEnabled:
-        level === 'half' &&
-        (inEvidence
-          ? eviEdge.atEndNow
-          : inDetail
-            ? detailEdge.atEndNow
-            : listEdge.atEndNow),
-      scrollRefs: [listScrollRef, detailScrollRef, eviScrollRef],
-      epoch: `${inDetail}-${inEvidence}`,
-    },
-  });
-
-  // Slide-in on mount (to the half detent).
-  useEffect(() => {
-    Animated.spring(pos, {
-      toValue: halfTy,
-      damping: 24,
-      stiffness: 220,
-      mass: 0.9,
-      useNativeDriver: true,
-    }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Keyboard open/close resizes the window (adjustResize) and the top block
   // can re-measure: re-snap to the current level's detent so the sheet never
   // strands mid-screen.
   useEffect(() => {
+    if (!resizeMounted.current) {
+      resizeMounted.current = true;
+      return;
+    }
     const s = live.current;
     if (s.level === 'dismissed') return;
     springTo(s.level === 'full' ? s.fullTy : s.halfTy);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [halfTy, fullTy, sheetH]);
 
   // Tap on the header toggles half ↔ full.
@@ -1114,29 +1077,17 @@ function ResultsSheet({
   // after each settle and pad by exactly that (+ nav-bar inset + margin).
   const bodyWrapRef = useRef(null);
   const [measuredPad, setMeasuredPad] = useState(null);
-  useEffect(() => {
-    let settle = null;
-    const measure = () => {
-      bodyWrapRef.current?.measureInWindow((x, y, w, h) => {
-        // App window already ends at the nav bar — pad only the overflow.
-        const overflow = y + h - windowHeight;
-        setMeasuredPad(Math.max(0, Math.round(overflow)) + 12);
-      });
-    };
-    // Re-measure whenever the sheet's translateY stops moving (covers detent
-    // snaps, header re-measures, keyboard resizes — any settle).
-    const sub = pos.addListener(() => {
-      if (settle) clearTimeout(settle);
-      settle = setTimeout(measure, 250);
+  const measureBodyPad = useCallback(() => {
+    bodyWrapRef.current?.measureInWindow((x, y, w, h) => {
+      // App window already ends at the nav bar — pad only the overflow.
+      const overflow = y + h - windowHeight;
+      setMeasuredPad(Math.max(0, Math.round(overflow)) + 12);
     });
-    const first = setTimeout(measure, 500);
-    return () => {
-      pos.removeListener(sub);
-      if (settle) clearTimeout(settle);
-      clearTimeout(first);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [windowHeight, insets.bottom]);
+  }, [windowHeight]);
+  useEffect(() => {
+    const first = setTimeout(measureBodyPad, 500);
+    return () => clearTimeout(first);
+  }, [measureBodyPad]);
   const bodyBottomPad =
     measuredPad ?? (level === 'half' ? halfTy : fullTy) + 12;
   // Off-screen tail = padding minus its small safety margin; scrolling into
@@ -1184,18 +1135,79 @@ function ResultsSheet({
   });
 
   return (
-    <View style={styles.sheetWrap} pointerEvents="box-none">
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            height: sheetH,
-            backgroundColor: theme.bgSurface,
-            borderColor: theme.borderSubtle,
-            transform: [{ translateY: pos }],
-          },
-        ]}>
-        <View style={styles.sheetHead} {...panResponder.panHandlers}>
+    <>
+      <DetentSheet
+        active
+        targetTy={targetTy}
+        hiddenTy={sheetH}
+        pos={pos}
+        getClamp={() => ({ top: live.current.fullTy, bottom: live.current.sheetH })}
+        getRestTy={() => gestureFns.current.getRestTy()}
+        chooseTarget={(args) => gestureFns.current.chooseTarget(args)}
+        dragDownEnabled={
+          (level === 'full' || level === 'half') &&
+          (inEvidence
+            ? eviEdge.atTopNow
+            : inDetail
+              ? detailEdge.atTopNow
+              : listEdge.atTopNow)
+        }
+        dragUpEnabled={
+          level === 'half' &&
+          (inEvidence
+            ? eviEdge.atEndNow
+            : inDetail
+              ? detailEdge.atEndNow
+              : listEdge.atEndNow)
+        }
+        scrollRefs={[listScrollRef, detailScrollRef, eviScrollRef]}
+        handoffEpoch={`${inDetail}-${inEvidence}`}
+        style={{
+          height: sheetH,
+          backgroundColor: theme.bgSurface,
+          borderColor: theme.borderSubtle,
+        }}
+        bodyProps={{ ref: bodyWrapRef, collapsable: false }}
+        controllerRef={sheetController}
+        onMotionEnd={measureBodyPad}
+        overlay={sortOpen ? (
+          <View
+            style={[
+              styles.sortMenu,
+              {
+                backgroundColor: theme.bgElevated,
+                borderColor: theme.borderSubtle,
+              },
+            ]}>
+            {SORTS.map((s) => {
+              const on = s.key === sortMode;
+              return (
+                <Pressable
+                  key={s.key}
+                  onPress={() => {
+                    onSortChange(s.key);
+                    setSortOpen(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.sortItem,
+                    pressed && { backgroundColor: theme.bgHover },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.sortItemText,
+                      { color: on ? theme.accentLight : theme.textSecondary },
+                      on && styles.sortItemOn,
+                    ]}>
+                    {s.label}
+                  </Text>
+                  {on ? <Check size={13} color={theme.accentLight} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+        renderHeader={() => (
+          <View style={styles.sheetHead}>
           <View style={styles.grabberRow}>
             <View
               style={[styles.grabber, { backgroundColor: theme.borderSubtle }]}
@@ -1275,46 +1287,8 @@ function ResultsSheet({
             </View>
           )}
         </View>
+        )}>
 
-        {sortOpen ? (
-          <View
-            style={[
-              styles.sortMenu,
-              {
-                backgroundColor: theme.bgElevated,
-                borderColor: theme.borderSubtle,
-              },
-            ]}>
-            {SORTS.map((s) => {
-              const on = s.key === sortMode;
-              return (
-                <Pressable
-                  key={s.key}
-                  onPress={() => {
-                    onSortChange(s.key);
-                    setSortOpen(false);
-                  }}
-                  style={({ pressed }) => [
-                    styles.sortItem,
-                    pressed && { backgroundColor: theme.bgHover },
-                  ]}>
-                  <Text
-                    style={[
-                      styles.sortItemText,
-                      { color: on ? theme.accentLight : theme.textSecondary },
-                      on && styles.sortItemOn,
-                    ]}>
-                    {s.label}
-                  </Text>
-                  {on ? <Check size={13} color={theme.accentLight} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : null}
-
-        <GestureDetector gesture={handoffGesture}>
-          <View style={styles.bodyWrap} ref={bodyWrapRef} collapsable={false}>
           <Animated.View
             pointerEvents={inDetail ? 'none' : 'auto'}
             style={[
@@ -1540,9 +1514,7 @@ function ResultsSheet({
               ) : null}
             </Animated.View>
           ) : null}
-          </View>
-        </GestureDetector>
-      </Animated.View>
+      </DetentSheet>
 
       {/* Dismissed → floating pill re-opens the sheet at half. Two pill
           faces: the LIST pill (results count) or, when the sheet was
@@ -1650,7 +1622,7 @@ function ResultsSheet({
           </Pressable>
         )
       ) : null}
-    </View>
+    </>
   );
 }
 
@@ -2356,16 +2328,6 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 11, letterSpacing: 0.3 },
   // ─── results sheet ───
-  sheetWrap: {
-    ...StyleSheet.absoluteFill,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
   sheetHead: {
     paddingBottom: 4,
   },

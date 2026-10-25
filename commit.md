@@ -12965,3 +12965,6 @@ perf(mobile): PeekSheet grabber/handoff drags + springs moved to Reanimated/Work
 fix(mobile): native clamp owns bottom-pad shrink while scrollToEnd runs only at motion completion — removes timeline content oscillation and Evidence freeze-then-jump; release device-verified on Flash Floods + zone detents, pill restore, evidence back and scroll handoffs.
 perf(mobile): timeline→evidence cross-slide no longer mounts the full evidence tree upfront — media/X-post/article/note content arrives post-transition via startTransition, XPostCard memoized, gallery Modals lazy-mounted only while open; release-verified on Flash Floods + actual gallery open.
 fix(mobile): Power Search list scroll + Worklets crash — legacy useSheetGesture handoff pans explicitly runOnJS(true), preventing motionBump from executing on the UI runtime; release-verified list bottom scroll, full/half detents and pill restore.
+
+refactor(mobile): shared DetentSheet for map PeekSheet + Power Search ResultsSheet — Reanimated detents, handoffs, padding, mount/motion lifecycle and sort overlay slot; local navigation policies preserved.
+fix(mobile): Power Search motion-end measured padding + external spring dedupe; debug device-verified list/detail/evidence, detents, filters/sort, pill restore and map regression.
