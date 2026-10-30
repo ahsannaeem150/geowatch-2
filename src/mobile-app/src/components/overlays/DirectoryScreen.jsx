@@ -567,7 +567,7 @@ export default function DirectoryScreen({ kind, overlay }) {
 }
 
 // ─── Result card (prototype .dir-card) — shared with Power Search (P7) ───
-export function DirCard({ kind, item, highlighted, onPress }) {
+export const DirCard = React.memo(function DirCard({ kind, item, highlighted, onPress, onOpen }) {
   const { theme } = useTheme();
   const isZone = kind === 'zone';
   const sev = severityOf(item);
@@ -589,7 +589,7 @@ export function DirCard({ kind, item, highlighted, onPress }) {
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={onOpen ? () => onOpen(kind, item) : onPress}
       style={({ pressed }) => [
         styles.card,
         { borderBottomColor: theme.borderSubtle },
@@ -656,7 +656,7 @@ export function DirCard({ kind, item, highlighted, onPress }) {
       </View>
     </Pressable>
   );
-}
+});
 
 // ─── Skeleton rows while loading ───
 function SkeletonRows({ theme }) {

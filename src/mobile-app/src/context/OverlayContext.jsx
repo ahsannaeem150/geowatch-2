@@ -28,7 +28,7 @@ export function OverlayProvider({ children }) {
   }, []);
 
   const closeAll = useCallback(() => {
-    setStack([]);
+    setStack((prev) => (prev.length ? [] : prev));
   }, []);
 
   const showToast = useCallback((message) => {

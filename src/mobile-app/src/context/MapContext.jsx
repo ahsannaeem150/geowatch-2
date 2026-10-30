@@ -145,6 +145,7 @@ export function MapProvider({ children }) {
   const mapCenterRef = useRef(DEFAULT_CENTER);
   const viewportPxRef = useRef(Dimensions.get('window'));
   const lastSelectionFlightRef = useRef(null);
+  const [selectionFlightActive, setSelectionFlightActive] = useState(false);
   const viewportBoundsRef = useRef(null); // "w,s,e,n" string for the API
   const viewportModeRef = useRef(viewportMode);
   const dateRangeRef = useRef(dateRange);
@@ -337,6 +338,7 @@ export function MapProvider({ children }) {
   // Region changes: track zoom/bounds; debounced viewport-bounded refetch.
   const handleRegionChange = useCallback(
     (state) => {
+      setSelectionFlightActive(false);
       if (!state) return;
       const { bounds, zoom } = state;
       if (Array.isArray(bounds) && bounds.length === 4) {
@@ -594,10 +596,20 @@ export function MapProvider({ children }) {
       padding,
     };
     const camera = { center: flightCenter, zoom: targetZoom, duration: decision.duration };
-    if (zoomUnchanged) {
-      cam.easeTo(camera);
-    } else {
-      cam.flyTo(camera);
+    const cameraWillMove =
+      Math.abs(targetZoom - currentZoom) >= 0.001 ||
+      Math.abs(flightCenter[0] - currentCenter[0]) > 1e-7 ||
+      Math.abs(flightCenter[1] - currentCenter[1]) > 1e-7;
+    setSelectionFlightActive(cameraWillMove);
+    try {
+      if (zoomUnchanged) {
+        cam.easeTo(camera);
+      } else {
+        cam.flyTo(camera);
+      }
+    } catch (error) {
+      setSelectionFlightActive(false);
+      throw error;
     }
   }, []);
 
@@ -632,6 +644,7 @@ export function MapProvider({ children }) {
       zoomOut,
       flyTo,
       flyToSelection,
+      selectionFlightActive,
       autoZoomEnabled,
       setAutoZoomEnabled,
       handleRegionChange,
@@ -664,6 +677,7 @@ export function MapProvider({ children }) {
       zoomOut,
       flyTo,
       flyToSelection,
+      selectionFlightActive,
       autoZoomEnabled,
       setAutoZoomEnabled,
       handleRegionChange,

@@ -20,6 +20,9 @@ export default function useScrollEdge(onFlip, scrollRef) {
   const dims = useRef({ y: 0, viewH: 0, contentH: 0 });
   const scrollableRef = useRef(false);
   const momentumActive = useRef(false);
+  const sheetMotionAnchor = useRef(null);
+  const motionRelationDirty = useRef(false);
+  const topAnchorUntil = useRef(0);
   const [edges, setEdges] = useState({
     atTopNow: true,
     atEndNow: false,
@@ -103,18 +106,33 @@ export default function useScrollEdge(onFlip, scrollRef) {
       atEnd.current = end;
       scrollableRef.current = scrollable;
       setEdges({ atTopNow: top, atEndNow: end, scrollableNow: scrollable });
-      if (onFlipRef.current) onFlipRef.current();
+      if (onFlipRef.current) {
+        if (sheetMotionAnchor.current) {
+          motionRelationDirty.current = true;
+        } else {
+          onFlipRef.current();
+        }
+      }
     }
   }, []);
 
   const onScroll = useCallback(
     (e) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-      dims.current = {
-        y: contentOffset.y,
-        viewH: layoutMeasurement.height,
-        contentH: contentSize.height,
-      };
+      if (topAnchorUntil.current > Date.now() && contentOffset.y > 1) {
+        scrollRefRef.current?.current?.scrollTo?.({ y: 0, animated: false });
+        dims.current = {
+          y: 0,
+          viewH: layoutMeasurement.height,
+          contentH: contentSize.height,
+        };
+      } else {
+        dims.current = {
+          y: contentOffset.y,
+          viewH: layoutMeasurement.height,
+          contentH: contentSize.height,
+        };
+      }
       recompute();
     },
     [recompute],
@@ -150,6 +168,15 @@ export default function useScrollEdge(onFlip, scrollRef) {
       };
       const ref = scrollRefRef.current;
       const { y, viewH, contentH } = dims.current;
+      if (topAnchorUntil.current > Date.now()) {
+        topAnchorUntil.current = 0;
+        if (y > 1) {
+          ref?.current?.scrollTo?.({ y: 0, animated: false });
+          dims.current = { ...dims.current, y: 0 };
+        }
+        recompute();
+        return;
+      }
       if (ref?.current && viewH > 0 && contentH > 0) {
         const maxY = Math.max(0, contentH - viewH);
         if (y > maxY + 1) {
@@ -205,10 +232,16 @@ export default function useScrollEdge(onFlip, scrollRef) {
         const { y, viewH, contentH } = dims.current;
         if (viewH > 0 && contentH > 0) {
           const maxY = Math.max(0, contentH - viewH);
-          if (wasAtEnd && maxY > y + 1) {
-            scrollRefRef.current?.current?.scrollToEnd?.({
-              animated: false,
-            });
+          const ref = scrollRefRef.current?.current;
+          if (sheetMotionAnchor.current?.atTop && y > 1 && ref) {
+            ref.scrollTo?.({ y: 0, animated: false });
+            dims.current = { ...dims.current, y: 0 };
+          } else if (
+            wasAtEnd &&
+            !sheetMotionAnchor.current?.preserveEnd &&
+            maxY > y + 1
+          ) {
+            ref?.scrollToEnd?.({ animated: false });
             dims.current = { ...dims.current, y: maxY };
           }
         }
@@ -218,11 +251,34 @@ export default function useScrollEdge(onFlip, scrollRef) {
     [recompute],
   );
 
+  const onSheetMotionStart = useCallback((preserveEnd = false) => {
+    sheetMotionAnchor.current = { atTop: atTop.current, preserveEnd };
+    topAnchorUntil.current = atTop.current ? Infinity : 0;
+  }, []);
+
   const onSheetMotionEnd = useCallback(() => {
+    const anchor = sheetMotionAnchor.current;
+    sheetMotionAnchor.current = null;
+    if (motionRelationDirty.current) {
+      motionRelationDirty.current = false;
+      onFlipRef.current?.();
+    }
+    topAnchorUntil.current = anchor?.atTop ? Date.now() + 100 : 0;
     const { y, viewH, contentH } = dims.current;
     if (!scrollRefRef.current?.current || viewH <= 0 || contentH <= 0) return;
+    if (anchor?.atTop) {
+      if (y > 1) {
+        scrollRefRef.current.current.scrollTo?.({ y: 0, animated: false });
+        dims.current = { ...dims.current, y: 0 };
+        recompute();
+      }
+      return;
+    }
     const maxY = Math.max(0, contentH - viewH);
-    if ((atEnd.current || y > maxY + 1) && Math.abs(y - maxY) > 1) {
+    const beyondEnd = y > maxY + 1;
+    const shortFromEnd =
+      atEnd.current && !atTop.current && y < maxY - 1;
+    if ((beyondEnd || shortFromEnd) && Math.abs(y - maxY) > 1) {
       scrollRefRef.current.current.scrollToEnd?.({ animated: false });
       dims.current = { ...dims.current, y: maxY };
       recompute();
@@ -238,6 +294,7 @@ export default function useScrollEdge(onFlip, scrollRef) {
     // verified on-device). Stale dims self-correct via the next
     // onScroll/onContentSizeChange; a fresh pane mount re-reports both anyway.
     dims.current = { ...dims.current, y: 0 };
+    topAnchorUntil.current = 0;
     atTop.current = true;
     atEnd.current = false;
     const { viewH, contentH } = dims.current;
@@ -262,12 +319,14 @@ export default function useScrollEdge(onFlip, scrollRef) {
       // Live {y, viewH, contentH} — sheets with a position-animated bottom
       // pad read this to clamp a stale scroll offset while the pad shrinks.
       dims,
+      scrollRef: scrollRefRef,
       onScroll,
       onScrollEndDrag: settleWithClamp,
       onMomentumScrollBegin,
       onMomentumScrollEnd: settleWithClamp,
       onLayout,
       onContentSizeChange,
+      onSheetMotionStart,
       onSheetMotionEnd,
       reset,
     }),
@@ -278,6 +337,7 @@ export default function useScrollEdge(onFlip, scrollRef) {
       onMomentumScrollBegin,
       onLayout,
       onContentSizeChange,
+      onSheetMotionStart,
       onSheetMotionEnd,
       reset,
     ],

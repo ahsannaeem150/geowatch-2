@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
 import DetentSheet from '../sheets/DetentSheet';
+import DetentScrollView from '../sheets/DetentScrollView';
 import HandoffScrollView from './HandoffScrollView';
 import {
   ArrowRight,
@@ -571,14 +572,21 @@ export function PowerSearchBody({ overlay }) {
 
   const closeDetail = useCallback(() => setDetail(null), []);
 
-  // Closing the detail also releases any in-sheet evidence sub-view (the
-  // INSPECT flow runs on SelectionContext's evidence state with a null
-  // global item, so the global PeekSheet/EvidencePanel never appear).
+  // Closing the detail also releases its in-sheet evidence sub-view.
   useEffect(() => {
     if (!detail && selectionView === 'evidence') {
       closeEvidence();
     }
   }, [detail, selectionView, closeEvidence]);
+
+  const searchEvidenceRef = useRef(false);
+  searchEvidenceRef.current = !!detail && selectionView === 'evidence';
+  useEffect(
+    () => () => {
+      if (searchEvidenceRef.current) closeEvidence();
+    },
+    [closeEvidence],
+  );
 
   // Hardware back from the detail view returns to the list (it does NOT
   // close the PS screen); evidence back is left to MapScreen's chain, which
@@ -955,17 +963,15 @@ function ResultsSheet({
   }, [inEvidence, evidenceUpdate, detail?.item?.id]);
 
   const live = useRef({});
-  // Scroll-edge trackers (one per pane) for the nested-scroll handoff: the
-  // body capture responder only steals a drag when the VISIBLE pane's
-  // ScrollView is pinned at the edge the gesture would cross.
-  const listEdge = useScrollEdge();
-  const detailEdge = useScrollEdge();
-  const eviEdge = useScrollEdge();
-  // Refs to the panes' HandoffScrollViews — the shared handoff pans block
-  // these natively so the scroll waits for the pan.
   const listScrollRef = useRef(null);
   const detailScrollRef = useRef(null);
   const eviScrollRef = useRef(null);
+  // Scroll-edge trackers (one per pane) for the nested-scroll handoff: the
+  // body capture responder only steals a drag when the VISIBLE pane's
+  // ScrollView is pinned at the edge the gesture would cross.
+  const listEdge = useScrollEdge(undefined, listScrollRef);
+  const detailEdge = useScrollEdge(undefined, detailScrollRef);
+  const eviEdge = useScrollEdge(undefined, eviScrollRef);
   live.current = {
     level,
     halfTy,
@@ -1068,34 +1074,6 @@ function ResultsSheet({
 
   const sortLabel = SORTS.find((s) => s.key === sortMode)?.label || 'Newest';
 
-  // The sheet is full-screen tall and slides via translateY, so each pane's
-  // ScrollView extends below the screen edge by an amount that depends on the
-  // CURRENT resting position — and fullTy itself shifts when the search header
-  // re-measures (chips strip, keyboard, detail mode). Detent-based padding
-  // therefore either trapped the last rows below the edge or over-shot and
-  // left a dead gap. Measure the body container's real on-screen overflow
-  // after each settle and pad by exactly that (+ nav-bar inset + margin).
-  const bodyWrapRef = useRef(null);
-  const [measuredPad, setMeasuredPad] = useState(null);
-  const measureBodyPad = useCallback(() => {
-    bodyWrapRef.current?.measureInWindow((x, y, w, h) => {
-      // App window already ends at the nav bar — pad only the overflow.
-      const overflow = y + h - windowHeight;
-      setMeasuredPad(Math.max(0, Math.round(overflow)) + 12);
-    });
-  }, [windowHeight]);
-  useEffect(() => {
-    const first = setTimeout(measureBodyPad, 500);
-    return () => clearTimeout(first);
-  }, [measureBodyPad]);
-  const bodyBottomPad =
-    measuredPad ?? (level === 'half' ? halfTy : fullTy) + 12;
-  // Off-screen tail = padding minus its small safety margin; scrolling into
-  // the tail already feels like "the end", so the handoff fires there.
-  listEdge.tailPad.current = Math.max(0, bodyBottomPad - 12);
-  detailEdge.tailPad.current = Math.max(0, bodyBottomPad - 12);
-  eviEdge.tailPad.current = Math.max(0, bodyBottomPad - 12);
-
   // Cross-slide interpolations (PeekSheet detail ↔ evidence parity).
   const listTranslate = bodyAnim.interpolate({
     inputRange: [0, 1],
@@ -1133,6 +1111,26 @@ function ResultsSheet({
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
+  const evidenceScrollHandlers = useMemo(
+    () => ({
+      scrollEnabled: eviEdge.scrollableNow,
+      onScroll: eviEdge.onScroll,
+      onScrollEndDrag: eviEdge.onScrollEndDrag,
+      onMomentumScrollBegin: eviEdge.onMomentumScrollBegin,
+      onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
+      onLayout: eviEdge.onLayout,
+      onContentSizeChange: eviEdge.onContentSizeChange,
+    }),
+    [
+      eviEdge.scrollableNow,
+      eviEdge.onScroll,
+      eviEdge.onScrollEndDrag,
+      eviEdge.onMomentumScrollBegin,
+      eviEdge.onMomentumScrollEnd,
+      eviEdge.onLayout,
+      eviEdge.onContentSizeChange,
+    ],
+  );
 
   return (
     <>
@@ -1162,14 +1160,17 @@ function ResultsSheet({
         }
         scrollRefs={[listScrollRef, detailScrollRef, eviScrollRef]}
         handoffEpoch={`${inDetail}-${inEvidence}`}
+        activeScrollEdge={
+          inEvidence ? eviEdge : inDetail ? detailEdge : listEdge
+        }
+        evidenceActive={inEvidence}
+        bottomPadOffset={12}
         style={{
           height: sheetH,
           backgroundColor: theme.bgSurface,
           borderColor: theme.borderSubtle,
         }}
-        bodyProps={{ ref: bodyWrapRef, collapsable: false }}
         controllerRef={sheetController}
-        onMotionEnd={measureBodyPad}
         overlay={sortOpen ? (
           <View
             style={[
@@ -1288,7 +1289,8 @@ function ResultsSheet({
           )}
         </View>
         )}>
-
+        {(bottomPadStyle, evidenceMotion) => (
+          <>
           <Animated.View
             pointerEvents={inDetail ? 'none' : 'auto'}
             style={[
@@ -1356,23 +1358,13 @@ function ResultsSheet({
                 </Pressable>
               </View>
             ) : (
-              <HandoffScrollView
-                ref={listScrollRef}
+              <DetentScrollView
+                scrollRef={listScrollRef}
+                edge={listEdge}
+                bottomPadStyle={bottomPadStyle}
                 style={styles.stripList}
-                contentContainerStyle={[
-                  styles.stripPad,
-                  { paddingBottom: bodyBottomPad },
-                ]}
                 keyboardShouldPersistTaps="handled"
-                overScrollMode="never"
-                scrollEnabled={listEdge.scrollableNow}
-                scrollEventThrottle={16}
-                onScroll={listEdge.onScroll}
-                onScrollEndDrag={listEdge.onScrollEndDrag}
-                onMomentumScrollBegin={listEdge.onMomentumScrollBegin}
-                onMomentumScrollEnd={listEdge.onMomentumScrollEnd}
-                onLayout={listEdge.onLayout}
-                onContentSizeChange={listEdge.onContentSizeChange}>
+                overScrollMode="never">
                 {total === 0 ? (
                   <View style={styles.stateBox}>
                     <Text style={[styles.stateText, { color: theme.textMuted }]}>
@@ -1408,7 +1400,7 @@ function ResultsSheet({
                             kind="incident"
                             item={item}
                             highlighted={selectedId === item.id}
-                            onPress={() => onOpen('incident', item)}
+                            onOpen={onOpen}
                           />
                         ))}
                       </>
@@ -1431,14 +1423,14 @@ function ResultsSheet({
                             kind="zone"
                             item={item}
                             highlighted={selectedId === item.id}
-                            onPress={() => onOpen('zone', item)}
+                            onOpen={onOpen}
                           />
                         ))}
                       </>
                     ) : null}
                   </>
                 )}
-              </HandoffScrollView>
+              </DetentScrollView>
             )}
           </Animated.View>
 
@@ -1461,29 +1453,20 @@ function ResultsSheet({
                     opacity: eviParOpacity,
                   },
                 ]}>
-                <HandoffScrollView
-                  ref={detailScrollRef}
+                <DetentScrollView
+                  scrollRef={detailScrollRef}
+                  edge={detailEdge}
+                  bottomPadStyle={bottomPadStyle}
                   style={styles.stripList}
-                  contentContainerStyle={[
-                    styles.detailPad,
-                    { paddingBottom: bodyBottomPad },
-                  ]}
+                  contentContainerStyle={styles.detailPad}
                   keyboardShouldPersistTaps="handled"
-                  overScrollMode="never"
-                  scrollEnabled={detailEdge.scrollableNow}
-                  scrollEventThrottle={16}
-                  onScroll={detailEdge.onScroll}
-                  onScrollEndDrag={detailEdge.onScrollEndDrag}
-                  onMomentumScrollBegin={detailEdge.onMomentumScrollBegin}
-                  onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
-                  onLayout={detailEdge.onLayout}
-                  onContentSizeChange={detailEdge.onContentSizeChange}>
+                  overScrollMode="never">
                   {detail.kind === 'zone' ? (
                     <ZoneBody key={detail.item.id} item={detail.item} />
                   ) : (
                     <DrawerBody key={detail.item.id} item={detail.item} />
                   )}
-                </HandoffScrollView>
+                </DetentScrollView>
               </Animated.View>
               {showEvidence && evidenceUpdate ? (
                 <Animated.View
@@ -1498,22 +1481,17 @@ function ResultsSheet({
                   ]}>
                   <EvidenceBody
                     key={evidenceUpdate?.id}
-                    bottomPad={bodyBottomPad}
+                    bottomPadStyle={bottomPadStyle}
+                    motionStyle={evidenceMotion}
                     scrollRef={eviScrollRef}
-                    scrollHandlers={{
-                      scrollEnabled: eviEdge.scrollableNow,
-                      onScroll: eviEdge.onScroll,
-                      onScrollEndDrag: eviEdge.onScrollEndDrag,
-                      onMomentumScrollBegin: eviEdge.onMomentumScrollBegin,
-                      onMomentumScrollEnd: eviEdge.onMomentumScrollEnd,
-                      onLayout: eviEdge.onLayout,
-                      onContentSizeChange: eviEdge.onContentSizeChange,
-                    }}
+                    scrollHandlers={evidenceScrollHandlers}
                   />
                 </Animated.View>
               ) : null}
             </Animated.View>
           ) : null}
+          </>
+        )}
       </DetentSheet>
 
       {/* Dismissed → floating pill re-opens the sheet at half. Two pill

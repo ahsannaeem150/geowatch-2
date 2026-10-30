@@ -1,7 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
+import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { ZoneInfo, formatItemDate } from './PreviewCard';
 import { TimelineNode } from './IncidentDrawer';
@@ -12,10 +20,11 @@ import { TimelineNode } from './IncidentDrawer';
 // render from list data instantly, the timeline fetches GET /incidents/:id
 // (SelectionContext cache → instant reopen). No own ScrollView — the sheet
 // supplies it.
-export const ZoneBody = React.memo(function ZoneBody({ item }) {
+export const ZoneBody = React.memo(function ZoneBody({ item, deferTimeline = false }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { openEvidence, fetchDetail, getCachedDetail } = useSelection();
+  const { selectionFlightActive } = useMap();
   // Lazy-init from the detail cache (same pattern as DrawerBody) so returning
   // from evidence never paints an empty body first.
   const [detail, setDetail] = useState(() =>
@@ -23,18 +32,28 @@ export const ZoneBody = React.memo(function ZoneBody({ item }) {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const activeItemId = useRef(item?.id);
+  activeItemId.current = item?.id;
 
   const load = useCallback(
     (id) => {
       setLoading(true);
       setError(false);
       fetchDetail(id)
-        .then((d) => setDetail(d))
-        .catch(() => {
-          setError(true);
-          showToast('Failed to load zone details');
+        .then((d) => {
+          if (activeItemId.current === id) {
+            startTransition(() => setDetail(d));
+          }
         })
-        .finally(() => setLoading(false));
+        .catch(() => {
+          if (activeItemId.current === id) {
+            setError(true);
+            showToast('Failed to load zone details');
+          }
+        })
+        .finally(() => {
+          if (activeItemId.current === id) setLoading(false);
+        });
     },
     [fetchDetail, showToast],
   );
@@ -52,11 +71,16 @@ export const ZoneBody = React.memo(function ZoneBody({ item }) {
   // Detail payload wins over list data once fetched.
   const zone = detail?.incident ? { ...item, ...detail.incident } : item;
   const endDate = formatItemDate(zone.end_date);
-  const timeline = [...(detail?.timeline || [])].sort(
-    (a, b) => new Date(a.update_date) - new Date(b.update_date),
+  const timeline = useMemo(
+    () =>
+      [...(detail?.timeline || [])].sort(
+        (a, b) => new Date(a.update_date) - new Date(b.update_date),
+      ),
+    [detail],
   );
   const declared = timeline.find((u) => u.type === 'report') || timeline[0];
   const updates = timeline.filter((u) => u !== declared);
+  const deferHeavyContent = deferTimeline || selectionFlightActive;
   const skeletonBlock = [styles.skBlock, { backgroundColor: theme.bgElevated }];
 
   return (
@@ -93,7 +117,7 @@ export const ZoneBody = React.memo(function ZoneBody({ item }) {
         RESTRICTION TIMELINE
       </Text>
 
-      {loading && !detail ? (
+      {deferHeavyContent || (loading && !detail) ? (
         <View style={styles.skWrap}>
           <View style={[...skeletonBlock, styles.skNode]} />
           <View style={[...skeletonBlock, styles.skNode]} />
@@ -120,7 +144,7 @@ export const ZoneBody = React.memo(function ZoneBody({ item }) {
         </View>
       ) : null}
 
-      {declared ? (
+      {!deferHeavyContent && declared ? (
         <View style={styles.timeline}>
           <TimelineNode
             update={declared}

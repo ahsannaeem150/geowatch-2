@@ -6,7 +6,7 @@ import {
   NavigationContainer,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { OverlayProvider } from './context/OverlayContext';
@@ -80,7 +80,7 @@ function Root() {
 export default function App() {
   return (
     <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-      <SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <ThemeProvider>
         <OverlayProvider>
           <AuthProvider>

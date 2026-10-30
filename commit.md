@@ -12968,3 +12968,28 @@ fix(mobile): Power Search list scroll + Worklets crash — legacy useSheetGestur
 
 refactor(mobile): shared DetentSheet for map PeekSheet + Power Search ResultsSheet — Reanimated detents, handoffs, padding, mount/motion lifecycle and sort overlay slot; local navigation policies preserved.
 fix(mobile): Power Search motion-end measured padding + external spring dedupe; debug device-verified list/detail/evidence, detents, filters/sort, pill restore and map regression.
+
+fix(mobile): shared DetentScrollView live position-driven padding for map + Power Search — true-end handoffs, centralized active-edge motion-end clamp, no top/both-edge auto-nudge.
+perf(mobile): map pill sheets retained offscreen for remount-free reopen; OverlayHost gives Power Search exclusive selection ownership + evidence cleanup; debug device-verified all four flows, release build passed.
+
+fix(mobile): short/non-scrollable sheet panes preserve their motion-start top anchor through detent pad growth — full→mid no longer leaves a residual scroll that consumes the next down-swipe.
+perf(mobile): fresh + A→B entry readiness gates, memoized sheet content/result cards, keyed detail bodies with stale-response guards + deferred timeline commits; fresh entry, different-item entry and search detent/pill motion device-verified.
+
+perf(mobile): evidence detent stutter — Power Search scroll handlers memoized and media/X/article/note elements kept stable across detent/scroll-state commits, avoiding heavy evidence-tree rebuilds; map + search half/full motion recordings verified.
+
+perf(mobile): evidence detents no longer rebuild content height every frame — frozen motion-start pad + bottom-anchored transform compensation preserves reveal/scroll behavior while keeping the hardware texture effective; map + search grabber and content-end motion verified.
+
+fix(mobile): persistent top-anchor catches late native 1–2px offsets; short evidence now springs to its final top alignment instead of bottom-anchor reset snaps.
+perf(mobile): evidence virtualized via HandoffFlatList with per-item rows + no 320ms pop-in; entryPending defers heavy timelines on fresh/A→B entry while preserving the summary shell.
+test(mobile): Dockworkers short timeline, Hazardous Smog short evidence, Flash Floods heavy evidence, A→B marker entry, map/search detents, content-end handoffs and pill restore device-verified; release build passed.
+
+perf(mobile): evidence reveal now progressively follows sheet position through UI-thread scrollTo — hold-then-reset transform compensation removed; short content clamps smoothly to top while heavy content reveals progressively.
+test(mobile): map Airstrikes grabber/content-end reveal and Power Search Hazardous Smog short-content expansion verified; release build passed.
+
+fix(mobile): Power Search now passes real list/detail/evidence scroll refs into useScrollEdge, enabling progressive UI-thread reveal + motion-end correction; Smog expansion device-verified without end snap.
+
+perf(mobile): smooth selection flights and Evidence detents — exact UI-thread gesture anchors, progressive content reveal and direct Evidence compositing; heavy timeline work waits for camera idle on Map + Power Search.
+fix(mobile): real initial safe-area metrics and cached/deduped X-post loading; point A→B, zone/heavy Evidence, pill restore and cold start verified on the 120Hz phone. ESLint, diff checks and standard all-ABI release build passed.
+
+fix(mobile): Map Evidence body-scroll handoff stays stable through padding/edge changes — slow drags follow and hold correctly instead of jumping or sticking.
+perf(mobile): retain Evidence pane on pill to avoid media/X remount; clean 300ms pill entry + correct source-pane restore. Final release: Timeline 0 jank, Evidence 0 missed Vsync/slow UI; ESLint, diff checks and all-ABI build passed.

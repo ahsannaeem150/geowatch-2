@@ -13,10 +13,10 @@ import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
-import Reanimated, { useSharedValue } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 import DetentSheet from '../sheets/DetentSheet';
+import DetentScrollView from '../sheets/DetentScrollView';
 import useScrollEdge from '../../hooks/useScrollEdge';
-import HandoffScrollView from '../overlays/HandoffScrollView';
 import { ZoneBody } from './ZoneSheet';
 import { DrawerBody } from './IncidentDrawer';
 import { EvidenceBody } from './EvidencePanel';
@@ -111,15 +111,12 @@ export default function PeekSheet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
 
-  // The evidence pane UNMOUNTS when it slides out (showEvidence) — e.g. on a
-  // collapse to the pill — and remounts fresh (scroll offset 0) on restore.
-  // A fresh ScrollView emits no onScroll at offset 0, so without this resync
-  // the edge tracker keeps the pre-unmount offset and atTopNow stays stuck
-  // false (dead down-drag handoff after a pill restore — verified on-device).
+  // A different update gets a fresh scroll identity. A pill round-trip keeps
+  // the pane mounted, so its native offset and edge measurements stay intact.
   useEffect(() => {
-    if (inEvidence) eviEdge.reset();
+    eviEdge.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inEvidence, evidenceUpdate?.id]);
+  }, [evidenceUpdate?.id]);
 
   // The pan responder is created once, so it reads live state through this
   // ref — stale closures were the source of the grabber jumpiness.
@@ -156,7 +153,7 @@ export default function PeekSheet() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
-    } else if (showEvidence) {
+    } else if (showEvidence && view !== 'pill') {
       Animated.timing(bodyAnim, {
         toValue: 0,
         duration: 260,
@@ -167,7 +164,7 @@ export default function PeekSheet() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inEvidence, bodyAnim]);
+  }, [inEvidence, bodyAnim, view]);
 
   // Safety net: a reverse animation interrupted by the sheet unmounting (or
   // by a new selection) never fires its completion callback, which used to
@@ -287,6 +284,8 @@ export default function PeekSheet() {
   return (
     <DetentSheet
       active={active}
+      keepMounted={view === 'pill'}
+      entryKey={itemId}
       targetTy={targetTy}
       hiddenTy={hiddenTy}
       pos={pos}
@@ -304,9 +303,9 @@ export default function PeekSheet() {
       scrollRefs={[detailScrollRef, eviScrollRef]}
       handoffEpoch={`${inEvidence ? 'e' : 'd'}${relEpoch}`}
       onTargetChange={() => setLevel(targetTy === 0 ? 'full' : 'half')}
-      onMotionEnd={() =>
-        (inEvidence ? eviEdge : detailEdge).onSheetMotionEnd()
-      }
+      activeScrollEdge={inEvidence ? eviEdge : detailEdge}
+      evidenceActive={inEvidence}
+      mapOptimizations
       fadeStart={halfTy}
       style={{
         height: fullH,
@@ -363,7 +362,7 @@ export default function PeekSheet() {
           ) : null}
         </View>
       )}>
-      {(bottomPadStyle) => (
+      {(bottomPadStyle, evidenceMotion, entryPending) => (
         <>
           <Animated.View
             pointerEvents={inEvidence ? 'none' : 'auto'}
@@ -374,21 +373,17 @@ export default function PeekSheet() {
                 opacity: detailOpacity,
               },
             ]}>
-            <HandoffScrollView
-              ref={detailScrollRef}
-              style={styles.body}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={detailEdge.scrollableNow}
-              scrollEventThrottle={16}
-              onScroll={detailEdge.onScroll}
-              onScrollEndDrag={detailEdge.onScrollEndDrag}
-              onMomentumScrollBegin={detailEdge.onMomentumScrollBegin}
-              onMomentumScrollEnd={detailEdge.onMomentumScrollEnd}
-              onLayout={detailEdge.onLayout}
-              onContentSizeChange={detailEdge.onContentSizeChange}>
-              {isZone ? <ZoneBody item={item} /> : <DrawerBody item={item} />}
-              <Reanimated.View style={bottomPadStyle} />
-            </HandoffScrollView>
+            <DetentScrollView
+              scrollRef={detailScrollRef}
+              edge={detailEdge}
+              bottomPadStyle={bottomPadStyle}
+              style={styles.body}>
+              {isZone ? (
+                <ZoneBody key={item.id} item={item} deferTimeline={entryPending} />
+              ) : (
+                <DrawerBody key={item.id} item={item} deferTimeline={entryPending} />
+              )}
+            </DetentScrollView>
           </Animated.View>
           {showEvidence && evidenceUpdate ? (
             <Animated.View
@@ -404,6 +399,7 @@ export default function PeekSheet() {
               <EvidenceBody
                 key={evidenceUpdate?.id}
                 bottomPadStyle={bottomPadStyle}
+                motionStyle={evidenceMotion}
                 scrollRef={eviScrollRef}
                 scrollHandlers={evidenceScrollHandlers}
               />

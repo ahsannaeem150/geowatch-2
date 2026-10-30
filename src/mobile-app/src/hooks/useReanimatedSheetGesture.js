@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 import {
   cancelAnimation,
+  Easing,
   runOnJS,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 export default function useReanimatedSheetGesture({
@@ -14,6 +16,7 @@ export default function useReanimatedSheetGesture({
   chooseTarget,
   handoff,
   onMotionChange,
+  onMotionStart,
 }) {
   const startTy = useSharedValue(0);
   const clamp = useSharedValue(getClamp());
@@ -21,17 +24,17 @@ export default function useReanimatedSheetGesture({
   const launchedTy = useRef(null);
   const motionCount = useRef(0);
   const cfg = useRef({});
-  cfg.current = { getRestTy, chooseTarget, onMotionChange };
+  cfg.current = { getRestTy, chooseTarget, onMotionChange, onMotionStart };
 
   useEffect(() => {
     clamp.value = getClamp();
   });
 
-  const motionBump = useCallback((delta) => {
+  const motionBump = useCallback((delta, startPos) => {
     const next = Math.max(0, motionCount.current + delta);
     if (next === motionCount.current) return;
     motionCount.current = next;
-    cfg.current.onMotionChange?.(next > 0);
+    cfg.current.onMotionChange?.(next > 0, startPos);
   }, []);
 
   const springTo = useCallback(
@@ -44,14 +47,20 @@ export default function useReanimatedSheetGesture({
         if (launchedTy.current === ty) launchedTy.current = null;
         onDone?.();
       };
-      pos.value = withSpring(
+      const timed = params?.duration !== undefined;
+      const animate = timed ? withTiming : withSpring;
+      pos.value = animate(
         ty,
         {
-          damping: 22,
-          stiffness: 260,
-          mass: 0.9,
-          velocity,
-          overshootClamping: true,
+          ...(timed
+            ? { easing: Easing.out(Easing.cubic) }
+            : {
+                damping: 22,
+                stiffness: 260,
+                mass: 0.9,
+                velocity,
+                overshootClamping: true,
+              }),
           ...params,
         },
         (finished) => {
@@ -93,16 +102,17 @@ export default function useReanimatedSheetGesture({
     [clamp, springTo, startTy],
   );
 
-  const beginMotion = useCallback(() => {
-    motionBump(1);
+  const beginMotion = useCallback((startPos) => {
+    cfg.current.onMotionStart?.();
+    motionBump(1, startPos);
     pendingVy.current = 0;
   }, [motionBump]);
 
   const begin = useCallback(() => {
     'worklet';
-    runOnJS(beginMotion)();
-    cancelAnimation(pos);
     startTy.value = pos.value;
+    runOnJS(beginMotion)(pos.value);
+    cancelAnimation(pos);
   }, [beginMotion, pos, startTy]);
 
   const update = useCallback(

@@ -306,6 +306,7 @@ export default function OverlayHost() {
   // the stack sits below them (prototype: modal z80 > drawer z70 > peek
   // z65 > emb z64 > sheets z56 > pill z32).
   const baseOverlays = stack.filter((o) => o.type !== 'modal' && o.id !== 'signIn');
+  const psOpen = stack.some((o) => o.id === 'powerSearch');
   const modalOverlays = stack.filter((o) => o.type === 'modal');
   // The sign-in gate must also cover the selection surfaces (drawer/evidence
   // star) — hoist it above them while keeping its bottom-sheet container.
@@ -328,14 +329,17 @@ export default function OverlayHost() {
       ) : null}
       {baseOverlays.map(renderOverlay)}
       {tabBarVisible ? <TabBar /> : null}
-      {/* SelectionPill sits above the stack's overlays (e.g. Power Search's
-          fullscreen container) but below the selection sheets — dismissing a
-          PeekSheet over PS must leave the pill visible and tappable. */}
       <SelectionPill />
-      <EmbeddedMapPanel />
-      <PeekSheet />
-      <IncidentDrawer />
-      <EvidencePanel />
+      {/* Power Search owns its selection UI. A stale map selection must not
+          mount a second sheet/panel above it. */}
+      {!psOpen ? (
+        <>
+          <EmbeddedMapPanel />
+          <PeekSheet />
+          <IncidentDrawer />
+          <EvidencePanel />
+        </>
+      ) : null}
       {signInOverlays.map(renderOverlay)}
       {modalOverlays.map(renderOverlay)}
       {toast ? <Toast message={toast} /> : null}

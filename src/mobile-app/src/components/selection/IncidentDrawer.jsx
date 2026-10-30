@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Animated,
   Clipboard,
@@ -24,6 +31,7 @@ import {
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
+import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
 import { IncidentCard } from './PreviewCard';
@@ -290,10 +298,11 @@ function Skeleton({ theme }) {
 
 // Full incident detail body (summary card + actions + timeline) — shared by
 // the fullscreen drawer (direct mode) and the multi-detent peek sheet.
-export const DrawerBody = React.memo(function DrawerBody({ item }) {
+export const DrawerBody = React.memo(function DrawerBody({ item, deferTimeline = false }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
   const { openEvidence, fetchDetail, getCachedDetail } = useSelection();
+  const { selectionFlightActive } = useMap();
   // Lazy-init from the detail cache: the sheet unmounts this body while the
   // evidence sub-view is open, and a null-first paint made the whole timeline
   // vanish for a beat on every return. Starting cached keeps back seamless.
@@ -302,18 +311,28 @@ export const DrawerBody = React.memo(function DrawerBody({ item }) {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const activeItemId = useRef(item?.id);
+  activeItemId.current = item?.id;
 
   const load = useCallback(
     (id) => {
       setLoading(true);
       setError(false);
       fetchDetail(id)
-        .then((d) => setDetail(d))
-        .catch(() => {
-          setError(true);
-          showToast('Failed to load incident details');
+        .then((d) => {
+          if (activeItemId.current === id) {
+            startTransition(() => setDetail(d));
+          }
         })
-        .finally(() => setLoading(false));
+        .catch(() => {
+          if (activeItemId.current === id) {
+            setError(true);
+            showToast('Failed to load incident details');
+          }
+        })
+        .finally(() => {
+          if (activeItemId.current === id) setLoading(false);
+        });
     },
     [fetchDetail, showToast],
   );
@@ -330,11 +349,16 @@ export const DrawerBody = React.memo(function DrawerBody({ item }) {
 
   // Detail payload wins over list data once fetched (full description etc.).
   const inc = detail?.incident ? { ...item, ...detail.incident } : item;
-  const timeline = [...(detail?.timeline || [])].sort(
-    (a, b) => new Date(a.update_date) - new Date(b.update_date),
+  const timeline = useMemo(
+    () =>
+      [...(detail?.timeline || [])].sort(
+        (a, b) => new Date(a.update_date) - new Date(b.update_date),
+      ),
+    [detail],
   );
   const report = timeline.find((u) => u.type === 'report') || timeline[0];
   const updates = timeline.filter((u) => u !== report);
+  const deferHeavyContent = deferTimeline || selectionFlightActive;
 
   const copyLink = () => {
     Clipboard.setString(`http://localhost:5173/incident/${item.id}`);
@@ -364,7 +388,7 @@ export const DrawerBody = React.memo(function DrawerBody({ item }) {
         </Pressable>
       </View>
 
-      {loading && !detail ? <Skeleton theme={theme} /> : null}
+      {deferHeavyContent || (loading && !detail) ? <Skeleton theme={theme} /> : null}
 
       {error && !detail ? (
         <View
@@ -383,7 +407,7 @@ export const DrawerBody = React.memo(function DrawerBody({ item }) {
         </View>
       ) : null}
 
-      {report ? (
+      {!deferHeavyContent && report ? (
         <>
           <Text
             style={[
@@ -402,7 +426,7 @@ export const DrawerBody = React.memo(function DrawerBody({ item }) {
         </>
       ) : null}
 
-      {updates.length ? (
+      {!deferHeavyContent && updates.length ? (
         <>
           <Text
             style={[

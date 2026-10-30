@@ -348,8 +348,8 @@ export function SelectionProvider({ children }) {
   // reached FROM the evidence panel restores that panel — the pill is a
   // minimize, not a reset to the timeline.
   const expandFromPill = useCallback(() => {
-    setView(evidenceUpdate ? 'evidence' : 'peek');
-  }, [evidenceUpdate]);
+    setView(evidenceUpdate && evidenceFrom ? 'evidence' : 'peek');
+  }, [evidenceUpdate, evidenceFrom]);
 
   // Full-detent back (also the evidence ✕ — closes both layers):
   // preview → peek+emb; plain selection → pill.

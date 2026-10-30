@@ -1,4 +1,4 @@
-import React, { startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Clipboard,
@@ -15,8 +15,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Reanimated from 'react-native-reanimated';
-import HandoffScrollView from '../overlays/HandoffScrollView';
+import Reanimated, { useAnimatedRef } from 'react-native-reanimated';
+import { LegacyScrollView } from 'react-native-gesture-handler';
 import Svg, { Circle, Path } from 'react-native-svg';
 import {
   Camera,
@@ -38,9 +38,44 @@ import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
-import { fetchTweet } from '../../services/x-post';
+import { fetchTweet, getCachedTweet } from '../../services/x-post';
 import VideoPlayer from './VideoPlayer';
 import { Tag } from './PreviewCard';
+
+const AnimatedLegacyScrollView = Reanimated.createAnimatedComponent(LegacyScrollView);
+
+const EvidenceScrollView = React.forwardRef(function EvidenceScrollView(
+  { children, ...props },
+  ref,
+) {
+  const scrollRef = useAnimatedRef();
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      animatedRef: scrollRef,
+      get handlerTag() {
+        return scrollRef.current?.getNativeScrollRef?.()?.handlerTag ?? -1;
+      },
+      scrollTo: ({ y = 0, animated = false }) => {
+        scrollRef.current?.scrollTo({ x: 0, y, animated });
+      },
+      scrollToEnd: ({ animated = false } = {}) => {
+        scrollRef.current?.scrollToEnd({ animated });
+      },
+    }),
+    [scrollRef],
+  );
+
+  return (
+    <AnimatedLegacyScrollView
+      ref={scrollRef}
+      overScrollMode="never"
+      removeClippedSubviews={false}
+      {...props}>
+      {children}
+    </AnimatedLegacyScrollView>
+  );
+});
 
 // Evidence panel (prototype #evi; openEvidence/closeEvi/switchPane/
 // mediaBlock/xPostsBlock): fullscreen above the incident drawer, back ‹
@@ -225,7 +260,7 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
   const ah = parseFloat(post.archive_media_height) || 0;
   const archiveAspect = aw > 0 && ah > 0 ? aw / ah : null;
   const archived = !!post.archived;
-  const [tweet, setTweet] = useState(null);
+  const [tweet, setTweet] = useState(() => getCachedTweet(post.source_url));
   const [failed, setFailed] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(null);
 
@@ -477,24 +512,6 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
   );
 });
 
-function XPostList({ items }) {
-  const { theme } = useTheme();
-  if (!items.length) {
-    return (
-      <Text style={[styles.empty, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
-        — no X posts linked —
-      </Text>
-    );
-  }
-  return (
-    <View>
-      {items.map((p) => (
-        <XPostCard key={p.id} post={p} />
-      ))}
-    </View>
-  );
-}
-
 function urlHost(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -705,6 +722,7 @@ export function MediaGalleryModal({ items, index, onIndexChange, onClose }) {
 export const EvidenceBody = React.memo(function EvidenceBody({
   bottomPad = 0,
   bottomPadStyle,
+  motionStyle,
   scrollHandlers,
   scrollRef,
 }) {
@@ -714,16 +732,10 @@ export const EvidenceBody = React.memo(function EvidenceBody({
   const { evidenceUpdate, getCachedDetail } = useSelection();
   const [tab, setTab] = useState('all');
   const [lbIndex, setLbIndex] = useState(null);
-  const [deferredContent, setDeferredContent] = useState(false);
 
   useEffect(() => {
     setTab('all');
     setLbIndex(null);
-    setDeferredContent(false);
-    const timer = setTimeout(() => {
-      startTransition(() => setDeferredContent(true));
-    }, 320);
-    return () => clearTimeout(timer);
   }, [evidenceUpdate?.id]);
 
   // Update-attached evidence, falling back to the incident-level aggregate
@@ -751,7 +763,76 @@ export const EvidenceBody = React.memo(function EvidenceBody({
     };
   }, [evidenceUpdate, selectedId, getCachedDetail]);
 
-  const showDeferredContent = deferredContent || tab !== 'all';
+  useEffect(() => {
+    for (const post of xItems) {
+      if (!post.archived && post.source_url) {
+        fetchTweet(post.source_url).catch(() => {});
+      }
+    }
+  }, [xItems]);
+
+  const mediaContent = useMemo(
+    () => <MediaGrid items={mediaItems} onOpen={setLbIndex} />,
+    [mediaItems],
+  );
+  const listItems = useMemo(() => {
+    const rows = [];
+    if (tab === 'all' || tab === 'media') {
+      rows.push({ key: 'media-heading', type: 'heading', label: `MEDIA (${mediaItems.length})` });
+      if (mediaItems.length) rows.push({ key: 'media-grid', type: 'media' });
+    }
+    if (tab === 'all' || tab === 'xposts') {
+      rows.push({ key: 'x-heading', type: 'heading', label: `X POSTS (${xItems.length})` });
+      if (xItems.length) {
+        xItems.forEach((post) => rows.push({ key: `x-${post.id}`, type: 'x', post }));
+      } else {
+        rows.push({ key: 'x-empty', type: 'empty', label: '— no X posts linked —' });
+      }
+    }
+    if (tab === 'all' || tab === 'articles') {
+      rows.push({ key: 'articles-heading', type: 'heading', label: `ARTICLES (${articleItems.length})` });
+      if (articleItems.length) {
+        articleItems.forEach((article) => rows.push({ key: `article-${article.id}`, type: 'article', article }));
+      } else {
+        rows.push({ key: 'articles-empty', type: 'empty', label: '— no articles linked —' });
+      }
+    }
+    if (tab === 'all' || tab === 'notes') {
+      rows.push({ key: 'notes-heading', type: 'heading', label: `ADMIN NOTES (${noteItems.length})` });
+      if (noteItems.length) {
+        noteItems.forEach((note) => rows.push({ key: `note-${note.id}`, type: 'note', note }));
+      } else {
+        rows.push({ key: 'notes-empty', type: 'empty', label: '— no admin notes linked —' });
+      }
+    }
+    return rows;
+  }, [tab, mediaItems, xItems, articleItems, noteItems]);
+  const renderItem = useCallback(
+    ({ item }) => {
+      if (item.type === 'heading') {
+        return (
+          <Text
+            style={[
+              styles.secLabel,
+              item.key === 'media-heading' ? null : styles.xSecLabel,
+              { color: theme.textMuted, fontFamily: theme.fontMono },
+            ]}>
+            {item.label}
+          </Text>
+        );
+      }
+      if (item.type === 'media') return mediaContent;
+      if (item.type === 'x') return <XPostCard post={item.post} />;
+      if (item.type === 'article') return <ArticleCard article={item.article} />;
+      if (item.type === 'note') return <AdminNoteCard note={item.note} />;
+      return (
+        <Text style={[styles.empty, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+          {item.label}
+        </Text>
+      );
+    },
+    [mediaContent, theme],
+  );
 
   if (!evidenceUpdate) {
     return null;
@@ -792,119 +873,62 @@ export const EvidenceBody = React.memo(function EvidenceBody({
       </View>
 
       <View style={[styles.tabBar, { borderBottomColor: theme.borderSubtle }]}>
-        {tabs.map((t) => {
-          const active = tab === t.key;
-          const tabStyle = {
-            backgroundColor: active ? theme.accentSubtleBg : 'transparent',
-            borderColor: active ? theme.accentSubtleBorder : theme.borderSubtle,
-          };
-          const iconColor = active ? theme.accentLight : theme.textSecondary;
-          return (
-            <Pressable
-              key={t.key}
-              onPress={() => setTab(t.key)}
-              style={[styles.tabBtn, tabStyle]}>
-              {t.icon === 'camera' ? <Camera size={11} color={iconColor} /> : null}
-              {t.icon === 'news' ? <Newspaper size={11} color={iconColor} /> : null}
-              {t.icon === 'note' ? <FileText size={11} color={iconColor} /> : null}
-              <Text
-                style={[
-                  styles.tabText,
-                  {
-                    color: active ? theme.accentLight : theme.textSecondary,
-                    fontFamily: theme.fontMono,
-                  },
-                ]}>
-                {t.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabBarContent}>
+          {tabs.map((t) => {
+            const active = tab === t.key;
+            const tabStyle = {
+              backgroundColor: active ? theme.accentSubtleBg : 'transparent',
+              borderColor: active ? theme.accentSubtleBorder : theme.borderSubtle,
+            };
+            const iconColor = active ? theme.accentLight : theme.textSecondary;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => setTab(t.key)}
+                style={[styles.tabBtn, tabStyle]}>
+                {t.icon === 'camera' ? <Camera size={11} color={iconColor} /> : null}
+                {t.icon === 'news' ? <Newspaper size={11} color={iconColor} /> : null}
+                {t.icon === 'note' ? <FileText size={11} color={iconColor} /> : null}
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: active ? theme.accentLight : theme.textSecondary,
+                      fontFamily: theme.fontMono,
+                    },
+                  ]}>
+                  {t.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      <HandoffScrollView
-        ref={scrollRef}
-        style={styles.body}
-        showsVerticalScrollIndicator={false}
-        overScrollMode="never"
-        scrollEventThrottle={16}
-        {...scrollHandlers}>
-        {tab === 'all' || tab === 'media' ? (
-          <>
-            <Text
-              style={[styles.secLabel, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
-              MEDIA ({mediaItems.length})
-            </Text>
-            {showDeferredContent ? (
-              <MediaGrid items={mediaItems} onOpen={setLbIndex} />
-            ) : null}
-          </>
-        ) : null}
-        {tab === 'all' || tab === 'xposts' ? (
-          <>
-            <Text
-              style={[
-                styles.secLabel,
-                styles.xSecLabel,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              X POSTS ({xItems.length})
-            </Text>
-            {showDeferredContent ? <XPostList items={xItems} /> : null}
-          </>
-        ) : null}
-        {showDeferredContent && (tab === 'all' || tab === 'articles') ? (
-          <>
-            <Text
-              style={[
-                styles.secLabel,
-                styles.xSecLabel,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              ARTICLES ({articleItems.length})
-            </Text>
-            {articleItems.length ? (
-              <View>
-                {articleItems.map((a) => (
-                  <ArticleCard key={a.id} article={a} />
-                ))}
-              </View>
+      <Reanimated.View style={styles.bodyWrap}>
+        <EvidenceScrollView
+          ref={scrollRef}
+          style={styles.body}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          {...scrollHandlers}>
+          <Reanimated.View style={motionStyle?.contentStyle}>
+            {listItems.map((item) => (
+              <React.Fragment key={item.key}>{renderItem({ item })}</React.Fragment>
+            ))}
+            {motionStyle ? (
+              <Reanimated.View style={motionStyle.padStyle} />
+            ) : bottomPadStyle ? (
+              <Reanimated.View style={bottomPadStyle} />
             ) : (
-              <Text style={[styles.empty, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
-                — no articles linked —
-              </Text>
+              <Animated.View style={bottomPad ? { height: bottomPad } : styles.tailPad} />
             )}
-          </>
-        ) : null}
-        {showDeferredContent && (tab === 'all' || tab === 'notes') ? (
-          <>
-            <Text
-              style={[
-                styles.secLabel,
-                styles.xSecLabel,
-                { color: theme.textMuted, fontFamily: theme.fontMono },
-              ]}>
-              ADMIN NOTES ({noteItems.length})
-            </Text>
-            {noteItems.length ? (
-              <View>
-                {noteItems.map((n) => (
-                  <AdminNoteCard key={n.id} note={n} />
-                ))}
-              </View>
-            ) : (
-              <Text style={[styles.empty, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
-                — no admin notes —
-              </Text>
-            )}
-          </>
-        ) : null}
-        {bottomPadStyle ? (
-          <Reanimated.View style={bottomPadStyle} />
-        ) : (
-          <Animated.View style={bottomPad ? { height: bottomPad } : styles.tailPad} />
-        )}
-      </HandoffScrollView>
+          </Reanimated.View>
+        </EvidenceScrollView>
+      </Reanimated.View>
 
       {lbIndex !== null ? (
         <MediaGalleryModal
@@ -1048,11 +1072,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tabBar: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  tabBarContent: {
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   tabBtn: {
     flexDirection: 'row',
