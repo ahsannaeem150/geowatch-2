@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -192,7 +193,7 @@ export function PowerSearchBody({ overlay }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { closeOverlay, showToast } = useOverlay();
-  const { selectedId, setSearchOverlay, selectItem, flyToSelection } = useMap();
+  const { selectedId, selectItem, flyToSelection } = useMap();
   const { view: selectionView, closeEvidence } = useSelection();
   const { signedIn, requireSignIn } = useAuth();
 
@@ -561,15 +562,6 @@ export function PowerSearchBody({ overlay }) {
     (kind, item) => openDetailRef.current?.(kind, item),
     [],
   );
-  useEffect(() => {
-    setSearchOverlay({
-      incidents: incResults,
-      zones: visibleZones,
-      onOpen: psOpenItem,
-    });
-  }, [incResults, visibleZones, setSearchOverlay, psOpenItem]);
-  useEffect(() => () => setSearchOverlay(null), [setSearchOverlay]);
-
   const closeDetail = useCallback(() => setDetail(null), []);
 
   // Closing the detail also releases its in-sheet evidence sub-view.
@@ -604,7 +596,6 @@ export function PowerSearchBody({ overlay }) {
   }, [detail, selectionView]);
 
   const close = () => closeOverlay(overlay.id);
-  const openPreview = (kind, item) => psOpenItem(kind, item);
 
   return (
     <View style={styles.root} pointerEvents="box-none">
@@ -791,7 +782,7 @@ export function PowerSearchBody({ overlay }) {
         incResults={sortedInc}
         zoneResults={sortedZones}
         selectedId={selectedId}
-        onOpen={openPreview}
+        onOpen={psOpenItem}
         sortMode={sortMode}
         onSortChange={setSortMode}
         topH={topH}
@@ -866,6 +857,7 @@ function ResultsSheet({
 }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { setSearchOverlay } = useMap();
   const { view: selectionView, evidenceUpdate, closeEvidence } = useSelection();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -876,6 +868,8 @@ function ResultsSheet({
   const halfTy = Math.round(sheetH * 0.52);
 
   const [level, setLevel] = useState('half'); // 'half'|'full'|'dismissed'
+  const [entryReady, setEntryReady] = useState(false);
+  const [resultsReady, setResultsReady] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const pos = useSharedValue(sheetH);
   const sheetController = useRef(null);
@@ -936,7 +930,7 @@ function ResultsSheet({
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
-    } else if (showEvidence) {
+    } else if (showEvidence && level !== 'dismissed') {
       Animated.timing(eviAnim, {
         toValue: 0,
         duration: 260,
@@ -947,7 +941,7 @@ function ResultsSheet({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inEvidence]);
+  }, [inEvidence, level]);
 
   // Safety net (PeekSheet parity): an interrupted reverse animation never
   // fires its completion callback, which can leave the cross-slide stuck —
@@ -984,11 +978,32 @@ function ResultsSheet({
     eviEdge,
   };
   const detailId = detail?.item?.id;
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!detailId) return;
+    detailScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+    eviScrollRef.current?.scrollTo?.({ y: 0, animated: false });
     detailEdge.reset();
     eviEdge.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailId]);
+
+  useEffect(() => {
+    if (!entryReady) return undefined;
+    const frame = requestAnimationFrame(() => setResultsReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, [entryReady]);
+  useEffect(() => {
+    if (!resultsReady) return undefined;
+    const frame = requestAnimationFrame(() => {
+      setSearchOverlay({
+        incidents: incResults,
+        zones: zoneResults,
+        onOpen,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [resultsReady, incResults, zoneResults, onOpen, setSearchOverlay]);
+  useEffect(() => () => setSearchOverlay(null), [setSearchOverlay]);
 
   // The result list UNMOUNTS while a search loads (skeleton placeholder) and
   // remounts fresh (scroll offset 0) when results land. A fresh ScrollView
@@ -1131,7 +1146,6 @@ function ResultsSheet({
       eviEdge.onContentSizeChange,
     ],
   );
-
   return (
     <>
       <DetentSheet
@@ -1164,6 +1178,8 @@ function ResultsSheet({
           inEvidence ? eviEdge : inDetail ? detailEdge : listEdge
         }
         evidenceActive={inEvidence}
+        mapOptimizations
+        onMotionEnd={() => setEntryReady(true)}
         bottomPadOffset={12}
         style={{
           height: sheetH,
@@ -1300,7 +1316,7 @@ function ResultsSheet({
                 opacity: listOpacity,
               },
             ]}>
-            {loading ? (
+            {loading || !entryReady ? (
               <View style={styles.stripPad}>
                 {[0, 1, 2].map((i) => (
                   <View
@@ -1394,7 +1410,7 @@ function ResultsSheet({
                           ]}>
                           Incidents ({incResults.length})
                         </Text>
-                        {incResults.map((item) => (
+                        {(resultsReady ? incResults : incResults.slice(0, 4)).map((item) => (
                           <DirCard
                             key={item.id}
                             kind="incident"
@@ -1417,7 +1433,7 @@ function ResultsSheet({
                           ]}>
                           Zones ({zoneResults.length})
                         </Text>
-                        {zoneResults.map((item) => (
+                        {(resultsReady ? zoneResults : zoneResults.slice(0, 2)).map((item) => (
                           <DirCard
                             key={item.id}
                             kind="zone"

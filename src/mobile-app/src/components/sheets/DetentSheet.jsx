@@ -15,6 +15,7 @@ export default function DetentSheet({
   active,
   keepMounted = false,
   entryKey,
+  entryPaused = false,
   targetTy,
   hiddenTy,
   pos,
@@ -41,7 +42,7 @@ export default function DetentSheet({
   controllerRef,
   children,
 }) {
-  const [mounted, setMounted] = useState(active);
+  const [mounted, setMounted] = useState(active && !entryPaused);
   const [moving, setMoving] = useState(false);
   const [entryPending, setEntryPending] = useState(active);
   const motionActive = useSharedValue(0);
@@ -188,6 +189,7 @@ export default function DetentSheet({
     if (active) {
       wantOpen.current = true;
       onTargetChange?.();
+      if (entryPaused) return;
       if (!mounted) {
         pos.value = hiddenTy;
         justMounted.current = true;
@@ -263,7 +265,7 @@ export default function DetentSheet({
       pendingVy.current = 0;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, keepMounted, targetTy, mounted]);
+  }, [active, keepMounted, targetTy, mounted, entryPaused]);
 
   if (!mounted) return null;
 

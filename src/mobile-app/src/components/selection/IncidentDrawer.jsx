@@ -456,10 +456,12 @@ export default function IncidentDrawer() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { view, item, selMode, closeDrawer } = useSelection();
+  const { selectionFlightActive } = useMap();
   const { width } = useWindowDimensions();
   // Fullscreen page is the DIRECT mode surface; peek/compact expand inside
   // the multi-detent sheet (PeekSheet) instead.
-  const visible = view === 'drawer' && !!item && selMode === 'direct';
+  const visible =
+    view === 'drawer' && !!item && selMode === 'direct' && !selectionFlightActive;
   const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

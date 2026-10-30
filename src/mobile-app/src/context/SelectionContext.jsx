@@ -84,6 +84,7 @@ export function SelectionProvider({ children }) {
   const [history, setHistory] = useState([]);
   // incidentId → { incident, timeline } detail cache (drawer fetch, peek reads)
   const detailCache = useRef(new Map());
+  const detailRequests = useRef(new Map());
 
   // ─── Mode setting (persisted; surfaced in the Settings screen later) ───
   useEffect(() => {
@@ -117,9 +118,20 @@ export function SelectionProvider({ children }) {
     if (hit) {
       return hit;
     }
-    const detail = await getIncident(id);
-    detailCache.current.set(id, detail);
-    return detail;
+    const pending = detailRequests.current.get(id);
+    if (pending) {
+      return pending;
+    }
+    const request = getIncident(id)
+      .then((detail) => {
+        detailCache.current.set(id, detail);
+        return detail;
+      })
+      .finally(() => {
+        detailRequests.current.delete(id);
+      });
+    detailRequests.current.set(id, request);
+    return request;
   }, []);
 
   const getCachedDetail = useCallback(
@@ -221,6 +233,9 @@ export function SelectionProvider({ children }) {
       if (!selItem) {
         return;
       }
+      if (selItem.id) {
+        fetchDetail(selItem.id).catch(() => {});
+      }
       const { height: vh } = Dimensions.get('window');
       const padding = {
         top: 116, // top bar + LIVE pill row
@@ -251,7 +266,7 @@ export function SelectionProvider({ children }) {
         flyToSelection({ type: 'incident', source, lng, lat, padding });
       }
     },
-    [flyToSelection],
+    [flyToSelection, fetchDetail],
   );
 
   // Map tap on a marker/zone. Ends any preview context and closes open

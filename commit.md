@@ -12993,3 +12993,9 @@ fix(mobile): real initial safe-area metrics and cached/deduped X-post loading; p
 
 fix(mobile): Map Evidence body-scroll handoff stays stable through padding/edge changes — slow drags follow and hold correctly instead of jumping or sticking.
 perf(mobile): retain Evidence pane on pill to avoid media/X remount; clean 300ms pill entry + correct source-pane restore. Final release: Timeline 0 jank, Evidence 0 missed Vsync/slow UI; ESLint, diff checks and all-ABI build passed.
+
+fix(mobile): reset detail/evidence native scroll only on selection identity changes; same-item pill restore keeps its offset.
+fix(mobile): stage Power Search entry/results, port Map detent handoff, and make Evidence title/tabs scroll at half while remaining fixed at full.
+
+fix(mobile): unify Evidence title/filter padding and keep the header scrollable at every detent, restoring stable end-drag handoff.
+perf(mobile): gate sheet mount/entry on selection camera idle and prefetch/dedupe detail requests; cold incident/zone entry verified.

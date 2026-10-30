@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -47,7 +47,7 @@ export default function PeekSheet() {
     evidenceFrom,
     sheetLevelRef,
   } = useSelection();
-  const { selectedKind } = useMap();
+  const { selectedKind, selectionFlightActive } = useMap();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const fullH = Math.round(windowHeight - insets.top - 8);
@@ -105,7 +105,9 @@ export default function PeekSheet() {
     eviScrollRef,
   );
   const itemId = item?.id;
-  useEffect(() => {
+  useLayoutEffect(() => {
+    detailScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+    eviScrollRef.current?.scrollTo?.({ y: 0, animated: false });
     detailEdge.reset();
     eviEdge.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,7 +115,8 @@ export default function PeekSheet() {
 
   // A different update gets a fresh scroll identity. A pill round-trip keeps
   // the pane mounted, so its native offset and edge measurements stay intact.
-  useEffect(() => {
+  useLayoutEffect(() => {
+    eviScrollRef.current?.scrollTo?.({ y: 0, animated: false });
     eviEdge.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evidenceUpdate?.id]);
@@ -286,6 +289,7 @@ export default function PeekSheet() {
       active={active}
       keepMounted={view === 'pill'}
       entryKey={itemId}
+      entryPaused={selectionFlightActive}
       targetTy={targetTy}
       hiddenTy={hiddenTy}
       pos={pos}

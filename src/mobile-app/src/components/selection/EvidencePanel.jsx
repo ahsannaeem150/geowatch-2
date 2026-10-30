@@ -849,8 +849,8 @@ export const EvidenceBody = React.memo(function EvidenceBody({
     { key: 'notes', label: `Notes (${noteItems.length})`, icon: 'note' },
   ];
 
-  return (
-    <View style={styles.bodyWrap}>
+  const headerContent = (
+    <>
       <View style={styles.headWrap}>
         <View style={styles.eviTitleRow}>
           <Text style={[styles.eviTitle, { color: theme.textPrimary, fontFamily: theme.fontHead }]}>
@@ -907,7 +907,11 @@ export const EvidenceBody = React.memo(function EvidenceBody({
           })}
         </ScrollView>
       </View>
+    </>
+  );
 
+  return (
+    <View style={styles.bodyWrap}>
       <Reanimated.View style={styles.bodyWrap}>
         <EvidenceScrollView
           ref={scrollRef}
@@ -916,6 +920,7 @@ export const EvidenceBody = React.memo(function EvidenceBody({
           scrollEventThrottle={16}
           {...scrollHandlers}>
           <Reanimated.View style={motionStyle?.contentStyle}>
+            {headerContent}
             {listItems.map((item) => (
               <React.Fragment key={item.key}>{renderItem({ item })}</React.Fragment>
             ))}
@@ -1041,7 +1046,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   headWrap: {
-    paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 12,
   },
@@ -1077,7 +1081,6 @@ const styles = StyleSheet.create({
   tabBarContent: {
     flexDirection: 'row',
     gap: 8,
-    paddingHorizontal: 16,
     paddingBottom: 12,
   },
   tabBtn: {
