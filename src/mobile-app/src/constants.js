@@ -10,6 +10,10 @@ export const DEV_HOST = '127.0.0.1';
 export const API_BASE_URL = `http://${DEV_HOST}:3100/api/v1`;
 export const MARTIN_URL = `http://${DEV_HOST}:8080`;
 
+export const TAB_BAR_CONTENT_HEIGHT = 62;
+export const bottomChromeInset = (insets) =>
+  TAB_BAR_CONTENT_HEIGHT + insets.bottom;
+
 // From Google Cloud console → OAuth web client ID; required by
 // @react-native-google-signin so Google returns an idToken for the backend.
 export const GOOGLE_WEB_CLIENT_ID = 'PASTE_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com';

@@ -7,7 +7,6 @@ import {
   View,
 } from 'react-native';
 import { SheetScrollView } from './SheetContainer';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell,
   Bookmark,
@@ -69,7 +68,6 @@ function PageRow({ icon, label, sub, onPress }) {
 
 export function ProfilePageBody() {
   const { mode, theme, toggleTheme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { openOverlay, closeOverlay, showToast } = useOverlay();
   const { user, signedIn, signOut } = useAuth();
   const { history } = useSelection();
@@ -102,7 +100,7 @@ export function ProfilePageBody() {
   return (
     <SheetScrollView
       style={styles.page}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
+      contentContainerStyle={styles.pageContent}
       showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
         <Pressable
@@ -415,6 +413,9 @@ export function ProfilePanelBody({ overlay }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
+  },
+  pageContent: {
+    paddingBottom: 24,
   },
   hero: {
     alignItems: 'center',

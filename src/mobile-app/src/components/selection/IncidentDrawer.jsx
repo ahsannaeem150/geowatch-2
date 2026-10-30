@@ -35,6 +35,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
 import { IncidentCard } from './PreviewCard';
+import { bottomChromeInset } from '../../constants';
 import { XPostCard, ArticleCard, AdminNoteCard, MediaGalleryModal } from './EvidencePanel';
 
 // Incident drawer (prototype #drawer / renderDrawer): fullscreen details
@@ -487,7 +488,7 @@ export default function IncidentDrawer() {
         {
           backgroundColor: theme.bgSurface,
           paddingTop: insets.top + 12,
-          paddingBottom: insets.bottom,
+          paddingBottom: bottomChromeInset(insets),
           transform: [
             {
               translateX: enter.interpolate({

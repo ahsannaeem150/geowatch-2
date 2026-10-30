@@ -12999,3 +12999,6 @@ fix(mobile): stage Power Search entry/results, port Map detent handoff, and make
 
 fix(mobile): unify Evidence title/filter padding and keep the header scrollable at every detent, restoring stable end-drag handoff.
 perf(mobile): gate sheet mount/entry on selection camera idle and prefetch/dedupe detail requests; cold incident/zone entry verified.
+
+feat(mobile): centralize an opaque persistent TabBar and shared bottom-chrome insets across screens/sheets; align scroll-end content and dismissed pills.
+perf(mobile): use direct easeTo for selection pan/zoom flights to reduce cold-start camera jank; incident/zone recordings verified.

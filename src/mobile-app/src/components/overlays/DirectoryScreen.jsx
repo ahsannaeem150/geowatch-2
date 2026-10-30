@@ -36,7 +36,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { searchIncidents, searchZones } from '../../services/incidents.service';
 import { listCategories, listZoneCategories } from '../../services/taxonomy.service';
-import { DOMAINS, SEVERITIES, VERIFICATION_STATUSES, ZONE_OVERLAYS } from '../../constants';
+import { DOMAINS, SEVERITIES, VERIFICATION_STATUSES, ZONE_OVERLAYS, bottomChromeInset } from '../../constants';
 import { locationLine, severityOf } from '../selection/PreviewCard';
 import useSheetGesture from '../../hooks/useSheetGesture';
 import useScrollEdge from '../../hooks/useScrollEdge';
@@ -743,7 +743,7 @@ function FilterSheet(props) {
           styles.filterSheet,
           {
             height: sheetH,
-            paddingBottom: insets.bottom,
+            paddingBottom: bottomChromeInset(insets),
             backgroundColor: theme.bgSurface,
             borderColor: theme.borderSubtle,
             transform: [{ translateY: pos }],
@@ -1142,7 +1142,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   sortOptionText: { fontSize: 10.5 },
-  listPad: { paddingBottom: 90 },
+  listPad: { paddingBottom: 24 },
   emptyText: {
     textAlign: 'center',
     paddingVertical: 44,

@@ -26,7 +26,6 @@ import { MARKER_IMAGES, markerImageFor } from './markerImages';
 import TopBar from './components/TopBar';
 import TimeStrip from './components/TimeStrip';
 import SideControls from './components/SideControls';
-import TabBar from './components/TabBar';
 import AwayBanner from './components/AwayBanner';
 
 // Web SEVERITY_SCALE radii (src/shared/constants.js) — marker size encodes
@@ -659,15 +658,11 @@ export default function MapScreen() {
       </Map>
       {loading ? <LoadingPill /> : null}
       {isRangeGated ? <GateHint /> : null}
-      {/* Power Search replaces the home chrome (its own solid top block takes
-          over) and now covers the whole screen — the tab bar goes too; the
-          PS back button is the exit. */}
       {psOpen ? null : (
         <>
           <TopBar />
           <TimeStrip />
           <AwayBanner />
-          <TabBar />
         </>
       )}
       <SideControls />

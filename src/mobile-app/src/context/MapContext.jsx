@@ -584,10 +584,8 @@ export function MapProvider({ children }) {
     });
 
     const targetZoom = Math.min(decision.zoom, MAX_ZOOM);
-    // Pan-only and equal-zoom results go through easeTo: flyTo's van Wijk arc
-    // zooms out mid-flight on long pans, which reads as stutter when no zoom
-    // change is intended (web parity).
-    const zoomUnchanged = decision.panOnly || Math.abs(targetZoom - currentZoom) < 0.001;
+    // Pan and zoom selections share one direct native ease path instead of
+    // flyTo's wider arc and its intermediate zoom/tile work.
     const flightCenter = centerForPaddedFlight([request.lng, request.lat], targetZoom, padding);
     lastSelectionFlightRef.current = {
       signature,
@@ -602,11 +600,7 @@ export function MapProvider({ children }) {
       Math.abs(flightCenter[1] - currentCenter[1]) > 1e-7;
     setSelectionFlightActive(cameraWillMove);
     try {
-      if (zoomUnchanged) {
-        cam.easeTo(camera);
-      } else {
-        cam.flyTo(camera);
-      }
+      cam.easeTo(camera);
     } catch (error) {
       setSelectionFlightActive(false);
       throw error;

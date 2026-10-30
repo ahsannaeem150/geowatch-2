@@ -25,6 +25,7 @@ import { useOverlay } from '../../context/OverlayContext';
 import useSheetGesture from '../../hooks/useSheetGesture';
 import useScrollEdge from '../../hooks/useScrollEdge';
 import HandoffScrollView from './HandoffScrollView';
+import { bottomChromeInset } from '../../constants';
 
 // Registry of the sheet body's scroll-edge trackers plus their scroll view
 // refs. SheetScrollView (below) registers itself here; the container's
@@ -170,7 +171,8 @@ export default function SheetContainer({ overlay, children }) {
           styles.sheet,
           {
             height,
-            paddingBottom: insets.bottom,
+            paddingBottom:
+              overlay.id === 'signIn' ? insets.bottom : bottomChromeInset(insets),
             backgroundColor: theme.bgSurface,
             borderColor: theme.borderSubtle,
             borderTopLeftRadius: topRadius,

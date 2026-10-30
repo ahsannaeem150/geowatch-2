@@ -41,6 +41,7 @@ import { mediaUrl } from '../../services/api';
 import { fetchTweet, getCachedTweet } from '../../services/x-post';
 import VideoPlayer from './VideoPlayer';
 import { Tag } from './PreviewCard';
+import { bottomChromeInset } from '../../constants';
 
 const AnimatedLegacyScrollView = Reanimated.createAnimatedComponent(LegacyScrollView);
 
@@ -982,7 +983,7 @@ export default function EvidencePanel() {
         {
           backgroundColor: theme.bgSurface,
           paddingTop: insets.top + 12,
-          paddingBottom: insets.bottom,
+          paddingBottom: bottomChromeInset(insets),
           transform: [
             {
               translateX: enter.interpolate({

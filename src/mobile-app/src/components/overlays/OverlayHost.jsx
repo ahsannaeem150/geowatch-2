@@ -18,6 +18,7 @@ import IncidentDrawer from '../selection/IncidentDrawer';
 import EvidencePanel from '../selection/EvidencePanel';
 import EmbeddedMapPanel from '../selection/EmbeddedMapPanel';
 import TabBar from '../../screens/map/components/TabBar';
+import { bottomChromeInset } from '../../constants';
 
 // Z-order model (rendered bottom → top, mirrors the prototype's z-indexes):
 // map < pill (32) < backdrop (55) < sheets/fullscreen/drawerLeft/topPanel
@@ -36,7 +37,6 @@ const TAB_FULLSCREENS = new Set([
   'activity',
   'alerts',
 ]);
-const TABBAR_SPACE = 62; // bar height above the safe-area inset
 
 function useEnter(progress) {
   useEffect(() => {
@@ -97,12 +97,10 @@ function FullscreenContainer({ overlay, children }) {
       StyleSheet.create({
         pad: {
           paddingTop: transparent ? 0 : insets.top + 8,
-          paddingBottom: transparent
-            ? 0
-            : insets.bottom + (isTabDir ? TABBAR_SPACE : 0),
+          paddingBottom: transparent ? 0 : bottomChromeInset(insets),
         },
       }).pad,
-    [transparent, isTabDir, insets.top, insets.bottom],
+    [transparent, insets],
   );
   return (
     <Animated.View
@@ -145,7 +143,7 @@ function DrawerLeftContainer({ overlay, children }) {
             borderRightColor: theme.borderSubtle,
             transform: [{ translateX }],
             paddingTop: insets.top + 12,
-            paddingBottom: insets.bottom,
+            paddingBottom: bottomChromeInset(insets),
           },
         ]}>
         {overlay.props?.hideHeader ? null : (
@@ -311,13 +309,7 @@ export default function OverlayHost() {
   // The sign-in gate must also cover the selection surfaces (drawer/evidence
   // star) — hoist it above them while keeping its bottom-sheet container.
   const signInOverlays = stack.filter((o) => o.id === 'signIn');
-  // Directory fullscreens are tab pages: the tab bar stays visible on top of
-  // them (MapScreen hides its own only for Power Search, so no duplicate —
-  // this one renders above the overlay, the map's sits underneath it).
-  const tabBarVisible =
-    !!topOverlay &&
-    topOverlay.type === 'fullscreen' &&
-    TAB_FULLSCREENS.has(topOverlay.id);
+  const tabBarVisible = !signInOverlays.length && !modalOverlays.length;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -328,7 +320,6 @@ export default function OverlayHost() {
         />
       ) : null}
       {baseOverlays.map(renderOverlay)}
-      {tabBarVisible ? <TabBar /> : null}
       <SelectionPill />
       {/* Power Search owns its selection UI. A stale map selection must not
           mount a second sheet/panel above it. */}
@@ -340,6 +331,7 @@ export default function OverlayHost() {
           <EvidencePanel />
         </>
       ) : null}
+      {tabBarVisible ? <TabBar /> : null}
       {signInOverlays.map(renderOverlay)}
       {modalOverlays.map(renderOverlay)}
       {toast ? <Toast message={toast} /> : null}

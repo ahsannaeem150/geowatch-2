@@ -66,6 +66,8 @@ import {
   SEVERITIES,
   VERIFICATION_STATUSES,
   ZONE_OVERLAYS,
+  TAB_BAR_CONTENT_HEIGHT,
+  bottomChromeInset,
 } from '../../constants';
 import { zoneBBox, zoneCentroid } from '../../utils/zoneGeometry';
 import MiniCalendar from '../../screens/map/components/MiniCalendar';
@@ -1180,9 +1182,10 @@ function ResultsSheet({
         evidenceActive={inEvidence}
         mapOptimizations
         onMotionEnd={() => setEntryReady(true)}
-        bottomPadOffset={12}
+        bottomPadOffset={TAB_BAR_CONTENT_HEIGHT}
         style={{
           height: sheetH,
+          paddingBottom: insets.bottom,
           backgroundColor: theme.bgSurface,
           borderColor: theme.borderSubtle,
         }}
@@ -1533,7 +1536,7 @@ function ResultsSheet({
                 style={({ pressed }) => [
                   styles.itemPill,
                   {
-                    bottom: insets.bottom + 16,
+                    bottom: bottomChromeInset(insets) + 16,
                     backgroundColor: pressed
                       ? theme.bgElevated
                       : theme.bgSurface,
@@ -1579,7 +1582,7 @@ function ResultsSheet({
             style={({ pressed }) => [
               styles.itemPill,
               {
-                bottom: insets.bottom + 16,
+                bottom: bottomChromeInset(insets) + 16,
                 backgroundColor: pressed ? theme.bgElevated : theme.bgSurface,
                 borderColor: theme.borderSubtle,
               },
@@ -1714,7 +1717,7 @@ function PsFilterSheet(props) {
           styles.filterSheet,
           {
             height: sheetH,
-            paddingBottom: insets.bottom,
+            paddingBottom: bottomChromeInset(insets),
             backgroundColor: theme.bgSurface,
             borderColor: theme.borderSubtle,
             transform: [{ translateY: pos }],

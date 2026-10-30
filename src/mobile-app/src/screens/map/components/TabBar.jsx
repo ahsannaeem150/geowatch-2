@@ -47,7 +47,7 @@ export default function TabBar() {
       style={[
         styles.bar,
         {
-          backgroundColor: theme.bgGlass,
+          backgroundColor: theme.bgSurface,
           borderTopColor: theme.borderSubtle,
           paddingBottom: 10 + insets.bottom,
         },
