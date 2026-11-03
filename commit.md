@@ -13002,3 +13002,7 @@ perf(mobile): gate sheet mount/entry on selection camera idle and prefetch/dedup
 
 feat(mobile): centralize an opaque persistent TabBar and shared bottom-chrome insets across screens/sheets; align scroll-end content and dismissed pills.
 perf(mobile): use direct easeTo for selection pan/zoom flights to reduce cold-start camera jank; incident/zone recordings verified.
+
+fix(mobile): default physical map rendering to OpenGL; Vulkan is now an explicit emulator-only Gradle override. Native profiling isolates residual cold-zoom cost to MapLibre render/tile workers, not the sheet or JS camera.
+
+perf(mobile): opt-in MapScreen suppression of unused wrapper frame/camera-move events via patch-package + postinstall; core MapLibre C++ untouched, onRegionDidChange preserved. Release build, patch reapply and cold incident/zone selection verified.

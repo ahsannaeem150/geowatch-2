@@ -6,7 +6,8 @@
   "scripts": {
     "android": "react-native run-android",
     "start": "react-native start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@maplibre/maplibre-react-native": "^11.3.10",
@@ -42,6 +43,7 @@
     "@react-native/eslint-config": "0.87.1",
     "@react-native/metro-config": "0.87.1",
     "eslint": "^8.19.0",
+    "patch-package": "^8.0.1",
     "prettier": "2.8.8"
   },
   "engines": {

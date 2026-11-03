@@ -491,8 +491,9 @@ export default function MapScreen() {
         // ~6-7ms/frame more expensive on a physical device, enough to break
         // 60fps during sheet transitions. Use "texture" ONLY on the emulator
         // (its SwiftShader GL stack renders corrupt tiles/text otherwise;
-        // pair with gradle.properties nativeVariant=vulkan).
+        // pair with the emulator-only Gradle Vulkan override).
         androidView="surface"
+        suppressUnusedFrameEvents
         compassEnabled={false}
         onRegionDidChange={handleRegionDidChange}
         onPress={handleMapPress}
