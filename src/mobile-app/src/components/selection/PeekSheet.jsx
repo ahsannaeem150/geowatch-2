@@ -61,6 +61,9 @@ export default function PeekSheet() {
     : view === 'peek' ||
       ((view === 'drawer' || view === 'evidence') && selMode !== 'direct');
   const active = !!item && sheetActive;
+  const embeddedPreview = !!origin && origin.id !== 'powerSearch';
+  const timedExitRef = useRef(false);
+  if (active) timedExitRef.current = embeddedPreview;
   const inEvidence = view === 'evidence';
 
   const [level, setLevel] = useState('half');
@@ -289,7 +292,7 @@ export default function PeekSheet() {
       active={active}
       keepMounted={view === 'pill'}
       entryKey={itemId}
-      entryPaused={selectionFlightActive}
+      entryPaused={origin && origin.id !== 'powerSearch' ? false : selectionFlightActive}
       targetTy={targetTy}
       hiddenTy={hiddenTy}
       pos={pos}
@@ -310,6 +313,7 @@ export default function PeekSheet() {
       activeScrollEdge={inEvidence ? eviEdge : detailEdge}
       evidenceActive={inEvidence}
       mapOptimizations
+      timedExit={embeddedPreview || timedExitRef.current}
       fadeStart={halfTy}
       style={{
         height: fullH,

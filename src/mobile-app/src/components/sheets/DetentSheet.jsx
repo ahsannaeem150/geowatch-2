@@ -29,6 +29,7 @@ export default function DetentSheet({
   activeScrollEdge,
   evidenceActive = false,
   mapOptimizations = false,
+  timedExit = false,
   onTargetChange,
   onMotionEnd,
   bottomPadOffset = 62,
@@ -260,7 +261,7 @@ export default function DetentSheet({
         () => {
           if (!wantOpen.current && !keepMounted) setMounted(false);
         },
-        { damping: closeDamping },
+        { damping: closeDamping, ...(timedExit ? { duration: 300 } : {}) },
       );
       pendingVy.current = 0;
     }

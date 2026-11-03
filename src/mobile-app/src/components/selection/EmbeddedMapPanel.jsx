@@ -78,7 +78,7 @@ export default function EmbeddedMapPanel() {
       enter.setValue(0);
       Animated.timing(enter, {
         toValue: 1,
-        duration: 360,
+        duration: 300,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
@@ -87,8 +87,8 @@ export default function EmbeddedMapPanel() {
       // never pops the panel off mid-frame while the sheet slides away.
       Animated.timing(enter, {
         toValue: 0,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start(() => setMounted(false));
     }
@@ -100,7 +100,7 @@ export default function EmbeddedMapPanel() {
   }
 
   // Jump out of the origin surface to the real map with the item kept as
-  // the selection pill (camera already flew here when the preview opened).
+  // the selection pill; the main camera flies only when this action runs.
   const onViewOnMap = () => {
     sendPreviewToMap();
     closeAll();

@@ -21,6 +21,7 @@ import {
 } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { ZONE_OVERLAYS } from '../../constants';
+import { isPowerSearchActive } from '../../utils/overlayStack';
 import { MAP_STYLES } from './mapStyles';
 import { MARKER_IMAGES, markerImageFor } from './markerImages';
 import TopBar from './components/TopBar';
@@ -254,7 +255,7 @@ export default function MapScreen() {
     return () => sub.remove();
   }, [topOverlay, closeOverlay, handleSelectionBack, stack, selectionView]);
 
-  const psOpen = stack.some((o) => o.id === 'powerSearch');
+  const psOpen = isPowerSearchActive(stack);
 
   // Client-side layer filters: fetch everything permitted, hide by
   // domain/zone-category per the Layers sheet toggles.

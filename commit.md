@@ -13010,3 +13010,9 @@ perf(mobile): opt-in MapScreen suppression of unused wrapper frame/camera-move e
 feat(mobile): Evidence media uses Featured→Pinned→remaining order, odd-count hero + two-column pairs, all-visible 12-item scroll batches, zero-media states and image/video fallbacks.
 fix(media): reusable backfill repaired two legacy video posters; standalone media list ordering now matches incident detail (`created_at ASC`).
 test(mobile): device-verified 0–6/13-item layouts, Map/Power Search/direct Evidence, multiple pins/featured, playback and cleanup; ESLint + release build passed.
+
+fix(mobile): retained Power Search no longer suppresses directory/activity/alert previews; ownership follows the topmost fullscreen overlay, preserving Power Search filter/modal behavior.
+test(mobile): 8 owner assertions, ESLint/release build, and device-verified Incidents/Activity/Alerts previews plus Power Search detail/filters.
+
+fix(mobile): synchronize embedded map + sheet preview enter/exit at 300ms; hidden main-map flight now runs only on “View on map,” preserving normal/Power Search camera behavior.
+test(mobile): release-recorded synchronized open/close, View-on-map flight/pill and Power Search detail; ESLint, diff checks and release build passed.

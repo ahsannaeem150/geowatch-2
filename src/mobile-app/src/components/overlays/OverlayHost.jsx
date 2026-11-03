@@ -19,6 +19,7 @@ import EvidencePanel from '../selection/EvidencePanel';
 import EmbeddedMapPanel from '../selection/EmbeddedMapPanel';
 import TabBar from '../../screens/map/components/TabBar';
 import { bottomChromeInset } from '../../constants';
+import { isPowerSearchActive } from '../../utils/overlayStack';
 
 // Z-order model (rendered bottom → top, mirrors the prototype's z-indexes):
 // map < pill (32) < backdrop (55) < sheets/fullscreen/drawerLeft/topPanel
@@ -304,7 +305,7 @@ export default function OverlayHost() {
   // the stack sits below them (prototype: modal z80 > drawer z70 > peek
   // z65 > emb z64 > sheets z56 > pill z32).
   const baseOverlays = stack.filter((o) => o.type !== 'modal' && o.id !== 'signIn');
-  const psOpen = stack.some((o) => o.id === 'powerSearch');
+  const psOpen = isPowerSearchActive(stack);
   const modalOverlays = stack.filter((o) => o.type === 'modal');
   // The sign-in gate must also cover the selection surfaces (drawer/evidence
   // star) — hoist it above them while keeping its bottom-sheet container.

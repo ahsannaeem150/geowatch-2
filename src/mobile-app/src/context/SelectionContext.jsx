@@ -315,7 +315,9 @@ export function SelectionProvider({ children }) {
       setEvidenceFrom(null);
       selectItem(previewItem.id, kind);
       setView('peek');
-      flyToItem(kind, previewItem, source, 'peek');
+      if (!orig || orig.id === 'powerSearch') {
+        flyToItem(kind, previewItem, source, 'peek');
+      }
     },
     [closeOverlay, selectItem, flyToItem],
   );
@@ -336,11 +338,14 @@ export function SelectionProvider({ children }) {
   // restore) but keep the item selected as the map pill — the caller closes
   // the overlay stack, leaving the ring + pill on the main map.
   const sendPreviewToMap = useCallback(() => {
+    if (item) {
+      flyToItem(selectedKind, item, 'map', 'pill');
+    }
     setOrigin(null);
     setEvidenceUpdate(null);
     setEvidenceFrom(null);
     setView('pill');
-  }, []);
+  }, [item, selectedKind, flyToItem]);
 
   // Peek drag-down → collapse to the pill (same target as a map tap).
   const collapsePeek = useCallback(() => {

@@ -14,6 +14,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { useOverlay } from '../../context/OverlayContext';
 import { formatKm2, severityOf } from './PreviewCard';
+import { isPowerSearchActive } from '../../utils/overlayStack';
 
 // Selection pill (prototype #sel-pill): compact bar shown when the peek /
 // drawer / zone sheet collapses. Tap → full details (expandSelection).
@@ -28,7 +29,7 @@ export default function SelectionPill() {
   // (Incidents/Activity/Alerts tabs, drawers, sheets): a PLAIN map
   // selection's pill belongs to the map and leaves with it. Preview pills
   // (origin set) stay — they are how the user reopens a dismissed preview.
-  const psOpen = stack.some((o) => o.id === 'powerSearch');
+  const psOpen = isPowerSearchActive(stack);
   const coveredByOverlay = !origin && stack.length > 0;
   const visible = view === 'pill' && !!item && !psOpen && !coveredByOverlay;
   const [mounted, setMounted] = React.useState(visible);
