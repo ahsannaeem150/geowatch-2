@@ -9,7 +9,7 @@ export async function listMediaByIncident(incidentId) {
      FROM incident_media
      WHERE incident_id = $1
        AND NOT EXISTS (SELECT 1 FROM incident_sources s WHERE s.archive_media_id = incident_media.id)
-     ORDER BY pinned DESC, display_order ASC, created_at DESC`,
+     ORDER BY pinned DESC, display_order ASC, created_at ASC`,
     [incidentId]
   );
   // Rebuild stored absolute URLs on the current origin (see utils/media-url.js)

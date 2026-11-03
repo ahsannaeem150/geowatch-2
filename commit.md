@@ -13006,3 +13006,7 @@ perf(mobile): use direct easeTo for selection pan/zoom flights to reduce cold-st
 fix(mobile): default physical map rendering to OpenGL; Vulkan is now an explicit emulator-only Gradle override. Native profiling isolates residual cold-zoom cost to MapLibre render/tile workers, not the sheet or JS camera.
 
 perf(mobile): opt-in MapScreen suppression of unused wrapper frame/camera-move events via patch-package + postinstall; core MapLibre C++ untouched, onRegionDidChange preserved. Release build, patch reapply and cold incident/zone selection verified.
+
+feat(mobile): Evidence media uses Featured→Pinned→remaining order, odd-count hero + two-column pairs, all-visible 12-item scroll batches, zero-media states and image/video fallbacks.
+fix(media): reusable backfill repaired two legacy video posters; standalone media list ordering now matches incident detail (`created_at ASC`).
+test(mobile): device-verified 0–6/13-item layouts, Map/Power Search/direct Evidence, multiple pins/featured, playback and cleanup; ESLint + release build passed.

@@ -368,6 +368,7 @@ Body: `{ pinned: boolean }`
 ### GET /incidents/:id/media
 Access: Public  
 Response: `{ data: { media: [ { id, originalName, storedName, fileType, mimeType, fileSizeBytes, fileUrl, thumbnailUrl, width, height, displayOrder, pinned, caption, createdAt } ] } }`
+Ordering: `pinned DESC`, `display_order ASC`, `created_at ASC`. Clients prioritize the update's featured media before this list.
 
 ### POST /incidents/:id/media
 Access: `admin` / `super_admin`  

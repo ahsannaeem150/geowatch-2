@@ -96,45 +96,98 @@ function fmtDate(iso) {
   return d && isValid(d) ? format(d, 'dd MMM yyyy') : '';
 }
 
-function MediaGrid({ items, onOpen }) {
+const MEDIA_BATCH_SIZE = 12;
+const MEDIA_REVEAL_THRESHOLD = 240;
+
+function orderMediaItems(items, featuredId) {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      priority: item.id === featuredId ? 2 : item.pinned ? 1 : 0,
+    }))
+    .sort((a, b) => b.priority - a.priority || a.index - b.index)
+    .map(({ item }) => item);
+}
+
+const MediaCell = React.memo(function MediaCell({ item, index, total, hero, onOpen }) {
   const { theme } = useTheme();
-  if (!items.length) {
-    return (
-      <Text style={[styles.empty, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
-        — no media attached —
-      </Text>
-    );
-  }
+  const isVideo = item.file_type === 'video';
+  const uri = mediaUrl(item.thumbnail_url || (!isVideo ? item.file_url : null));
+  const [failedUri, setFailedUri] = useState(null);
+  const showFallback = !uri || failedUri === uri;
+  const duration = isVideo && item.duration != null ? fmtDuration(item.duration) : null;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${isVideo ? 'Video' : 'Image'} ${index + 1} of ${total}${
+        item.caption ? `: ${item.caption}` : ''
+      }`}
+      onPress={() => onOpen(index)}
+      style={[
+        hero ? styles.mediaHero : styles.mediaCell,
+        { backgroundColor: theme.bgHover, borderColor: theme.borderSubtle },
+      ]}>
+      {uri && failedUri !== uri ? (
+        <Image
+          source={{ uri }}
+          style={styles.mediaImg}
+          resizeMode="cover"
+          fadeDuration={0}
+          onError={() => setFailedUri(uri)}
+        />
+      ) : null}
+      {showFallback ? (
+        <View style={styles.mediaFallback} pointerEvents="none">
+          {isVideo ? (
+            <Play size={22} color={theme.textSecondary} fill={theme.textSecondary} />
+          ) : (
+            <Camera size={22} color={theme.textSecondary} />
+          )}
+          <Text style={[styles.mediaFallbackText, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+            {isVideo ? 'VIDEO' : 'IMAGE'}
+          </Text>
+        </View>
+      ) : null}
+      {isVideo && !showFallback ? (
+        <View style={[styles.videoBadge, styles.overlayDim]} pointerEvents="none">
+          <Play size={15} color="#fff" fill="#fff" />
+        </View>
+      ) : null}
+      {duration && !showFallback ? (
+        <View style={[styles.durChip, styles.overlayDim]} pointerEvents="none">
+          <Text style={styles.durChipText}>{duration}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+});
+
+function MediaGrid({ items, total, onOpen }) {
+  if (!items.length) return null;
+  const hasHero = total % 2 === 1;
+  const pairs = hasHero ? items.slice(1) : items;
+
   return (
     <View style={styles.mediaGrid}>
-      {items.map((m, i) => {
-        const isVideo = m.file_type === 'video';
-        const uri = mediaUrl(m.thumbnail_url || (!isVideo ? m.file_url : null));
-        return (
-          <Pressable
-            key={m.id}
-            onPress={() => onOpen(i)}
-            style={[styles.mediaCell, { backgroundColor: theme.bgHover, borderColor: theme.borderSubtle }]}>
-            {uri ? (
-              <Image source={{ uri }} style={styles.mediaImg} resizeMode="cover" />
-            ) : null}
-            {isVideo ? (
-              <>
-                <View style={styles.videoScrim} pointerEvents="none" />
-                <View style={[styles.videoBadge, styles.overlayDim]}>
-                  <Play size={15} color="#fff" fill="#fff" />
-                </View>
-                <View style={[styles.videoTag, styles.overlayDim]}>
-                  <Play size={8} color="#fff" fill="#fff" />
-                  <Text style={[styles.videoTagText, { fontFamily: theme.fontMono }]}>
-                    VIDEO
-                  </Text>
-                </View>
-              </>
-            ) : null}
-          </Pressable>
-        );
-      })}
+      {hasHero ? (
+        <MediaCell item={items[0]} index={0} total={total} hero onOpen={onOpen} />
+      ) : null}
+      <View style={styles.mediaPairs}>
+        {pairs.map((item, i) => {
+          const index = hasHero ? i + 1 : i;
+          return (
+            <MediaCell
+              key={item.id}
+              item={item}
+              index={index}
+              total={total}
+              onOpen={onOpen}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -733,10 +786,12 @@ export const EvidenceBody = React.memo(function EvidenceBody({
   const { evidenceUpdate, getCachedDetail } = useSelection();
   const [tab, setTab] = useState('all');
   const [lbIndex, setLbIndex] = useState(null);
+  const [mediaRenderCount, setMediaRenderCount] = useState(MEDIA_BATCH_SIZE);
 
   useEffect(() => {
     setTab('all');
     setLbIndex(null);
+    setMediaRenderCount(MEDIA_BATCH_SIZE);
   }, [evidenceUpdate?.id]);
 
   // Update-attached evidence, falling back to the incident-level aggregate
@@ -756,8 +811,9 @@ export const EvidenceBody = React.memo(function EvidenceBody({
     const ownX = u.sources?.x_post || [];
     const ownArticles = u.sources?.news_article || [];
     const ownNotes = u.sources?.admin_note || [];
+    const featuredMediaId = u.featured_item?.source_type === 'media' ? u.featured_item.item_id : null;
     return {
-      mediaItems: ownMedia.length ? ownMedia : allMedia,
+      mediaItems: orderMediaItems(ownMedia.length ? ownMedia : allMedia, featuredMediaId),
       xItems: ownX.length ? ownX : allX,
       articleItems: ownArticles.length ? ownArticles : allArticles,
       noteItems: ownNotes.length ? ownNotes : allNotes,
@@ -772,15 +828,55 @@ export const EvidenceBody = React.memo(function EvidenceBody({
     }
   }, [xItems]);
 
+  const visibleMediaItems = useMemo(
+    () => mediaItems.slice(0, mediaRenderCount),
+    [mediaItems, mediaRenderCount],
+  );
+  const revealMediaBatch = useCallback(
+    (event) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      if (
+        contentOffset.y + layoutMeasurement.height >=
+        contentSize.height - MEDIA_REVEAL_THRESHOLD
+      ) {
+        setMediaRenderCount((count) =>
+          count >= mediaItems.length ? count : Math.min(count + MEDIA_BATCH_SIZE, mediaItems.length),
+        );
+      }
+    },
+    [mediaItems.length],
+  );
+  const handleScrollEndDrag = useCallback(
+    (event) => {
+      scrollHandlers?.onScrollEndDrag?.(event);
+      if (Math.abs(event.nativeEvent.velocity?.y || 0) < 0.05) {
+        revealMediaBatch(event);
+      }
+    },
+    [revealMediaBatch, scrollHandlers],
+  );
+  const handleMomentumScrollEnd = useCallback(
+    (event) => {
+      scrollHandlers?.onMomentumScrollEnd?.(event);
+      revealMediaBatch(event);
+    },
+    [revealMediaBatch, scrollHandlers],
+  );
   const mediaContent = useMemo(
-    () => <MediaGrid items={mediaItems} onOpen={setLbIndex} />,
-    [mediaItems],
+    () => <MediaGrid items={visibleMediaItems} total={mediaItems.length} onOpen={setLbIndex} />,
+    [mediaItems.length, visibleMediaItems],
   );
   const listItems = useMemo(() => {
     const rows = [];
     if (tab === 'all' || tab === 'media') {
-      rows.push({ key: 'media-heading', type: 'heading', label: `MEDIA (${mediaItems.length})` });
-      if (mediaItems.length) rows.push({ key: 'media-grid', type: 'media' });
+      if (mediaItems.length || tab === 'media') {
+        rows.push({ key: 'media-heading', type: 'heading', label: `MEDIA (${mediaItems.length})` });
+      }
+      if (mediaItems.length) {
+        rows.push({ key: 'media-grid', type: 'media' });
+      } else if (tab === 'media') {
+        rows.push({ key: 'media-empty', type: 'empty', label: '— no media attached to this update —' });
+      }
     }
     if (tab === 'all' || tab === 'xposts') {
       rows.push({ key: 'x-heading', type: 'heading', label: `X POSTS (${xItems.length})` });
@@ -919,7 +1015,9 @@ export const EvidenceBody = React.memo(function EvidenceBody({
           style={styles.body}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
-          {...scrollHandlers}>
+          {...scrollHandlers}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollEnd={handleMomentumScrollEnd}>
           <Reanimated.View style={motionStyle?.contentStyle}>
             {headerContent}
             {listItems.map((item) => (
@@ -1118,6 +1216,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   mediaGrid: {
+    gap: 8,
+  },
+  mediaPairs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
@@ -1129,19 +1230,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  mediaHero: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   mediaImg: {
     width: '100%',
     height: '100%',
   },
-  videoScrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '42%',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
+  mediaFallback: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  mediaFallbackText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   videoBadge: {
     position: 'absolute',
@@ -1154,23 +1263,6 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  videoTag: {
-    position: 'absolute',
-    left: 8,
-    bottom: 8,
-    borderRadius: 5,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  videoTagText: {
-    fontSize: 8.5,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: '#fff',
   },
   lbCounter: {
     position: 'absolute',
