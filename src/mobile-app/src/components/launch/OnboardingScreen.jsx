@@ -122,6 +122,16 @@ export default function OnboardingScreen({ onDone }) {
     setIndex(Math.max(0, Math.min(PAGES.length - 1, next)));
   };
 
+  const onScrollEndDrag = useCallback((event) => {
+    const offset = event.nativeEvent.contentOffset.x;
+    const velocity = event.nativeEvent.velocity?.x || 0;
+    const delta = offset - indexRef.current * width;
+    const flick = Math.abs(velocity) > 0.35 && Math.abs(delta) > 12;
+    const dragged = Math.abs(delta) > width * 0.18;
+    const direction = flick ? -Math.sign(velocity) : dragged ? Math.sign(delta) : 0;
+    goTo(indexRef.current + direction);
+  }, [goTo, width]);
+
   const finish = () => {
     if (index === PAGES.length - 1) onDone();
     else goTo(index + 1);
@@ -155,12 +165,12 @@ export default function OnboardingScreen({ onDone }) {
       <Reanimated.ScrollView
         ref={scrollRef}
         horizontal
-        pagingEnabled
         bounces={false}
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={onScroll}
+        onScrollEndDrag={onScrollEndDrag}
         onMomentumScrollEnd={onMomentumEnd}
         style={styles.pager}>
         {PAGES.map((page, pageIndex) => (

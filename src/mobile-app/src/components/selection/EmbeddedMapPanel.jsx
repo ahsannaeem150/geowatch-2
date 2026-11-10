@@ -64,7 +64,7 @@ function zoneBBox(geometry) {
 export default function EmbeddedMapPanel() {
   const { mode, theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { previewActive, item, closePreview, sendPreviewToMap, origin, previewPos } =
+  const { previewActive, item, view, closePreview, sendPreviewToMap, origin, previewPos } =
     useSelection();
   const { closeAll } = useOverlay();
   const { selectedKind } = useMap();
@@ -105,7 +105,7 @@ export default function EmbeddedMapPanel() {
     [visible, hiddenTy],
   );
 
-  if (!mounted || !item) {
+  if (!mounted || !item || (!visible && view !== 'idle')) {
     return null;
   }
 

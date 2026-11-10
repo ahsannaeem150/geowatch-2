@@ -593,8 +593,10 @@ export const DirCard = React.memo(function DirCard({ kind, item, highlighted, on
       onPress={onOpen ? () => onOpen(kind, item) : onPress}
       style={({ pressed }) => [
         styles.card,
-        { borderBottomColor: theme.borderSubtle },
-        highlighted && { backgroundColor: theme.accentSubtleBg },
+        {
+          backgroundColor: highlighted ? theme.accentSubtleBg : theme.bgElevated,
+          borderColor: highlighted ? theme.accentLight : theme.borderSubtle,
+        },
         pressed && { backgroundColor: theme.bgHover },
       ]}>
       <View style={[styles.cardAccent, { backgroundColor: color }]} />
@@ -1143,7 +1145,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   sortOptionText: { fontSize: 10.5 },
-  listPad: { paddingBottom: 10 },
+  listPad: { paddingBottom: 2 },
   emptyText: {
     textAlign: 'center',
     paddingVertical: 44,
@@ -1161,7 +1163,11 @@ const styles = StyleSheet.create({
   retryText: { fontSize: 10.5, letterSpacing: 0.4 },
   card: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
   },
   cardAccent: { width: 3 },
   cardBody: { flex: 1, paddingVertical: 13, paddingRight: 16, paddingLeft: 13 },

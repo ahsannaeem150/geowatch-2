@@ -11,6 +11,7 @@ import {
   BackHandler,
   Dimensions,
   Easing,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -202,7 +203,7 @@ export function PowerSearchBody({ overlay }) {
   const suspended = !isPowerSearchActive(stack);
 
   const [q, setQ] = useState(overlay.props?.initialQ || '');
-  const [qDebounced, setQDebounced] = useState(overlay.props?.initialQ || '');
+  const [qSubmitted, setQSubmitted] = useState(overlay.props?.initialQ || '');
   const [typeSel, setTypeSel] = useState(DEFAULTS.typeSel);
   const [statusSel, setStatusSel] = useState(DEFAULTS.statusSel);
   const [verifSel, setVerifSel] = useState({});
@@ -279,12 +280,6 @@ export function PowerSearchBody({ overlay }) {
   const zonecatRows =
     zonecats || ZONE_OVERLAYS.map((z) => ({ id: null, name: z.name }));
 
-  // 300ms debounced search text.
-  useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
-
   const fetchResults = useCallback(() => {
     const seq = ++fetchSeq.current;
     // Both type toggles off = no type filter (prototype groupVals empty).
@@ -300,7 +295,7 @@ export function PowerSearchBody({ overlay }) {
       dateFrom: validDate(dateFrom) || ALL_TIME.dateFrom,
       dateTo: validDate(dateTo) || ALL_TIME.dateTo,
       limit: 100,
-      ...(qDebounced ? { q: qDebounced } : {}),
+      ...(qSubmitted ? { q: qSubmitted } : {}),
       ...(sevs.length ? { severities: sevs.join(',') } : {}),
       ...(stats.length ? { statuses: stats.join(',') } : {}),
       ...(savedOnly ? { savedOnly: 'true' } : {}),
@@ -351,7 +346,7 @@ export function PowerSearchBody({ overlay }) {
         if (seq === fetchSeq.current) setLoading(false);
       });
   }, [
-    qDebounced,
+    qSubmitted,
     typeSel,
     statusSel,
     verifSel,
@@ -369,6 +364,26 @@ export function PowerSearchBody({ overlay }) {
   useEffect(() => {
     fetchResults();
   }, [fetchResults]);
+
+  const executeSearch = useCallback(() => {
+    Keyboard.dismiss();
+    const query = q.trim();
+    if (query === qSubmitted) {
+      fetchResults();
+    } else {
+      setQSubmitted(query);
+    }
+  }, [fetchResults, q, qSubmitted]);
+
+  const clearQuery = useCallback(() => {
+    Keyboard.dismiss();
+    setQ('');
+    if (qSubmitted) {
+      setQSubmitted('');
+    } else {
+      fetchResults();
+    }
+  }, [fetchResults, qSubmitted]);
 
   // ─── Filter mutations (prototype toggleMulti/togglePsfSev/togglePsfCheck)
   const toggleType = (k) => setTypeSel((p) => ({ ...p, [k]: !p[k] }));
@@ -406,7 +421,7 @@ export function PowerSearchBody({ overlay }) {
 
   const resetFilters = useCallback(() => {
     setQ('');
-    setQDebounced('');
+    setQSubmitted('');
     setTypeSel(DEFAULTS.typeSel);
     setStatusSel(DEFAULTS.statusSel);
     setVerifSel({});
@@ -633,10 +648,20 @@ export function PowerSearchBody({ overlay }) {
               styles.searchRow,
               { backgroundColor: theme.bgInput, borderColor: theme.borderSubtle },
             ]}>
-            <Search size={15} color={theme.textMuted} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Search incidents and zones"
+              onPress={executeSearch}
+              style={({ pressed }) => [
+                styles.searchSubmit,
+                { backgroundColor: pressed ? theme.accentSubtleBg : 'transparent' },
+              ]}>
+              <Search size={16} color={theme.accentLight} />
+            </Pressable>
             <TextInput
               value={q}
               onChangeText={setQ}
+              onSubmitEditing={executeSearch}
               placeholder="Search incidents, zones…"
               placeholderTextColor={theme.textMuted}
               autoCapitalize="none"
@@ -648,7 +673,7 @@ export function PowerSearchBody({ overlay }) {
               ]}
             />
             {q ? (
-              <Pressable onPress={() => setQ('')} hitSlop={8}>
+              <Pressable accessibilityLabel="Clear search" onPress={clearQuery} hitSlop={8}>
                 <X size={14} color={theme.textMuted} />
               </Pressable>
             ) : null}
@@ -2257,6 +2282,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   searchInput: { flex: 1, fontSize: 13, padding: 0 },
+  searchSubmit: {
+    width: 44,
+    height: 40,
+    marginLeft: -8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filtersBtn: {
     width: 40,
     height: 40,
@@ -2424,7 +2457,7 @@ const styles = StyleSheet.create({
   },
   detailPad: { paddingHorizontal: 2 },
   stripList: { flex: 1 },
-  resultsPad: { paddingBottom: 10 },
+  resultsPad: { paddingBottom: 2 },
   stripPad: { paddingBottom: 20 },
   secLabel: {
     fontSize: 9.5,

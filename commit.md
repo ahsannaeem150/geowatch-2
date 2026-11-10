@@ -13159,3 +13159,8 @@ test(mobile): verify screens 1 and 4 in dark/light on the physical device; ESLin
 
 fix(web): restore uploaded video playback in all three apps and stream Twitter videos through a host-restricted range-preserving proxy.
 test(web): verify Firefox local/Twitter playback, seeking, admin/superadmin playback, proxy validation, and all three production builds.
+
+
+
+fix(mobile): prevent stale embedded maps, accept short onboarding flicks, separate result cards, and submit Power Search explicitly.
+test(mobile): verify exact History/Back flow, light swipes, card layouts/bottom inset, icon/keyboard submit, Power Search detail, ESLint and release build.
