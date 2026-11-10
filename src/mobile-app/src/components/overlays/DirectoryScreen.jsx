@@ -118,7 +118,7 @@ export default function DirectoryScreen({ kind, overlay }) {
   const [status, setStatus] = useState(cached?.status || 'all');
   const [sevSel, setSevSel] = useState(cached?.sevSel || {}); // {n: bool}
   const [verifSel, setVerifSel] = useState(
-    () => cached?.verifSel || new Set(VERIFICATION_STATUSES),
+    () => cached?.verifSel || new Set(),
   );
   const [domainSel, setDomainSel] = useState(() => cached?.domainSel || new Set());
   const [zonecatSel, setZonecatSel] = useState(() => cached?.zonecatSel || new Set());
@@ -182,14 +182,6 @@ export default function DirectoryScreen({ kind, overlay }) {
 
   const fetchResults = useCallback(() => {
     const seq = ++fetchSeq.current;
-    // Every verification state unchecked = match nothing (the param with an
-    // empty value would be dropped by the query builder and return all).
-    if (!isZones && verifSel.size === 0) {
-      setResults([]);
-      setLoading(false);
-      setError(false);
-      return;
-    }
     setLoading(true);
     setError(false);
     const sevs = Object.keys(sevSel).filter((n) => sevSel[n]);
@@ -201,7 +193,7 @@ export default function DirectoryScreen({ kind, overlay }) {
       ...(sevs.length ? { severities: sevs.join(',') } : {}),
     };
     if (!isZones) {
-      if (verifSel.size < VERIFICATION_STATUSES.length) {
+      if (verifSel.size) {
         params.verificationStatuses = [...verifSel].join(',');
       }
       if (domainSel.size) {
@@ -285,14 +277,14 @@ export default function DirectoryScreen({ kind, overlay }) {
       return next;
     });
 
-  // resetDirFilters: q, status, severities, verifs (back to all), domains /
-  // zonecats. Sort is left alone (prototype keeps it).
+  // resetDirFilters: q, status, severities, verifs (no verification filter),
+  // domains / zonecats. Sort is left alone (prototype keeps it).
   const resetFilters = useCallback(() => {
     setQ('');
     setQDebounced('');
     setStatus('all');
     setSevSel({});
-    setVerifSel(new Set(VERIFICATION_STATUSES));
+    setVerifSel(new Set());
     setDomainSel(new Set());
     setZonecatSel(new Set());
   }, []);
@@ -307,10 +299,17 @@ export default function DirectoryScreen({ kind, overlay }) {
     [sevSel],
   );
   const tags = [];
+  if (status !== 'all') {
+    tags.push({
+      key: `status-${status}`,
+      label: capitalize(status),
+      clear: () => setStatus('all'),
+    });
+  }
   sevNums.forEach((n) =>
     tags.push({ key: `sev-${n}`, label: `S${n}`, clear: () => toggleSev(n) }),
   );
-  if (!isZones && verifSel.size < VERIFICATION_STATUSES.length) {
+  if (!isZones && verifSel.size) {
     [...verifSel].forEach((v) =>
       tags.push({
         key: `ver-${v}`,
@@ -330,10 +329,11 @@ export default function DirectoryScreen({ kind, overlay }) {
     tags.push({ key: `zc-${name}`, label: `Z: ${name}`, clear: () => toggleZonecat(name) }),
   );
   const filterCount =
+    (status !== 'all' ? 1 : 0) +
     sevNums.length +
-    (!isZones && verifSel.size < VERIFICATION_STATUSES.length ? 1 : 0) +
-    (domainSel.size ? 1 : 0) +
-    (zonecatSel.size ? 1 : 0);
+    (!isZones ? verifSel.size : 0) +
+    domainSel.size +
+    zonecatSel.size;
 
   const close = () => closeOverlay(overlay.id);
   const openPreview = (item) =>
@@ -867,9 +867,7 @@ function FilterSheet(props) {
               <Accordion
                 id="verification"
                 title="Verification"
-                badge={
-                  props.verifSel.size < VERIFICATION_STATUSES.length ? 1 : 0
-                }
+                badge={props.verifSel.size}
                 {...props}>
                 <View style={styles.optRowWrap}>
                   {VERIFICATION_STATUSES.map((v) => {

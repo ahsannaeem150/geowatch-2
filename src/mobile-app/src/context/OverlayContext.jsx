@@ -24,7 +24,14 @@ export function OverlayProvider({ children }) {
   }, []);
 
   const closeOverlay = useCallback((id) => {
-    setStack((prev) => prev.filter((o) => o.id !== id));
+    setStack((prev) => {
+      const closing = prev.find((overlay) => overlay.id === id);
+      const next = prev.filter((overlay) => overlay.id !== id);
+      if (closing?.props?.restoreProfileDrawer) {
+        return [...next, { id: 'profile', type: 'drawerLeft' }];
+      }
+      return next;
+    });
   }, []);
 
   const closeAll = useCallback(() => {

@@ -13164,3 +13164,23 @@ test(web): verify Firefox local/Twitter playback, seeking, admin/superadmin play
 
 fix(mobile): prevent stale embedded maps, accept short onboarding flicks, separate result cards, and submit Power Search explicitly.
 test(mobile): verify exact History/Back flow, light swipes, card layouts/bottom inset, icon/keyboard submit, Power Search detail, ESLint and release build.
+
+
+
+fix(mobile): show status and zero-verification applied-filter tags in incident and zone directories.
+test(mobile): verify Active, multiple tags, zone categories, tag removal and zero-state restore on device; ESLint and release build passed.
+
+
+
+fix(mobile): make directory verification opt-in instead of converting deselection into remaining-state filters.
+test(mobile): verify unchecked default, single/multi selection, remaining tag, deselect-all and reset behavior on device; ESLint and release build passed.
+
+
+
+fix(mobile): count individual verification and category selections in directory filter badges.
+test(mobile): verify four verification states show 4 in Incidents and Power Search, and two zone categories show 2; ESLint and release build passed.
+
+
+
+fix(mobile): restore the profile sidebar when backing out of drawer-launched destinations.
+test(mobile): verify hardware/arrow Back, second-Back dismissal, nested filters, Settings subsections, Zones and Power Search; ESLint and release build passed.

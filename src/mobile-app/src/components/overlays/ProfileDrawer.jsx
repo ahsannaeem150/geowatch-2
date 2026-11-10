@@ -48,7 +48,10 @@ export default function ProfileDrawer() {
   const close = () => closeOverlay('profile');
   const go = (overlay) => {
     close();
-    openOverlay(overlay);
+    openOverlay({
+      ...overlay,
+      props: { ...overlay.props, restoreProfileDrawer: true },
+    });
   };
 
   const initial = (user?.full_name || user?.email || '?').trim()[0]?.toUpperCase() || '?';
