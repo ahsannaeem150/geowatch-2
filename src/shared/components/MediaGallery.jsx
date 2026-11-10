@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Camera, Video, X } from 'lucide-react';
 import { MediaLightbox } from './MediaLightbox.jsx';
+import LoadingImage from './LoadingImage.jsx';
 
 /**
  * MediaGallery — Thumbnail grid with lightbox viewer.
@@ -33,7 +34,7 @@ export function MediaGallery({ media, onDelete, canEdit = false }) {
                 className="media-grid-item"
                 onClick={() => setLightboxIndex(index)}
               >
-                <img
+                <LoadingImage
                   src={item.thumbnail_url || item.file_url}
                   alt={item.original_name}
                   loading="lazy"

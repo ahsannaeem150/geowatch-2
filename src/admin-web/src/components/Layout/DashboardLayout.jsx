@@ -28,6 +28,7 @@ import { useStaffSavedIncidents } from '../../hooks/useStaffSavedIncidents.js';
 import { useSearchCategories } from '../../hooks/useSearchCategories.js';
 import { useStaffRecents } from '../../hooks/useStaffRecents.js';
 import PowerSearchPanel from '../PowerSearchPanel/PowerSearchPanel.jsx';
+import { ListSkeleton, MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
 import MapContextMenu from '../Map/MapContextMenu.jsx';
@@ -190,6 +191,7 @@ export default function DashboardLayout() {
 
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [incidents, setEvents] = useState([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(true);
   const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form' | 'zones' | 'zone-detail'
   const [selectedIncident, setSelectedIncident] = useState(null);
   const selectedIncidentRef = useRef(selectedIncident);
@@ -859,6 +861,7 @@ export default function DashboardLayout() {
   // Fetch incidents: date-based with smart viewport only
   useEffect(() => {
     let cancelled = false;
+    setIncidentsLoading(true);
 
     const doFetch = async () => {
       setViewportFiltering(null);
@@ -932,7 +935,9 @@ export default function DashboardLayout() {
       }
     };
 
-    doFetch();
+    doFetch().finally(() => {
+      if (!cancelled) setIncidentsLoading(false);
+    });
 
     return () => {
       cancelled = true;
@@ -3049,11 +3054,7 @@ export default function DashboardLayout() {
 
     if (panelMode === 'detail' && selectedIncident) {
       if (selectedIncidentDetailLoading) {
-        return (
-          <div style={{ padding: 24, color: 'var(--text-secondary)' }}>
-            Loading incident details…
-          </div>
-        );
+        return <div style={{ padding: 20 }}><ListSkeleton rows={4} /></div>;
       }
 
       if (!selectedIncidentDetail) {
@@ -3237,6 +3238,7 @@ export default function DashboardLayout() {
       )}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+        <MapLoadingIndicator loading={incidentsLoading} hasData={incidents.length > 0} />
         {/* Left workspace rail + drawer */}
         {!powerSearchMode && (
           <WorkspaceRail

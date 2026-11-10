@@ -17,6 +17,7 @@ import {
   snapshotXArchiveSource,
   archiveXArchiveSource,
 } from '../services/api.js';
+import { ListSkeleton } from '@shared/components/LoadingStates.jsx';
 
 
 
@@ -476,12 +477,7 @@ export default function XArchiveDebugPage() {
         </>
       )}
 
-      {loading && !data && (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>
-          <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px', display: 'block' }} />
-          Loading debug data…
-        </div>
-      )}
+      {loading && !data && <ListSkeleton rows={5} />}
     </div>
   );
 }

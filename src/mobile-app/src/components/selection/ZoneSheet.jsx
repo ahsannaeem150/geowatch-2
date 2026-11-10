@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -118,10 +119,10 @@ export const ZoneBody = React.memo(function ZoneBody({ item, deferTimeline = fal
       </Text>
 
       {deferHeavyContent || (loading && !detail) ? (
-        <View style={styles.skWrap}>
-          <View style={[...skeletonBlock, styles.skNode]} />
-          <View style={[...skeletonBlock, styles.skNode]} />
-        </View>
+        <SkeletonGroup label="Loading zone timeline" style={styles.skWrap}>
+          <ShimmerBlock style={[...skeletonBlock, styles.skNode]} />
+          <ShimmerBlock style={[...skeletonBlock, styles.skNode]} />
+        </SkeletonGroup>
       ) : null}
 
       {error && !detail ? (

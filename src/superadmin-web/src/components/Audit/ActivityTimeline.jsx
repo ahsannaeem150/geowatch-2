@@ -27,6 +27,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { getAuditActionColor, getAuditActionShortLabel } from '../../utils/audit-colors.js';
+import { ActivitySkeleton } from '@shared/components/LoadingStates.jsx';
 
 const ACTION_ICONS = {
   user_login: LogIn,
@@ -137,21 +138,7 @@ export default function ActivityTimeline({
   }, [selectedIncidentId, logs]);
 
   if (loading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px 0',
-          color: 'var(--text-muted)',
-          gap: 8,
-        }}
-      >
-        <Activity size={18} style={{ animation: 'spin 1s linear infinite' }} />
-        <span style={{ fontSize: 13 }}>Loading activity…</span>
-      </div>
-    );
+    return <ActivitySkeleton rows={5} />;
   }
 
   if (!logs || logs.length === 0) {

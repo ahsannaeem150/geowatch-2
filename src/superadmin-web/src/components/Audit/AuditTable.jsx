@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Loader2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { getAuditActionBadgeVars, getAuditActionShortLabel } from '../../utils/audit-colors.js';
+import { TableSkeletonRows } from '@shared/components/LoadingStates.jsx';
 
 function ActionBadge({ action }) {
   const badgeVar = getAuditActionBadgeVars(action);
@@ -113,12 +114,7 @@ export default function AuditTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px', display: 'block' }} />
-                  Loading audit logs...
-                </td>
-              </tr>
+              <TableSkeletonRows rows={8} columns={6} />
             ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>

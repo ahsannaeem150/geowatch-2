@@ -685,10 +685,21 @@
 }
 
 .tui-skel {
+  position: relative;
+  overflow: hidden;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border-subtle) 50%, var(--bg-elevated) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
+  background: var(--bg-hover);
+}
+
+.tui-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+  transform: translateX(-100%);
+  animation: im24-skeleton-shimmer 1.45s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
 }
 
 .tui-skel-cell {

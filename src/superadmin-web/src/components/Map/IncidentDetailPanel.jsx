@@ -10,6 +10,7 @@ import {
   getOEmbed,
 } from '../../services/api.js';
 import TimelineEntry from '@shared/components/TimelineEntry.jsx';
+import { ListSkeleton } from '@shared/components/LoadingStates.jsx';
 import {
   SEVERITY_SCALE,
   VERIFICATION_CONFIG,
@@ -212,12 +213,7 @@ export default function IncidentDetailPanel({
   if (!incident) return null;
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12, color: 'var(--text-muted)', fontSize: 13 }}>
-        <div style={{ width: 24, height: 24, border: '2px solid var(--border-subtle)', borderTopColor: 'var(--navy-400)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        Loading incident details…
-      </div>
-    );
+    return <div style={{ padding: 20 }}><ListSkeleton rows={4} /></div>;
   }
 
   if (error) {

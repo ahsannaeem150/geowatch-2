@@ -10,7 +10,6 @@ import {
   Animated,
   Clipboard,
   Easing,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -30,6 +29,7 @@ import {
 } from 'lucide-react-native';
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton as ShimmerBlock, SkeletonGroup, SkeletonImage } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -67,7 +67,7 @@ function MediaCell({ item, style, onOpen, overlay }) {
   const uri = mediaUrl(item?.thumbnail_url || (!isVideo ? item?.file_url : null));
   return (
     <Pressable onPress={onOpen} style={[styles.tlCell, { backgroundColor: theme.bgHover }, style]}>
-      {uri ? <Image source={{ uri }} style={styles.tlCellImg} resizeMode="cover" /> : null}
+      {uri ? <SkeletonImage source={{ uri }} style={styles.tlCellImg} resizeMode="cover" /> : null}
       {item?.file_type === 'video' ? (
         <View style={styles.tlCellPlay}>
           <Play size={14} color="#fff" fill="#fff" />
@@ -283,17 +283,16 @@ export function TimelineNode({ update, label, onInspect }) {
   );
 }
 
-function Skeleton({ theme }) {
-  const block = [styles.skBlock, { backgroundColor: theme.bgElevated }];
+function Skeleton() {
   return (
-    <View style={styles.skWrap}>
-      <View style={[...block, styles.skBadgeRow]} />
-      <View style={[...block, styles.skTitle]} />
-      <View style={[...block, styles.skMeta]} />
-      <View style={[...block, styles.skDesc]} />
-      <View style={[...block, styles.skNode]} />
-      <View style={[...block, styles.skNode]} />
-    </View>
+    <SkeletonGroup label="Loading incident details" style={styles.skWrap}>
+      <ShimmerBlock style={[styles.skBlock, styles.skBadgeRow]} />
+      <ShimmerBlock style={[styles.skBlock, styles.skTitle]} />
+      <ShimmerBlock style={[styles.skBlock, styles.skMeta]} />
+      <ShimmerBlock style={[styles.skBlock, styles.skDesc]} />
+      <ShimmerBlock style={[styles.skBlock, styles.skNode]} />
+      <ShimmerBlock style={[styles.skBlock, styles.skNode]} />
+    </SkeletonGroup>
   );
 }
 

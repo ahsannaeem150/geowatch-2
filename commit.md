@@ -13209,3 +13209,9 @@ test(mobile): verify Settings and Appearance rendering plus ESLint and release b
 
 feat(taxonomy): add live active-taxonomy refresh, archive/restore, and transactional domain/category merges across all four apps.
 test(taxonomy): verify API merges/conflict rollback, Superadmin lifecycle UI, live filters on all three web apps and mobile, and all production builds.
+
+
+
+feat(loading): add unified skeleton shimmer, map/search progress, superadmin states, and media placeholders across web and mobile.
+fix(loading): prevent false empty/pagination states and keep cached Power Search results visible with inline progress.
+test(loading): verify delayed/empty/offline flows, dark/light themes, all web builds, mobile lint/release, and physical-device interactions.

@@ -12,6 +12,7 @@ import RightPanelCollapseButton from '../RightPanelCollapseButton.jsx';
 import { ArticleCard, AdminNoteCard } from './SourceCards.jsx';
 import { VerificationBadge } from './IncidentBadges.jsx';
 import XPostCompactList, { XEmbed, ArchivedPost, ArchiveLightbox } from './XPostCompactList.jsx';
+import LoadingImage from '../LoadingImage.jsx';
 
 function toDatetimeLocal(iso) {
   if (!iso) return '';
@@ -484,7 +485,7 @@ function EvidenceModal({ type, item, onClose, onSave }) {
                         border: '1px solid var(--border-subtle)',
                       }}
                     >
-                      <img src={item.dataUrl} alt={item.name} style={{ width: '100%', height: 84, objectFit: 'cover', display: 'block' }} />
+                      <LoadingImage src={item.dataUrl} alt={item.name} style={{ width: '100%', height: 84, objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '8px 10px 10px' }}>
                         <label
                           style={{
@@ -581,7 +582,7 @@ function FeaturedItemContent({ sourceType, item, onMediaClick, onArchivedOpen })
   if (sourceType === 'media') {
     return (
       <button type="button" className="id-featured-media" onClick={() => onMediaClick?.([item], 0)}>
-        <img src={item.url} alt={item.caption} loading="lazy" />
+        <LoadingImage src={item.url} alt={item.caption} loading="lazy" />
         {item.caption && <div className="id-featured-media__caption">{item.caption}</div>}
       </button>
     );
@@ -763,7 +764,7 @@ function TwitterMediaGrid({ sources, onMediaClick, onOpenDrawer }) {
               onMediaClick?.(sortedMedia, idx);
             }}
           >
-            <img src={item.url} alt={item.caption} loading="lazy" />
+            <LoadingImage src={item.url} alt={item.caption} loading="lazy" />
             {idx === 3 && hasMore && <span className="id-twitter-grid__overlay">+{totalMedia - 4}</span>}
           </button>
         ))}

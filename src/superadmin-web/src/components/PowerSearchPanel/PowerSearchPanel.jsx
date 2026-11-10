@@ -30,6 +30,7 @@ import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import { getSeverityBadgeColors, getDomainColor, getIncidentDomainColor, getBadgeColors } from '@shared/utils/themeColors.js';
 import { useTheme } from '@shared/useTheme.js';
 import { useZoneCategories } from '@shared/hooks/useZoneCategories.js';
+import { InlineLoading, ResultCardSkeleton } from '@shared/components/LoadingStates.jsx';
 import { formatDistanceToNow } from 'date-fns';
 import BrandLogo from '../Brand/BrandLogo.jsx';
 
@@ -1452,7 +1453,9 @@ function ResultsRail({
           </div>
 
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'calc(8px * var(--admin-ui-scale))' }}>
-            {!loading && !error && incidents.length === 0 ? (
+            {loading && incidents.length === 0 ? (
+              <ResultCardSkeleton />
+            ) : !loading && !error && incidents.length === 0 ? (
               <div
                 style={{
                   display: 'flex',
@@ -1474,6 +1477,9 @@ function ResultsRail({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(6px * var(--admin-ui-scale))' }}>
+                {loading && incidents.length > 0 ? (
+                  <InlineLoading label="Searching…" style={{ justifyContent: 'flex-start', padding: '4px 6px' }} />
+                ) : null}
                 {incidents.map((inc) => (
                   <IncidentCard
                     key={inc.id}

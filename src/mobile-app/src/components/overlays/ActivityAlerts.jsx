@@ -17,6 +17,7 @@ import { SheetScrollView } from './SheetContainer';
 import { format, isToday, isValid, isYesterday, parseISO, subDays } from 'date-fns';
 import { Bell, ChevronLeft, CircleCheck, Hexagon, Plus, RefreshCw } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useAuth } from '../../context/AuthContext';
 import { useLive } from '../../context/LiveContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -280,12 +281,19 @@ export function ActivitySheetBody({ overlay }) {
 
   let body;
   if (loading && !activity.length) {
-    body = [0, 1, 2, 3].map((i) => (
-      <View
-        key={i}
-        style={[styles.skRow, { backgroundColor: theme.bgElevated }]}
-      />
-    ));
+    body = (
+      <SkeletonGroup label="Loading activity">
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={styles.skItem}>
+            <ShimmerBlock style={styles.skIcon} />
+            <View style={styles.skTextCol}>
+              <ShimmerBlock style={styles.skTitle} />
+              <ShimmerBlock style={styles.skMeta} />
+            </View>
+          </View>
+        ))}
+      </SkeletonGroup>
+    );
   } else if (feed.length) {
     body = feed.map((g) => (
       <View key={g.label}>
@@ -649,6 +657,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginTop: 10,
   },
+  skItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  skIcon: { width: 32, height: 32, borderRadius: 8 },
+  skTextCol: { flex: 1, gap: 7 },
+  skTitle: { height: 11, width: '78%' },
+  skMeta: { height: 9, width: '42%' },
   alCard: {
     flexDirection: 'row',
     alignItems: 'center',

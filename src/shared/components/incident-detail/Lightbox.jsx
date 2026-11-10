@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons } from './IncidentIcons.jsx';
+import LoadingImage from '../LoadingImage.jsx';
 
 const PlayIcon = (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -210,7 +211,7 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
         {current.type === 'video' && current.videoUrl ? (
           <LightboxVideo key={current.videoUrl} src={current.videoUrl} poster={current.url} />
         ) : (
-          <img src={current.url} alt={current.caption} />
+          <LoadingImage src={current.url} alt={current.caption} />
         )}
         {current.caption && <div className="id-lightbox__caption">{current.caption}</div>}
         {items.length > 1 && (

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Loader2, AlertTriangle, Edit3, Trash2, Shield,
+  Plus, AlertTriangle, Edit3, Trash2, Shield,
 } from 'lucide-react';
 import {
   listZoneCategories, deleteZoneCategory,
 } from '../services/api.js';
 import { getIconComponent } from '../components/Domains/IconPicker.jsx';
 import ZoneCategoryModal from '../components/ZoneCategories/ZoneCategoryModal.jsx';
+import { ListSkeleton } from '@shared/components/LoadingStates.jsx';
 
 export default function ZoneCategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -81,9 +82,7 @@ export default function ZoneCategoriesPage() {
       )}
 
       {loading && categories.length === 0 ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, gap: 12, color: 'var(--text-muted)' }}>
-          <Loader2 size={20} className="spin" /> Loading zone categories…
-        </div>
+        <ListSkeleton rows={6} />
       ) : categories.length === 0 ? (
         <div className="console-card" style={{ padding: '48px', textAlign: 'center', borderStyle: 'dashed' }}>
           <Shield size={40} style={{ color: 'var(--text-muted)', marginBottom: 16 }} />

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Loader2, AlertCircle, UserX, UserCheck, Bookmark, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { X, AlertCircle, UserX, UserCheck, Bookmark, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { getPublicUser, updatePublicUser, getPublicUserActivity } from '../../services/api.js';
 import ActivityTimeline from '../Audit/ActivityTimeline.jsx';
 import { formatDistanceToNow } from 'date-fns';
+import { ListSkeleton } from '@shared/components/LoadingStates.jsx';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
@@ -184,10 +185,7 @@ export default function PublicUserDrawer({ userId, onClose, onUpdate, initialTab
           style={{ flex: 1, overflowY: 'auto', padding: '20px' }}
         >
           {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12, color: 'var(--text-muted)' }}>
-              <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
-              Loading public user...
-            </div>
+            <ListSkeleton rows={4} />
           ) : error && !user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'var(--alert-error-bg)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13 }}>
               <AlertCircle size={16} /> {error}

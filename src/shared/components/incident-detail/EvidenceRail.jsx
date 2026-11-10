@@ -4,6 +4,7 @@ import { sortPinned, countEvidence, formatDate, formatTime } from './IncidentUti
 import { VerificationBadge } from './IncidentBadges.jsx';
 import XPostCompactList, { XEmbed, ArchivedPost, ArchiveLightbox } from './XPostCompactList.jsx';
 import { ArticleCard, AdminNoteCard, EditableArticleCard, EditableAdminNoteCard, MediaGrid, FeaturedCollapsedRow } from './SourceCards.jsx';
+import LoadingImage from '../LoadingImage.jsx';
 
 
 export function findItemByFeature(sources, featured) {
@@ -16,7 +17,7 @@ function RailFeaturedContent({ sourceType, item, onMediaClick, onArchivedOpen })
   if (sourceType === 'media') {
     return (
       <button type="button" className="opt1-featured-media" onClick={() => onMediaClick?.([item], 0)}>
-        <img src={item.url} alt={item.caption} loading="lazy" />
+        <LoadingImage src={item.url} alt={item.caption} loading="lazy" />
         {item.caption && <div className="opt1-featured-media__caption">{item.caption}</div>}
       </button>
     );
@@ -87,7 +88,7 @@ function EditableMediaThumb({ item, onClick, onEdit, onDelete, onPin, onFeature,
         }}
         className="opt1-media-thumb"
       >
-        <img src={item.url} alt={item.caption} className="opt1-media-thumb__img" />
+        <LoadingImage src={item.url} alt={item.caption} className="opt1-media-thumb__img" />
         {item.pinned && (
           <span className="opt1-pinned-badge opt1-pinned-badge--thumb">
             {Icons.pin} Pinned

@@ -10,7 +10,7 @@ import { Skeleton, SkeletonBlock } from '@shared/components/Skeleton.jsx';
 
 export function DetailLoadingSkeleton() {
   return (
-    <div style={{ maxWidth: '860px', margin: '0 auto', padding: '48px 24px', width: '100%' }}>
+    <div role="status" aria-label="Loading details" aria-busy="true" style={{ maxWidth: '860px', margin: '0 auto', padding: '48px 24px', width: '100%' }}>
       {/* Badge row */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
         <Skeleton width="72px" height="22px" style={{ borderRadius: 'var(--radius-pill)' }} />

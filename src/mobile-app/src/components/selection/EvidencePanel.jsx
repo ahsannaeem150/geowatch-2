@@ -4,7 +4,6 @@ import {
   Clipboard,
   Easing,
   FlatList,
-  Image,
   Linking,
   Modal,
   Pressable,
@@ -34,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton as ShimmerBlock, SkeletonGroup, SkeletonImage } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
@@ -129,7 +129,7 @@ const MediaCell = React.memo(function MediaCell({ item, index, total, hero, onOp
         { backgroundColor: theme.bgHover, borderColor: theme.borderSubtle },
       ]}>
       {uri && failedUri !== uri ? (
-        <Image
+        <SkeletonImage
           source={{ uri }}
           style={styles.mediaImg}
           resizeMode="cover"
@@ -245,7 +245,7 @@ function TweetMosaic({ items, onOpen, tw }) {
         key={m.id}
         onPress={() => onOpen(i)}
         style={[styles.mosaicCell, { backgroundColor: tw.hover }, style]}>
-        {uri ? <Image source={{ uri }} style={styles.mediaImg} resizeMode="cover" /> : null}
+        {uri ? <SkeletonImage source={{ uri }} style={styles.mediaImg} resizeMode="cover" /> : null}
         {isVideo ? (
           <View style={[styles.videoBadge, styles.overlayDim]}>
             <Play size={15} color="#fff" fill="#fff" />
@@ -411,7 +411,7 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
         </View>
         {archiveImg ? (
           <Pressable onPress={() => setGalleryIndex(0)}>
-            <Image
+            <SkeletonImage
               source={{ uri: archiveImg }}
               style={[
                 styles.xpArchiveImg,
@@ -460,15 +460,15 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
           styles.xpCard,
           { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
         ]}>
-        <View style={styles.xpSkeletonRow}>
-          <View style={[styles.xpSkeletonAvatar, { backgroundColor: theme.bgHover }]} />
+        <SkeletonGroup label="Loading post" style={styles.xpSkeletonRow}>
+          <ShimmerBlock style={[styles.xpSkeletonAvatar, { backgroundColor: theme.bgHover }]} />
           <View style={styles.xpSkeletonCol}>
-            <View style={[styles.xpSkeletonBar, { backgroundColor: theme.bgHover }]} />
-            <View
+            <ShimmerBlock style={[styles.xpSkeletonBar, { backgroundColor: theme.bgHover }]} />
+            <ShimmerBlock
               style={[styles.xpSkeletonBar, styles.xpSkeletonBarShort, { backgroundColor: theme.bgHover }]}
             />
           </View>
-        </View>
+        </SkeletonGroup>
       </View>
     );
   }
@@ -482,7 +482,7 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
       ]}>
       <View style={styles.xpHead}>
         {tweet.avatar ? (
-          <Image source={{ uri: tweet.avatar }} style={styles.twAvatar} />
+          <SkeletonImage source={{ uri: tweet.avatar }} style={styles.twAvatar} />
         ) : (
           <View style={[styles.xpAvatar, { backgroundColor: tw.hover }]}>
             <Text style={[styles.xpAvatarText, { color: tw.name }]}>𝕏</Text>
@@ -674,7 +674,7 @@ function GalleryImage({ item, width, height }) {
       showsVerticalScrollIndicator={false}
       showsHorizontalScrollIndicator={false}>
       {uri ? (
-        <Image
+        <SkeletonImage
           source={{ uri }}
           style={{ width: imgW, height: imgH }}
           resizeMode="contain"

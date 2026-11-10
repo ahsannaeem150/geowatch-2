@@ -17,6 +17,8 @@ import { listUsers, getIncidents, getAuditSummary, getSystemHealth, listAuditLog
 import { useEventSource } from '../hooks/useEventSource.js';
 import { formatDistanceToNow } from 'date-fns';
 import { getAuditActionBadgeVars } from '../utils/audit-colors.js';
+import { Skeleton } from '@shared/components/Skeleton.jsx';
+import { ActivitySkeleton } from '@shared/components/LoadingStates.jsx';
 
 function KPICard({ label, value, subtext, icon: Icon, color, loading, onClick }) {
   return (
@@ -43,7 +45,7 @@ function KPICard({ label, value, subtext, icon: Icon, color, loading, onClick })
         <Icon size={18} style={{ color, opacity: 0.9 }} />
       </div>
       <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
-        {loading ? '—' : value}
+        {loading ? <Skeleton width="42%" height="32px" /> : value}
       </div>
       {subtext && (
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
@@ -344,9 +346,7 @@ export default function DashboardPage() {
 
         <div style={{ padding: '4px 0' }}>
           {loading ? (
-            <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-              Loading recent activity...
-            </div>
+            <ActivitySkeleton rows={5} />
           ) : recentLogs.length === 0 ? (
             <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
               No activity recorded yet

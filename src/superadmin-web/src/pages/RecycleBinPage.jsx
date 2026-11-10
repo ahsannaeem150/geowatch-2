@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { listDeletedIncidents, restoreIncident, purgeIncident } from '../services/api.js';
 import { useEventSource } from '../hooks/useEventSource.js';
+import { TableSkeletonRows } from '@shared/components/LoadingStates.jsx';
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
@@ -313,7 +314,13 @@ export default function RecycleBinPage() {
           overflow: 'hidden',
         }}
       >
-        {filtered.length === 0 ? (
+        {loading && incidents.length === 0 ? (
+          <div style={{ overflowX: 'auto' }} role="status" aria-label="Loading deleted incidents" aria-busy="true">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <tbody><TableSkeletonRows rows={7} columns={7} /></tbody>
+            </table>
+          </div>
+        ) : !error && filtered.length === 0 ? (
           <div
             style={{
               display: 'flex',

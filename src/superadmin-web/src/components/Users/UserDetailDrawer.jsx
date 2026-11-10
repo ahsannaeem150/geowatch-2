@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Loader2, AlertCircle, Check, KeyRound, UserX, UserCheck, Trash2, Edit3, Save, XCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { X, AlertCircle, Check, KeyRound, UserX, UserCheck, Trash2, Edit3, Save, XCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { getUser, updateUser, resetUserPassword, deleteUser, getUserActivity } from '../../services/api.js';
 import ActivityTimeline from '../Audit/ActivityTimeline.jsx';
 import { formatDistanceToNow } from 'date-fns';
+import { ListSkeleton } from '@shared/components/LoadingStates.jsx';
 
 const ROLE_STYLES = {
   super_admin: { bg: 'var(--badge-amber-bg)', color: 'var(--badge-amber-text)', label: 'Super Admin' },
@@ -237,10 +238,7 @@ export default function UserDetailDrawer({ userId, onClose, onUpdate, onDelete, 
           style={{ flex: 1, overflowY: 'auto', padding: '20px' }}
         >
           {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12, color: 'var(--text-muted)' }}>
-              <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
-              Loading user...
-            </div>
+            <ListSkeleton rows={4} />
           ) : error && !user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px', background: 'var(--alert-error-bg)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13 }}>
               <AlertCircle size={16} /> {error}

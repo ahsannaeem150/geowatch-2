@@ -21,6 +21,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
 import DetentSheet from '../sheets/DetentSheet';
@@ -1364,7 +1365,7 @@ function ResultsSheet({
               },
             ]}>
             {loading || !entryReady ? (
-              <View style={styles.stripPad}>
+              <SkeletonGroup label="Searching incidents and zones" style={styles.stripPad}>
                 {[0, 1, 2].map((i) => (
                   <View
                     key={i}
@@ -1372,31 +1373,14 @@ function ResultsSheet({
                       styles.skelRow,
                       { borderBottomColor: theme.borderSubtle },
                     ]}>
-                    <View
-                      style={[
-                        styles.skelBar,
-                        { backgroundColor: theme.bgElevated },
-                      ]}
-                    />
+                    <ShimmerBlock style={styles.skelBar} />
                     <View style={styles.skelCol}>
-                      <View
-                        style={[
-                          styles.skelLine,
-                          styles.skelW72,
-                          { backgroundColor: theme.bgElevated },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.skelLine,
-                          styles.skelW38,
-                          { backgroundColor: theme.bgElevated },
-                        ]}
-                      />
+                      <ShimmerBlock style={[styles.skelLine, styles.skelW72]} />
+                      <ShimmerBlock style={[styles.skelLine, styles.skelW38]} />
                     </View>
                   </View>
                 ))}
-              </View>
+              </SkeletonGroup>
             ) : error ? (
               <View style={styles.stateBox}>
                 <Text style={[styles.stateText, { color: theme.textMuted }]}>

@@ -11,6 +11,7 @@ import {
 import { Search } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -232,7 +233,19 @@ export function CommandPaletteBody({ overlay }) {
         overScrollMode="never"
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled">
-        {loading ? (
+        {loading && !inc.rows.length && !zon.rows.length && !loc.length ? (
+          <SkeletonGroup label="Searching incidents, zones and locations" style={styles.skGroup}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.skRow}>
+                <ShimmerBlock style={styles.skDot} />
+                <View style={styles.skBody}>
+                  <ShimmerBlock style={styles.skTitle} />
+                  <ShimmerBlock style={styles.skMeta} />
+                </View>
+              </View>
+            ))}
+          </SkeletonGroup>
+        ) : loading ? (
           <Text
             style={[
               styles.hintText,
@@ -453,6 +466,12 @@ const styles = StyleSheet.create({
   },
   emptyBox: { alignItems: 'center', paddingVertical: 30, gap: 10 },
   emptyText: { fontSize: 12 },
+  skGroup: { paddingTop: 12 },
+  skRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 4 },
+  skDot: { width: 8, height: 8, borderRadius: 4 },
+  skBody: { flex: 1, gap: 6 },
+  skTitle: { height: 11, width: '74%' },
+  skMeta: { height: 9, width: '46%' },
   secLabel: {
     fontSize: 9.5,
     fontWeight: '600',

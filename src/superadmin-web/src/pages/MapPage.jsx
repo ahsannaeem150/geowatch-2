@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ListSkeleton, MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
 import {
   PanelLeftOpen,
   Layers,
@@ -3164,6 +3165,7 @@ export default function MapPage() {
         )}
 
         <div style={{ flex: 1, display: 'flex', alignItems: 'stretch', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+          <MapLoadingIndicator loading={loading} hasData={incidents.length > 0} />
           {!powerSearchMode && (
             <WorkspaceRail
               items={railItems}
@@ -3787,9 +3789,7 @@ export default function MapPage() {
                     </div>
                   )}
                   {detailLoading ? (
-                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                      Loading incident details…
-                    </div>
+                    <div style={{ padding: 20 }}><ListSkeleton rows={4} /></div>
                   ) : detailError ? (
                     <div style={{ padding: 24, textAlign: 'center', color: 'var(--danger)', fontSize: 13 }}>
                       {detailError}

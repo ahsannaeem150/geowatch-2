@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Plus, Loader2, AlertTriangle, ChevronDown, ChevronRight,
+  Plus, AlertTriangle, ChevronDown, ChevronRight,
   Edit3, Trash2, MapPin, Camera, Video, Shield, Archive, RotateCcw, GitMerge,
 } from 'lucide-react';
 import {
@@ -11,6 +11,7 @@ import {
 import { getIconComponent } from '../components/Domains/IconPicker.jsx';
 import DomainModal from '../components/Domains/DomainModal.jsx';
 import CategoryModal from '../components/Domains/CategoryModal.jsx';
+import { ListSkeleton } from '@shared/components/LoadingStates.jsx';
 
 export default function DomainsPage() {
   const [domains, setDomains] = useState([]);
@@ -160,9 +161,7 @@ export default function DomainsPage() {
       )}
 
       {loading && domains.length === 0 ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, gap: 12, color: 'var(--text-muted)' }}>
-          <Loader2 size={20} className="spin" /> Loading taxonomy…
-        </div>
+        <ListSkeleton rows={8} />
       ) : activeDomains.length === 0 ? (
         <div className="console-card" style={{ padding: '48px', textAlign: 'center', borderStyle: 'dashed' }}>
           <Shield size={40} style={{ color: 'var(--text-muted)', marginBottom: 16 }} />

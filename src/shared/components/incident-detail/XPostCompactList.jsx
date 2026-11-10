@@ -5,6 +5,7 @@ import { relativeTime, sortPinned } from './IncidentUtils.js';
 import { FeaturedCollapsedRow } from './SourceCards.jsx';
 import { extractTweetRef, fetchTweet } from './x-post.js';
 import Lightbox from './Lightbox.jsx';
+import LoadingImage from '../LoadingImage.jsx';
 
 const TwIcons = {
   reply: (
@@ -162,7 +163,7 @@ export function XEmbed({ post, onRender, footActions }) {
                 className="id-tw__cell"
                 style={style}
                 onClick={() => setLightbox({ items: lbItems, index: i })}>
-                {uri && <img src={uri} alt="" loading="lazy" />}
+                {uri && <LoadingImage src={uri} alt="" loading="lazy" />}
                 {m.type === 'video' && (
                   <span className="id-tw__play">{TwIcons.play}</span>
                 )}
@@ -209,7 +210,7 @@ export function ArchivedPost({ post, onOpen }) {
     <div className="id-x-archive">
       <div className="id-x-archive__badge">Archived</div>
       <button type="button" className="id-x-archive__img-btn" onClick={onOpen} aria-label="View archived screenshot">
-        <img
+        <LoadingImage
           src={post.archiveUrl}
           alt={`Archived post by ${post.author}`}
           className="id-x-archive__img"

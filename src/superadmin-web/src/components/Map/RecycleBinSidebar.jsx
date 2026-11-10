@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ListSkeleton } from '@shared/components/LoadingStates.jsx';
 import { PanelLeftClose, X, ArrowLeft, ChevronLeft, ChevronRight, Search, Trash2, Clock } from 'lucide-react';
 import { listDeletedIncidents } from '../../services/api.js';
 import { formatDistanceToNow } from 'date-fns';
@@ -258,10 +259,7 @@ export default function RecycleBinSidebar({
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0', color: 'var(--text-muted)', gap: 8 }}>
-            <Trash2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontSize: 13 }}>Loading recycle bin…</span>
-          </div>
+          <ListSkeleton rows={5} />
         ) : incidents.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
             No deleted incidents match your filters

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Icons, SOURCE_TYPE_ICONS } from './IncidentIcons.jsx';
+import LoadingImage from '../LoadingImage.jsx';
 
 export function MediaThumb({ item, onClick, carousel }) {
   return (
     <button className={`id-media-thumb ${carousel ? 'id-media-thumb--carousel' : ''}`} onClick={() => onClick?.(item)}>
-      <img src={item.url} alt={item.caption} />
+      <LoadingImage src={item.url} alt={item.caption} />
       {item.caption && <div className="id-media-thumb__caption">{item.caption}</div>}
     </button>
   );
@@ -39,7 +40,7 @@ export function AdminMediaThumb({ item, onClick, onEdit, onDelete, onPin, onFeat
   return (
     <div className="id-admin-media" data-featured={featured || undefined}>
       <button type="button" className="id-media-thumb id-media-thumb--carousel" onClick={() => onClick?.(item)}>
-        <img src={item.url} alt={item.caption} />
+        <LoadingImage src={item.url} alt={item.caption} />
         {featured && (
           <span className="id-featured-badge">
             {Icons.star} Featured

@@ -4,6 +4,7 @@ import { SheetScrollView } from './SheetContainer';
 import { Bookmark, History } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
 import { useAuth } from '../../context/AuthContext';
 import { useMap } from '../../context/MapContext';
@@ -85,14 +86,14 @@ export function BookmarksSheetBody() {
     );
   } else if (loading) {
     body = (
-      <View style={styles.skWrap}>
+      <SkeletonGroup label="Loading bookmarks" style={styles.skWrap}>
         {[0, 1, 2].map((i) => (
-          <View
+          <ShimmerBlock
             key={i}
             style={[styles.skRow, { backgroundColor: theme.bgElevated }]}
           />
         ))}
-      </View>
+      </SkeletonGroup>
     );
   } else if (error) {
     body = (

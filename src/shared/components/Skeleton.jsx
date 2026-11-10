@@ -3,13 +3,12 @@ import React from 'react';
 export function Skeleton({ width = '100%', height = '16px', style = {} }) {
   return (
     <div
+      aria-hidden="true"
+      className="im24-skeleton"
       style={{
         width,
         height,
         borderRadius: 'var(--radius-sm)',
-        background: 'linear-gradient(90deg, var(--bg-hover) 25%, var(--border-subtle) 50%, var(--bg-hover) 75%)',
-        backgroundSize: '200% 100%',
-        animation: 'shimmer 1.5s infinite',
         ...style,
       }}
     />

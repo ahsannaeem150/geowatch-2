@@ -14,6 +14,7 @@ import {
 import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
 import { Skeleton } from '@shared/components/Skeleton.jsx';
+import { MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
 import UserMap from '../components/Map/UserMap.jsx';
 import WorkspaceTopBar from '../components/Layout/WorkspaceTopBar.jsx';
 import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
@@ -1700,6 +1701,7 @@ export default function MapPage() {
       )}
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+        <MapLoadingIndicator loading={loading} hasData={incidents.length > 0} />
         {!powerSearchMode && (
           <WorkspaceRail
             items={railItems}

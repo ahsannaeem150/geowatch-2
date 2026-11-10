@@ -31,6 +31,7 @@ import {
 } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -672,20 +673,20 @@ export const DirCard = React.memo(function DirCard({ kind, item, highlighted, on
 // ─── Skeleton rows while loading ───
 function SkeletonRows({ theme }) {
   return (
-    <View style={styles.listPad}>
+    <SkeletonGroup label="Loading results" style={styles.listPad}>
       {[0, 1, 2, 3, 4].map((i) => (
         <View
           key={i}
           style={[styles.skelRow, { borderBottomColor: theme.borderSubtle }]}>
-          <View style={[styles.skelBar, { backgroundColor: theme.bgElevated }]} />
+          <ShimmerBlock style={styles.skelBar} />
           <View style={styles.skelCol}>
-            <View style={[styles.skelLine, styles.skelW72, { backgroundColor: theme.bgElevated }]} />
-            <View style={[styles.skelLine, styles.skelW38, { backgroundColor: theme.bgElevated }]} />
-            <View style={[styles.skelLine, styles.skelW54, { backgroundColor: theme.bgElevated }]} />
+            <ShimmerBlock style={[styles.skelLine, styles.skelW72]} />
+            <ShimmerBlock style={[styles.skelLine, styles.skelW38]} />
+            <ShimmerBlock style={[styles.skelLine, styles.skelW54]} />
           </View>
         </View>
       ))}
-    </View>
+    </SkeletonGroup>
   );
 }
 

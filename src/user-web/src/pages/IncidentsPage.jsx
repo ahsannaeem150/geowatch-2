@@ -554,9 +554,11 @@ export default function IncidentsPage() {
         {!error && (
           <div className="tui-pagination">
             <span className="tui-page-info">
-              {total === 0
-                ? 'No results'
-                : `${page * PAGE_SIZE + 1}–${Math.min(total, (page + 1) * PAGE_SIZE)} of ${total.toLocaleString()} incidents`}
+              {loading && total === 0
+                ? 'Loading results…'
+                : total === 0
+                  ? 'No results'
+                  : `${page * PAGE_SIZE + 1}–${Math.min(total, (page + 1) * PAGE_SIZE)} of ${total.toLocaleString()} incidents`}
             </span>
             <div className="tui-page-controls">
               <button
@@ -568,7 +570,7 @@ export default function IncidentsPage() {
                 <ChevronLeft size={14} />
               </button>
               <span className="tui-page-num">
-                Page {page + 1} / {totalPages}
+                {loading && total === 0 ? 'Loading…' : `Page ${page + 1} / ${totalPages}`}
               </span>
               <button
                 className="tui-icon-btn"

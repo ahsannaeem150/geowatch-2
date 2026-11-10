@@ -3,6 +3,7 @@ import { Icons, SOURCE_TYPE_ICONS, SOURCE_TYPE_LABELS } from './IncidentIcons.js
 import { sortPinned, countSources, sourceCounts } from './IncidentUtils.js';
 import { AdminMediaThumb, MediaThumb, MediaGrid, EditableArticleCard, EditableAdminNoteCard, ArticleCard, AdminNoteCard } from './SourceCards.jsx';
 import XPostCompactList from './XPostCompactList.jsx';
+import LoadingImage from '../LoadingImage.jsx';
 
 function chunk(arr, size) {
   const out = [];
@@ -303,7 +304,7 @@ export default function EvidenceBundle({
                       className="id-media-thumb"
                       onClick={() => onMediaClick?.(items, idx)}
                     >
-                      <img src={item.url} alt={item.caption} loading="lazy" />
+                      <LoadingImage src={item.url} alt={item.caption} loading="lazy" />
                       {featured && (
                         <span className="id-featured-badge">
                           {Icons.star} Featured
@@ -358,7 +359,7 @@ export default function EvidenceBundle({
                     className="id-twitter-grid__cell"
                     onClick={() => onMediaClick?.(items, idx)}
                   >
-                    <img src={item.url} alt={item.caption} loading="lazy" />
+                    <LoadingImage src={item.url} alt={item.caption} loading="lazy" />
                     {item.caption && <div className="id-media-thumb__caption">{item.caption}</div>}
                   </button>
                 );

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, KeyRound, UserX, UserCheck, Trash2, Loader2, MoreHorizontal } from 'lucide-react';
+import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, KeyRound, UserX, UserCheck, Trash2, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { TableSkeletonRows } from '@shared/components/LoadingStates.jsx';
 
 const ROLE_STYLES = {
   super_admin: { bg: 'var(--badge-amber-bg)', color: 'var(--badge-amber-text)', label: 'Super Admin' },
@@ -130,12 +131,7 @@ export default function UserTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={headers.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px', display: 'block' }} />
-                  Loading users...
-                </td>
-              </tr>
+              <TableSkeletonRows rows={7} columns={headers.length} />
             ) : users.length === 0 ? (
               <tr>
                 <td colSpan={headers.length} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>

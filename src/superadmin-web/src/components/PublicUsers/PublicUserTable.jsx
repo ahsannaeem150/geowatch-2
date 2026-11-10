@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Loader2, UserX, UserCheck, MoreHorizontal } from 'lucide-react';
+import { UserX, UserCheck, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { TableSkeletonRows } from '@shared/components/LoadingStates.jsx';
 
 function StatusBadge({ isActive }) {
   return (
@@ -62,12 +63,7 @@ export default function PublicUserTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px', display: 'block' }} />
-                  Loading public users...
-                </td>
-              </tr>
+              <TableSkeletonRows rows={7} columns={6} />
             ) : users.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
