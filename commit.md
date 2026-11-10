@@ -13184,3 +13184,18 @@ test(mobile): verify four verification states show 4 in Incidents and Power Sear
 
 fix(mobile): restore the profile sidebar when backing out of drawer-launched destinations.
 test(mobile): verify hardware/arrow Back, second-Back dismissal, nested filters, Settings subsections, Zones and Power Search; ESLint and release build passed.
+
+
+
+style(mobile): add History-only accent glow and scroll-aware side entrances with reduced-motion support.
+test(mobile): verify delayed/scroll reveals, dark/light glow, immediate reduced-motion, ESLint and release build.
+
+
+
+style(mobile): tone down History cards to neutral borders and a subtle 5% accent glow.
+test(mobile): verify minimalist dark/light cards, ESLint and release build passed.
+
+
+
+fix(mobile): remove the artificial History blank-screen delay and reveal cards immediately.
+test(mobile): verify immediate open and scroll reveals on device; ESLint and release build passed.

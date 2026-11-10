@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Defs, LinearGradient, Rect, Stop, Svg } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { listSavedIncidents } from '../../services/incidents.service';
@@ -69,16 +70,33 @@ function RowThumb({ color }) {
 
 // prItemHTML port: accent bar, title, `KIND · S#` meta (+ optional suffix),
 // thumb. `highlighted` = prototype's .active state after preview restore.
-export function SavedItemRow({ kind, item, metaSuffix, highlighted, last = false, onPress }) {
+export function SavedItemRow({ kind, item, metaSuffix, highlighted, last = false, glow = false, onPress }) {
   const { theme } = useTheme();
   const color = itemColor(theme, kind, item);
   const sev = severityOf(item);
+  const gradientId = `history-glow-${item.id}`;
   const rowStyle = {
     backgroundColor: theme.bgElevated,
     borderColor: highlighted ? theme.accentLight : theme.borderSubtle,
   };
   return (
     <Pressable onPress={onPress} style={[styles.row, rowStyle, last && styles.rowLast]}>
+      {glow ? (
+        <Svg
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none">
+          <Defs>
+            <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={color} stopOpacity="0.05" />
+              <Stop offset="0.55" stopColor={color} stopOpacity="0.01" />
+              <Stop offset="1" stopColor={color} stopOpacity="0" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100" height="100" fill={`url(#${gradientId})`} />
+        </Svg>
+      ) : null}
       <View style={[styles.accent, { backgroundColor: color }]} />
       <View style={styles.rowBody}>
         <Text

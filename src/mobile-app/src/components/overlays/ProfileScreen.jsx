@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -6,6 +6,15 @@ import {
   Text,
   View,
 } from 'react-native';
+import Reanimated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import { SheetScrollView } from './SheetContainer';
 import {
   Bookmark,
@@ -241,6 +250,128 @@ export function ProfilePageBody() {
   );
 }
 
+function historyKey(entry) {
+  return `${entry.kind}-${entry.id}`;
+}
+
+function HistoryEntry({ entry, index, visible, highlighted, last, onLayout, onOpen }) {
+  const reducedMotion = useReducedMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      progress.value = 1;
+      return;
+    }
+    if (visible) {
+      const delay = index < 4 ? index * 100 : 0;
+      progress.value = withDelay(
+        delay,
+        withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }),
+      );
+    } else {
+      progress.value = 0;
+    }
+  }, [index, progress, reducedMotion, visible]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateX: interpolate(progress.value, [0, 1], [36, 0]) }],
+  }), [progress]);
+
+  return (
+    <Reanimated.View onLayout={onLayout} style={style}>
+      <SavedItemRow
+        kind={entry.kind}
+        item={entry.item}
+        metaSuffix={ago(entry.when) ? ` · ${ago(entry.when)}` : ''}
+        highlighted={highlighted}
+        last={last}
+        glow
+        onPress={() => onOpen(entry.kind, entry.item)}
+      />
+    </Reanimated.View>
+  );
+}
+
+function HistoryEntries({ history, selectedId, onOpen }) {
+  const [visibleIds, setVisibleIds] = useState(
+    () => new Set(history.slice(0, 4).map(historyKey)),
+  );
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const layoutsRef = useRef(new Map());
+  const viewportRef = useRef(0);
+  const scrollYRef = useRef(0);
+
+  const reveal = useCallback(() => {
+    if (!viewportRef.current) return;
+    const y = scrollYRef.current;
+    const viewport = viewportRef.current;
+    setVisibleIds((previous) => {
+      const next = new Set(previous);
+      let changed = false;
+      historyRef.current.forEach((entry) => {
+        const key = historyKey(entry);
+        const layout = layoutsRef.current.get(key);
+        if (
+          layout
+          && layout.y < y + viewport + 96
+          && layout.y + layout.height > y - 96
+          && !next.has(key)
+        ) {
+          next.add(key);
+          changed = true;
+        }
+      });
+      return changed ? next : previous;
+    });
+  }, []);
+
+  useEffect(() => {
+    setVisibleIds((previous) => {
+      const next = new Set(previous);
+      history.slice(0, 4).forEach((entry) => next.add(historyKey(entry)));
+      return next;
+    });
+  }, [history]);
+
+  return (
+    <SheetScrollView
+      style={styles.panelBody}
+      contentContainerStyle={styles.panelBodyContent}
+      showsVerticalScrollIndicator={false}
+      onLayout={(event) => {
+        viewportRef.current = event.nativeEvent.layout.height;
+        reveal();
+      }}
+      onContentSizeChange={reveal}
+      onScroll={(event) => {
+        scrollYRef.current = event.nativeEvent.contentOffset.y;
+        reveal();
+      }}>
+      {history.map((entry, index) => {
+        const key = historyKey(entry);
+        return (
+          <HistoryEntry
+            key={key}
+            entry={entry}
+            index={index}
+            visible={visibleIds.has(key)}
+            highlighted={selectedId === entry.id}
+            last={index === history.length - 1}
+            onLayout={(event) => {
+              layoutsRef.current.set(key, event.nativeEvent.layout);
+              reveal();
+            }}
+            onOpen={onOpen}
+          />
+        );
+      })}
+    </SheetScrollView>
+  );
+}
+
 // ─── Side panel (#pr-sidepanel): bookmarks or history list stacked over the
 // profile page. Row tap → previewItemOnMap with the panel staying mounted
 // (fullscreen origin); back restores with the row highlighted.
@@ -328,18 +459,6 @@ export function ProfilePanelBody({ overlay }) {
         sub="Open an incident or zone on the map and it appears here."
       />
     );
-  } else {
-    body = history.map((h, index) => (
-      <SavedItemRow
-        key={`${h.kind}-${h.id}`}
-        kind={h.kind}
-        item={h.item}
-        last={index === history.length - 1}
-        metaSuffix={ago(h.when) ? ` · ${ago(h.when)}` : ''}
-        highlighted={selectedId === h.id}
-        onPress={() => openItem(h.kind, h.item)}
-      />
-    ));
   }
 
   return (
@@ -370,12 +489,16 @@ export function ProfilePanelBody({ overlay }) {
           </Pressable>
         ) : null}
       </View>
-      <SheetScrollView
-        style={styles.panelBody}
-        contentContainerStyle={styles.panelBodyContent}
-        showsVerticalScrollIndicator={false}>
-        {body}
-      </SheetScrollView>
+      {which === 'history' && history.length ? (
+        <HistoryEntries history={history} selectedId={selectedId} onOpen={openItem} />
+      ) : (
+        <SheetScrollView
+          style={styles.panelBody}
+          contentContainerStyle={styles.panelBodyContent}
+          showsVerticalScrollIndicator={false}>
+          {body}
+        </SheetScrollView>
+      )}
     </View>
   );
 }
