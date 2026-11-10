@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
   },
-  listPad: { paddingBottom: 24 },
+  listPad: { paddingBottom: 10 },
   dayHead: {
     flexDirection: 'row',
     alignItems: 'center',

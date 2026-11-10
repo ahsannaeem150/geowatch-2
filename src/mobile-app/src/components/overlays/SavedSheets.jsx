@@ -14,11 +14,11 @@ import {
   kindOfItem,
   useSavedIncidents,
 } from './profileShared';
+import NavigationHeader from './NavigationHeader';
 
-// Bookmarks + History bottom sheets (prototype #sheet-bookmarks /
-// #sheet-history) — the map-base variants of the profile side panels. Row tap
-// previews with a sheet origin: the sheet closes and is remembered, back from
-// the preview chain reopens it (P5 flow).
+// Bookmarks + History full-screen destinations, sharing the profile side-panel
+// pattern. Row tap previews with a fullscreen origin: the page closes and is
+// remembered, and Back from the preview chain reopens it.
 
 function ago(iso) {
   const d = iso ? parseISO(iso) : null;
@@ -121,16 +121,17 @@ export function BookmarksSheetBody() {
       />
     );
   } else {
-    body = saved.map((item) => {
+    body = saved.map((item, index) => {
       const kind = kindOfItem(item);
       return (
         <SavedItemRow
           key={item.id}
           kind={kind}
           item={item}
+          last={index === saved.length - 1}
           highlighted={selectedId === item.id}
           onPress={() =>
-            previewItemOnMap(kind, item, { type: 'sheet', id: 'bookmarks' })
+            previewItemOnMap(kind, item, { type: 'fullscreen', id: 'bookmarks' })
           }
         />
       );
@@ -139,6 +140,11 @@ export function BookmarksSheetBody() {
 
   return (
     <View style={styles.body}>
+      <NavigationHeader
+        title="Bookmarks"
+        subtitle="Saved incidents and zones"
+        onBack={close}
+      />
       <MetaRow
         count={`${signedIn ? saved.length : 0} SAVED`}
         note="Synced to your account"
@@ -173,15 +179,16 @@ export function HistorySheetBody() {
       />
     );
   } else {
-    body = history.map((h) => (
+    body = history.map((h, index) => (
       <SavedItemRow
         key={`${h.kind}-${h.id}`}
         kind={h.kind}
         item={h.item}
+        last={index === history.length - 1}
         metaSuffix={ago(h.when) ? ` · ${ago(h.when)}` : ''}
         highlighted={selectedId === h.id}
         onPress={() =>
-          previewItemOnMap(h.kind, h.item, { type: 'sheet', id: 'history' })
+          previewItemOnMap(h.kind, h.item, { type: 'fullscreen', id: 'history' })
         }
       />
     ));
@@ -189,6 +196,11 @@ export function HistorySheetBody() {
 
   return (
     <View style={styles.body}>
+      <NavigationHeader
+        title="History"
+        subtitle="Recently viewed incidents and zones"
+        onBack={close}
+      />
       <MetaRow
         count={`${history.length} VIEWED`}
         note={history.length ? 'Clear all' : 'Local to this device'}
@@ -229,7 +241,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingTop: 2,
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   skWrap: {
     paddingHorizontal: 14,

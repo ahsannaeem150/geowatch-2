@@ -47,10 +47,15 @@ async function request(path, options = {}) {
 
 function mapMediaItem(item) {
   if (!item) return null;
+  const fileUrl = item.file_url ?? item.url;
+  const thumbnailUrl = item.thumbnail_url ?? item.thumbnailUrl;
+  const isVideo = item.file_type === 'video';
   return {
     id: item.id,
-    url: item.file_url ?? item.url,
-    thumbnailUrl: item.thumbnail_url ?? item.thumbnailUrl,
+    url: isVideo ? thumbnailUrl || fileUrl : fileUrl,
+    videoUrl: isVideo ? fileUrl : null,
+    type: item.file_type,
+    thumbnailUrl,
     caption: item.caption || '',
     pinned: !!item.pinned,
     fileType: item.file_type,

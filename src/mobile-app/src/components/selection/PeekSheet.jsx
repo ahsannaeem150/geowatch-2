@@ -13,7 +13,6 @@ import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
-import { useSharedValue } from 'react-native-reanimated';
 import DetentSheet from '../sheets/DetentSheet';
 import DetentScrollView from '../sheets/DetentScrollView';
 import useScrollEdge from '../../hooks/useScrollEdge';
@@ -46,6 +45,7 @@ export default function PeekSheet() {
     evidenceUpdate,
     evidenceFrom,
     sheetLevelRef,
+    previewPos,
   } = useSelection();
   const { selectedKind, selectionFlightActive } = useMap();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -72,7 +72,7 @@ export default function PeekSheet() {
   useEffect(() => {
     if (sheetLevelRef) sheetLevelRef.current = level;
   }, [level, sheetLevelRef]);
-  const pos = useSharedValue(hiddenTy);
+  const pos = previewPos;
 
   const targetTy =
     view === 'drawer'
@@ -86,11 +86,6 @@ export default function PeekSheet() {
   // Scroll-edge trackers for the nested-scroll handoff: the body capture
   // responder below only steals a drag when the visible pane's ScrollView is
   // pinned at the edge the gesture would cross (Google Maps pattern).
-  // relEpoch bumps on every edge flip so the handoff pans re-resolve their
-  // scroll-view relation AFTER a freshly mounted pane's ref has attached
-  // (at the mount render eviScrollRef is still null, so the first relation
-  // would silently miss the evidence ScrollView — the scrollable flip fires
-  // one commit later, once onLayout/onContentSizeChange have run).
   const [relEpoch, bumpRelEpoch] = useState(0);
   // Refs to the panes' HandoffScrollViews — the handoff pans block these
   // natively (useReanimatedSheetGesture scrollRefs) so the scroll waits for the pan,
@@ -99,15 +94,15 @@ export default function PeekSheet() {
   // (TDZ) since they are passed straight in.
   const detailScrollRef = useRef(null);
   const eviScrollRef = useRef(null);
-  const detailEdge = useScrollEdge(
-    () => bumpRelEpoch((c) => c + 1),
-    detailScrollRef,
-  );
-  const eviEdge = useScrollEdge(
-    () => bumpRelEpoch((c) => c + 1),
-    eviScrollRef,
-  );
+  const detailEdge = useScrollEdge(undefined, detailScrollRef);
+  const eviEdge = useScrollEdge(undefined, eviScrollRef);
   const itemId = item?.id;
+  // Re-resolve native relations only after a pane/item identity change and its
+  // refs have attached. Rebinding on every edge flip can cancel card presses.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => bumpRelEpoch((c) => c + 1));
+    return () => cancelAnimationFrame(frame);
+  }, [inEvidence, itemId, evidenceUpdate?.id]);
   useLayoutEffect(() => {
     detailScrollRef.current?.scrollTo?.({ y: 0, animated: false });
     eviScrollRef.current?.scrollTo?.({ y: 0, animated: false });
@@ -195,9 +190,9 @@ export default function PeekSheet() {
       const flickUp = vyMs < -1.0 && dy < -10;
       const flickDown = vyMs > 1.0 && dy > 10;
       if (s.view === 'evidence') {
-        // Evidence obeys the SAME detents as the detail view: full → half,
-        // half → pill. The pill keeps evidenceUpdate mounted, so a pill tap
-        // restores the evidence panel exactly where the user left it.
+        // Evidence obeys the same detents as the detail view: full → half.
+        // Embedded previews then dismiss to their origin; other selections
+        // keep the evidence-restoring pill.
         if (restTy === 0) {
           if (flickDown || projected > H * 0.45) {
             return { ty: H, after: () => setLevel('half') };
@@ -205,7 +200,10 @@ export default function PeekSheet() {
           return { ty: 0 };
         }
         if (flickDown || projected > H + (s.hiddenTy - H) * 0.35) {
-          return { ty: s.hiddenTy, after: s.collapsePeek };
+          return {
+            ty: s.hiddenTy,
+            after: s.origin && s.origin.id !== 'powerSearch' ? s.closePreview : s.collapsePeek,
+          };
         }
         if (flickUp || projected < H * 0.5) {
           return { ty: 0, after: () => setLevel('full') };

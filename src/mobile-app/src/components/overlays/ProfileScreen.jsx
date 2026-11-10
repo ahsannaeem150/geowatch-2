@@ -8,16 +8,12 @@ import {
 } from 'react-native';
 import { SheetScrollView } from './SheetContainer';
 import {
-  Bell,
   Bookmark,
   ChevronLeft,
   ChevronRight,
-  HelpCircle,
   History,
-  Info,
-  Layers,
   LogOut,
-  Moon,
+  Settings,
 } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
@@ -67,7 +63,7 @@ function PageRow({ icon, label, sub, onPress }) {
 }
 
 export function ProfilePageBody() {
-  const { mode, theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const { openOverlay, closeOverlay, showToast } = useOverlay();
   const { user, signedIn, signOut } = useAuth();
   const { history } = useSelection();
@@ -217,38 +213,10 @@ export function ProfilePageBody() {
         PREFERENCES
       </Text>
       <PageRow
-        icon={<Bell size={17} color={theme.textSecondary} />}
-        label="Notifications"
-        sub="Alerts & update preferences"
-        onPress={() => openOverlay({ id: 'notifPrefs', type: 'sheet' })}
-      />
-      <PageRow
-        icon={<Layers size={17} color={theme.textSecondary} />}
-        label="Default Map Layers"
-        sub="Choose startup layers"
-        onPress={() => openOverlay({ id: 'layersPref', type: 'sheet' })}
-      />
-      <PageRow
-        icon={<Moon size={17} color={theme.textSecondary} />}
-        label={`Theme: ${mode === 'dark' ? 'Dark' : 'Light'}`}
-        sub="Tap to toggle dark / light"
-        onPress={toggleTheme}
-      />
-
-      <View style={[styles.divider, { backgroundColor: theme.borderSubtle }]} />
-      <Text
-        style={[styles.secHead, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
-        SUPPORT
-      </Text>
-      <PageRow
-        icon={<HelpCircle size={17} color={theme.textSecondary} />}
-        label="Help & Feedback"
-        onPress={() => openOverlay({ id: 'help', type: 'sheet' })}
-      />
-      <PageRow
-        icon={<Info size={17} color={theme.textSecondary} />}
-        label="About"
-        onPress={() => openOverlay({ id: 'about', type: 'sheet' })}
+        icon={<Settings size={18} color={theme.textSecondary} />}
+        label="Settings"
+        sub="Appearance, alerts, map behavior and support"
+        onPress={() => openOverlay({ id: 'settings', type: 'fullscreen' })}
       />
 
       {signedIn ? (
@@ -338,13 +306,14 @@ export function ProfilePanelBody({ overlay }) {
         />
       );
     } else {
-      body = saved.map((item) => {
+      body = saved.map((item, index) => {
         const kind = kindOfItem(item);
         return (
           <SavedItemRow
             key={item.id}
             kind={kind}
             item={item}
+            last={index === saved.length - 1}
             highlighted={selectedId === item.id}
             onPress={() => openItem(kind, item)}
           />
@@ -360,11 +329,12 @@ export function ProfilePanelBody({ overlay }) {
       />
     );
   } else {
-    body = history.map((h) => (
+    body = history.map((h, index) => (
       <SavedItemRow
         key={`${h.kind}-${h.id}`}
         kind={h.kind}
         item={h.item}
+        last={index === history.length - 1}
         metaSuffix={ago(h.when) ? ` · ${ago(h.when)}` : ''}
         highlighted={selectedId === h.id}
         onPress={() => openItem(h.kind, h.item)}
@@ -415,39 +385,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pageContent: {
-    paddingBottom: 24,
+    paddingBottom: 10,
   },
   hero: {
     alignItems: 'center',
-    paddingTop: 18,
+    paddingTop: 10,
     paddingHorizontal: 16,
   },
   backBtn: {
     position: 'absolute',
-    left: 16,
-    top: 14,
-    width: 36,
-    height: 36,
-    borderRadius: 9,
+    left: 14,
+    top: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 26,
-    marginBottom: 12,
+    marginTop: 18,
+    marginBottom: 10,
   },
   heroAvatarText: {
-    fontSize: 26,
+    fontSize: 23,
     fontWeight: '700',
   },
   heroName: {
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '600',
   },
   heroMail: {
@@ -470,31 +440,31 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   heroBadgeText: {
-    fontSize: 9,
-    letterSpacing: 1.2,
+    fontSize: 9.5,
+    letterSpacing: 1,
   },
   heroSignIn: {
     paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 11,
+    borderRadius: 12,
     marginTop: 12,
   },
   heroSignInText: {
     color: '#f2f2f2',
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '600',
   },
   statRow: {
     flexDirection: 'row',
     gap: 10,
     alignSelf: 'stretch',
-    marginTop: 18,
+    marginTop: 16,
   },
   statCard: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     gap: 4,
   },
@@ -503,23 +473,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 8.5,
-    letterSpacing: 1.4,
+    fontSize: 9.5,
+    letterSpacing: 1.1,
   },
   secHead: {
-    fontSize: 9.5,
-    letterSpacing: 1.8,
+    fontSize: 10.5,
+    letterSpacing: 1.2,
     paddingHorizontal: 18,
     paddingTop: 20,
-    paddingBottom: 6,
+    paddingBottom: 7,
   },
   pageRow: {
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 13,
     paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 9,
+    paddingVertical: 13,
+    borderRadius: 12,
     marginHorizontal: 6,
   },
   pageRowBody: {
@@ -528,11 +499,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   pageRowLabel: {
-    fontSize: 13.5,
+    fontSize: 14.5,
     fontWeight: '500',
   },
   pageRowSub: {
-    fontSize: 11,
+    fontSize: 12,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -572,27 +543,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   panelBackBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   panelTitle: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
   },
   clearText: {
-    fontSize: 9.5,
-    letterSpacing: 1.2,
+    fontSize: 10.5,
+    letterSpacing: 1,
   },
   panelBody: {
     flex: 1,
   },
   panelBodyContent: {
     paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: 10,
   },
   skWrap: {
     paddingHorizontal: 14,

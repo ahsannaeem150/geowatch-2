@@ -7,6 +7,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Reanimated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
@@ -125,24 +131,31 @@ function FullscreenContainer({ overlay, children }) {
   );
 }
 
-function DrawerLeftContainer({ overlay, children }) {
+function DrawerLeftContainer({ overlay, active = true, children }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const progress = useRef(new Animated.Value(0)).current;
-  useEnter(progress);
-  const translateX = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-320, 0],
-  });
+  const progress = useSharedValue(active ? 1 : 0);
+  useEffect(() => {
+    progress.value = withTiming(active ? 1 : 0, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [active, progress]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -320 + progress.value * 320 }],
+  }));
   return (
     <View style={styles.row} pointerEvents="box-none">
-      <Animated.View
+      <Reanimated.View
+        pointerEvents={active ? 'auto' : 'none'}
+        collapsable={false}
+        renderToHardwareTextureAndroid
         style={[
           styles.drawer,
+          animatedStyle,
           {
             backgroundColor: theme.bgSurface,
             borderRightColor: theme.borderSubtle,
-            transform: [{ translateX }],
             paddingTop: insets.top + 12,
             paddingBottom: bottomChromeInset(insets),
           },
@@ -151,7 +164,7 @@ function DrawerLeftContainer({ overlay, children }) {
           <HeaderRow overlay={overlay} title={overlay.props?.title} />
         )}
         <View style={styles.flex}>{children}</View>
-      </Animated.View>
+      </Reanimated.View>
     </View>
   );
 }
@@ -306,6 +319,19 @@ export default function OverlayHost() {
   // z65 > emb z64 > sheets z56 > pill z32).
   const baseOverlays = stack.filter((o) => o.type !== 'modal' && o.id !== 'signIn');
   const psOpen = isPowerSearchActive(stack);
+  const visibleBaseOverlays = psOpen
+    ? baseOverlays.filter((o) => o.type !== 'fullscreen' || o.id === 'powerSearch')
+    : baseOverlays;
+  const profileOverlay = visibleBaseOverlays.find((o) => o.id === 'profile');
+  const ProfileBody = OVERLAY_BODIES.profile;
+  const resolvedProfile = {
+    ...profileOverlay,
+    props: {
+      title: 'Account',
+      hideHeader: true,
+      ...profileOverlay?.props,
+    },
+  };
   const modalOverlays = stack.filter((o) => o.type === 'modal');
   // The sign-in gate must also cover the selection surfaces (drawer/evidence
   // star) — hoist it above them while keeping its bottom-sheet container.
@@ -320,7 +346,12 @@ export default function OverlayHost() {
           onPress={() => topOverlay && closeOverlay(topOverlay.id)}
         />
       ) : null}
-      {baseOverlays.map(renderOverlay)}
+      {visibleBaseOverlays.filter((o) => o.id !== 'profile').map(renderOverlay)}
+      {ProfileBody ? (
+        <DrawerLeftContainer overlay={resolvedProfile} active={!!profileOverlay}>
+          <ProfileBody overlay={resolvedProfile} />
+        </DrawerLeftContainer>
+      ) : null}
       <SelectionPill />
       {/* Power Search owns its selection UI. A stale map selection must not
           mount a second sheet/panel above it. */}

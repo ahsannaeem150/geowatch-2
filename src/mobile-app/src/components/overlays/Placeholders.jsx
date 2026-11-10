@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import SignInModal from './SignInModal';
 import LayersSheet from './LayersSheet';
-import SettingsSheet, { LayersPrefsBody, NotifPrefsBody } from './SettingsSheet';
+import SettingsSheet, { LayersPrefsPage, NotificationPrefsPage } from './SettingsSheet';
 import SearchHubBody from './SearchHubBody';
 import PowerSearchBody from './PowerSearchScreen';
 import CommandPaletteBody from './CommandPalette';
@@ -29,13 +29,13 @@ export const OVERLAY_META = {
   // header rows (back ‹ + title/subtitle + meta action), like directories.
   activity: { title: 'Live Activity', hideHeader: true },
   alerts: { title: 'Alerts', hideHeader: true },
-  settings: { title: 'Settings', heightFraction: 0.7 },
-  notifPrefs: { title: 'Notification Preferences', heightFraction: 0.7 },
-  layersPref: { title: 'Default Map Layers', heightFraction: 0.7 },
+  settings: { title: 'Settings', hideHeader: true },
+  notifPrefs: { title: 'Notification Preferences', hideHeader: true },
+  layersPref: { title: 'Default Map Layers', hideHeader: true },
   help: { title: 'Help & Feedback', heightFraction: 0.52 },
   about: { title: 'About', heightFraction: 0.52 },
-  bookmarks: { title: 'Bookmarks', heightFraction: 0.7 },
-  history: { title: 'History', heightFraction: 0.7 },
+  bookmarks: { title: 'Bookmarks', hideHeader: true },
+  history: { title: 'History', hideHeader: true },
   // Power Search renders its own header and keeps the middle transparent so
   // the map shows through (prototype .ps-screen).
   powerSearch: { title: 'Power Search', hideHeader: true, transparent: true },
@@ -64,8 +64,8 @@ export const OVERLAY_BODIES = {
   history: HistorySheetBody,
   activity: ActivitySheetBody,
   alerts: AlertsSheetBody,
-  notifPrefs: NotifPrefsBody,
-  layersPref: LayersPrefsBody,
+  notifPrefs: NotificationPrefsPage,
+  layersPref: LayersPrefsPage,
   help: HelpSheetBody,
   about: AboutSheetBody,
   profile: ProfileDrawer,

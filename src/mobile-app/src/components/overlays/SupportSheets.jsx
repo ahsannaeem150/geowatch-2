@@ -1,9 +1,10 @@
 import React from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SheetScrollView } from './SheetContainer';
-import { ChevronRight, Mail } from 'lucide-react-native';
+import { ChevronRight, Mail, RotateCcw } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
+import { useOnboarding } from '../../context/OnboardingContext';
 import pkg from '../../../package.json';
 
 // Minimal support sheets (P12): About = brand + version + one-paragraph
@@ -51,11 +52,16 @@ export function AboutSheetBody() {
 
 export function HelpSheetBody() {
   const { theme } = useTheme();
-  const { showToast } = useOverlay();
+  const { showToast, closeAll } = useOverlay();
+  const { replayOnboarding } = useOnboarding();
   const openMail = () => {
     Linking.openURL('mailto:feedback@intelmap24.com?subject=IntelMap24%20feedback').catch(
       () => showToast('No mail app available'),
     );
+  };
+  const replay = () => {
+    closeAll();
+    replayOnboarding();
   };
   return (
     <SheetScrollView contentContainerStyle={styles.body}>
@@ -73,6 +79,26 @@ export function HelpSheetBody() {
           </Text>
           <Text style={[styles.mailSub, { color: theme.textSecondary }]}>
             feedback@intelmap24.com
+          </Text>
+        </View>
+        <ChevronRight size={16} color={theme.textMuted} />
+      </Pressable>
+      <Pressable
+        testID="replay-onboarding"
+        onPress={replay}
+        style={({ pressed }) => [
+          styles.mailRow,
+          styles.replayRow,
+          { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+          pressed && { opacity: 0.75 },
+        ]}>
+        <RotateCcw size={16} color={theme.accentLight} />
+        <View style={styles.mailBody}>
+          <Text style={[styles.mailName, { color: theme.textPrimary }]}>
+            Replay app tour
+          </Text>
+          <Text style={[styles.mailSub, { color: theme.textSecondary }]}>
+            See the three-screen introduction again
           </Text>
         </View>
         <ChevronRight size={16} color={theme.textMuted} />
@@ -102,7 +128,7 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 24,
+    paddingBottom: 10,
   },
   brand: {
     fontSize: 22,
@@ -141,6 +167,9 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     paddingVertical: 12,
     paddingHorizontal: 13,
+  },
+  replayRow: {
+    marginTop: 10,
   },
   mailBody: {
     flex: 1,

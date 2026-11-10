@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import {
   DarkTheme,
   DefaultTheme,
@@ -9,6 +9,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
 import { OverlayProvider } from './context/OverlayContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { MapProvider } from './context/MapContext';
@@ -16,40 +17,38 @@ import { LiveProvider } from './context/LiveContext';
 import { SelectionProvider } from './context/SelectionContext';
 import MapScreen from './screens/map/MapScreen';
 import OverlayHost from './components/overlays/OverlayHost';
+import LaunchScreen from './components/launch/LaunchScreen';
+import OnboardingScreen from './components/launch/OnboardingScreen';
 
 const Stack = createNativeStackNavigator();
 
-function Splash() {
-  const { theme } = useTheme();
+function ProductApp({ navTheme }) {
   return (
-    <View style={[styles.splash, { backgroundColor: theme.bgDeep }]}>
-      <View
-        style={[
-          styles.splashLogo,
-          {
-            backgroundColor: theme.accent,
-            borderColor: theme.accentLight,
-            shadowColor: theme.accentLight,
-          },
-        ]}>
-        <Text style={[styles.splashLogoText, { fontFamily: theme.fontMono }]}>
-          24
-        </Text>
-      </View>
-      <Text
-        style={[
-          styles.splashTitle,
-          { color: theme.textPrimary, fontFamily: theme.fontHead },
-        ]}>
-        IntelMap24
-      </Text>
-    </View>
+    <MapProvider>
+      <LiveProvider>
+        <SelectionProvider>
+          <NavigationContainer theme={navTheme}>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Map" component={MapScreen} />
+            </Stack.Navigator>
+            <OverlayHost />
+          </NavigationContainer>
+        </SelectionProvider>
+      </LiveProvider>
+    </MapProvider>
   );
 }
 
 function Root() {
   const { mode, theme, loaded } = useTheme();
   const { initializing } = useAuth();
+  const {
+    ready: onboardingReady,
+    visible: onboardingVisible,
+    completeOnboarding,
+  } = useOnboarding();
+  const [launchComplete, setLaunchComplete] = useState(false);
+  const finishLaunch = useCallback(() => setLaunchComplete(true), []);
   const base = mode === 'dark' ? DarkTheme : DefaultTheme;
   const navTheme = {
     ...base,
@@ -63,18 +62,21 @@ function Root() {
     },
   };
 
-  if (!loaded || initializing) {
-    return <Splash />;
+  if (!launchComplete) {
+    return (
+      <LaunchScreen
+        ready={loaded && !initializing && onboardingReady}
+        firstRun={onboardingVisible}
+        onComplete={finishLaunch}
+      />
+    );
   }
 
-  return (
-    <NavigationContainer theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Map" component={MapScreen} />
-      </Stack.Navigator>
-      <OverlayHost />
-    </NavigationContainer>
-  );
+  if (onboardingVisible) {
+    return <OnboardingScreen onDone={completeOnboarding} />;
+  }
+
+  return <ProductApp navTheme={navTheme} />;
 }
 
 export default function App() {
@@ -82,49 +84,15 @@ export default function App() {
     <GestureHandlerRootView style={StyleSheet.absoluteFill}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <ThemeProvider>
-        <OverlayProvider>
-          <AuthProvider>
-            <MapProvider>
-              <LiveProvider>
-                <SelectionProvider>
-                  <Root />
-                </SelectionProvider>
-              </LiveProvider>
-            </MapProvider>
-          </AuthProvider>
-        </OverlayProvider>
+          <OnboardingProvider>
+            <OverlayProvider>
+              <AuthProvider>
+                <Root />
+              </AuthProvider>
+            </OverlayProvider>
+          </OnboardingProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  splash: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  splashLogo: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    elevation: 6,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-  },
-  splashLogoText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  splashTitle: {
-    fontSize: 19,
-    fontWeight: '600',
-  },
-});

@@ -10,6 +10,7 @@ import Reanimated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import useReanimatedSheetGesture from '../../hooks/useReanimatedSheetGesture';
+import { TAB_BAR_CONTENT_HEIGHT } from '../../constants';
 
 export default function DetentSheet({
   active,
@@ -32,7 +33,7 @@ export default function DetentSheet({
   timedExit = false,
   onTargetChange,
   onMotionEnd,
-  bottomPadOffset = 62,
+  bottomPadOffset = TAB_BAR_CONTENT_HEIGHT,
   fadeStart,
   entryStiffness = 220,
   closeDamping = 26,

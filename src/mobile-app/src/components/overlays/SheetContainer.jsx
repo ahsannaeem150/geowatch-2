@@ -70,7 +70,7 @@ export const SheetScrollView = forwardRef(function SheetScrollView(
     <HandoffScrollView
       ref={innerRef}
       {...props}
-      scrollEnabled={edge.scrollableNow}
+      scrollEnabled={ctx ? edge.scrollableNow : true}
       scrollEventThrottle={props.scrollEventThrottle ?? 16}
       onScroll={(e) => {
         edge.onScroll(e);

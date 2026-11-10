@@ -13016,3 +13016,146 @@ test(mobile): 8 owner assertions, ESLint/release build, and device-verified Inci
 
 fix(mobile): synchronize embedded map + sheet preview enter/exit at 300ms; hidden main-map flight now runs only on “View on map,” preserving normal/Power Search camera behavior.
 test(mobile): release-recorded synchronized open/close, View-on-map flight/pill and Power Search detail; ESLint, diff checks and release build passed.
+
+fix(mobile): embedded directory/activity/alert Evidence dismiss now closes sheet + map and restores origin instead of a pill; normal map/Power Search behavior unchanged.
+test(mobile): device-verified Incidents/Activity/Alerts full→half→origin close and normal map/Power Search pill preservation; ESLint and release build passed.
+
+feat(mobile): tab switches dismiss transient selection UI without losing context—Map/Search minimize to pills, embedded previews close to origin, and Power Search detail/results suspend and restore.
+test(mobile): device-verified Map/Evidence, Incidents/Activity/Alerts and Power Search away/return states, pill restoration and overlap regressions; ESLint and release build passed.
+
+fix(mobile): Power Search tab return now opens the results list instead of a dismissed pill; detail/evidence closes while query/results remain available.
+test(mobile): detail/evidence/manually dismissed Search returns, Map/directory regressions, ESLint and release build passed.
+
+fix(mobile): retained directory/activity/alert fullscreens no longer render behind Power Search; its transparent container now shows only the live map while preserving their state.
+test(mobile): Incidents/Activity/Alerts overlap, return state and Power Search filters verified; ESLint and release build passed.
+
+style(mobile): align Power Search with the map/embedded 54/46 sheet split; all three now share the same 22dp top-corner geometry.
+test(mobile): visual comparison of Map, Power Search and embedded Incidents previews; ESLint and release build passed.
+
+feat(mobile): embedded map and sheet now follow one Reanimated position stream through drags, reversals, flicks and timed closes; full-detent zero no longer resets to hidden.
+test(mobile): device-verified Incidents/Activity/Alerts, evidence full→half→dismiss, Back/X, normal Map pill and Power Search return; ESLint and release build passed.
+
+fix(mobile): timeline cards no longer lose presses to native gesture rebinds; handoff relations now refresh only after pane/item identity changes, not every scroll-edge flip.
+test(mobile): device-verified Lahore/Flash Flood repeated evidence, Incidents/Activity/Alerts, full/half dismiss, normal Map pill and Power Search; ESLint and release build passed.
+
+
+feat(mobile): add theme-aware native/cinematic GlassGhost splash and three-screen Reanimated onboarding with persistence + Help replay.
+test(mobile): verify dark/light, skip/back/swipe/replay/reduced motion, production builds and 120Hz frame timings; ESLint passed.
+
+
+feat(mobile): modernize tab bar/sidebar, move saved/settings destinations fullscreen, and consolidate System/Dark/Light appearance controls.
+test(mobile): verify both themes, saved lists, nested settings/back chains, tab/incident flows, release build, lint and 120Hz frame timings.
+
+
+style(mobile): replace the flat tab bar with a rounded floating dock and clearer active-tab state.
+perf(mobile): retain profile drawer offscreen and animate open/close through Reanimated; physical 120Hz comparison improved from ~60fps to ~109–111fps.
+
+
+style(mobile): replace floating dock with full-width opaque sticky TabBar; active-tab styling and 62dp inset retained.
+
+
+style(mobile): add visible TabBar bottom divider and reduce extra system-nav gap to 2dp.
+fix(mobile): unify shared bottom chrome at 58dp and align final list rows/cards exactly to the TabBar border across directories, settings, saved lists, filters and evidence.
+
+
+fix(mobile): disable Android overscroll on remaining plain vertical ScrollViews so content cannot pass the TabBar boundary.
+
+
+
+fix(mobile): align Timeline, History and all scroll surfaces to Evidence's 10dp end-gap; fullscreen SheetScrollViews stay scroll-enabled.
+test(mobile): visually verify Map/Search/direct timelines and Evidence, directories/filters, Activity/Alerts, saved/profile and settings/support; ESLint and release build passed.
+
+
+
+chore(mobile): temporarily force splash + onboarding on every cold launch for design review without clearing saved completion.
+test(mobile): verify two fresh launches and onboarding rendering; ESLint and release build passed.
+
+
+
+style(mobile): polish onboarding with full-height evidence media, Pakistan NOTAM + regional markers, Kabul/Bagram search artwork, brand mark and clearer dark grid lines.
+test(mobile): visually verify all three scenes and splash in dark/light themes; ESLint and release build passed.
+
+
+
+style(mobile): focus onboarding map on Pakistan, align NOTAM to real zone styling, place Kabul/Afghan-border markers and strengthen the glass footer.
+test(mobile): iterate light/dark screenshots until zone geography, marker placement and label occlusion passed; ESLint and release build passed.
+
+
+
+style(mobile): widen onboarding map to show Afghanistan + Pakistan, move border markers inside Afghanistan and separate the Pakistan marker from NOTAM.
+test(mobile): iterate dark/light screenshots for country framing and marker/zone placement; ESLint and release build passed.
+
+
+
+feat(mobile): add fourth temporal-zones onboarding page with active/upcoming/expired NOTAM/NOTMAR states and web-style radial neon zones.
+test(mobile): iterate dark/light native SVG rendering, verify all four pages, Back/completion, reduced motion, ESLint and release build.
+
+
+
+fix(mobile): keep update evidence strictly update-specific and add clamped active/upcoming temporal map zones with center labels.
+test(mobile): verify Smog initial/next isolation, Flash initial media, dark/light temporal maps, ESLint and release build.
+
+
+
+style(mobile): enlarge temporal map and zones, remove expired row, and position readable labels without FIR/UAE overlap.
+test(mobile): iterate dark/light screenshots until active/upcoming zones and labels were clear; ESLint and release build passed.
+
+
+
+style(mobile): replace temporal zone text with glass callout pills and move upcoming NOTMAR to Pakistan's coastal waters.
+test(mobile): verify dark/light pill readability, leader lines and background-label clearance; ESLint and release build passed.
+
+
+
+style(mobile): unify larger responsive onboarding scenes with flex evidence/search content and expanded temporal map.
+test(mobile): verify all four screens dark/light plus small-screen title/body fit, pager navigation, ESLint and release build.
+
+
+
+style(mobile): polish onboarding glass badges, source spacing, two dated Kabul results and red/cyan temporal zones with bent callouts.
+test(mobile): verify all four screens dark/light, colors, labels and layouts; ESLint and release build passed.
+
+
+
+fix(mobile): unclip two-result onboarding cards, thin zone borders, move active NOTAM into Pakistan and upcoming NOTMAR to Karachi waters.
+test(mobile): verify dark/light footer visibility and zone geography; ESLint and release build passed.
+
+
+
+style(mobile): move upcoming NOTMAR farther left along Pakistan's coast and raise tiny onboarding metadata to readable sizes.
+test(mobile): verify dark/light text clarity, wrapping and coastal placement; ESLint and release build passed.
+
+
+style(mobile): nudge upcoming NOTMAR slightly up-left into the sea beside Pakistan's border.
+
+
+style(mobile): use bookmark icons on onboarding search results and clarify + space the revisit-later helper.
+
+
+style(mobile): balance onboarding font sizes and anchor the bookmark helper 24dp above the search card border.
+
+
+style(mobile): center the onboarding bookmark helper between search results and card border.
+
+
+style(mobile): center the bookmark helper with balanced 30dp gaps above and below.
+
+
+
+fix(mobile): center the onboarding bookmark helper without overlapping results or clipping card footers.
+test(mobile): verify the third-page layout on the physical device; ESLint and release build passed.
+
+
+
+style(mobile): rebalance onboarding search cards with comfortable footers and a compact bookmark helper.
+test(mobile): verify dark/light footer clearance and helper spacing on the physical device; ESLint and release build passed.
+
+
+
+fix(mobile): replace blurry onboarding maps with 2016×1920 lossless 3× renders while preserving exact crop and overlay alignment.
+test(mobile): verify screens 1 and 4 in dark/light on the physical device; ESLint and release build passed.
+
+
+
+fix(web): restore uploaded video playback in all three apps and stream Twitter videos through a host-restricted range-preserving proxy.
+test(web): verify Firefox local/Twitter playback, seeking, admin/superadmin playback, proxy validation, and all three production builds.

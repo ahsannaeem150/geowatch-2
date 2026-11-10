@@ -35,7 +35,7 @@ function fmtTime(s) {
 
 // Custom lightbox video player (mobile-style): click toggles play, draggable
 // seek slider, time readout, mute toggle. Native controls are intentionally
-// off so the UI is consistent; codec failures show an explicit fallback.
+// off so the UI is consistent; playback failures show an explicit fallback.
 function LightboxVideo({ src, poster }) {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -63,7 +63,7 @@ function LightboxVideo({ src, poster }) {
   if (error) {
     return (
       <div className="id-lightbox__video-error">
-        <p>This video format is not supported by your browser.</p>
+        <p>This video could not be played in your browser.</p>
         <a href={src} target="_blank" rel="noreferrer" className="id-lightbox__video-error-link">
           Download / open video directly
         </a>

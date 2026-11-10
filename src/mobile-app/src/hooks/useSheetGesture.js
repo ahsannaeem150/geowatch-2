@@ -33,7 +33,7 @@ export default function useSheetGesture({
   canClaim, // capture mode only: (gestureState, event) => bool
   jsSprings = false, // run programmatic springs on the JS thread. Needed when
   // a caller feeds pos into a LAYOUT prop through a derived node (PeekSheet's
-  // bottom pad is Animated.add(pos, 62) → a spacer's height): a layout prop
+  // bottom pad is Animated.add(pos, TAB_BAR_CONTENT_HEIGHT) → a spacer's height): a layout prop
   // can only be JS-driven, and a native-driven pos would force the pad to
   // chase it over coalesced listener hops — landing late in visible clamp
   // snaps (verified on-device). With JS springs, pos and its derived pad

@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dimensions } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 import { STORAGE_KEYS } from '../constants';
 import { getIncident } from '../services/incidents.service';
 import { subscribeSse } from '../services/sse.service';
@@ -78,6 +79,7 @@ export function SelectionProvider({ children }) {
   // reads it so back keeps the sheet where the user left it instead of
   // jumping to the detent the panel was originally opened at.
   const sheetLevelRef = useRef('half');
+  const previewPos = useSharedValue(Dimensions.get('window').height);
   // View history (prototype pushHistory): newest-first, deduped, cap 20,
   // persisted. Entries: { kind, id, when, item } — item is the full list-row
   // snapshot so preview-on-map works even after the date range moves on.
@@ -474,6 +476,7 @@ export function SelectionProvider({ children }) {
       openEvidence,
       closeEvidence,
       sheetLevelRef,
+      previewPos,
       history,
       clearHistory,
     }),
@@ -503,6 +506,7 @@ export function SelectionProvider({ children }) {
       getCachedDetail,
       openEvidence,
       closeEvidence,
+      previewPos,
       history,
       clearHistory,
     ],

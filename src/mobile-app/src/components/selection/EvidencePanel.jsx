@@ -35,7 +35,6 @@ import {
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
-import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
 import { fetchTweet, getCachedTweet } from '../../services/x-post';
@@ -782,8 +781,7 @@ export const EvidenceBody = React.memo(function EvidenceBody({
 }) {
   const { theme } = useTheme();
   const { showToast } = useOverlay();
-  const { selectedId } = useMap();
-  const { evidenceUpdate, getCachedDetail } = useSelection();
+  const { evidenceUpdate } = useSelection();
   const [tab, setTab] = useState('all');
   const [lbIndex, setLbIndex] = useState(null);
   const [mediaRenderCount, setMediaRenderCount] = useState(MEDIA_BATCH_SIZE);
@@ -794,31 +792,23 @@ export const EvidenceBody = React.memo(function EvidenceBody({
     setMediaRenderCount(MEDIA_BATCH_SIZE);
   }, [evidenceUpdate?.id]);
 
-  // Update-attached evidence, falling back to the incident-level aggregate
-  // when the update itself has none (web evidence-rail parity).
   const { mediaItems, xItems, articleItems, noteItems } = useMemo(() => {
     const u = evidenceUpdate;
     if (!u) {
       return { mediaItems: [], xItems: [], articleItems: [], noteItems: [] };
     }
-    const detail = selectedId ? getCachedDetail(selectedId) : null;
-    const tl = detail?.timeline || [];
-    const allMedia = tl.flatMap((t) => t.media || []);
-    const allX = tl.flatMap((t) => t.sources?.x_post || []);
-    const allArticles = tl.flatMap((t) => t.sources?.news_article || []);
-    const allNotes = tl.flatMap((t) => t.sources?.admin_note || []);
     const ownMedia = u.media || [];
     const ownX = u.sources?.x_post || [];
     const ownArticles = u.sources?.news_article || [];
     const ownNotes = u.sources?.admin_note || [];
     const featuredMediaId = u.featured_item?.source_type === 'media' ? u.featured_item.item_id : null;
     return {
-      mediaItems: orderMediaItems(ownMedia.length ? ownMedia : allMedia, featuredMediaId),
-      xItems: ownX.length ? ownX : allX,
-      articleItems: ownArticles.length ? ownArticles : allArticles,
-      noteItems: ownNotes.length ? ownNotes : allNotes,
+      mediaItems: orderMediaItems(ownMedia, featuredMediaId),
+      xItems: ownX,
+      articleItems: ownArticles,
+      noteItems: ownNotes,
     };
-  }, [evidenceUpdate, selectedId, getCachedDetail]);
+  }, [evidenceUpdate]);
 
   useEffect(() => {
     for (const post of xItems) {
@@ -1550,7 +1540,7 @@ const styles = StyleSheet.create({
     marginTop: 7,
   },
   tailPad: {
-    height: 28,
+    height: 0,
   },
   lbWrap: {
     flex: 1,

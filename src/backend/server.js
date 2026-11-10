@@ -23,6 +23,7 @@ import sourceRoutes from './src/routes/source.routes.js';
 import publicSourceRoutes from './src/routes/source-public.routes.js';
 
 import mediaRoutes from './src/routes/media.routes.js';
+import mediaProxyRoutes from './src/routes/media-proxy.routes.js';
 import zoneCategoryRoutes from './src/routes/zone-category.routes.js';
 import notificationRoutes from './src/routes/notification.routes.js';
 import staffRecentRoutes from './src/routes/staff-recent.routes.js';
@@ -126,6 +127,7 @@ app.use('/api/v1/incidents/:id/timeline', timelineRoutes);
 app.use('/api/v1/incidents/:id/sources/public', publicSourceRoutes);
 app.use('/api/v1/incidents/:id/sources', sourceRoutes);
 app.use('/api/v1/incidents/:id/media', mediaRoutes);
+app.use('/api/v1/media-proxy', mediaProxyRoutes);
 app.use('/api/v1/zone-categories', zoneCategoryRoutes);
 app.use('/api/v1/geocode', geocodeRoutes);
 app.use('/api/v1/stats', statsRoutes);

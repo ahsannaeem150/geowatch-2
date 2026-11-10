@@ -10,7 +10,7 @@ export const DEV_HOST = '127.0.0.1';
 export const API_BASE_URL = `http://${DEV_HOST}:3100/api/v1`;
 export const MARTIN_URL = `http://${DEV_HOST}:8080`;
 
-export const TAB_BAR_CONTENT_HEIGHT = 62;
+export const TAB_BAR_CONTENT_HEIGHT = 58;
 export const bottomChromeInset = (insets) =>
   TAB_BAR_CONTENT_HEIGHT + insets.bottom;
 
@@ -78,6 +78,7 @@ export const STORAGE_KEYS = {
   JWT: 'intelmap24_jwt',
   USER: 'intelmap24_user',
   THEME: 'intelmap24_mobile_theme',
+  THEME_PREFERENCE: 'intelmap24_mobile_theme_preference',
   REDUCE_MOTION: 'intelmap24_mobile_reduce_motion',
   LAYERS: 'intelmap24_mobile_layers',
   SEL_MODE: 'intelmap24_mobile_sel_mode',
@@ -87,4 +88,5 @@ export const STORAGE_KEYS = {
   LAST_ACTIVE: 'intelmap24_mobile_last_active',
   NOTIF_PREFS: 'intelmap24_mobile_notif_prefs',
   AUTO_ZOOM: 'intelmap24_mobile_auto_zoom',
+  ONBOARDING_COMPLETE: 'intelmap24_mobile_onboarding_complete',
 };

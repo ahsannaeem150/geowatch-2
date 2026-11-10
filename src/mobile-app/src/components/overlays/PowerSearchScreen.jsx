@@ -49,6 +49,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
+import { isPowerSearchActive } from '../../utils/overlayStack';
 import { useAuth } from '../../context/AuthContext';
 import useSheetGesture from '../../hooks/useSheetGesture';
 import useScrollEdge from '../../hooks/useScrollEdge';
@@ -194,10 +195,11 @@ function pillState(theme, on) {
 export function PowerSearchBody({ overlay }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { closeOverlay, showToast } = useOverlay();
+  const { closeOverlay, showToast, stack } = useOverlay();
   const { selectedId, selectItem, flyToSelection } = useMap();
   const { view: selectionView, closeEvidence } = useSelection();
   const { signedIn, requireSignIn } = useAuth();
+  const suspended = !isPowerSearchActive(stack);
 
   const [q, setQ] = useState(overlay.props?.initialQ || '');
   const [qDebounced, setQDebounced] = useState(overlay.props?.initialQ || '');
@@ -790,6 +792,7 @@ export function PowerSearchBody({ overlay }) {
         topH={topH}
         detail={detail}
         onCloseDetail={closeDetail}
+        suspended={suspended}
       />
 
       {/* filters bottom sheet */}
@@ -856,6 +859,7 @@ function ResultsSheet({
   topH,
   detail,
   onCloseDetail,
+  suspended = false,
 }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -867,7 +871,7 @@ function ResultsSheet({
   // dismiss detent parks it fully below the screen (no tab bar anymore).
   const sheetH = windowHeight;
   const fullTy = Math.max(Math.round(topH) + 8, 72);
-  const halfTy = Math.round(sheetH * 0.52);
+  const halfTy = Math.round(sheetH * 0.54);
 
   const [level, setLevel] = useState('half'); // 'half'|'full'|'dismissed'
   const [entryReady, setEntryReady] = useState(false);
@@ -879,6 +883,13 @@ function ResultsSheet({
   const springTo = (...args) => sheetController.current?.(...args);
   const targetTy =
     level === 'full' ? fullTy : level === 'half' ? halfTy : sheetH;
+
+  useEffect(() => {
+    if (suspended) {
+      onCloseDetail?.();
+      setLevel('half');
+    }
+  }, [suspended, onCloseDetail]);
 
   const inDetail = !!detail;
   const inEvidence = inDetail && selectionView === 'evidence' && !!evidenceUpdate;
@@ -1382,6 +1393,7 @@ function ResultsSheet({
                 edge={listEdge}
                 bottomPadStyle={bottomPadStyle}
                 style={styles.stripList}
+                contentContainerStyle={styles.resultsPad}
                 keyboardShouldPersistTaps="handled"
                 overScrollMode="never">
                 {total === 0 ? (
@@ -2412,6 +2424,7 @@ const styles = StyleSheet.create({
   },
   detailPad: { paddingHorizontal: 2 },
   stripList: { flex: 1 },
+  resultsPad: { paddingBottom: 10 },
   stripPad: { paddingBottom: 20 },
   secLabel: {
     fontSize: 9.5,
@@ -2539,7 +2552,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterBody: { paddingBottom: 16 },
+  filterBody: { paddingBottom: 10 },
   filterFooter: {
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,

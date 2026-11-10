@@ -241,6 +241,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tailPad: {
-    height: 28,
+    height: 0,
   },
 });

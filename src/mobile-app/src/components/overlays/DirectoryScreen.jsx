@@ -517,6 +517,7 @@ export default function DirectoryScreen({ kind, overlay }) {
         ) : (
           <ScrollView
             contentContainerStyle={styles.listPad}
+            overScrollMode="never"
             keyboardShouldPersistTaps="handled">
             {visible.length ? (
               visible.map((item) => (
@@ -1142,7 +1143,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   sortOptionText: { fontSize: 10.5 },
-  listPad: { paddingBottom: 24 },
+  listPad: { paddingBottom: 10 },
   emptyText: {
     textAlign: 'center',
     paddingVertical: 44,
@@ -1262,7 +1263,7 @@ const styles = StyleSheet.create({
   drawerBadgeText: { fontSize: 9, fontWeight: '600' },
   flex1: { flex: 1 },
   drawerClose: { padding: 4 },
-  drawerBody: { paddingBottom: 30 },
+  drawerBody: { paddingBottom: 10 },
   acc: { borderBottomWidth: StyleSheet.hairlineWidth },
   accHead: {
     flexDirection: 'row',

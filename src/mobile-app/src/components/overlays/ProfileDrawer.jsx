@@ -7,7 +7,6 @@ import {
   History,
   List,
   LogOut,
-  Moon,
   Search,
   Settings,
   User,
@@ -16,10 +15,6 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { useOverlay } from '../../context/OverlayContext';
 import { useAuth } from '../../context/AuthContext';
-
-// Profile drawer (prototype #profile-ov — X-style left sidebar). Signed-out:
-// generic avatar + sign-in row; bookmarks gate through requireSignIn (the
-// history list is local and works signed out).
 
 function DrawerRow({ icon, label, trailing, danger, onPress }) {
   const { theme } = useTheme();
@@ -39,14 +34,14 @@ function DrawerRow({ icon, label, trailing, danger, onPress }) {
         {label}
       </Text>
       {trailing ?? (
-        <ChevronRight size={15} color={danger ? theme.danger : theme.textMuted} />
+        <ChevronRight size={16} color={danger ? theme.danger : theme.textMuted} />
       )}
     </Pressable>
   );
 }
 
 export default function ProfileDrawer() {
-  const { mode, theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const { openOverlay, closeOverlay, showToast } = useOverlay();
   const { user, signedIn, signOut, requireSignIn } = useAuth();
 
@@ -58,13 +53,6 @@ export default function ProfileDrawer() {
 
   const initial = (user?.full_name || user?.email || '?').trim()[0]?.toUpperCase() || '?';
   const avatarTextColor = signedIn ? '#f2f2f2' : theme.textMuted;
-
-  const openBookmarks = () => {
-    if (!requireSignIn('view bookmarks')) {
-      return; // sign-in sheet opens above the drawer
-    }
-    go({ id: 'bookmarks', type: 'sheet' });
-  };
 
   const confirmSignOut = () => {
     Alert.alert('Sign out', 'Sign out of IntelMap24 on this device?', [
@@ -106,106 +94,92 @@ export default function ProfileDrawer() {
             ]}>
             {signedIn ? user?.full_name || 'User' : 'Guest'}
           </Text>
-          <Text
-            numberOfLines={1}
-            style={[styles.headMail, { color: theme.textMuted }]}>
+          <Text numberOfLines={1} style={[styles.headMail, { color: theme.textMuted }]}>
             {signedIn ? user?.email : 'Not signed in'}
           </Text>
         </View>
-        <Pressable onPress={close} hitSlop={8} style={styles.closeBtn}>
-          <X size={16} color={theme.textSecondary} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close account menu"
+          onPress={close}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.closeBtn,
+            { backgroundColor: pressed ? theme.bgHover : 'transparent' },
+          ]}>
+          <X size={18} color={theme.textSecondary} />
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView overScrollMode="never" showsVerticalScrollIndicator={false}>
         {!signedIn ? (
           <Pressable
             onPress={() => requireSignIn('continue')}
-            style={[
+            style={({ pressed }) => [
               styles.signInRow,
               {
-                backgroundColor: theme.accentSubtleBg,
+                backgroundColor: pressed ? theme.bgHover : theme.accentSubtleBg,
                 borderColor: theme.accentSubtleBorder,
               },
             ]}>
-            <User size={16} color={theme.accentLight} />
+            <User size={18} color={theme.accentLight} />
             <Text style={[styles.signInText, { color: theme.accentLight }]}>
               Sign in to IntelMap24
             </Text>
-            <ChevronRight size={15} color={theme.accentLight} />
+            <ChevronRight size={16} color={theme.accentLight} />
           </Pressable>
         ) : null}
 
-        <Text
-          style={[
-            styles.sec,
-            { color: theme.textMuted, fontFamily: theme.fontMono },
-          ]}>
+        <Text style={[styles.sec, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
           ACCOUNT
         </Text>
         <DrawerRow
-          icon={<User size={17} color={theme.textSecondary} />}
+          icon={<User size={21} color={theme.textSecondary} />}
           label="Profile"
           onPress={() => go({ id: 'profilePage', type: 'fullscreen' })}
         />
         <DrawerRow
-          icon={<Bookmark size={17} color={theme.textSecondary} />}
+          icon={<Bookmark size={21} color={theme.textSecondary} />}
           label="Bookmarks"
-          onPress={openBookmarks}
+          onPress={() => go({ id: 'profilePanel', type: 'fullscreen', props: { panel: 'bookmarks' } })}
         />
         <DrawerRow
-          icon={<History size={17} color={theme.textSecondary} />}
+          icon={<History size={21} color={theme.textSecondary} />}
           label="History"
-          onPress={() => go({ id: 'history', type: 'sheet' })}
+          onPress={() => go({ id: 'profilePanel', type: 'fullscreen', props: { panel: 'history' } })}
         />
 
-        <Text
-          style={[
-            styles.sec,
-            { color: theme.textMuted, fontFamily: theme.fontMono },
-          ]}>
+        <Text style={[styles.sec, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
           BROWSE
         </Text>
         <DrawerRow
-          icon={<List size={17} color={theme.textSecondary} />}
-          label="All Incidents"
+          icon={<List size={21} color={theme.textSecondary} />}
+          label="Incidents"
           onPress={() => go({ id: 'incidentsDirectory', type: 'fullscreen' })}
         />
         <DrawerRow
-          icon={<Hexagon size={17} color={theme.textSecondary} />}
+          icon={<Hexagon size={21} color={theme.textSecondary} />}
           label="Zones"
           onPress={() => go({ id: 'zonesDirectory', type: 'fullscreen' })}
         />
         <DrawerRow
-          icon={<Search size={17} color={theme.textSecondary} />}
+          icon={<Search size={21} color={theme.textSecondary} />}
           label="Power Search"
           onPress={() => go({ id: 'powerSearch', type: 'fullscreen' })}
         />
 
-        <Text
-          style={[
-            styles.sec,
-            { color: theme.textMuted, fontFamily: theme.fontMono },
-          ]}>
-          PREFERENCES
+        <Text style={[styles.sec, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+          SETTINGS
         </Text>
         <DrawerRow
-          icon={<Moon size={17} color={theme.textSecondary} />}
-          label={`Theme: ${mode === 'dark' ? 'Dark' : 'Light'}`}
-          trailing={
-            <Text style={[styles.themeGlyph, { color: theme.textMuted }]}>◐</Text>
-          }
-          onPress={toggleTheme}
-        />
-        <DrawerRow
-          icon={<Settings size={17} color={theme.textSecondary} />}
+          icon={<Settings size={21} color={theme.textSecondary} />}
           label="Settings"
-          onPress={() => go({ id: 'settings', type: 'sheet' })}
+          onPress={() => go({ id: 'settings', type: 'fullscreen' })}
         />
 
         {signedIn ? (
           <DrawerRow
-            icon={<LogOut size={17} color={theme.danger} />}
+            icon={<LogOut size={21} color={theme.danger} />}
             label="Sign out"
             danger
             onPress={confirmSignOut}
@@ -231,15 +205,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
   headId: {
@@ -248,61 +222,59 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   headName: {
-    fontSize: 15.5,
+    fontSize: 16,
     fontWeight: '600',
   },
   headMail: {
-    fontSize: 11.5,
+    fontSize: 12,
   },
   closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   signInRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
     marginHorizontal: 14,
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 4,
     borderWidth: 1,
-    borderRadius: 11,
-    paddingHorizontal: 13,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
   },
   signInText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   sec: {
-    fontSize: 9,
-    letterSpacing: 1.8,
+    fontSize: 10.5,
+    letterSpacing: 1.2,
     paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 6,
+    paddingTop: 18,
+    paddingBottom: 7,
   },
   row: {
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 13,
     paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 9,
+    paddingVertical: 13,
+    borderRadius: 12,
     marginHorizontal: 6,
   },
   rowLabel: {
     flex: 1,
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: '500',
   },
-  themeGlyph: {
-    fontSize: 13,
-  },
   tailPad: {
-    height: 20,
+    height: 10,
   },
 });

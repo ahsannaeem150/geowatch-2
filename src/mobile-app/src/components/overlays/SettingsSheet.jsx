@@ -9,34 +9,30 @@ import {
   View,
 } from 'react-native';
 import { SheetScrollView } from './SheetContainer';
-import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
+import { ChevronRight, Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import { SEL_MODES, useSelection } from '../../context/SelectionContext';
 import { useLive } from '../../context/LiveContext';
 import { useOverlay } from '../../context/OverlayContext';
 import LayersSheet from './LayersSheet';
-
-// Settings sheet (prototype #sheet-settings): main view with Appearance /
-// Notifications / Default Map Layers rows + Selection Behavior mode cards;
-// Notifications and Layers slide in as nested subviews (settingsSection /
-// settingsBack), hardware back returns to the main view first.
+import NavigationHeader from './NavigationHeader';
 
 const MODE_META = {
   peek: {
     title: 'Peek panel',
     recommended: true,
-    sub: 'Tap opens a half-screen preview. Tap the preview to expand full details. Back collapses to a small bar.',
+    sub: 'Open a half-screen preview. Tap the preview to expand details. Back collapses to a small bar.',
   },
   compact: {
     title: 'Compact bar',
     recommended: false,
-    sub: 'Tap opens a small bar at the bottom. Tap the bar to expand full details.',
+    sub: 'Open a small bar first. Tap the bar to expand full details.',
   },
   direct: {
     title: 'Direct panel',
     recommended: false,
-    sub: 'Tap opens full details immediately. Back collapses to a small bar.',
+    sub: 'Open full details immediately. Back collapses to a small bar.',
   },
 };
 
@@ -75,9 +71,14 @@ const NOTIF_ROWS = [
     sub: 'Play sound with alerts',
     toastOn: 'Sound enabled',
     toastOff: 'Sound disabled',
-    // Stored only — no audio playback wired yet.
   },
 ];
+
+const SECTION_COPY = {
+  appearance: { title: 'Appearance', subtitle: 'Choose how IntelMap24 looks' },
+  notifications: { title: 'Notifications', subtitle: 'Alerts and update preferences' },
+  layers: { title: 'Default Map Layers', subtitle: 'Choose your startup layers' },
+};
 
 function SectionLabel({ children, theme, spaced }) {
   return (
@@ -92,76 +93,140 @@ function SectionLabel({ children, theme, spaced }) {
   );
 }
 
+function SettingsGroup({ children, theme }) {
+  return (
+    <View
+      style={[
+        styles.group,
+        { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+      ]}>
+      {children}
+    </View>
+  );
+}
+
 function SetRow({ name, sub, right, onPress, theme, last }) {
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.setRow,
-        !last && styles.setRowGap,
-        { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
-        pressed && { opacity: 0.75 },
+        !last && [styles.setRowDivider, { borderBottomColor: theme.borderSubtle }],
+        { backgroundColor: pressed ? theme.bgHover : 'transparent' },
       ]}>
       <View style={styles.setRowBody}>
         <Text style={[styles.setName, { color: theme.textPrimary }]}>{name}</Text>
-        <Text style={[styles.setSub, { color: theme.textSecondary }]}>{sub}</Text>
+        {sub ? <Text style={[styles.setSub, { color: theme.textSecondary }]}>{sub}</Text> : null}
       </View>
       {right}
     </Pressable>
   );
 }
 
-// The 5-toggle body — shared by the settings subview and the standalone
-// 'notifPrefs' sheet opened from the profile page (prototype #sheet-notifprefs).
+function ChoiceCard({ title, sub, selected, onPress, theme, recommended = false, last = false }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.modeCard,
+        {
+          backgroundColor: selected ? theme.accentSubtleBg : theme.bgElevated,
+          borderColor: selected ? theme.accentLight : theme.borderSubtle,
+        },
+        last && { marginBottom: 0 },
+        pressed && { opacity: 0.82 },
+      ]}>
+      <View
+        style={[
+          styles.radio,
+          { borderColor: selected ? theme.accentLight : theme.borderSubtle },
+        ]}>
+        {selected ? (
+          <View style={[styles.radioDot, { backgroundColor: theme.accentLight }]} />
+        ) : null}
+      </View>
+      <View style={styles.modeBody}>
+        <View style={styles.modeTitleRow}>
+          <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>{title}</Text>
+          {recommended ? (
+            <View
+              style={[
+                styles.recTag,
+                {
+                  backgroundColor: theme.accentSubtleBg,
+                  borderColor: theme.accentSubtleBorder,
+                },
+              ]}>
+              <Text style={[styles.recText, { color: theme.accentLight, fontFamily: theme.fontMono }]}>
+                RECOMMENDED
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={[styles.modeSub, { color: theme.textSecondary }]}>{sub}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function ModeCard({ mode, theme }) {
+  const { selMode, setSelMode } = useSelection();
+  const meta = MODE_META[mode];
+  return (
+    <ChoiceCard
+      title={meta.title}
+      sub={meta.sub}
+      recommended={meta.recommended}
+      selected={selMode === mode}
+      onPress={() => setSelMode(mode)}
+      theme={theme}
+    />
+  );
+}
+
 export function NotifPrefsBody() {
   const { theme } = useTheme();
   const { notifPrefs, setNotifPref } = useLive();
   const { showToast } = useOverlay();
   return (
     <SheetScrollView contentContainerStyle={styles.bodyPad}>
-      {NOTIF_ROWS.map((row, i) => {
-        const on = notifPrefs[row.key] !== false;
-        return (
-          <SetRow
-            key={row.key}
-            name={row.name}
-            sub={row.sub}
-            last={i === NOTIF_ROWS.length - 1}
-            theme={theme}
-            onPress={() => {
-              setNotifPref(row.key, !on);
-              showToast(on ? row.toastOff : row.toastOn);
-            }}
-            right={
-              <Switch
-                value={on}
-                onValueChange={(v) => {
-                  setNotifPref(row.key, v);
-                  showToast(v ? row.toastOn : row.toastOff);
-                }}
-                trackColor={{
-                  false: theme.borderSubtle,
-                  true: theme.accent,
-                }}
-                thumbColor={on ? theme.accentLight : theme.textMuted}
-              />
-            }
-          />
-        );
-      })}
+      <SettingsGroup theme={theme}>
+        {NOTIF_ROWS.map((row, i) => {
+          const on = notifPrefs[row.key] !== false;
+          return (
+            <SetRow
+              key={row.key}
+              name={row.name}
+              sub={row.sub}
+              last={i === NOTIF_ROWS.length - 1}
+              theme={theme}
+              onPress={() => {
+                setNotifPref(row.key, !on);
+                showToast(on ? row.toastOff : row.toastOn);
+              }}
+              right={
+                <Switch
+                  value={on}
+                  onValueChange={(v) => {
+                    setNotifPref(row.key, v);
+                    showToast(v ? row.toastOn : row.toastOff);
+                  }}
+                  trackColor={{ false: theme.borderSubtle, true: theme.accent }}
+                  thumbColor={on ? theme.accentLight : theme.textMuted}
+                />
+              }
+            />
+          );
+        })}
+      </SettingsGroup>
     </SheetScrollView>
   );
 }
 
-// Startup-layer defaults share the ONE layer store MapContext already
-// persists (STORAGE_KEYS.LAYERS, applied at launch) — the Layers sheet and
-// this subview edit the same toggles (simplification noted in the P12 brief).
 export function LayersPrefsBody() {
   return <LayersSheet />;
 }
 
-// "Auto-zoom on selection" — web Settings drawer parity: off keeps the
-// user's zoom and pans only (MapContext persists STORAGE_KEYS.AUTO_ZOOM).
 function AutoZoomRow({ theme }) {
   const { autoZoomEnabled, setAutoZoomEnabled } = useMap();
   return (
@@ -183,90 +248,90 @@ function AutoZoomRow({ theme }) {
   );
 }
 
-function ModeCard({ mode, theme }) {
-  const { selMode, setSelMode } = useSelection();
-  const meta = MODE_META[mode];
-  const selected = selMode === mode;
+function AppearanceBody() {
+  const { theme, themePreference, setThemePreference } = useTheme();
+  const options = [
+    {
+      key: 'system',
+      title: 'System default',
+      sub: 'Follow your device appearance',
+    },
+    {
+      key: 'dark',
+      title: 'Dark',
+      sub: 'Low-light tactical interface',
+    },
+    {
+      key: 'light',
+      title: 'Light',
+      sub: 'Bright editorial interface',
+    },
+  ];
   return (
-    <Pressable
-      onPress={() => setSelMode(mode)}
-      style={({ pressed }) => [
-        styles.modeCard,
-        {
-          backgroundColor: selected ? theme.accentSubtleBg : theme.bgElevated,
-          borderColor: selected ? theme.accentLight : theme.borderSubtle,
-        },
-        pressed && { opacity: 0.8 },
-      ]}>
-      <View
-        style={[
-          styles.radio,
-          { borderColor: selected ? theme.accentLight : theme.borderSubtle },
-        ]}>
-        {selected ? (
-          <View
-            style={[styles.radioDot, { backgroundColor: theme.accentLight }]}
-          />
-        ) : null}
-      </View>
-      <View style={styles.modeBody}>
-        <View style={styles.modeTitleRow}>
-          <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
-            {meta.title}
-          </Text>
-          {meta.recommended ? (
-            <View
-              style={[
-                styles.recTag,
-                {
-                  backgroundColor: theme.accentSubtleBg,
-                  borderColor: theme.accentSubtleBorder,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.recText,
-                  { color: theme.accentLight, fontFamily: theme.fontMono },
-                ]}>
-                RECOMMENDED
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={[styles.modeSub, { color: theme.textSecondary }]}>
-          {meta.sub}
-        </Text>
-      </View>
-    </Pressable>
+    <SheetScrollView contentContainerStyle={styles.bodyPad}>
+      <SectionLabel theme={theme}>THEME</SectionLabel>
+      {options.map((option, index) => (
+        <ChoiceCard
+          key={option.key}
+          title={option.title}
+          sub={option.sub}
+          selected={themePreference === option.key}
+          onPress={() => setThemePreference(option.key)}
+          theme={theme}
+          last={index === options.length - 1}
+        />
+      ))}
+    </SheetScrollView>
   );
 }
 
-const SUB_TITLES = {
-  notifications: 'Notification Preferences',
-  layers: 'Default Map Layers',
-};
+export function NotificationPrefsPage() {
+  const { closeOverlay } = useOverlay();
+  return (
+    <View style={styles.page}>
+      <NavigationHeader
+        title="Notifications"
+        subtitle="Alerts and update preferences"
+        onBack={() => closeOverlay('notifPrefs')}
+      />
+      <NotifPrefsBody />
+    </View>
+  );
+}
+
+export function LayersPrefsPage() {
+  const { closeOverlay } = useOverlay();
+  return (
+    <View style={styles.page}>
+      <NavigationHeader
+        title="Default Map Layers"
+        subtitle="Choose your startup layers"
+        onBack={() => closeOverlay('layersPref')}
+      />
+      <LayersPrefsBody />
+    </View>
+  );
+}
 
 export default function SettingsSheet() {
-  const { mode, theme, toggleTheme } = useTheme();
+  const { theme, themePreference } = useTheme();
+  const { closeOverlay, openOverlay } = useOverlay();
   const [section, setSection] = useState('main');
   const slide = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (section !== 'main') {
-      slide.setValue(40);
+      slide.setValue(36);
       Animated.timing(slide, {
         toValue: 0,
-        duration: 220,
+        duration: 200,
         useNativeDriver: true,
       }).start();
     }
   }, [section, slide]);
 
-  // Hardware back returns to the main view before the sheet itself closes.
   useEffect(() => {
-    if (section === 'main') {
-      return undefined;
-    }
+    if (section === 'main') return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       setSection('main');
       return true;
@@ -275,160 +340,181 @@ export default function SettingsSheet() {
   }, [section]);
 
   if (section !== 'main') {
+    const copy = SECTION_COPY[section];
     return (
-      <Animated.View
-        style={[styles.subWrap, { transform: [{ translateX: slide }] }]}>
-        <View
-          style={[styles.subHead, { borderBottomColor: theme.borderSubtle }]}>
-          <Pressable
-            onPress={() => setSection('main')}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.backBtn,
-              { backgroundColor: pressed ? theme.bgHover : 'transparent' },
-            ]}>
-            <ChevronLeft size={18} color={theme.textSecondary} />
-          </Pressable>
-          <Text
-            style={[
-              styles.subTitle,
-              { color: theme.textSecondary, fontFamily: theme.fontMono },
-            ]}>
-            {SUB_TITLES[section].toUpperCase()}
-          </Text>
-        </View>
-        {section === 'notifications' ? <NotifPrefsBody /> : <LayersPrefsBody />}
-      </Animated.View>
+      <View style={styles.page}>
+        <NavigationHeader
+          title={copy.title}
+          subtitle={copy.subtitle}
+          onBack={() => setSection('main')}
+        />
+        <Animated.View style={[styles.subWrap, { transform: [{ translateX: slide }] }]}>
+          {section === 'appearance' ? <AppearanceBody /> : null}
+          {section === 'notifications' ? <NotifPrefsBody /> : null}
+          {section === 'layers' ? <LayersPrefsBody /> : null}
+        </Animated.View>
+      </View>
     );
   }
 
+  const preferenceLabel =
+    themePreference === 'system' ? 'System default' : themePreference === 'dark' ? 'Dark' : 'Light';
+
   return (
-    <SheetScrollView contentContainerStyle={styles.bodyPad}>
-      <SectionLabel theme={theme}>APPEARANCE</SectionLabel>
-      <SetRow
-        name="Theme"
-        sub="Toggle dark or light mode"
-        theme={theme}
-        onPress={toggleTheme}
-        right={
-          <Text
-            style={[
-              styles.rowValue,
-              { color: theme.accentLight, fontFamily: theme.fontMono },
-            ]}>
-            {mode === 'dark' ? 'Dark' : 'Light'}
-          </Text>
-        }
+    <View style={styles.page}>
+      <NavigationHeader
+        title="Settings"
+        subtitle="Appearance, alerts and map behavior"
+        onBack={() => closeOverlay('settings')}
       />
-      <SetRow
-        name="Notifications"
-        sub="Alerts & update preferences"
-        theme={theme}
-        onPress={() => setSection('notifications')}
-        right={<ChevronRight size={16} color={theme.textMuted} />}
-      />
-      <SetRow
-        name="Default Map Layers"
-        sub="Choose startup layers"
-        theme={theme}
-        last
-        onPress={() => setSection('layers')}
-        right={<ChevronRight size={16} color={theme.textMuted} />}
-      />
+      <SheetScrollView contentContainerStyle={styles.bodyPad}>
+        <SectionLabel theme={theme}>APPEARANCE</SectionLabel>
+        <SettingsGroup theme={theme}>
+          <SetRow
+            name="Theme & appearance"
+            sub={preferenceLabel}
+            theme={theme}
+            last
+            onPress={() => setSection('appearance')}
+            right={<ChevronRight size={17} color={theme.textMuted} />}
+          />
+        </SettingsGroup>
 
-      <SectionLabel theme={theme} spaced>
-        SELECTION BEHAVIOR
-      </SectionLabel>
-      <Text style={[styles.selHint, { color: theme.textSecondary }]}>
-        Choose what happens when you tap an incident or zone on the map.
-      </Text>
-      {SEL_MODES.map((m) => (
-        <ModeCard key={m} mode={m} theme={theme} />
-      ))}
-      <AutoZoomRow theme={theme} />
+        <SectionLabel theme={theme} spaced>NOTIFICATIONS</SectionLabel>
+        <SettingsGroup theme={theme}>
+          <SetRow
+            name="Alert preferences"
+            sub="New incidents, updates, zones and sound"
+            theme={theme}
+            last
+            onPress={() => setSection('notifications')}
+            right={<ChevronRight size={17} color={theme.textMuted} />}
+          />
+        </SettingsGroup>
 
-      <View style={styles.footnote}>
-        <Info size={12} color={theme.textMuted} />
-        <Text
-          style={[
-            styles.footnoteText,
-            { color: theme.textMuted, fontFamily: theme.fontMono },
-          ]}>
-          Preferences are stored locally on this device.
+        <SectionLabel theme={theme} spaced>MAP & INTERACTION</SectionLabel>
+        <SettingsGroup theme={theme}>
+          <SetRow
+            name="Default Map Layers"
+            sub="Choose startup layers"
+            theme={theme}
+            onPress={() => setSection('layers')}
+            right={<ChevronRight size={17} color={theme.textMuted} />}
+          />
+          <AutoZoomRow theme={theme} />
+        </SettingsGroup>
+
+        <SectionLabel theme={theme} spaced>SELECTION BEHAVIOR</SectionLabel>
+        <Text style={[styles.selHint, { color: theme.textSecondary }]}>
+          Choose what happens when you tap an incident or zone on the map.
         </Text>
-      </View>
-    </SheetScrollView>
+        {SEL_MODES.map((m) => (
+          <ModeCard key={m} mode={m} theme={theme} />
+        ))}
+
+        <SectionLabel theme={theme} spaced>SUPPORT</SectionLabel>
+        <SettingsGroup theme={theme}>
+          <SetRow
+            name="Help & Feedback"
+            sub="FAQs, app tour and contact"
+            theme={theme}
+            onPress={() => openOverlay({ id: 'help', type: 'sheet' })}
+            right={<ChevronRight size={17} color={theme.textMuted} />}
+          />
+          <SetRow
+            name="About IntelMap24"
+            sub="Product information and version"
+            theme={theme}
+            last
+            onPress={() => openOverlay({ id: 'about', type: 'sheet' })}
+            right={<ChevronRight size={17} color={theme.textMuted} />}
+          />
+        </SettingsGroup>
+
+        <View style={styles.footnote}>
+          <Info size={13} color={theme.textMuted} />
+          <Text style={[styles.footnoteText, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+            Preferences are stored locally on this device.
+          </Text>
+        </View>
+      </SheetScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+  },
   bodyPad: {
     paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 24,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   secLabel: {
-    fontSize: 10,
-    letterSpacing: 1.6,
+    fontSize: 10.5,
+    letterSpacing: 1.2,
     paddingVertical: 8,
+    paddingHorizontal: 2,
   },
   secLabelSpaced: {
-    paddingTop: 18,
+    paddingTop: 20,
+  },
+  group: {
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   setRow: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 11,
-    paddingVertical: 11,
-    paddingHorizontal: 13,
-    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
   },
-  setRowGap: {
-    marginBottom: 9,
+  setRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   setRowBody: {
     flex: 1,
     minWidth: 0,
   },
   setName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
   },
   setSub: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  rowValue: {
-    fontSize: 10.5,
-    letterSpacing: 0.8,
+    fontSize: 12,
+    lineHeight: 17,
   },
   selHint: {
-    fontSize: 11.5,
-    lineHeight: 17,
+    fontSize: 12.5,
+    lineHeight: 19,
     marginBottom: 12,
+    paddingHorizontal: 2,
   },
   modeCard: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    gap: 11,
-    marginBottom: 9,
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    marginBottom: 10,
   },
   radio: {
-    width: 17,
-    height: 17,
+    width: 18,
+    height: 18,
     borderRadius: 9,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
+    marginTop: 2,
   },
   radioDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
   },
   modeBody: {
@@ -438,58 +524,40 @@ const styles = StyleSheet.create({
   modeTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 3,
+    marginBottom: 4,
   },
   modeTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   recTag: {
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   recText: {
-    fontSize: 8,
-    letterSpacing: 0.8,
+    fontSize: 8.5,
+    letterSpacing: 0.7,
   },
   modeSub: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 18,
   },
   footnote: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingHorizontal: 2,
   },
   footnoteText: {
-    fontSize: 10,
-    letterSpacing: 0.4,
+    fontSize: 10.5,
+    letterSpacing: 0.3,
   },
   subWrap: {
     flex: 1,
-  },
-  subHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  backBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subTitle: {
-    fontSize: 10.5,
-    letterSpacing: 1.4,
   },
 });

@@ -10,6 +10,7 @@ export const BRAND = {
 export const FONTS = {
   head: 'Space Grotesk',
   mono: 'JetBrains Mono',
+  company: 'Megrim-Regular',
 };
 
 export const dark = {
@@ -25,6 +26,7 @@ export const dark = {
   bgHover: '#1a1a1e',
   bgInput: '#0f0f11',
   bgGlass: 'rgba(10,10,12,.85)',
+  bgGlassStrong: 'rgba(10,10,12,.97)',
   bgGlassSoft: 'rgba(10,10,12,.55)',
   borderSubtle: '#242429',
   borderDefault: 'rgba(148,163,184,.12)',
@@ -72,6 +74,7 @@ export const light = {
   bgHover: '#f3f4f6',
   bgInput: '#ffffff',
   bgGlass: 'rgba(255,255,255,.92)',
+  bgGlassStrong: 'rgba(255,255,255,.97)',
   bgGlassSoft: 'rgba(255,255,255,.45)',
   borderSubtle: '#d1d5db',
   borderDefault: '#c3c9d1',

@@ -229,6 +229,7 @@ export function CommandPaletteBody({ overlay }) {
       <ScrollView
         style={styles.results}
         contentContainerStyle={styles.resultsPad}
+        overScrollMode="never"
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled">
         {loading ? (
@@ -444,7 +445,7 @@ const styles = StyleSheet.create({
   },
   tabText: { fontSize: 10, letterSpacing: 0.4 },
   results: { maxHeight: 300 },
-  resultsPad: { paddingBottom: 6 },
+  resultsPad: { paddingBottom: 10 },
   hintText: {
     textAlign: 'center',
     fontSize: 10.5,

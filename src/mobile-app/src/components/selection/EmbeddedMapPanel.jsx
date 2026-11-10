@@ -1,13 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Animated,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import Reanimated, {
+  Extrapolate,
+  interpolate,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Map as MapIcon, X } from 'lucide-react-native';
 import { Camera, GeoJSONSource, Images, Layer, Map } from '@maplibre/maplibre-react-native';
@@ -59,41 +64,46 @@ function zoneBBox(geometry) {
 export default function EmbeddedMapPanel() {
   const { mode, theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { previewActive, item, closePreview, sendPreviewToMap, origin } =
+  const { previewActive, item, closePreview, sendPreviewToMap, origin, previewPos } =
     useSelection();
   const { closeAll } = useOverlay();
   const { selectedKind } = useMap();
   const { height: windowHeight } = useWindowDimensions();
   const height = Math.round(windowHeight * 0.54);
+  const fullH = Math.round(windowHeight - insets.top - 8);
+  const halfVisible = Math.round(windowHeight * 0.46);
+  const halfTy = fullH - halfVisible;
+  const hiddenTy = fullH;
   // Power Search previews keep their own floating search card visible — the
   // embedded panel (a map-within-the-map) is redundant there and would cover
   // the PS controls, so it stays out of that flow.
   const visible = previewActive && !!item && origin?.id !== 'powerSearch';
-  const enter = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
+  const pos = previewPos;
 
   useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      enter.setValue(0);
-      Animated.timing(enter, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    } else if (mounted) {
-      // Exit mirrors the entrance (slide back up + fade) so a back/close
-      // never pops the panel off mid-frame while the sheet slides away.
-      Animated.timing(enter, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(() => setMounted(false));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (visible) setMounted(true);
   }, [visible]);
+
+  const animatedPanelStyle = useAnimatedStyle(
+    () => ({
+      opacity: interpolate(pos.value, [hiddenTy, halfTy], [0.25, 1], Extrapolate.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(pos.value, [hiddenTy, halfTy], [-height, 0], Extrapolate.CLAMP),
+        },
+      ],
+    }),
+    [height, halfTy, hiddenTy],
+  );
+
+  useAnimatedReaction(
+    () => pos.value >= hiddenTy - 1,
+    (hidden, previous) => {
+      if (hidden && !previous && !visible) runOnJS(setMounted)(false);
+    },
+    [visible, hiddenTy],
+  );
 
   if (!mounted || !item) {
     return null;
@@ -160,22 +170,14 @@ export default function EmbeddedMapPanel() {
       : null;
 
   return (
-    <Animated.View
+    <Reanimated.View
       style={[
         styles.panel,
+        animatedPanelStyle,
         {
           height,
           backgroundColor: theme.bgElevated,
           borderBottomColor: theme.borderSubtle,
-          opacity: enter,
-          transform: [
-            {
-              translateY: enter.interpolate({
-                inputRange: [0, 1],
-                outputRange: [-height, 0],
-              }),
-            },
-          ],
         },
       ]}>
       <View style={[styles.head, { paddingTop: insets.top + 10 }]}>
@@ -338,7 +340,7 @@ export default function EmbeddedMapPanel() {
           ) : null}
         </Map>
       </View>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 

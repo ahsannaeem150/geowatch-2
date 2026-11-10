@@ -392,6 +392,10 @@ Body: `{ pinned: boolean }`
 Access: `admin` / `super_admin`  
 Body: `{ displayOrder: number }`
 
+### GET /media-proxy/video?url=<encoded-twitter-video-url>
+Access: Public
+Streams only HTTPS `video.twimg.com` URLs; other hosts and upstream redirects are rejected. Browser Origin is not forwarded to Twitter, while the client's `Range` header and upstream status/content headers are preserved for seeking. Full responses return `200`; partial responses return `206`. Invalid hosts return `400 VALIDATION_ERROR`; upstream failures return `502 VIDEO_UPSTREAM_UNAVAILABLE` or `VIDEO_STREAM_FAILED`.
+
 ---
 
 > **Zones are now Polygon Incidents.** The standalone `/zones` endpoints have been removed. Create or update zones via `POST /incidents` or `PATCH /incidents/:id` with `geometryType: 'polygon'`, a GeoJSON `geometry` object, and `zoneCategoryId`.

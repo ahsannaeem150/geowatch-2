@@ -69,7 +69,7 @@ function RowThumb({ color }) {
 
 // prItemHTML port: accent bar, title, `KIND · S#` meta (+ optional suffix),
 // thumb. `highlighted` = prototype's .active state after preview restore.
-export function SavedItemRow({ kind, item, metaSuffix, highlighted, onPress }) {
+export function SavedItemRow({ kind, item, metaSuffix, highlighted, last = false, onPress }) {
   const { theme } = useTheme();
   const color = itemColor(theme, kind, item);
   const sev = severityOf(item);
@@ -78,7 +78,7 @@ export function SavedItemRow({ kind, item, metaSuffix, highlighted, onPress }) {
     borderColor: highlighted ? theme.accentLight : theme.borderSubtle,
   };
   return (
-    <Pressable onPress={onPress} style={[styles.row, rowStyle]}>
+    <Pressable onPress={onPress} style={[styles.row, rowStyle, last && styles.rowLast]}>
       <View style={[styles.accent, { backgroundColor: color }]} />
       <View style={styles.rowBody}>
         <Text
@@ -138,6 +138,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     overflow: 'hidden',
   },
+  rowLast: {
+    marginBottom: 0,
+  },
   accent: {
     position: 'absolute',
     left: 0,
@@ -151,9 +154,9 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   rowTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 17,
+    lineHeight: 19,
   },
   rowMeta: {
     flexDirection: 'row',
@@ -166,8 +169,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   rowMetaText: {
-    fontSize: 9,
-    letterSpacing: 0.8,
+    fontSize: 9.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   thumb: {

@@ -25,12 +25,11 @@ export default function SelectionPill() {
   const { selectedKind } = useMap();
   const { stack } = useOverlay();
   // Power Search owns the screen (and its own result sheet) — the map's
-  // selection pill must not linger on top of it. Same for any open overlay
-  // (Incidents/Activity/Alerts tabs, drawers, sheets): a PLAIN map
-  // selection's pill belongs to the map and leaves with it. Preview pills
-  // (origin set) stay — they are how the user reopens a dismissed preview.
+  // selection pill must not linger on top of it. Pills also stay hidden when
+  // any non-owner overlay is active; Power Search's pill appears only there.
   const psOpen = isPowerSearchActive(stack);
-  const coveredByOverlay = !origin && stack.length > 0;
+  const coveredByOverlay =
+    stack.length > 0 && (!origin || origin.id !== 'powerSearch' || !psOpen);
   const visible = view === 'pill' && !!item && !psOpen && !coveredByOverlay;
   const [mounted, setMounted] = React.useState(visible);
   const enter = useRef(new Animated.Value(visible ? 1 : 0)).current;

@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../../constants.js';
+
 // Live tweet data for native X-post cards (web). X's official embed widget
 // navigates users away and injects its own UI, so we resolve the tweet through
 // the free fxtwitter embed API (no key, CORS-open) and render our own card —
@@ -7,6 +9,18 @@
 // tweet does not refetch on every render.
 
 const cache = new Map();
+const apiBase = API_BASE_URL.replace(/\/$/, '');
+
+function playbackUrl(url) {
+  try {
+    if (new URL(url).hostname === 'video.twimg.com') {
+      return `${apiBase}/media-proxy/video?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
 
 export function extractTweetRef(url) {
   const m = (url || '').match(/(?:x|twitter)\.com\/([^/]+)\/status(?:es)?\/(\d+)/i);
@@ -34,7 +48,7 @@ export async function fetchTweet(url) {
         for (const v of t.media?.videos || []) {
           media.push({
             type: 'video',
-            url: v.url,
+            url: playbackUrl(v.url),
             thumb: v.thumbnail_url || null,
             width: v.width || null,
             height: v.height || null,

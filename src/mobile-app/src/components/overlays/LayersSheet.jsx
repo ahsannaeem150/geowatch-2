@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   group: {
     flexDirection: 'row',

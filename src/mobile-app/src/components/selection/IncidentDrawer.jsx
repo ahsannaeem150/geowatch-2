@@ -514,7 +514,10 @@ export default function IncidentDrawer() {
           INCIDENT DETAILS
         </Text>
       </View>
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.body}
+        overScrollMode="never"
+        showsVerticalScrollIndicator={false}>
         <DrawerBody item={item} />
       </ScrollView>
     </Animated.View>
@@ -587,7 +590,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   tlNode: {
-    marginBottom: 14,
+    marginBottom: 10,
     paddingLeft: 16,
   },
   tlDot: {
@@ -804,6 +807,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tailPad: {
-    height: 28,
+    height: 0,
   },
 });

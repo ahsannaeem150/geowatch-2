@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 12,
+    paddingBottom: 0,
     gap: 12,
   },
   searchRow: {
