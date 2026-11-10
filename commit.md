@@ -13199,3 +13199,13 @@ test(mobile): verify minimalist dark/light cards, ESLint and release build passe
 
 fix(mobile): remove the artificial History blank-screen delay and reveal cards immediately.
 test(mobile): verify immediate open and scroll reveals on device; ESLint and release build passed.
+
+
+
+chore(mobile): remove the Selection Behavior settings section while preserving the default map behavior.
+test(mobile): verify Settings and Appearance rendering plus ESLint and release build.
+
+
+
+feat(taxonomy): add live active-taxonomy refresh, archive/restore, and transactional domain/category merges across all four apps.
+test(taxonomy): verify API merges/conflict rollback, Superadmin lifecycle UI, live filters on all three web apps and mobile, and all production builds.

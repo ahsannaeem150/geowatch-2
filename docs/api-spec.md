@@ -457,6 +457,38 @@ Response: `{ data: { domains: [ { id, name, slug, description, color, icon, sort
 Access: Public  
 Response: `{ data: { domain: { ... }, categories: [...] } }`
 
+Public taxonomy reads return only active domains/categories and send `Cache-Control: no-store` so live taxonomy updates are not served stale. Historical incident responses retain their category/domain references even after archival.
+
+### GET /categories/all
+Access: `super_admin` only
+Returns active and archived categories for taxonomy management.
+
+### GET /categories/domains/all
+Access: `super_admin` only
+Returns active and archived domains for taxonomy management.
+
+### GET /categories/:id/dependencies
+Access: `super_admin` only
+Response: `{ data: { incidentCount } }`
+
+### GET /categories/domains/:id/dependencies
+Access: `super_admin` only
+Response: `{ data: { categoryCount, incidentCount } }`
+
+### POST /categories/:id/merge
+Access: `super_admin` only
+Body: `{ "targetCategoryId": 123 }`
+Transactionally reassigns all incidents to the active target category, then deletes the source category and records an audit entry. Same-target and inactive-target requests fail without changing data.
+
+### POST /categories/domains/:id/merge
+Access: `super_admin` only
+Body: `{ "targetDomainId": 123 }`
+Moves all source categories to the active target domain, then deletes the source domain. Incident/category IDs and history are preserved. If target and source categories share slugs, returns `409 MERGE_SLUG_CONFLICT` and rolls back.
+
+### GET /taxonomy/stream
+Access: Public SSE
+Emits `taxonomy_updated` for create, update/archive/restore, delete and merge operations. Mounted before the general rate limiter. Clients refresh active taxonomy filters without a reload.
+
 ---
 
 ## USER MANAGEMENT (Superadmin)

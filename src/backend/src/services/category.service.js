@@ -1,11 +1,12 @@
-import { query } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 
 // ─── Read Queries (existing) ───
 
-export async function getDomains() {
+export async function getDomains({ includeInactive = false } = {}) {
   const sql = `
     SELECT d.id, d.name, d.slug, d.description, d.color, d.light_color, d.icon, d.sort_order, d.is_active
     FROM domains d
+    ${includeInactive ? '' : 'WHERE d.is_active = true'}
     ORDER BY d.sort_order, d.name
   `;
   const result = await query(sql);
@@ -38,7 +39,7 @@ export async function getDomainWithCategories(slug) {
   return domain;
 }
 
-export async function getAllCategories() {
+export async function getAllCategories({ includeInactive = false } = {}) {
   const sql = `
     SELECT c.id, c.name, c.slug, c.description, c.severity_schema, c.default_severity,
            c.requires_location, c.requires_casualties AS requires_photo,
@@ -48,6 +49,7 @@ export async function getAllCategories() {
            d.color AS domain_color, d.light_color AS domain_light_color, d.icon AS domain_icon
     FROM categories c
     JOIN domains d ON c.domain_id = d.id
+    ${includeInactive ? '' : 'WHERE c.is_active = true AND d.is_active = true'}
     ORDER BY d.sort_order, c.sort_order, c.name
   `;
   const result = await query(sql);
@@ -197,3 +199,112 @@ export async function getCategoryIncidentCount(id) {
   return parseInt(result.rows[0].c, 10);
 }
 
+
+
+async function withTransaction(work) {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const result = await work(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+function taxonomyError(message, status, errorCode, details = null) {
+  return Object.assign(new Error(message), { status, errorCode, details });
+}
+
+export async function getDomainIncidentCount(id) {
+  const result = await query(
+    'SELECT COUNT(*) AS c FROM incidents i JOIN categories c ON i.category_id = c.id WHERE c.domain_id = $1',
+    [id],
+  );
+  return parseInt(result.rows[0].c, 10);
+}
+
+export async function mergeCategory(id, targetCategoryId) {
+  return withTransaction(async (client) => {
+    const sourceResult = await client.query('SELECT * FROM categories WHERE id = $1 FOR UPDATE', [id]);
+    const source = sourceResult.rows[0];
+    if (!source) throw taxonomyError('Source category not found', 404, 'NOT_FOUND');
+    if (source.id === targetCategoryId) {
+      throw taxonomyError('Choose a different target category', 409, 'MERGE_TARGET_INVALID');
+    }
+
+    const targetResult = await client.query(
+      `SELECT c.*, d.is_active AS domain_is_active
+       FROM categories c JOIN domains d ON c.domain_id = d.id
+       WHERE c.id = $1 FOR UPDATE`,
+      [targetCategoryId],
+    );
+    const target = targetResult.rows[0];
+    if (!target) throw taxonomyError('Target category not found', 404, 'NOT_FOUND');
+    if (!target.is_active || !target.domain_is_active) {
+      throw taxonomyError('Target category must be active', 409, 'MERGE_TARGET_INACTIVE');
+    }
+
+    const incidentResult = await client.query(
+      'SELECT COUNT(*) AS c FROM incidents WHERE category_id = $1',
+      [id],
+    );
+    const incidentCount = parseInt(incidentResult.rows[0].c, 10);
+    await client.query('UPDATE incidents SET category_id = $1 WHERE category_id = $2', [targetCategoryId, id]);
+    await client.query('DELETE FROM categories WHERE id = $1', [id]);
+    return { source, target, incidentCount };
+  });
+}
+
+export async function mergeDomain(id, targetDomainId) {
+  return withTransaction(async (client) => {
+    const sourceResult = await client.query('SELECT * FROM domains WHERE id = $1 FOR UPDATE', [id]);
+    const source = sourceResult.rows[0];
+    if (!source) throw taxonomyError('Source domain not found', 404, 'NOT_FOUND');
+    if (source.id === targetDomainId) {
+      throw taxonomyError('Choose a different target domain', 409, 'MERGE_TARGET_INVALID');
+    }
+
+    const targetResult = await client.query('SELECT * FROM domains WHERE id = $1 FOR UPDATE', [targetDomainId]);
+    const target = targetResult.rows[0];
+    if (!target) throw taxonomyError('Target domain not found', 404, 'NOT_FOUND');
+    if (!target.is_active) {
+      throw taxonomyError('Target domain must be active', 409, 'MERGE_TARGET_INACTIVE');
+    }
+
+    const categoriesResult = await client.query(
+      'SELECT * FROM categories WHERE domain_id = $1 ORDER BY id FOR UPDATE',
+      [id],
+    );
+    const categories = categoriesResult.rows;
+    if (categories.length) {
+      const slugs = categories.map((category) => category.slug);
+      const conflictsResult = await client.query(
+        'SELECT slug FROM categories WHERE domain_id = $1 AND slug = ANY($2)',
+        [targetDomainId, slugs],
+      );
+      const conflictSlugs = conflictsResult.rows.map((row) => row.slug);
+      if (conflictSlugs.length) {
+        throw taxonomyError(
+          'Target domain already has categories with the same slugs. Merge those categories individually first.',
+          409,
+          'MERGE_SLUG_CONFLICT',
+          { conflictSlugs },
+        );
+      }
+    }
+
+    const incidentResult = await client.query(
+      'SELECT COUNT(*) AS c FROM incidents i JOIN categories c ON i.category_id = c.id WHERE c.domain_id = $1',
+      [id],
+    );
+    const incidentCount = parseInt(incidentResult.rows[0].c, 10);
+    await client.query('UPDATE categories SET domain_id = $1 WHERE domain_id = $2', [targetDomainId, id]);
+    await client.query('DELETE FROM domains WHERE id = $1', [id]);
+    return { source, target, categoryCount: categories.length, incidentCount };
+  });
+}

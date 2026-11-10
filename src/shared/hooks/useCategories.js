@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { subscribeTaxonomyEvents } from '../services/taxonomy-events.js';
 
 const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:3100/api/v1';
 
 let cache = null;
 let cachePromise = null;
+const subscribers = new Set();
 
 async function fetchCategories() {
-  if (cache) return cache;
   if (cachePromise) return cachePromise;
 
   cachePromise = (async () => {
@@ -41,13 +42,24 @@ async function fetchCategories() {
     }
 
     const domains = Array.from(domainsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-
     cache = { categories, domains, domainsMap, categoriesByDomain, categoryById, categoryBySlug };
+    subscribers.forEach((subscriber) => subscriber(cache));
     return cache;
-  })();
+  })().finally(() => {
+    cachePromise = null;
+  });
 
   return cachePromise;
 }
+
+export async function refreshCategories() {
+  cache = null;
+  return fetchCategories();
+}
+
+subscribeTaxonomyEvents(() => {
+  refreshCategories().catch(() => {});
+});
 
 export function useCategories() {
   const [state, setState] = useState({
@@ -56,6 +68,14 @@ export function useCategories() {
     loading: !cache,
     error: null,
   });
+
+  useEffect(() => {
+    const subscriber = (next) => {
+      setState({ categories: next.categories, domains: next.domains, loading: false, error: null });
+    };
+    subscribers.add(subscriber);
+    return () => subscribers.delete(subscriber);
+  }, []);
 
   useEffect(() => {
     if (cache) {

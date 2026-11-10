@@ -773,3 +773,36 @@ export function clearStaffRecents(type) {
 export function getStaffActivity(limit = 50) {
   return request(`/staff/activity?limit=${limit}`);
 }
+
+
+export async function listAllDomains() {
+  const res = await request('/categories/domains/all');
+  return res.domains || [];
+}
+
+export async function listAllCategoriesAdmin() {
+  const res = await request('/categories/all');
+  return res.categories || [];
+}
+
+export function getDomainDependencies(id) {
+  return request(`/categories/domains/${id}/dependencies`);
+}
+
+export function getCategoryDependencies(id) {
+  return request(`/categories/${id}/dependencies`);
+}
+
+export function mergeDomain(id, targetDomainId) {
+  return request(`/categories/domains/${id}/merge`, {
+    method: 'POST',
+    body: JSON.stringify({ targetDomainId }),
+  });
+}
+
+export function mergeCategory(id, targetCategoryId) {
+  return request(`/categories/${id}/merge`, {
+    method: 'POST',
+    body: JSON.stringify({ targetCategoryId }),
+  });
+}

@@ -23,6 +23,7 @@ import AwayBanner from '../components/AwayBanner/AwayBanner.jsx';
 import MapContextMenu from '@shared/components/MapContextMenu.jsx';
 import { IncidentDetailSidebar, ZoneDetailSidebar, CommandPalette } from '@shared';
 import { useMapContextMenu } from '@shared/hooks/useMapContextMenu.js';
+import { subscribeTaxonomyEvents } from '@shared/services/taxonomy-events.js';
 import { usePublicAuth } from '../contexts/PublicAuthContext.jsx';
 import { useSignInModal } from '../contexts/SignInModalContext.jsx';
 import { computeMapPadding, computeOuterContainerPadding } from '../utils/mapPadding.js';
@@ -437,15 +438,19 @@ export default function MapPage() {
 
   // Fetch domains, categories, and zone categories
   useEffect(() => {
-    api.getDomains()
-      .then((res) => setDomains(res.data.domains || []))
-      .catch(() => setDomains([]));
-    api.getCategories()
-      .then((res) => setCategories(res.data.categories || []))
-      .catch(() => setCategories([]));
-    api.getZoneCategories()
-      .then((res) => setZoneCategories(res.data.categories || res.data.zoneCategories || []))
-      .catch(() => setZoneCategories([]));
+    const load = () => {
+      api.getDomains()
+        .then((res) => setDomains(res.data.domains || []))
+        .catch(() => setDomains([]));
+      api.getCategories()
+        .then((res) => setCategories(res.data.categories || []))
+        .catch(() => setCategories([]));
+      api.getZoneCategories()
+        .then((res) => setZoneCategories(res.data.categories || res.data.zoneCategories || []))
+        .catch(() => setZoneCategories([]));
+    };
+    load();
+    return subscribeTaxonomyEvents(load);
   }, []);
 
   // Fetch saved incidents

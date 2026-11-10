@@ -36,6 +36,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { searchIncidents, searchZones } from '../../services/incidents.service';
 import { listCategories, listZoneCategories } from '../../services/taxonomy.service';
+import { subscribeTaxonomyEvents } from '../../services/taxonomy-events';
 import { DOMAINS, SEVERITIES, VERIFICATION_STATUSES, ZONE_OVERLAYS, bottomChromeInset } from '../../constants';
 import { locationLine, severityOf } from '../selection/PreviewCard';
 import useSheetGesture from '../../hooks/useSheetGesture';
@@ -135,11 +136,9 @@ export default function DirectoryScreen({ kind, overlay }) {
   // are the offline fallback.
   const [domains, setDomains] = useState(null);
   const [zonecats, setZonecats] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
+  const loadDomains = useCallback(() => {
     listCategories()
       .then((data) => {
-        if (cancelled) return;
         const seen = new Map();
         (data?.categories || []).forEach((c) => {
           if (c.domain_slug && !seen.has(c.domain_slug)) {
@@ -149,9 +148,18 @@ export default function DirectoryScreen({ kind, overlay }) {
             });
           }
         });
-        if (seen.size) setDomains([...seen.values()]);
+        setDomains([...seen.values()]);
       })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadDomains();
+    return subscribeTaxonomyEvents(loadDomains);
+  }, [loadDomains]);
+
+  useEffect(() => {
+    let cancelled = false;
     listZoneCategories()
       .then((data) => {
         if (cancelled) return;

@@ -12,29 +12,10 @@ import { SheetScrollView } from './SheetContainer';
 import { ChevronRight, Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
-import { SEL_MODES, useSelection } from '../../context/SelectionContext';
 import { useLive } from '../../context/LiveContext';
 import { useOverlay } from '../../context/OverlayContext';
 import LayersSheet from './LayersSheet';
 import NavigationHeader from './NavigationHeader';
-
-const MODE_META = {
-  peek: {
-    title: 'Peek panel',
-    recommended: true,
-    sub: 'Open a half-screen preview. Tap the preview to expand details. Back collapses to a small bar.',
-  },
-  compact: {
-    title: 'Compact bar',
-    recommended: false,
-    sub: 'Open a small bar first. Tap the bar to expand full details.',
-  },
-  direct: {
-    title: 'Direct panel',
-    recommended: false,
-    sub: 'Open full details immediately. Back collapses to a small bar.',
-  },
-};
 
 const NOTIF_ROWS = [
   {
@@ -166,21 +147,6 @@ function ChoiceCard({ title, sub, selected, onPress, theme, recommended = false,
         <Text style={[styles.modeSub, { color: theme.textSecondary }]}>{sub}</Text>
       </View>
     </Pressable>
-  );
-}
-
-function ModeCard({ mode, theme }) {
-  const { selMode, setSelMode } = useSelection();
-  const meta = MODE_META[mode];
-  return (
-    <ChoiceCard
-      title={meta.title}
-      sub={meta.sub}
-      recommended={meta.recommended}
-      selected={selMode === mode}
-      onPress={() => setSelMode(mode)}
-      theme={theme}
-    />
   );
 }
 
@@ -404,14 +370,6 @@ export default function SettingsSheet() {
           <AutoZoomRow theme={theme} />
         </SettingsGroup>
 
-        <SectionLabel theme={theme} spaced>SELECTION BEHAVIOR</SectionLabel>
-        <Text style={[styles.selHint, { color: theme.textSecondary }]}>
-          Choose what happens when you tap an incident or zone on the map.
-        </Text>
-        {SEL_MODES.map((m) => (
-          <ModeCard key={m} mode={m} theme={theme} />
-        ))}
-
         <SectionLabel theme={theme} spaced>SUPPORT</SectionLabel>
         <SettingsGroup theme={theme}>
           <SetRow
@@ -488,12 +446,6 @@ const styles = StyleSheet.create({
   setSub: {
     fontSize: 12,
     lineHeight: 17,
-  },
-  selHint: {
-    fontSize: 12.5,
-    lineHeight: 19,
-    marginBottom: 12,
-    paddingHorizontal: 2,
   },
   modeCard: {
     flexDirection: 'row',

@@ -89,6 +89,17 @@ app.get('/api/v1/incidents/stream', authenticate, (req, res) => {
   });
 });
 
+// ─── Public taxonomy stream (before rate limiter — long-lived connections) ───
+app.get('/api/v1/taxonomy/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+  res.write(': connected\n\n');
+  addClient(res);
+  req.on('close', () => removeClient(res));
+});
+
 // ─── Static File Serving (uploads) ───
 // Serve user-generated content BEFORE rate limiting so images don't count toward API limits
 let UPLOAD_DIR = process.env.UPLOAD_DIR || join(__dirname, '../../uploads');

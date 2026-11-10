@@ -152,11 +152,13 @@ Critical `server.js` mount order:
 
 1. JSON parsing + response wrapper.
 2. Authenticated SSE stream, before general limiter and before `incidentRoutes` treats `stream` as `/:id`.
-3. Static `/uploads` and `/fonts`, before general limiter.
+3. Public `/api/v1/taxonomy/stream`, static `/uploads` and `/fonts`, before general limiter.
 4. `generalLimiter`.
 5. API routers, 404, error handler last.
 
 API groups: health, staff/public auth/users, audit, system, categories, incidents/saved incidents, timeline, public/staff sources, media, media proxy, zone categories, geocode, stats, notifications, staff recents/activity, X-archive debug. Public `GET /media-proxy/video?url=` streams only HTTPS `video.twimg.com` URLs without forwarding browser Origin, preserves byte ranges for seeking, rejects redirects/other hosts, and applies the general rate limit; shared web X cards route Twitter playback through it, while uploaded MP4 metadata supplies thumbnails plus `type`/`videoUrl` to the shared lightbox.
+
+Taxonomy lifecycle: public domain/category reads are active-only and `no-store`; `/all` variants are superadmin management views including archived records. Used slugs are locked—rename labels/colors/icons rather than changing identifiers. Archive/restore hides taxonomy from new selections without touching historical incident joins. Category/domain merges run in DB transactions with active-target validation and slug-conflict rollback, then audit and emit `taxonomy_updated` over the public taxonomy stream. `src/shared/services/taxonomy-events.js` and mobile `services/taxonomy-events.js` refresh filters on all four apps; never rely on cached taxonomy after CRUD.
 
 ### Geometry and schema
 
@@ -226,7 +228,7 @@ Launch and first run:
 
 Navigation and appearance:
 
-- Bookmarks, History, Settings, Notification Preferences and Default Map Layers are full-screen destinations with `NavigationHeader`; bottom sheets are reserved for contextual auth/map/incident/evidence flows. Saved lists share `ProfilePanelBody`'s pattern. Profile/sidebar consolidate preferences under Settings; Help/About remain contextual sheets. `ProfileDrawer.go` marks destinations `restoreProfileDrawer`; `closeOverlay` reopens the origin drawer for both hardware and arrow Back, while nested filters/subsections handle their own Back first and TabBar `closeAll` does not force a drawer return.
+- Bookmarks, History, Settings, Notification Preferences and Default Map Layers are full-screen destinations with `NavigationHeader`; bottom sheets are reserved for contextual auth/map/incident/evidence flows. Selection Behavior is no longer user-configurable in Settings—keep the existing default selection state machine rather than reintroducing mode cards. Saved lists share `ProfilePanelBody`'s pattern. Profile/sidebar consolidate preferences under Settings; Help/About remain contextual sheets. `ProfileDrawer.go` marks destinations `restoreProfileDrawer`; `closeOverlay` reopens the origin drawer for both hardware and arrow Back, while nested filters/subsections handle their own Back first and TabBar `closeAll` does not force a drawer return.
 - History-only rows use neutral `bgElevated`/`borderSubtle` cards with per-item SVG accent gradients limited to a 5% corner tint (never full colored borders or strong rainbow fills), plus Reanimated side/opacity entrances: initial reveal starts immediately with a 0–300ms stagger (no artificial blank-screen delay), and rows reveal near the scroll viewport without changing `SheetScrollView` handoff or bottom insets. Animate transform/opacity only; reduced-motion shows all rows immediately. Do not apply this glow to Bookmarks or other lists.
 - `ThemeContext.themePreference` supports `system`/`dark`/`light` via `useColorScheme`; native launch stores the resolved mode. Settings → Appearance is the only theme editor. TabBar is a full-width opaque sticky bar with a strong accent active-tab background, sentence-case labels and a List incidents icon; keep its 58dp total inset, 2dp extra system-nav gap and visible bottom divider. Profile drawer stays mounted offscreen in `OverlayHost` and open/close only retargets a hardware-cached Reanimated translation—do not remount it per entry (remounts dropped drawer FPS to ~60; retained entry measured ~109–111fps).
 

@@ -8,33 +8,43 @@ import {
   updateDomainSchema,
   createCategorySchema,
   updateCategorySchema,
+  mergeDomainSchema,
+  mergeCategorySchema,
 } from '../validators/category.schema.js';
 import {
   getDomainsController,
+  getAllDomainsController,
   getDomainController,
   getAllCategoriesController,
+  getAllCategoriesAdminController,
+  getDomainDependenciesController,
+  getCategoryDependenciesController,
   createDomainController,
   updateDomainController,
   deleteDomainController,
+  mergeDomainController,
   createCategoryController,
   updateCategoryController,
   deleteCategoryController,
+  mergeCategoryController,
 } from '../controllers/category.controller.js';
 
 const router = Router();
 
-// Public read routes
 router.get('/domains', asyncHandler(getDomainsController));
+router.get('/domains/all', authenticate, requireRole('super_admin'), asyncHandler(getAllDomainsController));
 router.get('/domains/:slug', asyncHandler(getDomainController));
 router.get('/', asyncHandler(getAllCategoriesController));
+router.get('/all', authenticate, requireRole('super_admin'), asyncHandler(getAllCategoriesAdminController));
+router.get('/domains/:id/dependencies', authenticate, requireRole('super_admin'), asyncHandler(getDomainDependenciesController));
+router.get('/:id/dependencies', authenticate, requireRole('super_admin'), asyncHandler(getCategoryDependenciesController));
 
-// Super admin only mutations
 router.post(
   '/domains',
   authenticate,
   requireRole('super_admin'),
   validateRequest(createDomainSchema, 'body'),
-  asyncHandler(createDomainController)
+  asyncHandler(createDomainController),
 );
 
 router.patch(
@@ -42,14 +52,22 @@ router.patch(
   authenticate,
   requireRole('super_admin'),
   validateRequest(updateDomainSchema, 'body'),
-  asyncHandler(updateDomainController)
+  asyncHandler(updateDomainController),
 );
 
 router.delete(
   '/domains/:id',
   authenticate,
   requireRole('super_admin'),
-  asyncHandler(deleteDomainController)
+  asyncHandler(deleteDomainController),
+);
+
+router.post(
+  '/domains/:id/merge',
+  authenticate,
+  requireRole('super_admin'),
+  validateRequest(mergeDomainSchema, 'body'),
+  asyncHandler(mergeDomainController),
 );
 
 router.post(
@@ -57,7 +75,7 @@ router.post(
   authenticate,
   requireRole('super_admin'),
   validateRequest(createCategorySchema, 'body'),
-  asyncHandler(createCategoryController)
+  asyncHandler(createCategoryController),
 );
 
 router.patch(
@@ -65,14 +83,22 @@ router.patch(
   authenticate,
   requireRole('super_admin'),
   validateRequest(updateCategorySchema, 'body'),
-  asyncHandler(updateCategoryController)
+  asyncHandler(updateCategoryController),
 );
 
 router.delete(
   '/:id',
   authenticate,
   requireRole('super_admin'),
-  asyncHandler(deleteCategoryController)
+  asyncHandler(deleteCategoryController),
+);
+
+router.post(
+  '/:id/merge',
+  authenticate,
+  requireRole('super_admin'),
+  validateRequest(mergeCategorySchema, 'body'),
+  asyncHandler(mergeCategoryController),
 );
 
 export default router;

@@ -74,3 +74,12 @@ export const updateCategorySchema = z.object({
 }).refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field must be provided',
 });
+
+
+export const mergeDomainSchema = z.object({
+  targetDomainId: z.number().int().positive(),
+});
+
+export const mergeCategorySchema = z.object({
+  targetCategoryId: z.number().int().positive(),
+});
