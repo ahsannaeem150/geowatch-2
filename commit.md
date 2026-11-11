@@ -13215,3 +13215,8 @@ test(taxonomy): verify API merges/conflict rollback, Superadmin lifecycle UI, li
 feat(loading): add unified skeleton shimmer, map/search progress, superadmin states, and media placeholders across web and mobile.
 fix(loading): prevent false empty/pagination states and keep cached Power Search results visible with inline progress.
 test(loading): verify delayed/empty/offline flows, dark/light themes, all web builds, mobile lint/release, and physical-device interactions.
+
+
+
+fix(mobile): animate all initially visible History rows from viewport measurements instead of only the first four.
+test(mobile): verify initial reveal, forward/reverse scroll, ESLint and release build on physical device.

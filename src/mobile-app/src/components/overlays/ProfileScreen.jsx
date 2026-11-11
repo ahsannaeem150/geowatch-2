@@ -265,7 +265,7 @@ function HistoryEntry({ entry, index, visible, highlighted, last, onLayout, onOp
       return;
     }
     if (visible) {
-      const delay = index < 4 ? index * 100 : 0;
+      const delay = Math.min(index, 5) * 70;
       progress.value = withDelay(
         delay,
         withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }),
@@ -296,9 +296,7 @@ function HistoryEntry({ entry, index, visible, highlighted, last, onLayout, onOp
 }
 
 function HistoryEntries({ history, selectedId, onOpen }) {
-  const [visibleIds, setVisibleIds] = useState(
-    () => new Set(history.slice(0, 4).map(historyKey)),
-  );
+  const [visibleIds, setVisibleIds] = useState(() => new Set());
   const historyRef = useRef(history);
   historyRef.current = history;
   const layoutsRef = useRef(new Map());
@@ -328,14 +326,6 @@ function HistoryEntries({ history, selectedId, onOpen }) {
       return changed ? next : previous;
     });
   }, []);
-
-  useEffect(() => {
-    setVisibleIds((previous) => {
-      const next = new Set(previous);
-      history.slice(0, 4).forEach((entry) => next.add(historyKey(entry)));
-      return next;
-    });
-  }, [history]);
 
   return (
     <SheetScrollView
