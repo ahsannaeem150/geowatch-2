@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
   Alert,
   Pressable,
@@ -6,15 +6,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Reanimated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
 import { SheetScrollView } from './SheetContainer';
 import {
   Bookmark,
@@ -24,7 +15,7 @@ import {
   LogOut,
   Settings,
 } from 'lucide-react-native';
-import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
+import { compactAgo } from '../../services/live-utils';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
@@ -33,7 +24,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import {
   PanelEmpty,
-  SavedItemRow,
+  SavedEntries,
   kindOfItem,
   useSavedIncidents,
 } from './profileShared';
@@ -43,8 +34,7 @@ import {
 // so hardware back naturally walks panel → page → map.
 
 function ago(iso) {
-  const d = iso ? parseISO(iso) : null;
-  return d && isValid(d) ? formatDistanceToNow(d, { addSuffix: true }) : '';
+  return compactAgo(iso);
 }
 
 function PageRow({ icon, label, sub, onPress }) {
@@ -251,118 +241,6 @@ export function ProfilePageBody() {
   );
 }
 
-function historyKey(entry) {
-  return `${entry.kind}-${entry.id}`;
-}
-
-function HistoryEntry({ entry, index, visible, highlighted, last, onLayout, onOpen }) {
-  const reducedMotion = useReducedMotion();
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      progress.value = 1;
-      return;
-    }
-    if (visible) {
-      const delay = Math.min(index, 5) * 70;
-      progress.value = withDelay(
-        delay,
-        withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }),
-      );
-    } else {
-      progress.value = 0;
-    }
-  }, [index, progress, reducedMotion, visible]);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateX: interpolate(progress.value, [0, 1], [36, 0]) }],
-  }), [progress]);
-
-  return (
-    <Reanimated.View onLayout={onLayout} style={style}>
-      <SavedItemRow
-        kind={entry.kind}
-        item={entry.item}
-        metaSuffix={ago(entry.when) ? ` · ${ago(entry.when)}` : ''}
-        highlighted={highlighted}
-        last={last}
-        glow
-        onPress={() => onOpen(entry.kind, entry.item)}
-      />
-    </Reanimated.View>
-  );
-}
-
-function HistoryEntries({ history, selectedId, onOpen }) {
-  const [visibleIds, setVisibleIds] = useState(() => new Set());
-  const historyRef = useRef(history);
-  historyRef.current = history;
-  const layoutsRef = useRef(new Map());
-  const viewportRef = useRef(0);
-  const scrollYRef = useRef(0);
-
-  const reveal = useCallback(() => {
-    if (!viewportRef.current) return;
-    const y = scrollYRef.current;
-    const viewport = viewportRef.current;
-    setVisibleIds((previous) => {
-      const next = new Set(previous);
-      let changed = false;
-      historyRef.current.forEach((entry) => {
-        const key = historyKey(entry);
-        const layout = layoutsRef.current.get(key);
-        if (
-          layout
-          && layout.y < y + viewport + 96
-          && layout.y + layout.height > y - 96
-          && !next.has(key)
-        ) {
-          next.add(key);
-          changed = true;
-        }
-      });
-      return changed ? next : previous;
-    });
-  }, []);
-
-  return (
-    <SheetScrollView
-      style={styles.panelBody}
-      contentContainerStyle={styles.panelBodyContent}
-      showsVerticalScrollIndicator={false}
-      onLayout={(event) => {
-        viewportRef.current = event.nativeEvent.layout.height;
-        reveal();
-      }}
-      onContentSizeChange={reveal}
-      onScroll={(event) => {
-        scrollYRef.current = event.nativeEvent.contentOffset.y;
-        reveal();
-      }}>
-      {history.map((entry, index) => {
-        const key = historyKey(entry);
-        return (
-          <HistoryEntry
-            key={key}
-            entry={entry}
-            index={index}
-            visible={visibleIds.has(key)}
-            highlighted={selectedId === entry.id}
-            last={index === history.length - 1}
-            onLayout={(event) => {
-              layoutsRef.current.set(key, event.nativeEvent.layout);
-              reveal();
-            }}
-            onOpen={onOpen}
-          />
-        );
-      })}
-    </SheetScrollView>
-  );
-}
-
 // ─── Side panel (#pr-sidepanel): bookmarks or history list stacked over the
 // profile page. Row tap → previewItemOnMap with the panel staying mounted
 // (fullscreen origin); back restores with the row highlighted.
@@ -428,19 +306,15 @@ export function ProfilePanelBody({ overlay }) {
         />
       );
     } else {
-      body = saved.map((item, index) => {
-        const kind = kindOfItem(item);
-        return (
-          <SavedItemRow
-            key={item.id}
-            kind={kind}
-            item={item}
-            last={index === saved.length - 1}
-            highlighted={selectedId === item.id}
-            onPress={() => openItem(kind, item)}
-          />
-        );
-      });
+      body = (
+        <SavedEntries
+          history={saved.map((item) => ({ kind: kindOfItem(item), id: item.id, item }))}
+          selectedId={selectedId}
+          onOpen={openItem}
+          bodyStyle={styles.panelBody}
+          contentStyle={styles.panelBodyContent}
+        />
+      );
     }
   } else if (!history.length) {
     body = (
@@ -481,7 +355,16 @@ export function ProfilePanelBody({ overlay }) {
         ) : null}
       </View>
       {which === 'history' && history.length ? (
-        <HistoryEntries history={history} selectedId={selectedId} onOpen={openItem} />
+        <SavedEntries
+          history={history.map((entry) => ({
+            ...entry,
+            metaSuffix: ago(entry.when) ? ` · ${ago(entry.when)}` : '',
+          }))}
+          selectedId={selectedId}
+          onOpen={openItem}
+          bodyStyle={styles.panelBody}
+          contentStyle={styles.panelBodyContent}
+        />
       ) : (
         <SheetScrollView
           style={styles.panelBody}

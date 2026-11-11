@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SheetScrollView } from './SheetContainer';
 import { Bookmark, History } from 'lucide-react-native';
-import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
+import { compactAgo } from '../../services/live-utils';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
@@ -11,7 +11,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import {
   PanelEmpty,
-  SavedItemRow,
+  SavedEntries,
   kindOfItem,
   useSavedIncidents,
 } from './profileShared';
@@ -22,8 +22,7 @@ import NavigationHeader from './NavigationHeader';
 // remembered, and Back from the preview chain reopens it.
 
 function ago(iso) {
-  const d = iso ? parseISO(iso) : null;
-  return d && isValid(d) ? formatDistanceToNow(d, { addSuffix: true }) : '';
+  return compactAgo(iso);
 }
 
 function MetaRow({ count, note, onNotePress, noteColor }) {
@@ -122,21 +121,17 @@ export function BookmarksSheetBody() {
       />
     );
   } else {
-    body = saved.map((item, index) => {
-      const kind = kindOfItem(item);
-      return (
-        <SavedItemRow
-          key={item.id}
-          kind={kind}
-          item={item}
-          last={index === saved.length - 1}
-          highlighted={selectedId === item.id}
-          onPress={() =>
-            previewItemOnMap(kind, item, { type: 'fullscreen', id: 'bookmarks' })
-          }
-        />
-      );
-    });
+    body = (
+      <SavedEntries
+        history={saved.map((item) => ({ kind: kindOfItem(item), id: item.id, item }))}
+        selectedId={selectedId}
+        onOpen={(kind, item) =>
+          previewItemOnMap(kind, item, { type: 'fullscreen', id: 'bookmarks' })
+        }
+        bodyStyle={styles.list}
+        contentStyle={styles.listContent}
+      />
+    );
   }
 
   return (
@@ -180,19 +175,20 @@ export function HistorySheetBody() {
       />
     );
   } else {
-    body = history.map((h, index) => (
-      <SavedItemRow
-        key={`${h.kind}-${h.id}`}
-        kind={h.kind}
-        item={h.item}
-        last={index === history.length - 1}
-        metaSuffix={ago(h.when) ? ` · ${ago(h.when)}` : ''}
-        highlighted={selectedId === h.id}
-        onPress={() =>
-          previewItemOnMap(h.kind, h.item, { type: 'fullscreen', id: 'history' })
+    body = (
+      <SavedEntries
+        history={history.map((entry) => ({
+          ...entry,
+          metaSuffix: ago(entry.when) ? ` · ${ago(entry.when)}` : '',
+        }))}
+        selectedId={selectedId}
+        onOpen={(kind, item) =>
+          previewItemOnMap(kind, item, { type: 'fullscreen', id: 'history' })
         }
+        bodyStyle={styles.list}
+        contentStyle={styles.listContent}
       />
-    ));
+    );
   }
 
   return (

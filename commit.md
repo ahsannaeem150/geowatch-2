@@ -13220,3 +13220,8 @@ test(loading): verify delayed/empty/offline flows, dark/light themes, all web bu
 
 fix(mobile): animate all initially visible History rows from viewport measurements instead of only the first four.
 test(mobile): verify initial reveal, forward/reverse scroll, ESLint and release build on physical device.
+
+
+
+feat(mobile): unify History and Bookmarks with domain/zone-aware rows, locations, compact timestamps, and shared viewport reveal animations.
+test(mobile): verify incident/zone rows, dark/light layouts, scrolling and selection on physical device; ESLint and release build passed.
