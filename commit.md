@@ -13312,3 +13312,9 @@ test(mobile): verify incident/zone sheets, copy-link toast, light/dark themes, l
 feat(mobile): match dark/light shimmer contrast and real card, timeline, activity, layers and evidence layouts without changing sheet gestures.
 fix(mobile): make directory/Power Search skeletons scroll with real bottom insets, remove forced timeline media tiles, and use detail-driven media/source placeholders.
 test(mobile): verify both themes, no-media and rich incident/zone flows, ESLint and release APK; release list scroll had zero missed deadlines, while the existing map-resize sheet drag still showed deadline misses.
+
+
+
+
+style(mobile): replace harsh white/dark shimmer sweeps with subtle graphite and pale highlights inspired by common React Native skeleton palettes.
+test(mobile): verify neutral shimmer colors in dark and light Power Search loading, ESLint and release build.
