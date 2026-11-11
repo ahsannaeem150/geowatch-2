@@ -4,7 +4,8 @@ import { SheetScrollView } from './SheetContainer';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
-import { DOMAINS, ZONE_OVERLAYS } from '../../constants';
+import useTaxonomy from '../../hooks/useTaxonomy';
+import { ErrorBanner, FilterRowsSkeleton } from '../AsyncStates';
 
 // Layers sheet body — mirrors the prototype's renderLayers() (index.html):
 // two groups (Incident Domains, Zone Overlays), per-row eye toggle,
@@ -114,11 +115,21 @@ export default function LayersSheet() {
     setAllDomainLayers,
     setAllZoneLayers,
   } = useMap();
+  const {
+    domainRows,
+    zonecatRows,
+    domainsLoading,
+    domainsError,
+    zonecatsLoading,
+    zonecatsError,
+    retryDomains,
+    retryZonecats,
+  } = useTaxonomy();
 
-  const domainsShown = DOMAINS.filter(
+  const domainsShown = domainRows.filter(
     (d) => layerVisibility.domains[d.slug] !== false,
   ).length;
-  const zonesShown = ZONE_OVERLAYS.filter(
+  const zonesShown = zonecatRows.filter(
     (z) => layerVisibility.zones[z.slug] !== false,
   ).length;
 
@@ -127,40 +138,50 @@ export default function LayersSheet() {
       style={styles.scroll}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}>
-      <LayerGroup
-        title="Incident Domains"
-        shown={domainsShown}
-        total={DOMAINS.length}
-        onShowAll={() => setAllDomainLayers(true)}
-        onHideAll={() => setAllDomainLayers(false)}
-        theme={theme}
-      />
-      {DOMAINS.map((d) => (
-        <LayerRow
-          key={d.slug}
-          entry={d}
-          visible={layerVisibility.domains[d.slug] !== false}
-          onToggle={() => toggleDomainLayer(d.slug)}
-          theme={theme}
-        />
-      ))}
-      <LayerGroup
-        title="Zone Overlays"
-        shown={zonesShown}
-        total={ZONE_OVERLAYS.length}
-        onShowAll={() => setAllZoneLayers(true)}
-        onHideAll={() => setAllZoneLayers(false)}
-        theme={theme}
-      />
-      {ZONE_OVERLAYS.map((z) => (
-        <LayerRow
-          key={z.slug}
-          entry={z}
-          visible={layerVisibility.zones[z.slug] !== false}
-          onToggle={() => toggleZoneLayer(z.slug)}
-          theme={theme}
-        />
-      ))}
+      {domainsLoading ? <FilterRowsSkeleton rows={8} label="Loading incident domains" /> : (
+        <>
+          {domainsError ? <ErrorBanner message={domainsError} onRetry={retryDomains} style={styles.errorBanner} /> : null}
+          <LayerGroup
+            title="Incident Domains"
+            shown={domainsShown}
+            total={domainRows.length}
+            onShowAll={() => setAllDomainLayers(true)}
+            onHideAll={() => setAllDomainLayers(false)}
+            theme={theme}
+          />
+          {domainRows.map((d) => (
+            <LayerRow
+              key={d.slug}
+              entry={d}
+              visible={layerVisibility.domains[d.slug] !== false}
+              onToggle={() => toggleDomainLayer(d.slug)}
+              theme={theme}
+            />
+          ))}
+        </>
+      )}
+      {zonecatsLoading ? <FilterRowsSkeleton rows={6} label="Loading zone overlays" /> : (
+        <>
+          {zonecatsError ? <ErrorBanner message={zonecatsError} onRetry={retryZonecats} style={styles.errorBanner} /> : null}
+          <LayerGroup
+            title="Zone Overlays"
+            shown={zonesShown}
+            total={zonecatRows.length}
+            onShowAll={() => setAllZoneLayers(true)}
+            onHideAll={() => setAllZoneLayers(false)}
+            theme={theme}
+          />
+          {zonecatRows.map((z) => (
+            <LayerRow
+              key={z.slug}
+              entry={z}
+              visible={layerVisibility.zones[z.slug] !== false}
+              onToggle={() => toggleZoneLayer(z.slug)}
+              theme={theme}
+            />
+          ))}
+        </>
+      )}
     </SheetScrollView>
   );
 }
@@ -226,5 +247,9 @@ const styles = StyleSheet.create({
   },
   nameOff: {
     textDecorationLine: 'line-through',
+  },
+  errorBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
   },
 });

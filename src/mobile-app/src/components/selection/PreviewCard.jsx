@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MapPin, Star } from 'lucide-react-native';
+import { Clipboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Link2, MapPin, Star } from 'lucide-react-native';
 import { format, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -116,6 +116,26 @@ export function Tag({ color, label, dot }) {
   );
 }
 
+function CopyLinkButton({ itemId, kind }) {
+  const { theme } = useTheme();
+  const { showToast } = useOverlay();
+  const copyLink = () => {
+    Clipboard.setString(`http://localhost:5173/${kind}/${itemId}`);
+    showToast('Link copied');
+  };
+
+  return (
+    <Pressable
+      onPress={copyLink}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`Copy ${kind} link`}
+      style={styles.starBtn}>
+      <Link2 size={16} color={theme.textMuted} />
+    </Pressable>
+  );
+}
+
 // Real bookmark star: checks saved state when signed in, toggles
 // save/unsave; signed out → requireSignIn gate (sign-in sheet).
 export function StarButton({ itemId }) {
@@ -210,7 +230,10 @@ export function IncidentCard({ item }) {
           ]}>
           {item.title}
         </Text>
-        <StarButton itemId={item.id} />
+        <View style={styles.titleActions}>
+          <CopyLinkButton itemId={item.id} kind="incident" />
+          <StarButton itemId={item.id} />
+        </View>
       </View>
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>
@@ -276,7 +299,10 @@ export function ZoneInfo({ item }) {
           ]}>
           {item.title}
         </Text>
-        <StarButton itemId={item.id} />
+        <View style={styles.titleActions}>
+          <CopyLinkButton itemId={item.id} kind="zone" />
+          <StarButton itemId={item.id} />
+        </View>
       </View>
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>
@@ -291,6 +317,18 @@ export function ZoneInfo({ item }) {
       </View>
       <View
         style={[
+          styles.descBox,
+          {
+            backgroundColor: theme.bgElevated,
+            borderColor: theme.borderSubtle,
+          },
+        ]}>
+        <Text style={[styles.descText, { color: theme.textSecondary }]}>
+          {item.description?.trim() || 'No description provided.'}
+        </Text>
+      </View>
+      <View
+        style={[
           styles.statsRow,
           {
             backgroundColor: theme.bgElevated,
@@ -298,7 +336,11 @@ export function ZoneInfo({ item }) {
           },
         ]}>
         <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={[styles.statValue, { color: theme.textPrimary }]}>
             {areaKm2 ? `${areaKm2} km²` : '—'}
           </Text>
           <Text
@@ -310,7 +352,11 @@ export function ZoneInfo({ item }) {
           </Text>
         </View>
         <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={[styles.statValue, { color: theme.textPrimary }]}>
             {periKm ? `${periKm} km` : '—'}
           </Text>
           <Text
@@ -322,7 +368,11 @@ export function ZoneInfo({ item }) {
           </Text>
         </View>
         <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={[styles.statValue, { color: theme.textPrimary }]}>
             {vertices ?? '—'}
           </Text>
           <Text
@@ -381,6 +431,11 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     paddingRight: 8,
   },
+  titleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   starBtn: {
     width: 28,
     height: 28,
@@ -420,14 +475,19 @@ const styles = StyleSheet.create({
   },
   stat: {
     flex: 1,
+    alignItems: 'center',
     gap: 4,
   },
   statLabel: {
     fontSize: 8.5,
     letterSpacing: 1.4,
+    textAlign: 'center',
   },
   statValue: {
     fontSize: 14,
     fontWeight: '600',
+    minHeight: 22,
+    lineHeight: 22,
+    textAlign: 'center',
   },
 });

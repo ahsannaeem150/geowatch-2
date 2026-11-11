@@ -1741,10 +1741,11 @@ export default function MapPage() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <MapLoadingIndicator loading={loading} hasData={incidents.length > 0} />
         {incidentsError && (
-          <div style={{ position: 'absolute', top: 'calc(66px * var(--admin-ui-scale, 1))', left: '50%', transform: 'translateX(-50%)', zIndex: 36, width: 'min(430px, calc(100vw - 32px))' }}>
+          <div style={{ position: 'absolute', top: powerSearchMode ? 'calc(var(--admin-ps-topbar-height) + var(--admin-ps-chips-height) + 12px)' : 'calc(66px * var(--admin-ui-scale, 1))', left: '50%', transform: 'translateX(-50%)', zIndex: 36, width: 'min(430px, calc(100vw - 32px))' }}>
             <ErrorBanner
               message={`Incidents could not be loaded. ${incidentsError}`}
               onRetry={() => setIncidentsRefreshKey((key) => key + 1)}
+              style={{ background: 'var(--bg-glass)', color: 'var(--text-primary)', backdropFilter: 'blur(14px) saturate(1.2)', WebkitBackdropFilter: 'blur(14px) saturate(1.2)', boxShadow: 'var(--shadow-lg)' }}
             />
           </div>
         )}
@@ -2064,7 +2065,7 @@ export default function MapPage() {
             }}
           >
             {detailLoading || (!detail?.incident && !detailError) ? (
-              panelMode === 'zone' ? <ZoneSidebarSkeleton /> : <IncidentSidebarSkeleton />
+              panelMode === 'zone' ? <ZoneSidebarSkeleton /> : <IncidentSidebarSkeleton incident={selectedIncident} />
             ) : detailError ? (
               <div style={{ padding: 20 }}>
                 <ErrorState

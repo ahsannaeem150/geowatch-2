@@ -13258,3 +13258,50 @@ test(user-web): compare repeated real-vs-loading screenshots and DOM measurement
 feat(staff-web): port measured detail skeletons, modern errors, taxonomy retries, and full Power Search states to admin and superadmin.
 fix(staff-web): recover map/viewport/detail failures and add drawer/activity backfill loading states with stale-content preservation.
 test(staff-web): verify real-login directory, drawer, detail, Power Search, and error flows on both staff apps plus all web builds.
+
+
+
+
+feat(mobile): add content-matched loading skeletons, scoped recoverable errors, taxonomy retries and dev-only network simulation across map, search, directories, details and evidence.
+fix(mobile): preserve stale data on refresh failures and make X-post Retry bypass cached failures; trim AGENTS.md below 32 KB without dropping core rules.
+test(mobile): verify dark/light loading/error/retry flows on device, ESLint and release build; normal release smoke and isolated list scrolling passed.
+
+
+
+
+feat(mobile): mirror web regional zoom limits on main and embedded maps using the exact hot bbox, z22 inside and z10 outside.
+test(mobile): pass six boundary cases, ESLint and device checks for outside capping, hot-region high zoom, embedded previews and selection flows.
+
+
+
+
+feat(async): coordinate failed-request recovery across all three web apps and Android so one Retry restores every mounted failed section.
+fix(async): dedupe mobile taxonomy recovery, retry registered web failures on browser reconnect, and keep bookmark mutations out of global retry.
+test(async): verify real browser recovery on user/admin/superadmin, one taxonomy request per recovery, mobile backend-outage recovery, all web builds, registry checks, ESLint and release APK.
+
+
+
+
+fix(web): keep map incident error strips readable over dark maps with stronger glass, primary text and shadows.
+fix(web): position the strip below Power Search topbars/chips in user, admin and superadmin without changing normal map placement.
+test(web): verify failed Power Search and normal map states across all apps, dark/light contrast and all production builds.
+
+
+
+
+feat(web): show selected incident summary immediately in sidebar loading while timeline/evidence continues shimmering in all three apps.
+fix(web): support raw API and shared summary fields without changing full-page or direct-link full skeletons.
+test(web): verify delayed detail responses on user/admin/superadmin sidebars, fresh full-page loading and all production builds.
+
+
+
+
+feat(web): replace plain X-post loading text with card-shaped avatar, author, text, media-mosaic and stats shimmer everywhere.
+test(web): verify incident/zone sidebars and full pages on all three apps, live mocked zone posts, real load-complete transitions and all production builds.
+
+
+
+
+feat(mobile): replace detail actions with title-row copy-link/bookmark icons and add zone descriptions with centered area/perimeter/vertices stats.
+fix(mobile): remove the empty Full Details action and keep long zone stat values aligned on one line.
+test(mobile): verify incident/zone sheets, copy-link toast, light/dark themes, large values, ESLint and release build on device.

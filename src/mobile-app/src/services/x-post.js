@@ -4,7 +4,9 @@
 // card — media opens in the app's own swipe gallery.
 //
 // Results are cached in-memory per tweet id; failures are cached too so a
-// dead tweet does not refetch on every render.
+// dead tweet does not refetch on every render. Explicit retries bypass that cache.
+
+import { simulateNetworkRequest } from './networkSimulation';
 
 const cache = new Map();
 const pending = new Map();
@@ -19,12 +21,14 @@ export function getCachedTweet(url) {
   return ref && cache.has(ref.id) ? cache.get(ref.id) : null;
 }
 
-export async function fetchTweet(url) {
+export async function fetchTweet(url, { refresh = false } = {}) {
   const ref = extractTweetRef(url);
   if (!ref) {
     return null;
   }
-  if (cache.has(ref.id)) {
+  if (refresh) {
+    cache.delete(ref.id);
+  } else if (cache.has(ref.id)) {
     return cache.get(ref.id);
   }
   if (pending.has(ref.id)) {
@@ -33,6 +37,7 @@ export async function fetchTweet(url) {
   const request = (async () => {
     let tweet = null;
     try {
+      await simulateNetworkRequest(`/x-post/${ref.id}`);
       const res = await fetch(`https://api.fxtwitter.com/${ref.user}/status/${ref.id}`, {
         headers: { Accept: 'application/json' },
       });

@@ -6,6 +6,32 @@ import { FeaturedCollapsedRow } from './SourceCards.jsx';
 import { extractTweetRef, fetchTweet } from './x-post.js';
 import Lightbox from './Lightbox.jsx';
 import LoadingImage from '../LoadingImage.jsx';
+import { Skeleton } from '../Skeleton.jsx';
+
+export function XPostSkeleton() {
+  return (
+    <div className="id-tw id-tw--skeleton" role="status" aria-label="Loading X post" aria-busy="true">
+      <div className="id-tw__head">
+        <Skeleton width="32px" height="32px" style={{ borderRadius: '50%', flexShrink: 0 }} />
+        <div className="id-tw__user">
+          <Skeleton height="12px" width="42%" />
+          <Skeleton height="10px" width="58%" style={{ marginTop: 7 }} />
+        </div>
+      </div>
+      <div className="id-tw__text">
+        <Skeleton height="13px" width="94%" />
+        <Skeleton height="13px" width="82%" style={{ marginTop: 7 }} />
+        <Skeleton height="13px" width="55%" style={{ marginTop: 7 }} />
+      </div>
+      <div className="id-tw__mosaic" data-count="2" aria-hidden="true">
+        <Skeleton height="100%" style={{ borderRadius: 0 }} />
+      </div>
+      <div className="id-tw__stats">
+        <Skeleton height="10px" width="48%" />
+      </div>
+    </div>
+  );
+}
 
 const TwIcons = {
   reply: (
@@ -103,13 +129,7 @@ export function XEmbed({ post, onRender, footActions }) {
   }
 
   if (!tweet) {
-    return (
-      <div className="id-x-embed">
-        <div className="id-x-embed__loader">
-          {SOURCE_TYPE_ICONS.x_post} Loading post…
-        </div>
-      </div>
-    );
+    return <XPostSkeleton />;
   }
 
   const lbItems = tweet.media.map((m) => ({

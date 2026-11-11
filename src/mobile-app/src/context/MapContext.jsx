@@ -21,6 +21,7 @@ import {
   selectionSignature,
   zoneComfortFactor,
 } from '../utils/selectionCamera';
+import { getMaxZoomForCenter } from '../utils/mapZoomPolicy';
 import { useOverlay } from './OverlayContext';
 
 // Shared map state: date range (lifted from TimeStrip), incident/zone data,
@@ -56,7 +57,6 @@ const SSE_MAP_EVENTS = new Set([
 export const DEFAULT_CENTER = [15, 25];
 export const DEFAULT_ZOOM = 2;
 export const MIN_ZOOM = 1.5;
-export const MAX_ZOOM = 16;
 
 const MapContext = createContext(null);
 
@@ -137,11 +137,15 @@ export function MapProvider({ children }) {
   const [incidents, setIncidents] = useState([]);
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [incidentsError, setIncidentsError] = useState('');
+  const [incidentsRefreshKey, setIncidentsRefreshKey] = useState(0);
   const [viewportMode, setViewportMode] = useState('unbounded'); // 'unbounded' | 'bounded'
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+  const [maxZoom, setMaxZoom] = useState(() => getMaxZoomForCenter(...DEFAULT_CENTER));
 
   const cameraRef = useRef(null);
   const mapZoomRef = useRef(DEFAULT_ZOOM);
+  const maxZoomRef = useRef(maxZoom);
   const mapCenterRef = useRef(DEFAULT_CENTER);
   const viewportPxRef = useRef(Dimensions.get('window'));
   const lastSelectionFlightRef = useRef(null);
@@ -206,6 +210,7 @@ export function MapProvider({ children }) {
       const seq = ++fetchSeqRef.current;
       if (!silent) {
         setLoading(true);
+        setIncidentsError('');
       }
       const { from, to } = dateRangeRef.current;
       const effFrom = from || UNBOUNDED_FROM;
@@ -288,9 +293,9 @@ export function MapProvider({ children }) {
           setIncidents(pointRes?.incidents || []);
           setZones(zoneRes?.incidents || []);
         }
-      } catch {
+      } catch (err) {
         if (seq === fetchSeqRef.current && !silent) {
-          showToast('Could not load incidents — check the backend');
+          setIncidentsError(err?.message || 'Could not load incidents.');
         }
       } finally {
         if (seq === fetchSeqRef.current) {
@@ -298,13 +303,13 @@ export function MapProvider({ children }) {
         }
       }
     },
-    [showToast],
+    [],
   );
 
   // Main fetch: date range or gate crossing.
   useEffect(() => {
     runFetch();
-  }, [dateRange.from, dateRange.to, isRangeGated, runFetch]);
+  }, [dateRange.from, dateRange.to, isRangeGated, runFetch, incidentsRefreshKey]);
 
   // SSE live updates (signed-in only — LiveContext owns the connection):
   // bursts are coalesced into one silent trailing refetch so a stream of
@@ -335,6 +340,15 @@ export function MapProvider({ children }) {
     [],
   );
 
+  const updateMaxZoom = useCallback((center) => {
+    const next = getMaxZoomForCenter(center[0], center[1]);
+    if (maxZoomRef.current !== next) {
+      maxZoomRef.current = next;
+      setMaxZoom(next);
+    }
+    return next;
+  }, []);
+
   // Region changes: track zoom/bounds; debounced viewport-bounded refetch.
   const handleRegionChange = useCallback(
     (state) => {
@@ -348,9 +362,13 @@ export function MapProvider({ children }) {
       if (Array.isArray(center) && center.length === 2 && center.every(Number.isFinite)) {
         mapCenterRef.current = center;
       }
+      const nextMaxZoom = updateMaxZoom(mapCenterRef.current);
       if (Number.isFinite(zoom)) {
         mapZoomRef.current = zoom;
         setMapZoom((prev) => (Math.abs(prev - zoom) < 0.05 ? prev : zoom));
+        if (zoom > nextMaxZoom) {
+          cameraRef.current?.zoomTo(nextMaxZoom, { duration: 0 });
+        }
       }
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
@@ -361,7 +379,7 @@ export function MapProvider({ children }) {
         }
       }, VIEWPORT_DEBOUNCE_MS);
     },
-    [runFetch],
+    [runFetch, updateMaxZoom],
   );
 
   // ─── Selection (stub — full peek/drawer flow comes later) ───
@@ -499,7 +517,7 @@ export function MapProvider({ children }) {
 
   // ─── Camera helpers (SideControls) ───
   const zoomIn = useCallback(() => {
-    cameraRef.current?.zoomTo(Math.min(mapZoomRef.current + 1, MAX_ZOOM), {
+    cameraRef.current?.zoomTo(Math.min(mapZoomRef.current + 1, maxZoomRef.current), {
       duration: 300,
     });
   }, []);
@@ -511,8 +529,9 @@ export function MapProvider({ children }) {
   }, []);
 
   const flyTo = useCallback((center, zoom) => {
-    cameraRef.current?.flyTo({ center, zoom, duration: 1200 });
-  }, []);
+    const targetMaxZoom = updateMaxZoom(center);
+    cameraRef.current?.flyTo({ center, zoom: Math.min(zoom, targetMaxZoom), duration: 1200 });
+  }, [updateMaxZoom]);
 
   // ─── Smart selection camera (web UserMap flyToCoords effect parity) ───
   // The shared pure policy decides zoom/duration/panOnly; measurement is
@@ -583,7 +602,8 @@ export function MapProvider({ children }) {
       fitZoom,
     });
 
-    const targetZoom = Math.min(decision.zoom, MAX_ZOOM);
+    const targetMaxZoom = updateMaxZoom([request.lng, request.lat]);
+    const targetZoom = Math.min(decision.zoom, targetMaxZoom);
     // Pan and zoom selections share one direct native ease path instead of
     // flyTo's wider arc and its intermediate zoom/tile work.
     const flightCenter = centerForPaddedFlight([request.lng, request.lat], targetZoom, padding);
@@ -605,7 +625,9 @@ export function MapProvider({ children }) {
       setSelectionFlightActive(false);
       throw error;
     }
-  }, []);
+  }, [updateMaxZoom]);
+
+  const refreshIncidents = useCallback(() => setIncidentsRefreshKey((key) => key + 1), []);
 
   const value = useMemo(
     () => ({
@@ -617,10 +639,13 @@ export function MapProvider({ children }) {
       incidents,
       zones,
       loading,
+      incidentsError,
+      refreshIncidents,
       viewportMode,
       isLargeRange,
       isRangeGated,
       mapZoom,
+      maxZoom,
       selectedId,
       selectedKind,
       selectItem,
@@ -652,10 +677,13 @@ export function MapProvider({ children }) {
       incidents,
       zones,
       loading,
+      incidentsError,
+      refreshIncidents,
       viewportMode,
       isLargeRange,
       isRangeGated,
       mapZoom,
+      maxZoom,
       selectedId,
       selectedKind,
       selectItem,

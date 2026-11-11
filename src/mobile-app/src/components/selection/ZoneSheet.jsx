@@ -6,9 +6,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
+import { ErrorState, TimelineSkeleton } from '../AsyncStates';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -82,7 +82,6 @@ export const ZoneBody = React.memo(function ZoneBody({ item, deferTimeline = fal
   const declared = timeline.find((u) => u.type === 'report') || timeline[0];
   const updates = timeline.filter((u) => u !== declared);
   const deferHeavyContent = deferTimeline || selectionFlightActive;
-  const skeletonBlock = [styles.skBlock, { backgroundColor: theme.bgElevated }];
 
   return (
     <View>
@@ -118,31 +117,15 @@ export const ZoneBody = React.memo(function ZoneBody({ item, deferTimeline = fal
         RESTRICTION TIMELINE
       </Text>
 
-      {deferHeavyContent || (loading && !detail) ? (
-        <SkeletonGroup label="Loading zone timeline" style={styles.skWrap}>
-          <ShimmerBlock style={[...skeletonBlock, styles.skNode]} />
-          <ShimmerBlock style={[...skeletonBlock, styles.skNode]} />
-        </SkeletonGroup>
-      ) : null}
+      {deferHeavyContent || (loading && !detail) ? <TimelineSkeleton updates={3} zone /> : null}
 
       {error && !detail ? (
-        <View
-          style={[
-            styles.errBox,
-            {
-              backgroundColor: theme.bgElevated,
-              borderColor: theme.borderSubtle,
-            },
-          ]}>
-          <Text style={[styles.errText, { color: theme.textSecondary }]}>
-            Could not load the restriction timeline.
-          </Text>
-          <Pressable
-            onPress={() => load(item.id)}
-            style={[styles.retryBtn, { backgroundColor: theme.accent }]}>
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          title="Could not load restriction timeline"
+          message="Check your connection and try again."
+          onRetry={() => load(item.id)}
+          style={styles.errorCard}
+        />
       ) : null}
 
       {!deferHeavyContent && declared ? (
@@ -243,5 +226,8 @@ const styles = StyleSheet.create({
   },
   tailPad: {
     height: 0,
+  },
+  errorCard: {
+    margin: 16,
   },
 });

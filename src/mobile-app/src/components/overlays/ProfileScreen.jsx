@@ -17,7 +17,7 @@ import {
 } from 'lucide-react-native';
 import { compactAgo } from '../../services/live-utils';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
+import { ErrorState, ResultRowsSkeleton } from '../AsyncStates';
 import { useOverlay } from '../../context/OverlayContext';
 import { useAuth } from '../../context/AuthContext';
 import { useMap } from '../../context/MapContext';
@@ -67,9 +67,9 @@ export function ProfilePageBody() {
   const { openOverlay, closeOverlay, showToast } = useOverlay();
   const { user, signedIn, signOut } = useAuth();
   const { history } = useSelection();
-  const { saved } = useSavedIncidents();
+  const { saved, loading: savedLoading } = useSavedIncidents();
 
-  const bookmarkCount = signedIn ? saved.length : 0;
+  const bookmarkCount = savedLoading ? '…' : signedIn ? saved.length : 0;
   const initial =
     (user?.full_name || user?.email || '?').trim()[0]?.toUpperCase() || '?';
   const heroAvatarTextColor = signedIn ? '#f2f2f2' : theme.textMuted;
@@ -246,7 +246,7 @@ export function ProfilePageBody() {
 // (fullscreen origin); back restores with the row highlighted.
 export function ProfilePanelBody({ overlay }) {
   const { theme } = useTheme();
-  const { closeOverlay, showToast } = useOverlay();
+  const { closeOverlay } = useOverlay();
   const { signedIn, requireSignIn } = useAuth();
   const { selectedId } = useMap();
   const { previewItemOnMap, history, clearHistory } = useSelection();
@@ -274,27 +274,14 @@ export function ProfilePanelBody({ overlay }) {
         />
       );
     } else if (loading) {
-      body = (
-        <SkeletonGroup label="Loading bookmarks" style={styles.skWrap}>
-          {[0, 1, 2].map((i) => (
-            <ShimmerBlock
-              key={i}
-              style={[styles.skRow, { backgroundColor: theme.bgElevated }]}
-            />
-          ))}
-        </SkeletonGroup>
-      );
+      body = <ResultRowsSkeleton rows={6} saved label="Loading bookmarks" />;
     } else if (error) {
       body = (
-        <PanelEmpty
-          icon={<Bookmark size={26} color={theme.textMuted} />}
+        <ErrorState
           title="Could not load bookmarks"
-          sub="Check the connection and try again."
-          ctaLabel="Retry"
-          onCta={() => {
-            showToast('Refreshing bookmarks');
-            reload();
-          }}
+          message="Check your connection and try again."
+          onRetry={reload}
+          style={styles.errorCard}
         />
       );
     } else if (!saved.length) {
@@ -569,5 +556,8 @@ const styles = StyleSheet.create({
   skRow: {
     height: 66,
     borderRadius: 12,
+  },
+  errorCard: {
+    margin: 16,
   },
 });

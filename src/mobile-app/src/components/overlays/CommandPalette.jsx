@@ -11,7 +11,7 @@ import {
 import { Search } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
+import { ErrorBanner, ErrorState, ResultRowsSkeleton } from '../AsyncStates';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -73,6 +73,7 @@ export function CommandPaletteBody({ overlay }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const fetchSeq = useRef(0);
+  const [retryKey, setRetryKey] = useState(0);
 
   // 300ms debounce (prototype oninput → renderCmdResults).
   useEffect(() => {
@@ -123,7 +124,7 @@ export function CommandPaletteBody({ overlay }) {
       .finally(() => {
         if (seq === fetchSeq.current) setLoading(false);
       });
-  }, [qDebounced, tab]);
+  }, [qDebounced, tab, retryKey]);
 
   const close = () => {
     Keyboard.dismiss();
@@ -234,33 +235,14 @@ export function CommandPaletteBody({ overlay }) {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled">
         {loading && !inc.rows.length && !zon.rows.length && !loc.length ? (
-          <SkeletonGroup label="Searching incidents, zones and locations" style={styles.skGroup}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={styles.skRow}>
-                <ShimmerBlock style={styles.skDot} />
-                <View style={styles.skBody}>
-                  <ShimmerBlock style={styles.skTitle} />
-                  <ShimmerBlock style={styles.skMeta} />
-                </View>
-              </View>
-            ))}
-          </SkeletonGroup>
-        ) : loading ? (
-          <Text
-            style={[
-              styles.hintText,
-              { color: theme.textMuted, fontFamily: theme.fontMono },
-            ]}>
-            Searching…
-          </Text>
-        ) : error ? (
-          <Text
-            style={[
-              styles.hintText,
-              { color: theme.textMuted, fontFamily: theme.fontMono },
-            ]}>
-            Search unavailable — check the backend
-          </Text>
+          <ResultRowsSkeleton rows={5} label="Searching incidents, zones and locations" />
+        ) : error && !inc.rows.length && !zon.rows.length && !loc.length ? (
+          <ErrorState
+            title="Search unavailable"
+            message="Check your connection and try again."
+            onRetry={() => setRetryKey((key) => key + 1)}
+            style={styles.errorCard}
+          />
         ) : empty ? (
           <View style={styles.emptyBox}>
             <Text style={[styles.emptyText, { color: theme.textMuted }]}>
@@ -272,6 +254,7 @@ export function CommandPaletteBody({ overlay }) {
           </View>
         ) : (
           <>
+            {error ? <ErrorBanner message="Search could not be refreshed." onRetry={() => setRetryKey((key) => key + 1)} style={styles.errorBanner} /> : null}
             {inc.rows.length ? (
               <>
                 {showSecLabels ? (
@@ -512,6 +495,8 @@ const styles = StyleSheet.create({
   navHint: { flexDirection: 'row', gap: 12 },
   navHintText: { fontSize: 9 },
   powerLink: { fontSize: 10, letterSpacing: 0.4 },
+  errorCard: { marginTop: 12 },
+  errorBanner: { marginBottom: 8 },
 });
 
 export default CommandPaletteBody;

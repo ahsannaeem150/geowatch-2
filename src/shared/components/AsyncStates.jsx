@@ -1,5 +1,19 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { AlertTriangle, ArrowLeft, RotateCcw } from 'lucide-react';
+import { registerRecoveryRetry, retryFailedRequests } from '../utils/recovery.js';
+
+function useRecoveryRetry(onRetry, retryScope) {
+  const coordinated = retryScope !== 'local';
+  useEffect(() => {
+    if (!onRetry || !coordinated) return undefined;
+    return registerRecoveryRetry(onRetry);
+  }, [onRetry, coordinated]);
+
+  return useCallback(() => {
+    if (coordinated) return retryFailedRequests(onRetry);
+    return onRetry?.();
+  }, [onRetry, coordinated]);
+}
 
 const actionBase = {
   display: 'inline-flex',
@@ -24,9 +38,11 @@ export function ErrorState({
   retryLabel = 'Retry',
   backLabel = 'Back',
   variant = 'panel',
+  retryScope = 'coordinated',
   style = {},
 }) {
   const inline = variant === 'inline' || variant === 'compact';
+  const handleRetry = useRecoveryRetry(onRetry, retryScope);
   return (
     <div
       role="alert"
@@ -76,7 +92,7 @@ export function ErrorState({
         {(onRetry || onBack) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: inline ? 'flex-start' : 'center', gap: 8, marginTop: inline ? 10 : 16 }}>
             {onRetry && (
-              <button type="button" onClick={onRetry} style={{ ...actionBase, background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)' }}>
+              <button type="button" onClick={handleRetry} style={{ ...actionBase, background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)' }}>
                 <RotateCcw size={13} aria-hidden="true" />
                 {retryLabel}
               </button>
@@ -94,7 +110,8 @@ export function ErrorState({
   );
 }
 
-export function ErrorBanner({ message, onRetry, retryLabel = 'Retry', style = {} }) {
+export function ErrorBanner({ message, onRetry, retryLabel = 'Retry', retryScope = 'coordinated', style = {} }) {
+  const handleRetry = useRecoveryRetry(onRetry, retryScope);
   return (
     <div
       role="alert"
@@ -118,7 +135,7 @@ export function ErrorBanner({ message, onRetry, retryLabel = 'Retry', style = {}
       {onRetry && (
         <button
           type="button"
-          onClick={onRetry}
+          onClick={handleRetry}
           style={{
             display: 'inline-flex',
             alignItems: 'center',

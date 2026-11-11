@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import {
   Animated,
-  Clipboard,
   Easing,
   Pressable,
   ScrollView,
@@ -22,14 +21,13 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  Link2,
   Play,
   Star,
 } from 'lucide-react-native';
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton as ShimmerBlock, SkeletonGroup, SkeletonImage } from '../skeleton/Skeleton';
+import { SkeletonImage } from '../skeleton/Skeleton';
+import { ErrorState, TimelineSkeleton } from '../AsyncStates';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -283,19 +281,6 @@ export function TimelineNode({ update, label, onInspect }) {
   );
 }
 
-function Skeleton() {
-  return (
-    <SkeletonGroup label="Loading incident details" style={styles.skWrap}>
-      <ShimmerBlock style={[styles.skBlock, styles.skBadgeRow]} />
-      <ShimmerBlock style={[styles.skBlock, styles.skTitle]} />
-      <ShimmerBlock style={[styles.skBlock, styles.skMeta]} />
-      <ShimmerBlock style={[styles.skBlock, styles.skDesc]} />
-      <ShimmerBlock style={[styles.skBlock, styles.skNode]} />
-      <ShimmerBlock style={[styles.skBlock, styles.skNode]} />
-    </SkeletonGroup>
-  );
-}
-
 // Full incident detail body (summary card + actions + timeline) — shared by
 // the fullscreen drawer (direct mode) and the multi-detent peek sheet.
 export const DrawerBody = React.memo(function DrawerBody({ item, deferTimeline = false }) {
@@ -360,51 +345,19 @@ export const DrawerBody = React.memo(function DrawerBody({ item, deferTimeline =
   const updates = timeline.filter((u) => u !== report);
   const deferHeavyContent = deferTimeline || selectionFlightActive;
 
-  const copyLink = () => {
-    Clipboard.setString(`http://localhost:5173/incident/${item.id}`);
-    showToast('Link copied');
-  };
-
   return (
     <View>
       <IncidentCard item={inc} />
-      <View style={styles.actionRow}>
-        <Pressable
-          onPress={() => showToast('Full detail page arrives in a later prompt')}
-          style={[styles.actBtn, styles.actPrimary, { backgroundColor: theme.accent }]}>
-          <FileText size={13} color="#f2f2f2" />
-          <Text style={[styles.actText, styles.actTextPrimary]}>Full details</Text>
-        </Pressable>
-        <Pressable
-          onPress={copyLink}
-          style={[
-            styles.actBtn,
-            { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
-          ]}>
-          <Link2 size={13} color={theme.textSecondary} />
-          <Text style={[styles.actText, { color: theme.textSecondary }]}>
-            Copy link
-          </Text>
-        </Pressable>
-      </View>
 
-      {deferHeavyContent || (loading && !detail) ? <Skeleton theme={theme} /> : null}
+      {deferHeavyContent || (loading && !detail) ? <TimelineSkeleton updates={3} /> : null}
 
       {error && !detail ? (
-        <View
-          style={[
-            styles.errBox,
-            { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
-          ]}>
-          <Text style={[styles.errText, { color: theme.textSecondary }]}>
-            Could not load the incident timeline.
-          </Text>
-          <Pressable
-            onPress={() => load(item.id)}
-            style={[styles.retryBtn, { backgroundColor: theme.accent }]}>
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          title="Could not load incident timeline"
+          message="Check your connection and try again."
+          onRetry={() => load(item.id)}
+          style={styles.errorCard}
+        />
       ) : null}
 
       {!deferHeavyContent && report ? (
@@ -549,32 +502,6 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  actBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  actPrimary: {
-    borderColor: 'transparent',
-  },
-  actText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  actTextPrimary: {
-    color: '#f2f2f2',
   },
   secLabel: {
     fontSize: 9.5,
@@ -807,5 +734,8 @@ const styles = StyleSheet.create({
   },
   tailPad: {
     height: 0,
+  },
+  errorCard: {
+    margin: 16,
   },
 });

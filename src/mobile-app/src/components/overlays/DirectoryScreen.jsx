@@ -31,14 +31,13 @@ import {
 } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { searchIncidents, searchZones } from '../../services/incidents.service';
-import { listCategories, listZoneCategories } from '../../services/taxonomy.service';
-import { subscribeTaxonomyEvents } from '../../services/taxonomy-events';
-import { DOMAINS, SEVERITIES, VERIFICATION_STATUSES, ZONE_OVERLAYS, bottomChromeInset } from '../../constants';
+import useTaxonomy from '../../hooks/useTaxonomy';
+import { ErrorBanner, ErrorState, FilterRowsSkeleton, ResultRowsSkeleton } from '../AsyncStates';
+import { SEVERITIES, VERIFICATION_STATUSES, bottomChromeInset } from '../../constants';
 import { locationLine, severityOf } from '../selection/PreviewCard';
 import useSheetGesture from '../../hooks/useSheetGesture';
 import useScrollEdge from '../../hooks/useScrollEdge';
@@ -133,50 +132,17 @@ export default function DirectoryScreen({ kind, overlay }) {
   const [error, setError] = useState(false);
   const fetchSeq = useRef(0);
 
-  // Taxonomy: real domain list (17) + zone categories with ids; constants
-  // are the offline fallback.
-  const [domains, setDomains] = useState(null);
-  const [zonecats, setZonecats] = useState(null);
-  const loadDomains = useCallback(() => {
-    listCategories()
-      .then((data) => {
-        const seen = new Map();
-        (data?.categories || []).forEach((c) => {
-          if (c.domain_slug && !seen.has(c.domain_slug)) {
-            seen.set(c.domain_slug, {
-              slug: c.domain_slug,
-              name: c.domain_name,
-            });
-          }
-        });
-        setDomains([...seen.values()]);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    loadDomains();
-    return subscribeTaxonomyEvents(loadDomains);
-  }, [loadDomains]);
-
-  useEffect(() => {
-    let cancelled = false;
-    listZoneCategories()
-      .then((data) => {
-        if (cancelled) return;
-        const cats = (data?.categories || []).map((c) => ({
-          id: c.id,
-          name: c.name,
-        }));
-        if (cats.length) setZonecats(cats);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const domainRows = domains || DOMAINS.map((d) => ({ slug: d.slug, name: d.name }));
-  const zonecatRows = zonecats || ZONE_OVERLAYS.map((z) => ({ id: null, name: z.name }));
+  const {
+    domainRows,
+    zonecatRows,
+    zonecats,
+    domainsLoading,
+    domainsError,
+    zonecatsLoading,
+    zonecatsError,
+    retryDomains,
+    retryZonecats,
+  } = useTaxonomy();
 
   // Snapshot filters for the next mount (prototype dirState persistence).
   useEffect(() => {
@@ -508,26 +474,21 @@ export default function DirectoryScreen({ kind, overlay }) {
         ) : null}
 
         {/* results body */}
-        {loading ? (
-          <SkeletonRows theme={theme} />
-        ) : error ? (
-          <View style={styles.stateBox}>
-            <Text style={[styles.stateText, { color: theme.textMuted }]}>
-              Couldn’t load results.
-            </Text>
-            <Pressable
-              onPress={fetchResults}
-              style={[styles.retryBtn, { borderColor: theme.accentSubtleBorder, backgroundColor: theme.accentSubtleBg }]}>
-              <Text style={[styles.retryText, { color: theme.accentLight, fontFamily: theme.fontMono }]}>
-                Retry
-              </Text>
-            </Pressable>
-          </View>
+        {loading && !results.length ? (
+          <ResultRowsSkeleton rows={8} />
+        ) : error && !results.length ? (
+          <ErrorState
+            title={`Couldn’t load ${isZones ? 'zones' : 'incidents'}`}
+            message="Check your connection and try again."
+            onRetry={fetchResults}
+            style={styles.errorCard}
+          />
         ) : (
           <ScrollView
             contentContainerStyle={styles.listPad}
             overScrollMode="never"
             keyboardShouldPersistTaps="handled">
+            {error ? <ErrorBanner message="Results could not be refreshed." onRetry={fetchResults} style={styles.errorBanner} /> : null}
             {visible.length ? (
               visible.map((item) => (
                 <DirCard
@@ -565,9 +526,15 @@ export default function DirectoryScreen({ kind, overlay }) {
           domains={domainRows}
           domainSel={domainSel}
           toggleDomain={toggleDomain}
+          domainsLoading={domainsLoading}
+          domainsError={domainsError}
+          retryDomains={retryDomains}
           zonecats={zonecatRows}
           zonecatSel={zonecatSel}
           toggleZonecat={toggleZonecat}
+          zonecatsLoading={zonecatsLoading}
+          zonecatsError={zonecatsError}
+          retryZonecats={retryZonecats}
           resetFilters={resetFilters}
           close={() => setFiltersOpen(false)}
         />
@@ -669,26 +636,6 @@ export const DirCard = React.memo(function DirCard({ kind, item, highlighted, on
     </Pressable>
   );
 });
-
-// ─── Skeleton rows while loading ───
-function SkeletonRows({ theme }) {
-  return (
-    <SkeletonGroup label="Loading results" style={styles.listPad}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <View
-          key={i}
-          style={[styles.skelRow, { borderBottomColor: theme.borderSubtle }]}>
-          <ShimmerBlock style={styles.skelBar} />
-          <View style={styles.skelCol}>
-            <ShimmerBlock style={[styles.skelLine, styles.skelW72]} />
-            <ShimmerBlock style={[styles.skelLine, styles.skelW38]} />
-            <ShimmerBlock style={[styles.skelLine, styles.skelW54]} />
-          </View>
-        </View>
-      ))}
-    </SkeletonGroup>
-  );
-}
 
 // ─── Filters bottom sheet (Google Maps pattern; same gesture engine and
 // head-drag model as the Power Search filter sheet) ───
@@ -913,18 +860,25 @@ function FilterSheet(props) {
                 title="Domains & Categories"
                 badge={props.domainSel.size}
                 {...props}>
-                {props.domains.map((d) => {
-                  const on = props.domainSel.has(d.slug);
-                  return (
-                    <CheckRow
-                      key={d.slug}
-                      on={on}
-                      label={d.name}
-                      theme={theme}
-                      onPress={() => props.toggleDomain(d.slug)}
-                    />
-                  );
-                })}
+                {props.domainsLoading ? <FilterRowsSkeleton rows={7} /> : (
+                  <>
+                    {props.domainsError ? (
+                      <ErrorState inline title="Domains unavailable" message={props.domainsError} onRetry={props.retryDomains} style={styles.errorBanner} />
+                    ) : null}
+                    {props.domains.map((d) => {
+                      const on = props.domainSel.has(d.slug);
+                      return (
+                        <CheckRow
+                          key={d.slug}
+                          on={on}
+                          label={d.name}
+                          theme={theme}
+                          onPress={() => props.toggleDomain(d.slug)}
+                        />
+                      );
+                    })}
+                  </>
+                )}
               </Accordion>
             </>
           ) : (
@@ -933,18 +887,25 @@ function FilterSheet(props) {
               title="Zone Categories"
               badge={props.zonecatSel.size}
               {...props}>
-              {props.zonecats.map((z) => {
-                const on = props.zonecatSel.has(z.name);
-                return (
-                  <CheckRow
-                    key={z.name}
-                    on={on}
-                    label={z.name}
-                    theme={theme}
-                    onPress={() => props.toggleZonecat(z.name)}
-                  />
-                );
-              })}
+              {props.zonecatsLoading ? <FilterRowsSkeleton rows={6} /> : (
+                <>
+                  {props.zonecatsError ? (
+                    <ErrorState inline title="Zone categories unavailable" message={props.zonecatsError} onRetry={props.retryZonecats} style={styles.errorBanner} />
+                  ) : null}
+                  {props.zonecats.map((z) => {
+                    const on = props.zonecatSel.has(z.name);
+                    return (
+                      <CheckRow
+                        key={z.name}
+                        on={on}
+                        label={z.name}
+                        theme={theme}
+                        onPress={() => props.toggleZonecat(z.name)}
+                      />
+                    );
+                  })}
+                </>
+              )}
             </Accordion>
           )}
 
@@ -1353,4 +1314,6 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   resetAllText: { fontSize: 10.5, letterSpacing: 0.4 },
+  errorCard: { margin: 16 },
+  errorBanner: { marginBottom: 10 },
 });

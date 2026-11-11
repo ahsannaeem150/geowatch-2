@@ -39,6 +39,7 @@ import { useSelection } from '../../context/SelectionContext';
 import { mediaUrl } from '../../services/api';
 import { fetchTweet, getCachedTweet } from '../../services/x-post';
 import VideoPlayer from './VideoPlayer';
+import { ErrorState } from '../AsyncStates';
 import { Tag } from './PreviewCard';
 import { bottomChromeInset } from '../../constants';
 
@@ -316,11 +317,13 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
   const [tweet, setTweet] = useState(() => getCachedTweet(post.source_url));
   const [failed, setFailed] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let alive = true;
+    setFailed(false);
     if (!archived && post.source_url) {
-      fetchTweet(post.source_url).then((t) => {
+      fetchTweet(post.source_url, { refresh: retryKey > 0 }).then((t) => {
         if (alive) {
           if (t) {
             setTweet(t);
@@ -333,7 +336,7 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
     return () => {
       alive = false;
     };
-  }, [archived, post.source_url]);
+  }, [archived, post.source_url, retryKey]);
 
   const galleryItems = useMemo(
     () =>
@@ -438,7 +441,18 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
     );
   }
 
-  if (failed || (!tweet && !post.source_url)) {
+  if (failed && post.source_url) {
+    return (
+      <ErrorState
+        inline
+        title="Post unavailable"
+        message="This X post could not be loaded. Check your connection and try again."
+        onRetry={() => setRetryKey((key) => key + 1)}
+      />
+    );
+  }
+
+  if (!tweet && !post.source_url) {
     return (
       <View
         style={[

@@ -4,7 +4,7 @@ import { SheetScrollView } from './SheetContainer';
 import { Bookmark, History } from 'lucide-react-native';
 import { compactAgo } from '../../services/live-utils';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
+import { ErrorState, ResultRowsSkeleton } from '../AsyncStates';
 import { useOverlay } from '../../context/OverlayContext';
 import { useAuth } from '../../context/AuthContext';
 import { useMap } from '../../context/MapContext';
@@ -61,7 +61,7 @@ function MetaRow({ count, note, onNotePress, noteColor }) {
 
 export function BookmarksSheetBody() {
   const { theme } = useTheme();
-  const { openOverlay, closeOverlay, showToast } = useOverlay();
+  const { openOverlay, closeOverlay } = useOverlay();
   const { signedIn, requireSignIn } = useAuth();
   const { selectedId } = useMap();
   const { previewItemOnMap } = useSelection();
@@ -84,27 +84,14 @@ export function BookmarksSheetBody() {
       />
     );
   } else if (loading) {
-    body = (
-      <SkeletonGroup label="Loading bookmarks" style={styles.skWrap}>
-        {[0, 1, 2].map((i) => (
-          <ShimmerBlock
-            key={i}
-            style={[styles.skRow, { backgroundColor: theme.bgElevated }]}
-          />
-        ))}
-      </SkeletonGroup>
-    );
+    body = <ResultRowsSkeleton rows={6} saved label="Loading bookmarks" />;
   } else if (error) {
     body = (
-      <PanelEmpty
-        icon={<Bookmark size={26} color={theme.textMuted} />}
+      <ErrorState
         title="Could not load bookmarks"
-        sub="Check the connection and try again."
-        ctaLabel="Retry"
-        onCta={() => {
-          showToast('Refreshing bookmarks');
-          reload();
-        }}
+        message="Check your connection and try again."
+        onRetry={reload}
+        style={styles.errorCard}
       />
     );
   } else if (!saved.length) {
@@ -247,5 +234,8 @@ const styles = StyleSheet.create({
   skRow: {
     height: 66,
     borderRadius: 12,
+  },
+  errorCard: {
+    margin: 16,
   },
 });

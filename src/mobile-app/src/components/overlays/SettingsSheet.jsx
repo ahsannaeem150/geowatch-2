@@ -16,6 +16,7 @@ import { useLive } from '../../context/LiveContext';
 import { useOverlay } from '../../context/OverlayContext';
 import LayersSheet from './LayersSheet';
 import NavigationHeader from './NavigationHeader';
+import { getNetworkSimulationMode, setNetworkSimulationMode, subscribeNetworkSimulation } from '../../services/networkSimulation';
 
 const NOTIF_ROWS = [
   {
@@ -59,7 +60,42 @@ const SECTION_COPY = {
   appearance: { title: 'Appearance', subtitle: 'Choose how IntelMap24 looks' },
   notifications: { title: 'Notifications', subtitle: 'Alerts and update preferences' },
   layers: { title: 'Default Map Layers', subtitle: 'Choose your startup layers' },
+  network: { title: 'Network state testing', subtitle: 'Preview slow and failed API states' },
 };
+
+function NetworkTestBody() {
+  const { theme } = useTheme();
+  const { showToast } = useOverlay();
+  const [mode, setMode] = useState(getNetworkSimulationMode());
+
+  useEffect(() => subscribeNetworkSimulation(setMode), []);
+
+  const options = [
+    { key: 'off', title: 'Normal network', sub: 'Requests run normally' },
+    { key: 'delay', title: 'Slow network · 4s', sub: 'Show every loading skeleton' },
+    { key: 'error', title: 'Fail all data requests', sub: 'Show full-screen and section errors' },
+    { key: 'detail-error', title: 'Fail incident & zone details', sub: 'Lists work; detail views fail after shimmer' },
+  ];
+
+  return (
+    <SheetScrollView contentContainerStyle={styles.bodyPad}>
+      {options.map((option, index) => (
+        <ChoiceCard
+          key={option.key}
+          title={option.title}
+          sub={option.sub}
+          selected={mode === option.key}
+          onPress={() => {
+            setNetworkSimulationMode(option.key);
+            showToast(`Network mode: ${option.title}`);
+          }}
+          theme={theme}
+          last={index === options.length - 1}
+        />
+      ))}
+    </SheetScrollView>
+  );
+}
 
 function SectionLabel({ children, theme, spaced }) {
   return (
@@ -318,6 +354,7 @@ export default function SettingsSheet() {
           {section === 'appearance' ? <AppearanceBody /> : null}
           {section === 'notifications' ? <NotifPrefsBody /> : null}
           {section === 'layers' ? <LayersPrefsBody /> : null}
+          {section === 'network' ? <NetworkTestBody /> : null}
         </Animated.View>
       </View>
     );
@@ -369,6 +406,22 @@ export default function SettingsSheet() {
           />
           <AutoZoomRow theme={theme} />
         </SettingsGroup>
+
+        {__DEV__ ? (
+          <>
+            <SectionLabel theme={theme} spaced>DEVELOPER</SectionLabel>
+            <SettingsGroup theme={theme}>
+              <SetRow
+                name="Network state testing"
+                sub="Slow responses, API failures and detail failures"
+                theme={theme}
+                last
+                onPress={() => setSection('network')}
+                right={<ChevronRight size={17} color={theme.textMuted} />}
+              />
+            </SettingsGroup>
+          </>
+        ) : null}
 
         <SectionLabel theme={theme} spaced>SUPPORT</SectionLabel>
         <SettingsGroup theme={theme}>

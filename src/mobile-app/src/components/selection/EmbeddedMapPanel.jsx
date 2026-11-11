@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -21,6 +21,7 @@ import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
 import { useOverlay } from '../../context/OverlayContext';
 import { MAP_STYLES } from '../../screens/map/mapStyles';
+import { getMaxZoomForCenter } from '../../utils/mapZoomPolicy';
 import {
   MARKER_IMAGES,
   markerImageFor,
@@ -80,6 +81,37 @@ export default function EmbeddedMapPanel() {
   const visible = previewActive && !!item && origin?.id !== 'powerSearch';
   const [mounted, setMounted] = useState(visible);
   const pos = previewPos;
+  const initialBBox = item && selectedKind === 'zone' ? zoneBBox(item.geometry) : null;
+  const itemLat = parseFloat(item?.latitude);
+  const itemLng = parseFloat(item?.longitude);
+  const initialCenter = initialBBox
+    ? [(initialBBox[0] + initialBBox[2]) / 2, (initialBBox[1] + initialBBox[3]) / 2]
+    : Number.isFinite(itemLat) && Number.isFinite(itemLng)
+      ? [itemLng, itemLat]
+      : [0, 20];
+  const initialMaxZoom = getMaxZoomForCenter(...initialCenter);
+  const cameraRef = useRef(null);
+  const maxZoomRef = useRef(initialMaxZoom);
+  const [maxZoom, setMaxZoom] = useState(initialMaxZoom);
+
+  useEffect(() => {
+    maxZoomRef.current = initialMaxZoom;
+    setMaxZoom(initialMaxZoom);
+  }, [item?.id, initialMaxZoom]);
+
+  const handleRegionDidChange = useCallback((event) => {
+    const state = event.nativeEvent;
+    const center = state?.center;
+    if (!Array.isArray(center) || center.length !== 2) return;
+    const nextMaxZoom = getMaxZoomForCenter(center[0], center[1]);
+    if (maxZoomRef.current !== nextMaxZoom) {
+      maxZoomRef.current = nextMaxZoom;
+      setMaxZoom(nextMaxZoom);
+    }
+    if (Number.isFinite(state.zoom) && state.zoom > nextMaxZoom) {
+      cameraRef.current?.zoomTo(nextMaxZoom, { duration: 0 });
+    }
+  }, []);
 
   useEffect(() => {
     if (visible) setMounted(true);
@@ -261,8 +293,9 @@ export default function EmbeddedMapPanel() {
           doubleTapZoom
           doubleTapHoldZoom={false}
           touchRotate={false}
-          touchPitch={false}>
-          <Camera initialViewState={viewState} />
+          touchPitch={false}
+          onRegionDidChange={handleRegionDidChange}>
+          <Camera ref={cameraRef} initialViewState={viewState} maxZoom={maxZoom} />
           <Images images={MARKER_IMAGES} />
           {zoneFC ? (
             <GeoJSONSource id="emb-zone" data={zoneFC}>

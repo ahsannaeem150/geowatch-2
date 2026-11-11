@@ -3110,7 +3110,7 @@ export default function DashboardLayout() {
     if (panelMode === 'detail' && selectedIncident) {
       const isPolygonZone = selectedIncident.geometry_type === 'polygon' || selectedIncident.geometryType === 'polygon';
       if (selectedIncidentDetailLoading) {
-        return isPolygonZone ? <ZoneSidebarSkeleton /> : <IncidentSidebarSkeleton />;
+        return isPolygonZone ? <ZoneSidebarSkeleton /> : <IncidentSidebarSkeleton incident={selectedIncident} />;
       }
 
       if (!selectedIncidentDetail) {
@@ -3301,8 +3301,8 @@ export default function DashboardLayout() {
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
         <MapLoadingIndicator loading={incidentsLoading} hasData={incidents.length > 0} />
         {incidentsError && (
-          <div style={{ position: 'absolute', top: 'calc(66px * var(--admin-ui-scale, 1))', left: '50%', transform: 'translateX(-50%)', zIndex: 36, width: 'min(430px, calc(100vw - 32px))' }}>
-            <ErrorBanner message={`Incidents could not be loaded. ${incidentsError}`} onRetry={() => setRefreshKey((key) => key + 1)} />
+          <div style={{ position: 'absolute', top: powerSearchMode ? 'calc(var(--admin-ps-topbar-height) + var(--admin-ps-chips-height) + 12px)' : 'calc(66px * var(--admin-ui-scale, 1))', left: '50%', transform: 'translateX(-50%)', zIndex: 36, width: 'min(430px, calc(100vw - 32px))' }}>
+            <ErrorBanner message={`Incidents could not be loaded. ${incidentsError}`} onRetry={() => setRefreshKey((key) => key + 1)} style={{ background: 'var(--bg-glass)', color: 'var(--text-primary)', backdropFilter: 'blur(14px) saturate(1.2)', WebkitBackdropFilter: 'blur(14px) saturate(1.2)', boxShadow: 'var(--shadow-lg)' }} />
           </div>
         )}
         {/* Left workspace rail + drawer */}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Skeleton } from './Skeleton.jsx';
+import SummaryCard from './incident-detail/SummaryCard.jsx';
 import './zone/ZoneTrial.css';
 import './zone/ZoneHeroesTrial.css';
 
@@ -94,30 +95,50 @@ function IncidentUpdateSkeleton({ latest = false, media = false, post = false, l
   );
 }
 
-export function IncidentSidebarSkeleton() {
+export function IncidentSidebarSkeleton({ incident = null }) {
+  const summary = incident ? {
+    ...incident,
+    domain: incident.domain || incident.domain_name,
+    domainColor: incident.domainColor || incident.domain_color,
+    categoryName: incident.categoryName || incident.category_name,
+    categoryColor: incident.categoryColor || incident.category_color || incident.domain_color,
+    verification: incident.verification || incident.verification_status,
+    locationContext: incident.locationContext || incident.location_context,
+    startDate: incident.startDate || incident.start_date,
+  } : null;
+
   return (
     <aside className="id-sidebar" role="status" aria-label="Loading incident details" aria-busy="true">
       <PanelHeader label="incident" />
       <div className="id-sidebar__scroll">
-        <div className="id-summary" style={{ minHeight: 466 }}>
-          <div className="id-summary__row"><BadgeRow /></div>
-          <div className="id-summary__title-row">
-            <div style={{ flex: 1 }}>
-              <Skeleton height="24px" width="94%" style={{ marginBottom: 7 }} />
-              <Skeleton height="24px" width="66%" />
+        {summary ? (
+          <SummaryCard incident={summary}>
+            <div className="id-summary__actions">
+              <Skeleton height="38px" width="126px" />
+              <Skeleton height="38px" width="154px" />
             </div>
-            <Skeleton width="16px" height="16px" />
+          </SummaryCard>
+        ) : (
+          <div className="id-summary" style={{ minHeight: 466 }}>
+            <div className="id-summary__row"><BadgeRow /></div>
+            <div className="id-summary__title-row">
+              <div style={{ flex: 1 }}>
+                <Skeleton height="24px" width="94%" style={{ marginBottom: 7 }} />
+                <Skeleton height="24px" width="66%" />
+              </div>
+              <Skeleton width="16px" height="16px" />
+            </div>
+            <div className="id-summary__meta">
+              <Skeleton height="12px" width="42%" />
+              <Skeleton height="12px" width="34%" />
+            </div>
+            <div className="id-summary__desc"><TextLines lines={9} lastWidth="72%" /></div>
+            <div className="id-summary__actions">
+              <Skeleton height="38px" width="126px" />
+              <Skeleton height="38px" width="154px" />
+            </div>
           </div>
-          <div className="id-summary__meta">
-            <Skeleton height="12px" width="42%" />
-            <Skeleton height="12px" width="34%" />
-          </div>
-          <div className="id-summary__desc"><TextLines lines={9} lastWidth="72%" /></div>
-          <div className="id-summary__actions">
-            <Skeleton height="38px" width="126px" />
-            <Skeleton height="38px" width="154px" />
-          </div>
-        </div>
+        )}
         <div className="id-section-title"><Skeleton height="19px" width="94px" /></div>
         <IncidentUpdateSkeleton latest media />
         <div className="id-section-title"><Skeleton height="19px" width="62px" /></div>

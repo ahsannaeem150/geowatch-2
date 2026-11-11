@@ -10,6 +10,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import { API_BASE_URL, STORAGE_KEYS } from '../constants';
+import { simulateNetworkRequest } from './networkSimulation';
 
 const DEFAULT_TIMEOUT_MS = 15000;
 
@@ -92,6 +93,8 @@ async function request(path, { method = 'GET', params, body } = {}) {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
+
+  await simulateNetworkRequest(path, method);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);

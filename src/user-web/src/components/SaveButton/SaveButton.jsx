@@ -87,7 +87,7 @@ export default function SaveButton({ incidentId, initialSaved = false, size = 16
       </button>
       {error && (
         <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 12000, width: 'min(360px, calc(100vw - 48px))' }}>
-          <ErrorBanner message={error} onRetry={handleToggle} />
+          <ErrorBanner message={error} onRetry={handleToggle} retryScope="local" />
         </div>
       )}
     </>

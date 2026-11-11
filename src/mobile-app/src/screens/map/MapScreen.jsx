@@ -15,7 +15,6 @@ import { useOverlay } from '../../context/OverlayContext';
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
-  MAX_ZOOM,
   MIN_ZOOM,
   useMap,
 } from '../../context/MapContext';
@@ -28,6 +27,7 @@ import TopBar from './components/TopBar';
 import TimeStrip from './components/TimeStrip';
 import SideControls from './components/SideControls';
 import AwayBanner from './components/AwayBanner';
+import { ErrorBanner } from '../../components/AsyncStates';
 
 // Web SEVERITY_SCALE radii (src/shared/constants.js) — marker size encodes
 // severity, marker color/icon encode the domain (mirrors marker-builder.js).
@@ -122,7 +122,7 @@ function ZoneLayers({ zonesFC, selectedId, selectedKind, onZonePress }) {
 }
 
 // Loading skeleton: three pulsing blocks + mono label, floats under TimeStrip.
-function LoadingPill() {
+function LoadingPill({ error, onRetry }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const pulse = useRef(new Animated.Value(0.35)).current;
@@ -158,25 +158,21 @@ function LoadingPill() {
           borderColor: theme.borderSubtle,
         },
       ]}
-      pointerEvents="none">
-      <Animated.View style={[styles.loadingBars, { opacity: pulse }]}>
-        <View
-          style={[styles.loadingBar, { backgroundColor: theme.accentLight }]}
-        />
-        <View
-          style={[styles.loadingBar, { backgroundColor: theme.accentLight }]}
-        />
-        <View
-          style={[styles.loadingBar, { backgroundColor: theme.accentLight }]}
-        />
-      </Animated.View>
-      <Text
-        style={[
-          styles.loadingText,
-          { color: theme.textMuted, fontFamily: theme.fontMono },
-        ]}>
-        LOADING
-      </Text>
+      pointerEvents={error ? 'auto' : 'none'}>
+      {error ? (
+        <ErrorBanner message={error} onRetry={onRetry} />
+      ) : (
+        <>
+          <Animated.View style={[styles.loadingBars, { opacity: pulse }]}>
+            <View style={[styles.loadingBar, { backgroundColor: theme.accentLight }]} />
+            <View style={[styles.loadingBar, { backgroundColor: theme.accentLight }]} />
+            <View style={[styles.loadingBar, { backgroundColor: theme.accentLight }]} />
+          </Animated.View>
+          <Text style={[styles.loadingText, { color: theme.textMuted, fontFamily: theme.fontMono }]}>
+            LOADING
+          </Text>
+        </>
+      )}
     </View>
   );
 }
@@ -214,6 +210,8 @@ export default function MapScreen() {
     incidents,
     zones,
     loading,
+    incidentsError,
+    refreshIncidents,
     isRangeGated,
     selectedId,
     selectedKind,
@@ -221,6 +219,7 @@ export default function MapScreen() {
     searchOverlay,
     layerVisibility,
     cameraRef,
+    maxZoom,
     handleRegionChange,
   } = useMap();
   const {
@@ -504,7 +503,7 @@ export default function MapScreen() {
           ref={cameraRef}
           initialViewState={{ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM }}
           minZoom={MIN_ZOOM}
-          maxZoom={MAX_ZOOM}
+          maxZoom={maxZoom}
         />
         <Images images={MARKER_IMAGES} />
         {/* While Power Search publishes its result overlay, the base
@@ -659,6 +658,7 @@ export default function MapScreen() {
         ) : null}
       </Map>
       {loading ? <LoadingPill /> : null}
+      {incidentsError ? <LoadingPill error={incidentsError} onRetry={refreshIncidents} /> : null}
       {isRangeGated ? <GateHint /> : null}
       {psOpen ? null : (
         <>
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    height: 30,
+    minHeight: 30,
     paddingHorizontal: 12,
     borderRadius: 15,
     borderWidth: 1,

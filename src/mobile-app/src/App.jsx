@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { initNetworkSimulation } from './services/networkSimulation';
 import { StyleSheet } from 'react-native';
 import {
   DarkTheme,
@@ -40,6 +41,10 @@ function ProductApp({ navTheme }) {
 }
 
 function Root() {
+  useEffect(() => {
+    initNetworkSimulation();
+  }, []);
+
   const { mode, theme, loaded } = useTheme();
   const { initializing } = useAuth();
   const {

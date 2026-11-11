@@ -25,6 +25,7 @@ import { useOverlay } from '../../context/OverlayContext';
 import { listIncidents, listZones } from '../../services/incidents.service';
 import { compactAgo, nextId } from '../../services/live-utils';
 import { PanelEmpty } from './profileShared';
+import { ErrorBanner, ErrorState } from '../AsyncStates';
 
 // ─── Shared fullscreen header (directory pattern: back ‹ + title/subtitle) ───
 function ScreenHeader({ title, subtitle, overlay, right }) {
@@ -294,19 +295,33 @@ export function ActivitySheetBody({ overlay }) {
         ))}
       </SkeletonGroup>
     );
+  } else if (error && !feed.length) {
+    body = (
+      <ErrorState
+        title="Could not load activity"
+        message="Check your connection and try again."
+        onRetry={loadBackfill}
+        style={styles.errorCard}
+      />
+    );
   } else if (feed.length) {
-    body = feed.map((g) => (
-      <View key={g.label}>
-        <DayHeader label={g.label} />
-        {g.items.map((entry) => (
-          <FeedRow
-            key={entry.id}
-            entry={entry}
-            onPress={() => openItem(entry)}
-          />
+    body = (
+      <>
+        {error ? <ErrorBanner message="Recent activity could not be refreshed." onRetry={loadBackfill} style={styles.errorBanner} /> : null}
+        {feed.map((g) => (
+          <View key={g.label}>
+            <DayHeader label={g.label} />
+            {g.items.map((entry) => (
+              <FeedRow
+                key={entry.id}
+                entry={entry}
+                onPress={() => openItem(entry)}
+              />
+            ))}
+          </View>
         ))}
-      </View>
-    ));
+      </>
+    );
   } else {
     body = (
       <PanelEmpty
@@ -710,5 +725,11 @@ const styles = StyleSheet.create({
   },
   alTime: {
     fontSize: 9.5,
+  },
+  errorCard: {
+    margin: 16,
+  },
+  errorBanner: {
+    marginBottom: 10,
   },
 });
