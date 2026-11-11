@@ -29,7 +29,9 @@ import { Badge } from '@shared/components/Badge.jsx';
 import { SEVERITY_SCALE, VERIFICATION_CONFIG } from '@shared/constants.js';
 import { getSeverityBadgeColors, getDomainColor, getIncidentDomainColor, getBadgeColors } from '@shared/utils/themeColors.js';
 import { useTheme } from '@shared/useTheme.js';
-import { InlineLoading, ResultCardSkeleton } from '@shared/components/LoadingStates.jsx';
+import { ResultCardSkeleton } from '@shared/components/LoadingStates.jsx';
+import { Skeleton } from '@shared/components/Skeleton.jsx';
+import { ErrorBanner, ErrorState } from '@shared/components/AsyncStates.jsx';
 import { formatDistanceToNow } from 'date-fns';
 import BrandLogo from '../Brand/BrandLogo.jsx';
 
@@ -91,12 +93,19 @@ export default function PowerSearchPanel({
   total,
   loading,
   error,
+  onRetry,
   hasMore,
   onLoadMore,
   savedIds,
   domains,
   categories,
+  taxonomyLoading,
+  taxonomyError,
+  onRetryTaxonomy,
   zoneCategories = [],
+  zoneCategoriesLoading,
+  zoneCategoriesError,
+  onRetryZoneCategories,
   selectedIncidentId = null,
   onSelectIncident,
   onToggleSaved,
@@ -407,6 +416,12 @@ export default function PowerSearchPanel({
           filters={filters}
           domains={domains}
           zoneCategories={zoneCategories}
+          taxonomyLoading={taxonomyLoading}
+          taxonomyError={taxonomyError}
+          onRetryTaxonomy={onRetryTaxonomy}
+          zoneCategoriesLoading={zoneCategoriesLoading}
+          zoneCategoriesError={zoneCategoriesError}
+          onRetryZoneCategories={onRetryZoneCategories}
           onToggleDomain={toggleDomain}
           onToggleCategory={toggleCategory}
           onToggleStatus={toggleStatus}
@@ -435,6 +450,7 @@ export default function PowerSearchPanel({
           onToggleSaved={onToggleSaved}
           loading={loading}
           error={error}
+          onRetry={onRetry}
           sortBy={sortBy}
           onSortChange={onSortChange}
         />
@@ -708,12 +724,31 @@ function ActiveChipsBar({ activeFilterCount, activeChips, onReset }) {
   );
 }
 
+function FilterRowsSkeleton({ rows = 6 }) {
+  return (
+    <div role="status" aria-label="Loading filters" aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 4 }}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Skeleton width="13px" height="13px" style={{ borderRadius: 3 }} />
+          <Skeleton width={`${54 + (i % 3) * 12}%`} height="11px" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FilterRail({
   collapsed,
   onToggleCollapse,
   filters,
   domains,
   zoneCategories,
+  taxonomyLoading,
+  taxonomyError,
+  onRetryTaxonomy,
+  zoneCategoriesLoading,
+  zoneCategoriesError,
+  onRetryZoneCategories,
   onToggleDomain,
   onToggleCategory,
   onToggleStatus,
@@ -870,7 +905,17 @@ function FilterRail({
 
           <FilterSection title="Domains & Categories" icon={Tags} defaultOpen scrollable>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(2px * var(--admin-ui-scale))' }}>
-              {domains.map((domain) => {
+              {taxonomyLoading && domains.length === 0 ? (
+                <FilterRowsSkeleton rows={7} />
+              ) : taxonomyError && domains.length === 0 ? (
+                <ErrorState variant="inline" title="Domains unavailable" message={taxonomyError} onRetry={onRetryTaxonomy} style={{ margin: 4 }} />
+              ) : (
+                <>
+                  {taxonomyError && <ErrorBanner message="Domains could not be refreshed." onRetry={onRetryTaxonomy} style={{ marginBottom: 6 }} />}
+                  {domains.length === 0 && <span style={{ padding: 8, color: 'var(--text-muted)', fontSize: 11 }}>No domains are available.</span>}
+                </>
+              )}
+              {!taxonomyLoading && domains.map((domain) => {
                 const state = getDomainState(domain);
                 const expanded = expandedDomains.has(domain.slug);
                 return (
@@ -1034,10 +1079,19 @@ function FilterRail({
 
           <FilterSection title="Zone categories" icon={Hexagon} defaultOpen>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(3px * var(--admin-ui-scale))' }}>
-              {zoneCategories.length === 0 && (
-                <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  No zone categories
-                </span>
+              {zoneCategoriesLoading && zoneCategories.length === 0 ? (
+                <FilterRowsSkeleton rows={5} />
+              ) : zoneCategoriesError && zoneCategories.length === 0 ? (
+                <ErrorState variant="inline" title="Zone categories unavailable" message={zoneCategoriesError} onRetry={onRetryZoneCategories} style={{ margin: 4 }} />
+              ) : (
+                <>
+                  {zoneCategoriesError && <ErrorBanner message="Zone categories could not be refreshed." onRetry={onRetryZoneCategories} style={{ marginBottom: 6 }} />}
+                  {zoneCategories.length === 0 && (
+                    <span style={{ fontSize: 'calc(10px * var(--admin-ui-scale))', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      No zone categories
+                    </span>
+                  )}
+                </>
               )}
               {zoneCategories.map((zc) => {
                 const active = filters.zoneCategoryIds.includes(zc.id);
@@ -1397,6 +1451,7 @@ function ResultsRail({
   onToggleSaved,
   loading,
   error,
+  onRetry,
   sortBy,
   onSortChange,
 }) {
@@ -1442,7 +1497,9 @@ function ResultsRail({
 
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'calc(8px * var(--admin-ui-scale))' }}>
             {loading && incidents.length === 0 ? (
-              <ResultCardSkeleton />
+              <ResultCardSkeleton rows={12} />
+            ) : error && incidents.length === 0 ? (
+              <ErrorState title="Search unavailable" message={error} onRetry={onRetry} style={{ marginTop: 12 }} />
             ) : !loading && !error && incidents.length === 0 ? (
               <div
                 style={{
@@ -1465,9 +1522,9 @@ function ResultsRail({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(6px * var(--admin-ui-scale))' }}>
-                {loading && incidents.length > 0 ? (
-                  <InlineLoading label="Searching…" style={{ justifyContent: 'flex-start', padding: '4px 6px' }} />
-                ) : null}
+                {error && incidents.length > 0 && (
+                  <ErrorBanner message={error} onRetry={onRetry} />
+                )}
                 {incidents.map((inc) => (
                   <IncidentCard
                     key={inc.id}

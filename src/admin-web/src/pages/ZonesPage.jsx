@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
-  AlertTriangle,
   ArrowUpDown,
   ArrowUpRight,
   CheckCircle2,
@@ -20,6 +19,7 @@ import {
 import { api } from '../services/api.js';
 import { Badge } from '@shared/components/Badge.jsx';
 import { SeverityBadge } from '@shared/components/SeverityBadge.jsx';
+import { ErrorState } from '@shared/components/AsyncStates.jsx';
 import { ConfirmDialog } from '@shared/components/ConfirmDialog.jsx';
 import CategoryMultiSelect from '@shared/components/CategoryMultiSelect.jsx';
 import { useZoneCategories } from '@shared/hooks/useZoneCategories.js';
@@ -95,7 +95,7 @@ function formatDate(iso) {
 export default function ZonesPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { categories } = useZoneCategories();
+  const { categories, loading: categoriesLoading, error: categoriesError, retry: retryCategories } = useZoneCategories();
 
   const [zones, setZones] = useState([]);
   const [total, setTotal] = useState(0);
@@ -330,6 +330,9 @@ export default function ZonesPage() {
             categories={categories}
             selectedIds={categoryIds}
             onChange={(next) => { setCategoryIds(next); setPage(0); }}
+            loading={categoriesLoading}
+            error={categoriesError}
+            onRetry={() => retryCategories().catch(() => {})}
             placeholder="Zone categories"
             // Zone categories filter by id server-side (zoneCategoryIds), not slug
             getValue={(cat) => cat.id}
@@ -427,15 +430,12 @@ export default function ZonesPage() {
       <div className="tui-content">
         <div className="tui-table-wrap">
           {error ? (
-            <div className="tui-state">
-              <AlertTriangle size={26} className="tui-state-icon tui-state-icon-error" />
-              <p className="tui-state-title">Failed to load zones</p>
-              <p className="tui-state-sub">{error}</p>
-              <button className="tui-btn" onClick={() => setRefreshKey((k) => k + 1)}>
-                <RotateCcw size={12} />
-                Retry
-              </button>
-            </div>
+            <ErrorState
+              title="Failed to load zones"
+              message={error}
+              onRetry={() => setRefreshKey((k) => k + 1)}
+              style={{ margin: 24 }}
+            />
           ) : (
             <table className="tui-table">
               <colgroup>

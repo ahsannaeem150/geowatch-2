@@ -8,7 +8,11 @@ export function useSearchCategories() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const [domainsRes, catsRes] = await Promise.all([api.getDomains(), api.getCategories()]);
       const rawDomains = domainsRes.data?.domains || [];
@@ -30,16 +34,16 @@ export function useSearchCategories() {
       setCategories(rawCats);
       setError(null);
     } catch (err) {
-      setError(err.message || 'Failed to load categories');
+      if (!silent) setError(err.message || 'Failed to load categories');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
-    return subscribeTaxonomyEvents(load);
+    return subscribeTaxonomyEvents(() => load({ silent: true }));
   }, [load]);
 
-  return { domains, categories, loading, error };
+  return { domains, categories, loading, error, retry: load };
 }

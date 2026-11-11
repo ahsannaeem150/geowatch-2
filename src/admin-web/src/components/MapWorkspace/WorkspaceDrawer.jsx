@@ -25,6 +25,9 @@ import {
   ZapOff,
 } from 'lucide-react';
 import ThemeToggle from '@shared/components/ThemeToggle.jsx';
+import { Skeleton } from '@shared/components/Skeleton.jsx';
+import { ErrorBanner, ErrorState } from '@shared/components/AsyncStates.jsx';
+import { InlineLoading } from '@shared/components/LoadingStates.jsx';
 import { SEVERITY_SCALE } from '@shared/constants.js';
 import { useTheme } from '@shared/useTheme.js';
 import { useStyle } from '@shared/useStyle.js';
@@ -859,6 +862,24 @@ function EmptyState({ icon: Icon, title, children }) {
   );
 }
 
+function DrawerSkeleton({ rows = 6, layers = false }) {
+  return (
+    <div role="status" aria-label="Loading panel content" aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} style={{ padding: layers ? 8 : 11, background: 'var(--bg-input)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Skeleton width={layers ? 22 : 28} height={layers ? 22 : 28} style={{ borderRadius: 'var(--radius-sm)', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <Skeleton height="12px" width={`${58 + (i % 3) * 12}%`} style={{ marginBottom: layers ? 0 : 8 }} />
+              {!layers && <Skeleton height="9px" width="48%" />}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function LayersDrawer({
   domains,
   zoneCategories,
@@ -870,8 +891,19 @@ function LayersDrawer({
   onHideAllDomains,
   onShowAllZones,
   onHideAllZones,
+  loading,
+  error,
+  onRetry,
 }) {
   const { theme } = useTheme();
+  if (loading) return <div style={{ padding: 16 }}><DrawerSkeleton rows={10} layers /></div>;
+  if (error) {
+    return (
+      <div style={{ padding: 16 }}>
+        <ErrorState variant="inline" title="Map filters unavailable" message={error} onRetry={onRetry} />
+      </div>
+    );
+  }
   return (
     <div style={{ padding: 'calc(16px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(14px * var(--admin-ui-scale))', height: '100%', overflowY: 'auto' }}>
       <LayerSection
@@ -919,28 +951,35 @@ function LayersDrawer({
   );
 }
 
-function IncidentsDrawer({ visibleIncidents, selectedIncidentId, onSelectIncident }) {
+function IncidentsDrawer({ visibleIncidents, selectedIncidentId, onSelectIncident, loading, error, onRetry }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: 'calc(12px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale)) 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{visibleIncidents.length} visible</span>
+        <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{loading ? '…' : visibleIncidents.length} visible</span>
         <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 'calc(4px * var(--admin-ui-scale))' }}>
           <Filter size={11} />
           Filtered by active layers
         </span>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale)) calc(12px * var(--admin-ui-scale)) calc(18px * var(--admin-ui-scale))' }}>
-        {visibleIncidents.length === 0 ? (
+        {loading && visibleIncidents.length === 0 ? (
+          <DrawerSkeleton rows={7} />
+        ) : error && visibleIncidents.length === 0 ? (
+          <ErrorState variant="inline" title="Incidents unavailable" message={error} onRetry={onRetry} />
+        ) : visibleIncidents.length === 0 ? (
           <EmptyState icon={AlertCircle} title="No incidents visible." />
         ) : (
-          visibleIncidents.map((incident) => <IncidentCard key={incident.id} incident={incident} selected={incident.id === selectedIncidentId} onClick={onSelectIncident} />)
+          <>
+            {error && <ErrorBanner message="Incidents could not be refreshed." onRetry={onRetry} style={{ marginBottom: 10 }} />}
+            {visibleIncidents.map((incident) => <IncidentCard key={incident.id} incident={incident} selected={incident.id === selectedIncidentId} onClick={onSelectIncident} />)}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function ActiveDrawer({ activeIncidents, overdueCount, selectedIncidentId, now, onSelectIncident, onResolveIncident }) {
+function ActiveDrawer({ activeIncidents, overdueCount, selectedIncidentId, now, onSelectIncident, onResolveIncident, loading, error, onRetry }) {
   const sorted = [...activeIncidents].sort((a, b) => {
     const aT = a.created_at || a.createdAt;
     const bT = b.created_at || b.createdAt;
@@ -969,7 +1008,7 @@ function ActiveDrawer({ activeIncidents, overdueCount, selectedIncidentId, now, 
           Active Incidents
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(6px * var(--admin-ui-scale))', fontSize: 'calc(11px * var(--admin-ui-scale))', whiteSpace: 'nowrap' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>{activeIncidents.length} total</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{loading ? '…' : activeIncidents.length} total</span>
           {overdueCount > 0 && (
             <span style={{ color: 'var(--badge-red-text)' }}>
               · {overdueCount === activeIncidents.length ? 'all' : overdueCount} older than 24h
@@ -978,29 +1017,42 @@ function ActiveDrawer({ activeIncidents, overdueCount, selectedIncidentId, now, 
         </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-        {sorted.length === 0 ? (
+        {loading && sorted.length === 0 ? (
+          <DrawerSkeleton rows={7} />
+        ) : error && sorted.length === 0 ? (
+          <ErrorState variant="inline" title="Active incidents unavailable" message={error} onRetry={onRetry} />
+        ) : sorted.length === 0 ? (
           <EmptyState icon={CheckCircle2} title="No active incidents." />
         ) : (
-          sorted.map((incident) => (
-            <ActiveRow
-              key={incident.id}
-              incident={incident}
-              selected={incident.id === selectedIncidentId}
-              now={now}
-              onOpen={onSelectIncident}
-              onResolve={onResolveIncident}
-            />
-          ))
+          <>
+            {error && <ErrorBanner message="Active incidents could not be refreshed." onRetry={onRetry} />}
+            {sorted.map((incident) => (
+              <ActiveRow
+                key={incident.id}
+                incident={incident}
+                selected={incident.id === selectedIncidentId}
+                now={now}
+                onOpen={onSelectIncident}
+                onResolve={onResolveIncident}
+              />
+            ))}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function ActivityDrawer({ activities, activityLastSeenAt, activitySeenIds, selectedIncidentId, onMarkAllActivitySeen, onSelectActivityIncident }) {
-  // Unseen iff newer than the lastSeen baseline AND not individually clicked-seen
+function ActivityDrawer({ activities, activityLastSeenAt, activitySeenIds, selectedIncidentId, onMarkAllActivitySeen, onSelectActivityIncident, loading, error, status, onRetry }) {
   const isUnseenRow = (a) => a.timestamp > activityLastSeenAt && !activitySeenIds?.has(a.id);
   const unreadCount = activities.filter(isUnseenRow).length;
+  const statusLabel = status === 'live'
+    ? `${activities.length} events`
+    : status === 'connecting'
+      ? 'Connecting…'
+      : status === 'reconnecting'
+        ? 'Reconnecting…'
+        : 'Offline';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
@@ -1024,7 +1076,7 @@ function ActivityDrawer({ activities, activityLastSeenAt, activitySeenIds, selec
           Live Activity
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(12px * var(--admin-ui-scale))' }}>
-          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{activities.length} events</span>
+          <span style={{ fontSize: 'calc(11px * var(--admin-ui-scale))', color: 'var(--text-secondary)' }}>{statusLabel}</span>
           {unreadCount > 0 && (
             <button
               onClick={onMarkAllActivitySeen}
@@ -1043,25 +1095,45 @@ function ActivityDrawer({ activities, activityLastSeenAt, activitySeenIds, selec
         </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-        {activities.length === 0 ? (
-          <EmptyState icon={ActivityIcon} title="No recent activity." />
+        {loading && activities.length === 0 ? (
+          <DrawerSkeleton rows={6} />
+        ) : error && activities.length === 0 ? (
+          <ErrorState variant="inline" title="Activity unavailable" message={error} onRetry={onRetry} />
+        ) : status === 'connecting' && activities.length === 0 ? (
+          <div style={{ padding: 32 }}><InlineLoading label="Connecting to live activity…" /></div>
+        ) : status === 'reconnecting' && activities.length === 0 ? (
+          <ErrorState
+            variant="inline"
+            title="Live activity unavailable"
+            message="The live connection was interrupted. Reconnect to start receiving updates."
+            onRetry={onRetry}
+          />
+        ) : activities.length === 0 ? (
+          <EmptyState icon={ActivityIcon} title="No recent activity.">
+            Listening for new updates. New incidents and timeline changes will appear here.
+          </EmptyState>
         ) : (
-          activities.map((event) => (
-            <ActivityRow
-              key={event.id || `${event.type}-${event.timestamp}-${event.incidentId || Math.random()}`}
-              event={event}
-              isUnseen={isUnseenRow(event)}
-              selected={event.incidentId != null && event.incidentId === selectedIncidentId}
-              onOpen={onSelectActivityIncident}
-            />
-          ))
+          <>
+            {(error || status === 'reconnecting') && (
+              <ErrorBanner message={error || 'The live connection was interrupted. Reconnecting…'} onRetry={onRetry} />
+            )}
+            {activities.map((event) => (
+              <ActivityRow
+                key={event.id || `${event.type}-${event.timestamp}-${event.incidentId || Math.random()}`}
+                event={event}
+                isUnseen={isUnseenRow(event)}
+                selected={event.incidentId != null && event.incidentId === selectedIncidentId}
+                onOpen={onSelectActivityIncident}
+              />
+            ))}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNotificationRead, onMarkAllNotificationsRead, onSelectNotificationIncident }) {
+function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNotificationRead, onMarkAllNotificationsRead, onSelectNotificationIncident, loading, error, onRetry }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
@@ -1101,24 +1173,31 @@ function NotificationsDrawer({ notifications, notificationUnreadCount, onMarkNot
         )}
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-        {notifications.length === 0 ? (
+        {loading && notifications.length === 0 ? (
+          <DrawerSkeleton rows={6} />
+        ) : error && notifications.length === 0 ? (
+          <ErrorState variant="inline" title="Notifications unavailable" message={error} onRetry={onRetry} />
+        ) : notifications.length === 0 ? (
           <EmptyState icon={Bell} title="No notifications." />
         ) : (
-          notifications.map((n) => (
-            <NotificationRow
-              key={n.id}
-              notification={n}
-              onOpen={onSelectNotificationIncident}
-              onMarkRead={onMarkNotificationRead}
-            />
-          ))
+          <>
+            {error && <ErrorBanner message="Notifications could not be refreshed." onRetry={onRetry} />}
+            {notifications.map((n) => (
+              <NotificationRow
+                key={n.id}
+                notification={n}
+                onOpen={onSelectNotificationIncident}
+                onMarkRead={onMarkNotificationRead}
+              />
+            ))}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function SavedDrawer({ savedIncidents, selectedIncidentId, onSelectSavedIncident, onUnsaveIncident }) {
+function SavedDrawer({ savedIncidents, selectedIncidentId, onSelectSavedIncident, onUnsaveIncident, loading, error, onRetry }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: 'calc(12px * var(--admin-ui-scale)) calc(16px * var(--admin-ui-scale))', borderBottom: '1px solid var(--border-default)' }}>
@@ -1135,19 +1214,26 @@ function SavedDrawer({ savedIncidents, selectedIncidentId, onSelectSavedIncident
         </span>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-        {savedIncidents.length === 0 ? (
+        {loading && savedIncidents.length === 0 ? (
+          <DrawerSkeleton rows={6} />
+        ) : error && savedIncidents.length === 0 ? (
+          <ErrorState variant="inline" title="Saved incidents unavailable" message={error} onRetry={onRetry} />
+        ) : savedIncidents.length === 0 ? (
           <EmptyState icon={Bookmark} title="No saved incidents yet." />
         ) : (
-          savedIncidents.map((incident) => (
-            <SavedRow key={incident.id} incident={incident} selected={incident.id === selectedIncidentId} onOpen={onSelectSavedIncident} onUnsave={onUnsaveIncident} />
-          ))
+          <>
+            {error && <ErrorBanner message="Saved incidents could not be refreshed." onRetry={onRetry} />}
+            {savedIncidents.map((incident) => (
+              <SavedRow key={incident.id} incident={incident} selected={incident.id === selectedIncidentId} onOpen={onSelectSavedIncident} onUnsave={onUnsaveIncident} />
+            ))}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function RecentsDrawer({ recents, selectedIncidentId, onClearRecents, onSelectRecentIncident }) {
+function RecentsDrawer({ recents, selectedIncidentId, onClearRecents, onSelectRecentIncident, loading, error, onRetry }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
@@ -1187,19 +1273,26 @@ function RecentsDrawer({ recents, selectedIncidentId, onClearRecents, onSelectRe
         )}
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'calc(12px * var(--admin-ui-scale))', display: 'flex', flexDirection: 'column', gap: 'calc(8px * var(--admin-ui-scale))' }}>
-        {recents.length === 0 ? (
+        {loading && recents.length === 0 ? (
+          <DrawerSkeleton rows={6} />
+        ) : error && recents.length === 0 ? (
+          <ErrorState variant="inline" title="Recent incidents unavailable" message={error} onRetry={onRetry} />
+        ) : recents.length === 0 ? (
           <EmptyState icon={Clock} title="No recently viewed incidents.">
             Open an incident from the map or list to see it here.
           </EmptyState>
         ) : (
-          recents.map((recent) => (
-            <RecentRow
-              key={recent.id}
-              recent={recent}
-              selected={(recent.incident?.id ?? recent.payload?.incidentId) === selectedIncidentId}
-              onOpen={onSelectRecentIncident}
-            />
-          ))
+          <>
+            {error && <ErrorBanner message="Recent incidents could not be refreshed." onRetry={onRetry} />}
+            {recents.map((recent) => (
+              <RecentRow
+                key={recent.id}
+                recent={recent}
+                selected={(recent.incident?.id ?? recent.payload?.incidentId) === selectedIncidentId}
+                onOpen={onSelectRecentIncident}
+              />
+            ))}
+          </>
         )}
       </div>
     </div>
@@ -1524,57 +1617,54 @@ export default function WorkspaceDrawer(props) {
   function renderContent() {
     switch (activeDrawer) {
       case 'layers':
-        return <LayersDrawer {...props} />;
+        return <LayersDrawer {...props} loading={props.layersLoading} error={props.layersError} onRetry={props.onRetryLayers} />;
       case 'incidents':
-        return <IncidentsDrawer visibleIncidents={props.visibleIncidents} selectedIncidentId={props.selectedIncidentId} onSelectIncident={props.onSelectIncident} />;
+        return <IncidentsDrawer {...props} loading={props.incidentsLoading} error={props.incidentsError} onRetry={props.onRetryIncidents} />;
       case 'active':
         return (
           <ActiveDrawer
-            activeIncidents={props.activeIncidents}
-            overdueCount={props.overdueCount}
-            selectedIncidentId={props.selectedIncidentId}
+            {...props}
             now={now}
-            onSelectIncident={props.onSelectIncident}
-            onResolveIncident={props.onResolveIncident}
+            loading={props.incidentsLoading}
+            error={props.incidentsError}
+            onRetry={props.onRetryIncidents}
           />
         );
       case 'activity':
         return (
           <ActivityDrawer
-            activities={props.activities}
-            activityLastSeenAt={props.activityLastSeenAt}
-            activitySeenIds={props.activitySeenIds}
-            selectedIncidentId={props.selectedIncidentId}
-            onMarkAllActivitySeen={props.onMarkAllActivitySeen}
-            onSelectActivityIncident={props.onSelectActivityIncident}
+            {...props}
+            loading={props.activityLoading}
+            error={props.activityError}
+            status={props.activityStatus}
+            onRetry={props.onRetryActivity}
           />
         );
       case 'notifications':
         return (
           <NotificationsDrawer
-            notifications={props.notifications}
-            notificationUnreadCount={props.notificationUnreadCount}
-            onMarkNotificationRead={props.onMarkNotificationRead}
-            onMarkAllNotificationsRead={props.onMarkAllNotificationsRead}
-            onSelectNotificationIncident={props.onSelectNotificationIncident}
+            {...props}
+            loading={props.notificationsLoading}
+            error={props.notificationsError}
+            onRetry={props.onRetryNotifications}
           />
         );
       case 'saved':
         return (
           <SavedDrawer
-            savedIncidents={props.savedIncidents}
-            selectedIncidentId={props.selectedIncidentId}
-            onSelectSavedIncident={props.onSelectSavedIncident}
-            onUnsaveIncident={props.onUnsaveIncident}
+            {...props}
+            loading={props.savedLoading}
+            error={props.savedError}
+            onRetry={props.onRetrySaved}
           />
         );
       case 'recents':
         return (
           <RecentsDrawer
-            recents={props.recents}
-            selectedIncidentId={props.selectedIncidentId}
-            onClearRecents={props.onClearRecents}
-            onSelectRecentIncident={props.onSelectRecentIncident}
+            {...props}
+            loading={props.recentsLoading}
+            error={props.recentsError}
+            onRetry={props.onRetryRecents}
           />
         );
       case 'settings':

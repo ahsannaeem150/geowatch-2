@@ -13251,3 +13251,10 @@ test(user-web): verify About, map/drawers, palette, Power Search, directories, i
 fix(user-web): align incident/zone sidebar and full-page skeletons with real timeline structures, spines, scrolling, and measured dimensions.
 style(user-web): remove redundant Power Search spinner and stabilize category filter labels.
 test(user-web): compare repeated real-vs-loading screenshots and DOM measurements; verify stable filters, scrollable skeletons, and all web builds.
+
+
+
+
+feat(staff-web): port measured detail skeletons, modern errors, taxonomy retries, and full Power Search states to admin and superadmin.
+fix(staff-web): recover map/viewport/detail failures and add drawer/activity backfill loading states with stale-content preservation.
+test(staff-web): verify real-login directory, drawer, detail, Power Search, and error flows on both staff apps plus all web builds.

@@ -367,7 +367,7 @@ export default function ZoneDetailPage() {
   }, [navigate]);
 
   if (loading) {
-    return <DetailLoadingSkeleton />;
+    return <DetailLoadingSkeleton kind="zone" />;
   }
 
   if (error) {

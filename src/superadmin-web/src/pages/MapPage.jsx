@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ListSkeleton, MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
+import { MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
+import { ErrorBanner, ErrorState } from '@shared/components/AsyncStates.jsx';
+import { IncidentSidebarSkeleton, ZoneSidebarSkeleton } from '@shared/components/DetailSkeletons.jsx';
 import {
   PanelLeftOpen,
   Layers,
@@ -204,6 +206,7 @@ export default function MapPage() {
   const [dateRange, setDateRange] = useState({ from: initialFrom, to: initialTo });
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [incidentsError, setIncidentsError] = useState('');
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -294,8 +297,14 @@ export default function MapPage() {
 
   // ─── Domain Filter / Layers ───
   const [domains, setDomains] = useState([]);
+  const [domainsLoading, setDomainsLoading] = useState(true);
+  const [domainsError, setDomainsError] = useState('');
+  const [domainsRefreshKey, setDomainsRefreshKey] = useState(0);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
   const [zoneCategories, setZoneCategories] = useState([]);
+  const [zoneCategoriesLoading, setZoneCategoriesLoading] = useState(true);
+  const [zoneCategoriesError, setZoneCategoriesError] = useState('');
+  const [zoneCategoriesRefreshKey, setZoneCategoriesRefreshKey] = useState(0);
   const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
 
   // Zones are visible when at least one zone category is active. If the
@@ -355,17 +364,23 @@ export default function MapPage() {
   const {
     notifications,
     unreadCount: notificationUnreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
     fetchNotifications,
     markRead: markNotificationRead,
     markAllRead: markAllNotificationsRead,
   } = useStaffNotifications();
-  const { savedIncidents, savedIds, unsaveIncident, toggleSaved } = useStaffSavedIncidents();
-  const { recents, recordRecent, clearRecents } = useStaffRecents('incident');
-  const { domains: psDomains, categories: psCategories } = useSearchCategories();
+  const { savedIncidents, savedIds, loading: savedLoading, error: savedError, fetchSaved, unsaveIncident, toggleSaved } = useStaffSavedIncidents();
+  const { recents, loading: recentsLoading, error: recentsError, fetchRecents, recordRecent, clearRecents } = useStaffRecents('incident');
+  const { domains: psDomains, categories: psCategories, loading: taxonomyLoading, error: taxonomyError, retry: retryTaxonomy } = useSearchCategories();
 
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
   const [activityBackfill, setActivityBackfill] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState('');
+  const [activityStatus, setActivityStatus] = useState('connecting');
+  const [activityRetryKey, setActivityRetryKey] = useState(0);
   // Session-level per-row seen: clicking one activity row clears only its
   // highlight; the lastSeen baseline (localStorage) stays the coarse fallback.
   const [activitySeenIds, setActivitySeenIds] = useState(() => new Set());
@@ -524,6 +539,7 @@ export default function MapPage() {
 
     const doFetch = async () => {
       setLoading(true);
+      setIncidentsError('');
       setViewportFiltering(null);
       viewportFilteringRef.current = null;
 
@@ -599,7 +615,13 @@ export default function MapPage() {
       }
     };
 
-    doFetch();
+    doFetch()
+      .catch((err) => {
+        if (!cancelled) setIncidentsError(err.message || 'Incidents could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;
@@ -800,26 +822,42 @@ export default function MapPage() {
 
   // Fetch domains for layers drawer
   useEffect(() => {
+    let cancelled = false;
+    setDomainsLoading(true);
+    setDomainsError('');
     getDomains()
       .then((res) => {
-        setDomains(res.domains || []);
+        if (!cancelled) setDomains(res.domains || []);
       })
-      .catch(() => setDomains([]));
-  }, []);
+      .catch((err) => {
+        if (!cancelled) setDomainsError(err.message || 'Domains could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setDomainsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [domainsRefreshKey]);
 
   // Fetch zone categories for layers drawer (default: all visible)
   useEffect(() => {
+    let cancelled = false;
+    setZoneCategoriesLoading(true);
+    setZoneCategoriesError('');
     listZoneCategories()
       .then((cats) => {
+        if (cancelled) return;
         const list = cats || [];
         setZoneCategories(list);
         setActiveZoneSlugs(new Set(list.map((z) => z.slug).filter(Boolean)));
       })
-      .catch(() => {
-        setZoneCategories([]);
-        setActiveZoneSlugs(new Set());
+      .catch((err) => {
+        if (!cancelled) setZoneCategoriesError(err.message || 'Zone categories could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setZoneCategoriesLoading(false);
       });
-  }, []);
+    return () => { cancelled = true; };
+  }, [zoneCategoriesRefreshKey]);
 
   // Fetch categories for edit form
   useEffect(() => {
@@ -850,10 +888,12 @@ export default function MapPage() {
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
 
+    setActivityStatus('connecting');
     const token = localStorage.getItem('superadmin_token');
     const url = `${API_BASE_URL}/incidents/stream?token=${token}`;
     const es = new EventSource(url);
     esRef.current = es;
+    es.onopen = () => setActivityStatus('live');
 
     es.onmessage = (e) => {
       if (!e.data) return;
@@ -932,6 +972,7 @@ export default function MapPage() {
       }
     };
 
+    es.onerror = () => setActivityStatus('reconnecting');
     return () => {
       if (notifRefetchTimerRef.current) {
         clearTimeout(notifRefetchTimerRef.current);
@@ -940,12 +981,14 @@ export default function MapPage() {
       es.close();
       esRef.current = null;
     };
-  }, [selectedIncident?.id, scheduleNotificationRefetch]);
+  }, [selectedIncident?.id, scheduleNotificationRefetch, activityRetryKey]);
 
   // One-time activity backfill: history behind the live SSE feed. A failed
   // fetch silently leaves the drawer live-only (no retry loop).
   useEffect(() => {
     let cancelled = false;
+    setActivityLoading(true);
+    setActivityError('');
     getStaffActivity(MAX_ACTIVITIES)
       .then((res) => {
         if (cancelled) return;
@@ -962,12 +1005,18 @@ export default function MapPage() {
           }))
           .filter((a) => a.type && Number.isFinite(a.timestamp));
         setActivityBackfill(rows);
+        setActivityError('');
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!cancelled) setActivityError(err.message || 'Activity history could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activityRetryKey]);
 
   // Live SSE rows stay on top; backfill fills history behind them. Dedupe by
   // incident+type+minute so a live event hides its persisted twin. Cap 50.
@@ -1081,8 +1130,9 @@ export default function MapPage() {
               ...prev.filter((i) => i.geometry_type === 'polygon'),
             ]);
             setTotalEventCount(res.count);
+            setIncidentsError('');
           })
-          .catch(() => {});
+          .catch((err) => setIncidentsError(err.message || 'Incidents could not be refreshed.'));
       } else {
         const params = {
           dateFrom: effFrom,
@@ -1097,8 +1147,9 @@ export default function MapPage() {
           .then((res) => {
             setIncidents(res.incidents || []);
             setTotalEventCount(res.count);
+            setIncidentsError('');
           })
-          .catch(() => setIncidents([]));
+          .catch((err) => setIncidentsError(err.message || 'Incidents could not be refreshed.'));
       }
     }
   }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, filters.status, closeMapMenu, setSearchParams, latParam, lngParam, zoomParam]);
@@ -3166,6 +3217,11 @@ export default function MapPage() {
 
         <div style={{ flex: 1, display: 'flex', alignItems: 'stretch', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
           <MapLoadingIndicator loading={loading} hasData={incidents.length > 0} />
+          {incidentsError && (
+            <div style={{ position: 'absolute', top: 'calc(66px * var(--admin-ui-scale, 1))', left: '50%', transform: 'translateX(-50%)', zIndex: 36, width: 'min(430px, calc(100vw - 32px))' }}>
+              <ErrorBanner message={`Incidents could not be loaded. ${incidentsError}`} onRetry={() => setRefreshKey((key) => key + 1)} />
+            </div>
+          )}
           {!powerSearchMode && (
             <WorkspaceRail
               items={railItems}
@@ -3182,6 +3238,15 @@ export default function MapPage() {
               onClose={() => setActiveDrawer(null)}
               domains={domains}
               zoneCategories={zoneCategories}
+              layersLoading={domainsLoading || zoneCategoriesLoading}
+              layersError={domainsError || zoneCategoriesError}
+              onRetryLayers={() => {
+                setDomainsRefreshKey((key) => key + 1);
+                setZoneCategoriesRefreshKey((key) => key + 1);
+              }}
+              incidentsLoading={loading}
+              incidentsError={incidentsError}
+              onRetryIncidents={() => setRefreshKey((key) => key + 1)}
               activeDomainSlugs={visibleDomainSlugs}
               activeZoneSlugs={activeZoneSlugs}
               onToggleDomain={handleToggleDomain}
@@ -3197,6 +3262,19 @@ export default function MapPage() {
               overdueCount={overdueIncidentCount}
               onResolveIncident={handleResolveFromDrawer}
               activities={mergedActivities}
+              activityLoading={activityLoading}
+              activityError={activityError}
+              activityStatus={activityStatus}
+              onRetryActivity={() => setActivityRetryKey((key) => key + 1)}
+              notificationsLoading={notificationsLoading}
+              notificationsError={notificationsError}
+              onRetryNotifications={() => fetchNotifications()}
+              savedLoading={savedLoading}
+              savedError={savedError}
+              onRetrySaved={() => fetchSaved()}
+              recentsLoading={recentsLoading}
+              recentsError={recentsError}
+              onRetryRecents={() => fetchRecents()}
               activityLastSeenAt={lastSeenTimestamp}
               activitySeenIds={activitySeenIds}
               onMarkAllActivitySeen={handleMarkAllRead}
@@ -3789,10 +3867,16 @@ export default function MapPage() {
                     </div>
                   )}
                   {detailLoading ? (
-                    <div style={{ padding: 20 }}><ListSkeleton rows={4} /></div>
+                    selectedIncident.geometry_type === 'polygon' ? <ZoneSidebarSkeleton /> : <IncidentSidebarSkeleton />
                   ) : detailError ? (
-                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--danger)', fontSize: 13 }}>
-                      {detailError}
+                    <div style={{ padding: 20 }}>
+                      <ErrorState
+                        title="Details unavailable"
+                        message={detailError}
+                        onRetry={() => fetchSelectedIncidentDetail()}
+                        onBack={handleBack}
+                        backLabel="Close"
+                      />
                     </div>
                   ) : selectedIncidentDetail ? (
                     <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -3966,11 +4050,15 @@ export default function MapPage() {
               total={psTotal}
               loading={psLoading}
               error={psError}
+              onRetry={() => fetchPowerSearchResults()}
               hasMore={psResults.length < psTotal}
               onLoadMore={handlePowerSearchLoadMore}
               savedIds={savedIds}
               domains={psDomains}
               categories={psCategories}
+              taxonomyLoading={taxonomyLoading}
+              taxonomyError={taxonomyError}
+              onRetryTaxonomy={() => retryTaxonomy()}
               selectedIncidentId={selectedIncident?.id || null}
               onSelectIncident={handlePowerSearchSelect}
               onToggleSaved={handleToggleSavedPowerSearch}

@@ -28,7 +28,9 @@ import { useStaffSavedIncidents } from '../../hooks/useStaffSavedIncidents.js';
 import { useSearchCategories } from '../../hooks/useSearchCategories.js';
 import { useStaffRecents } from '../../hooks/useStaffRecents.js';
 import PowerSearchPanel from '../PowerSearchPanel/PowerSearchPanel.jsx';
-import { ListSkeleton, MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
+import { MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
+import { ErrorBanner, ErrorState } from '@shared/components/AsyncStates.jsx';
+import { IncidentSidebarSkeleton, ZoneSidebarSkeleton } from '@shared/components/DetailSkeletons.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
 import MapContextMenu from '../Map/MapContextMenu.jsx';
@@ -192,6 +194,7 @@ export default function DashboardLayout() {
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [incidents, setEvents] = useState([]);
   const [incidentsLoading, setIncidentsLoading] = useState(true);
+  const [incidentsError, setIncidentsError] = useState('');
   const [panelMode, setPanelMode] = useState('empty'); // 'empty' | 'detail' | 'form' | 'zones' | 'zone-detail'
   const [selectedIncident, setSelectedIncident] = useState(null);
   const selectedIncidentRef = useRef(selectedIncident);
@@ -209,6 +212,7 @@ export default function DashboardLayout() {
   const zoneUrlSeenRef = useRef({ param: null, at: 0 });
   const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
   const [selectedIncidentDetailLoading, setSelectedIncidentDetailLoading] = useState(false);
+  const [selectedIncidentDetailError, setSelectedIncidentDetailError] = useState('');
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -740,8 +744,14 @@ export default function DashboardLayout() {
 
   // ─── Domain Filter / Legend ───
   const [domains, setDomains] = useState([]);
+  const [domainsLoading, setDomainsLoading] = useState(true);
+  const [domainsError, setDomainsError] = useState('');
+  const [domainsRefreshKey, setDomainsRefreshKey] = useState(0);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
   const [zoneCategories, setZoneCategories] = useState([]);
+  const [zoneCategoriesLoading, setZoneCategoriesLoading] = useState(true);
+  const [zoneCategoriesError, setZoneCategoriesError] = useState('');
+  const [zoneCategoriesRefreshKey, setZoneCategoriesRefreshKey] = useState(0);
   const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
 
   // Zones are visible when at least one zone category is active
@@ -752,13 +762,15 @@ export default function DashboardLayout() {
   const {
     notifications,
     unreadCount: notificationUnreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
     fetchNotifications,
     markRead: markNotificationRead,
     markAllRead: markAllNotificationsRead,
   } = useStaffNotifications();
-  const { savedIncidents, savedIds, unsaveIncident, toggleSaved } = useStaffSavedIncidents();
-  const { recents, recordRecent, clearRecents } = useStaffRecents('incident');
-  const { domains: psDomains, categories: psCategories } = useSearchCategories();
+  const { savedIncidents, savedIds, loading: savedLoading, error: savedError, fetchSaved, unsaveIncident, toggleSaved } = useStaffSavedIncidents();
+  const { recents, loading: recentsLoading, error: recentsError, fetchRecents, recordRecent, clearRecents } = useStaffRecents('incident');
+  const { domains: psDomains, categories: psCategories, loading: taxonomyLoading, error: taxonomyError, retry: retryTaxonomy } = useSearchCategories();
 
   // ─── Active / overdue incidents ───
   const nowTs = Date.now();
@@ -784,6 +796,10 @@ export default function DashboardLayout() {
   // ─── Live Activity Feed ───
   const [activities, setActivities] = useState([]);
   const [activityBackfill, setActivityBackfill] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState('');
+  const [activityStatus, setActivityStatus] = useState('connecting');
+  const [activityRetryKey, setActivityRetryKey] = useState(0);
   // Session-level per-row seen: clicking one activity row clears only its
   // highlight; the lastSeen baseline (localStorage) stays the coarse fallback.
   const [activitySeenIds, setActivitySeenIds] = useState(() => new Set());
@@ -862,6 +878,7 @@ export default function DashboardLayout() {
   useEffect(() => {
     let cancelled = false;
     setIncidentsLoading(true);
+    setIncidentsError('');
 
     const doFetch = async () => {
       setViewportFiltering(null);
@@ -935,9 +952,13 @@ export default function DashboardLayout() {
       }
     };
 
-    doFetch().finally(() => {
-      if (!cancelled) setIncidentsLoading(false);
-    });
+    doFetch()
+      .catch((err) => {
+        if (!cancelled) setIncidentsError(err.message || 'Incidents could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setIncidentsLoading(false);
+      });
 
     return () => {
       cancelled = true;
@@ -1104,6 +1125,7 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (!selectedIncident) {
       setSelectedIncidentDetail(null);
+      setSelectedIncidentDetailError('');
       prevIncidentIdRef.current = null;
       return;
     }
@@ -1114,15 +1136,18 @@ export default function DashboardLayout() {
     let cancelled = false;
     if (isNewIncident) {
       setSelectedIncidentDetailLoading(true);
+      setSelectedIncidentDetailError('');
     }
     api.getIncident(selectedIncident.id)
       .then((res) => {
         if (cancelled) return;
         setSelectedIncidentDetail(mapIncidentForShared(res.data));
+        setSelectedIncidentDetailError('');
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
         setSelectedIncidentDetail(null);
+        setSelectedIncidentDetailError(err.message || 'Incident details could not be loaded.');
       })
       .finally(() => {
         if (cancelled) return;
@@ -1141,23 +1166,41 @@ export default function DashboardLayout() {
 
   // Fetch domains and zone categories for legend / layers drawer
   useEffect(() => {
+    let cancelled = false;
+    setDomainsLoading(true);
+    setDomainsError('');
     api.getDomains()
       .then((res) => {
-        setDomains(res.data.domains || []);
+        if (!cancelled) setDomains(res.data.domains || []);
       })
-      .catch(() => setDomains([]));
+      .catch((err) => {
+        if (!cancelled) setDomainsError(err.message || 'Domains could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setDomainsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [domainsRefreshKey]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setZoneCategoriesLoading(true);
+    setZoneCategoriesError('');
     api.getZoneCategories()
       .then((res) => {
+        if (cancelled) return;
         const categories = res.data?.categories || res.data?.zoneCategories || [];
         setZoneCategories(categories);
         setActiveZoneSlugs(new Set(categories.map((z) => z.slug).filter(Boolean)));
       })
-      .catch(() => {
-        setZoneCategories([]);
-        setActiveZoneSlugs(new Set());
+      .catch((err) => {
+        if (!cancelled) setZoneCategoriesError(err.message || 'Zone categories could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setZoneCategoriesLoading(false);
       });
-  }, []);
+    return () => { cancelled = true; };
+  }, [zoneCategoriesRefreshKey]);
 
   // Legend handlers
   const handleToggleDomain = useCallback((slug) => {
@@ -1241,8 +1284,9 @@ export default function DashboardLayout() {
               ...prev.filter((i) => i.geometry_type === 'polygon'),
             ]);
             setTotalEventCount(res.data.count);
+            setIncidentsError('');
           })
-          .catch(() => {});
+          .catch((err) => setIncidentsError(err.message || 'Incidents could not be refreshed.'));
       } else {
         const params = {
           dateFrom: effFrom,
@@ -1253,8 +1297,9 @@ export default function DashboardLayout() {
           .then((res) => {
             setEvents(res.data.incidents);
             setTotalEventCount(res.data.count);
+            setIncidentsError('');
           })
-          .catch(() => setEvents([]));
+          .catch((err) => setIncidentsError(err.message || 'Incidents could not be refreshed.'));
       }
     }
   }, [dateRange.from, dateRange.to, closeMapMenu, setSearchParams]);
@@ -1263,6 +1308,7 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
 
+    setActivityStatus('connecting');
     const token = localStorage.getItem('intelmap24_token');
     const url = `${API_BASE_URL}/incidents/stream`;
     const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
@@ -1283,7 +1329,7 @@ export default function DashboardLayout() {
 
       es.onopen = () => {
         reconnectAttempt = 0;
-        console.log('[SSE] Admin connected to IntelMap24 stream');
+        setActivityStatus('live');
       };
 
       es.onmessage = (e) => {
@@ -1394,6 +1440,7 @@ export default function DashboardLayout() {
       };
 
       es.onerror = () => {
+        setActivityStatus('reconnecting');
         es.close(); // Prevent browser native auto-reconnect
         if (reconnectAttempt < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttempt += 1;
@@ -1415,12 +1462,14 @@ export default function DashboardLayout() {
         esRef.current = null;
       }
     };
-  }, []);
+  }, [activityRetryKey]);
 
   // One-time activity backfill: history behind the live SSE feed. A failed
-  // fetch silently leaves the drawer live-only (no retry loop).
+  // fetch leaves the drawer live-only and offers a manual retry.
   useEffect(() => {
     let cancelled = false;
+    setActivityLoading(true);
+    setActivityError('');
     api
       .getStaffActivity(MAX_ACTIVITIES)
       .then((res) => {
@@ -1437,12 +1486,18 @@ export default function DashboardLayout() {
           }))
           .filter((a) => a.type && Number.isFinite(a.timestamp));
         setActivityBackfill(rows);
+        setActivityError('');
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!cancelled) setActivityError(err.message || 'Activity history could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activityRetryKey]);
 
   // Live SSE rows stay on top; backfill fills history behind them. Dedupe by
   // incident+type+minute so a live event hides its persisted twin. Cap 50.
@@ -3053,19 +3108,25 @@ export default function DashboardLayout() {
     }
 
     if (panelMode === 'detail' && selectedIncident) {
+      const isPolygonZone = selectedIncident.geometry_type === 'polygon' || selectedIncident.geometryType === 'polygon';
       if (selectedIncidentDetailLoading) {
-        return <div style={{ padding: 20 }}><ListSkeleton rows={4} /></div>;
+        return isPolygonZone ? <ZoneSidebarSkeleton /> : <IncidentSidebarSkeleton />;
       }
 
       if (!selectedIncidentDetail) {
         return (
-          <div style={{ padding: 24, color: 'var(--danger)' }}>
-            Failed to load incident details.
+          <div style={{ padding: 20 }}>
+            <ErrorState
+              title="Details unavailable"
+              message={selectedIncidentDetailError || 'Incident details could not be loaded.'}
+              onRetry={() => setDetailRefreshKey((key) => key + 1)}
+              onBack={handleClosePanel}
+              backLabel="Close"
+            />
           </div>
         );
       }
 
-      const isPolygonZone = selectedIncident.geometry_type === 'polygon' || selectedIncident.geometryType === 'polygon';
       if (isPolygonZone) {
         return (
           <ZoneDetailSidebar
@@ -3239,6 +3300,11 @@ export default function DashboardLayout() {
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
         <MapLoadingIndicator loading={incidentsLoading} hasData={incidents.length > 0} />
+        {incidentsError && (
+          <div style={{ position: 'absolute', top: 'calc(66px * var(--admin-ui-scale, 1))', left: '50%', transform: 'translateX(-50%)', zIndex: 36, width: 'min(430px, calc(100vw - 32px))' }}>
+            <ErrorBanner message={`Incidents could not be loaded. ${incidentsError}`} onRetry={() => setRefreshKey((key) => key + 1)} />
+          </div>
+        )}
         {/* Left workspace rail + drawer */}
         {!powerSearchMode && (
           <WorkspaceRail
@@ -3264,6 +3330,15 @@ export default function DashboardLayout() {
             onClose={() => setActiveDrawer(null)}
             domains={domains}
             zoneCategories={zoneCategories}
+            layersLoading={domainsLoading || zoneCategoriesLoading}
+            layersError={domainsError || zoneCategoriesError}
+            onRetryLayers={() => {
+              setDomainsRefreshKey((key) => key + 1);
+              setZoneCategoriesRefreshKey((key) => key + 1);
+            }}
+            incidentsLoading={incidentsLoading}
+            incidentsError={incidentsError}
+            onRetryIncidents={() => setRefreshKey((key) => key + 1)}
             activeDomainSlugs={visibleDomainSlugs}
             activeZoneSlugs={activeZoneSlugs}
             onToggleDomain={handleToggleDomain}
@@ -3285,6 +3360,19 @@ export default function DashboardLayout() {
             now={Date.now()}
             onResolveIncident={handleResolveFromDrawer}
             activities={mergedActivities}
+            activityLoading={activityLoading}
+            activityError={activityError}
+            activityStatus={activityStatus}
+            onRetryActivity={() => setActivityRetryKey((key) => key + 1)}
+            notificationsLoading={notificationsLoading}
+            notificationsError={notificationsError}
+            onRetryNotifications={() => fetchNotifications()}
+            savedLoading={savedLoading}
+            savedError={savedError}
+            onRetrySaved={() => fetchSaved()}
+            recentsLoading={recentsLoading}
+            recentsError={recentsError}
+            onRetryRecents={() => fetchRecents()}
             activityLastSeenAt={lastSeenTimestamp}
             activitySeenIds={activitySeenIds}
             onMarkAllActivitySeen={handleMarkAllRead}
@@ -3325,12 +3413,19 @@ export default function DashboardLayout() {
             total={psTotal}
             loading={psLoading}
             error={psError}
+            onRetry={() => fetchPowerSearchResults()}
             hasMore={psResults.length < psTotal}
             onLoadMore={handlePowerSearchLoadMore}
             savedIds={savedIds}
             domains={psDomains}
             categories={psCategories}
+            taxonomyLoading={taxonomyLoading}
+            taxonomyError={taxonomyError}
+            onRetryTaxonomy={() => retryTaxonomy()}
             zoneCategories={zoneCategories}
+            zoneCategoriesLoading={zoneCategoriesLoading}
+            zoneCategoriesError={zoneCategoriesError}
+            onRetryZoneCategories={() => setZoneCategoriesRefreshKey((key) => key + 1)}
             selectedIncidentId={selectedIncident?.id || null}
             onSelectIncident={handlePowerSearchSelect}
             onToggleSaved={handleToggleSavedPowerSearch}
