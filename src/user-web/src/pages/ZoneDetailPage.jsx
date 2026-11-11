@@ -199,7 +199,7 @@ export default function ZoneDetailPage() {
   );
 
   if (loading) {
-    return <DetailLoadingSkeleton />;
+    return <DetailLoadingSkeleton kind="zone" />;
   }
 
   if (error) {

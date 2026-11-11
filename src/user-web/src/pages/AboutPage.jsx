@@ -7,6 +7,8 @@ import { SEVERITY_SCALE } from '@shared/constants.js';
 import { useReducedMotion } from '@shared/hooks/useReducedMotion.js';
 import { useCountUp } from '../components/Home/useCountUp.js';
 import { useInView } from '../components/Home/useInView.js';
+import { Skeleton } from '@shared/components/Skeleton.jsx';
+import { ErrorState } from '@shared/components/AsyncStates.jsx';
 import './AboutPage.css';
 
 // One-line meanings for the severity ramp (the existing methodology copy's
@@ -91,21 +93,28 @@ const MISSION_LINES = [
 export default function AboutPage() {
   const reduced = useReducedMotion();
   const [stats, setStats] = useState({ active: 0, today: 0, countries: 0, sources: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState('');
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
   const [domains, setDomains] = useState([]);
+  const [domainsLoading, setDomainsLoading] = useState(true);
+  const [domainsError, setDomainsError] = useState('');
+  const [domainsRefreshKey, setDomainsRefreshKey] = useState(0);
 
-  // Live coverage numbers — same endpoints/derivation as the home StatsSection
   useEffect(() => {
+    let cancelled = false;
     const today = new Date().toISOString().slice(0, 10);
-    const fallback = { data: { incidents: [], count: 0 } };
+    setStatsLoading(true);
+    setStatsError('');
 
-    const fetchActive = api.getIncidents({ status: 'active' }).catch(() => fallback);
-    const fetchToday = api.getIncidents({ dateFrom: today, dateTo: today }).catch(() => fallback);
-    const fetchAll = api.getIncidents({}).catch(() => fallback);
-    // Real platform stat (COUNT of incident_sources); failure degrades to 0.
-    const fetchStats = api.getStats().catch(() => null);
-
-    Promise.all([fetchActive, fetchToday, fetchAll, fetchStats])
+    Promise.all([
+      api.getIncidents({ status: 'active' }),
+      api.getIncidents({ dateFrom: today, dateTo: today }),
+      api.getIncidents({}),
+      api.getStats(),
+    ])
       .then(([activeRes, todayRes, allRes, statsRes]) => {
+        if (cancelled) return;
         const incidents = allRes.data?.incidents || [];
         const countries = new Set(
           incidents.map((i) => i.location_context?.split(',').pop()?.trim()).filter(Boolean)
@@ -117,16 +126,33 @@ export default function AboutPage() {
           sources: statsRes?.data?.sources ?? 0,
         });
       })
-      .catch(() => {});
-  }, []);
+      .catch((err) => {
+        if (!cancelled) setStatsError(err.message || 'Live coverage could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setStatsLoading(false);
+      });
 
-  // Real domain legend
+    return () => { cancelled = true; };
+  }, [statsRefreshKey]);
+
   useEffect(() => {
+    let cancelled = false;
+    setDomainsLoading(true);
+    setDomainsError('');
     api
       .getDomains()
-      .then((res) => setDomains(res.data?.domains || []))
-      .catch(() => setDomains([]));
-  }, []);
+      .then((res) => {
+        if (!cancelled) setDomains(res.data?.domains || []);
+      })
+      .catch((err) => {
+        if (!cancelled) setDomainsError(err.message || 'Domains could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setDomainsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [domainsRefreshKey]);
 
   return (
     <div className="about-page">
@@ -171,12 +197,30 @@ export default function AboutPage() {
       {/* ─── Live coverage ─── */}
       <section className="about-section">
         <SectionLabel num="01">Live coverage</SectionLabel>
-        <div className="about-stats">
-          <Stat value={stats.active} label="Active events" delay={0} />
-          <Stat value={stats.today} label="Events today" delay={0.08} />
-          <Stat value={stats.countries} label="Countries monitored" delay={0.16} />
-          <Stat value={stats.sources} label="Data sources" delay={0.24} />
-        </div>
+        {statsLoading ? (
+          <div className="about-stats" role="status" aria-label="Loading live coverage" aria-busy="true">
+            {[0, 1, 2, 3].map((i) => (
+              <div className="about-stat" key={i}>
+                <Skeleton width="52%" height="34px" style={{ marginBottom: 10 }} />
+                <Skeleton width="70%" height="12px" />
+              </div>
+            ))}
+          </div>
+        ) : statsError ? (
+          <ErrorState
+            variant="inline"
+            title="Live coverage unavailable"
+            message={statsError}
+            onRetry={() => setStatsRefreshKey((key) => key + 1)}
+          />
+        ) : (
+          <div className="about-stats">
+            <Stat value={stats.active} label="Active events" delay={0} />
+            <Stat value={stats.today} label="Events today" delay={0.08} />
+            <Stat value={stats.countries} label="Countries monitored" delay={0.16} />
+            <Stat value={stats.sources} label="Data sources" delay={0.24} />
+          </div>
+        )}
       </section>
 
       {/* ─── Severity scale showcase ─── */}
@@ -215,20 +259,37 @@ export default function AboutPage() {
       {/* ─── Domain legend ─── */}
       <section className="about-section">
         <SectionLabel num="03">Monitored domains</SectionLabel>
-        <div className="about-domains">
-          {domains.map((d, i) => (
-            <Reveal className="about-domain" key={d.id || d.slug} delay={Math.min(i * 0.05, 0.4)} y={10}>
-              <span className="about-domain__dot" style={{ background: d.color || '#6b7280', color: d.color || '#6b7280' }} />
-              <span className="about-domain__name">{d.name}</span>
-              {d.slug && <span className="about-domain__slug">{d.slug}</span>}
-            </Reveal>
-          ))}
-          {domains.length === 0 && (
-            <div className="about-domain">
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--caption)' }}>Loading domains…</span>
-            </div>
-          )}
-        </div>
+        {domainsLoading ? (
+          <div className="about-domains" role="status" aria-label="Loading monitored domains" aria-busy="true">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div className="about-domain" key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Skeleton width="12px" height="12px" style={{ borderRadius: '50%' }} />
+                <Skeleton width={`${52 + (i % 3) * 12}%`} height="13px" />
+              </div>
+            ))}
+          </div>
+        ) : domainsError ? (
+          <ErrorState
+            variant="inline"
+            title="Monitored domains unavailable"
+            message={domainsError}
+            onRetry={() => setDomainsRefreshKey((key) => key + 1)}
+          />
+        ) : domains.length === 0 ? (
+          <div className="about-domain" style={{ color: 'var(--text-muted)', fontSize: 'var(--caption)' }}>
+            No monitored domains are available.
+          </div>
+        ) : (
+          <div className="about-domains">
+            {domains.map((d, i) => (
+              <Reveal className="about-domain" key={d.id || d.slug} delay={Math.min(i * 0.05, 0.4)} y={10}>
+                <span className="about-domain__dot" style={{ background: d.color || '#6b7280', color: d.color || '#6b7280' }} />
+                <span className="about-domain__name">{d.name}</span>
+                {d.slug && <span className="about-domain__slug">{d.slug}</span>}
+              </Reveal>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ─── How it works ─── */}

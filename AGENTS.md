@@ -71,7 +71,7 @@ Vite maps `@shared` here in every web app:
 
 - `design-tokens.css` — dark-first/light tokens, typography, focus, reduced motion; `constants.js` — domain/API constants.
 - `theme-context.jsx`, `useTheme.js`, `useStyle.js` — dark/light and `tactical`/`saas` persisted in localStorage.
-- `components/` — controls, map UI, media, drawers, zone overlays, command palette; `incident-detail/` and `zone/` contain shared role-aware detail/editor packages. `Skeleton.jsx`/`LoadingStates.jsx` provide token-based transform shimmer, result/table/activity skeletons and map/inline status; `LoadingImage.jsx` reserves media space until load/error. Keep empty/error UI out of initial loading and preserve stale results with inline progress on refresh.
+- `components/` — controls, map UI, media, drawers, zone overlays, command palette; `incident-detail/` and `zone/` contain shared role-aware detail/editor packages. `Skeleton.jsx`/`LoadingStates.jsx` provide token-based transform shimmer, result/table/activity skeletons and map/inline status; `DetailSkeletons.jsx` mirrors incident/zone sidebar and full-page structures. `AsyncStates.jsx` owns modern panel/inline errors and stale-data banners with scoped retry. `LoadingImage.jsx` reserves media space until load/error. Keep empty/error UI out of initial loading, preserve stale results on refresh, and do not show artificial list shimmer for SSE-only Live Activity—use connection/empty states instead.
 - `marker-builder.js`, `marker-icons.js` — web markers; mobile generation reads icon paths.
 - `hooks/` — taxonomy, long-press, context menu, reduced motion; `utils/` — zone geometry, theme/CSS colors, selection camera, return-view, Theme Lab preview.
 - `media-components.css`, `styles/incident-detail.css`, `styles/table-chips.css` — imported by every web `main.jsx`.
@@ -293,6 +293,8 @@ Current gaps: placeholder `GOOGLE_WEB_CLIENT_ID` requires matching Google Cloud/
 - Ordinary web changes: run affected production builds; shared changes: build every affected web app.
 - Use Playwright verification/screenshots only for major behavioral changes or on request; requires running services and may use gitignored `docs/dev-credentials.md`. Do not repeatedly read screenshots unless investigating a visible problem; owner normally reviews.
 - Repeated automated logins can trigger auth rate limits; reuse valid tokens or allow cooldown.
+- Detail-skeleton changes must compare real vs loading DOM measurements at the same incident/zone and viewport. Preserve actual classes, timeline spines, scroll containers and representative dimensions; avoid redundant refresh spinners and label-width shifts.
+- Dev-only network-state review: open any web app with `?network=delay` for 5-second API/media shimmer, `?network=error` for a simulated 503 after 1.5 seconds, or `?network=detail-error` to keep lists/search live while only incident/zone detail GETs fail. Use `?network=off` to restore normal requests. The mode persists in tab `sessionStorage` across routes; auth requests stay live, error modes block matching API calls before fetch, and production builds always disable simulation (`shared/utils/networkSimulation.js`).
 - Mobile: `npm run lint` in `src/mobile-app`, relevant Metro/native build, and release-device verification for gesture/map performance. Android map performance must account for MapLibre's separate SurfaceView as well as app-view frames.
 
 ```bash

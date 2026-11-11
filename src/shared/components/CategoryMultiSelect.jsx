@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Skeleton } from './Skeleton.jsx';
+import { ErrorBanner, ErrorState } from './AsyncStates.jsx';
 
 /**
  * Multi-select category filter — domains-first accordion.
@@ -68,6 +70,9 @@ export default function CategoryMultiSelect({
   onChange,
   placeholder = 'Categories',
   getValue = (cat) => cat.slug ?? cat.id,
+  loading = false,
+  error = '',
+  onRetry,
 }) {
   const [open, setOpen] = useState(false);
   const [openUp, setOpenUp] = useState(false);
@@ -317,7 +322,8 @@ export default function CategoryMultiSelect({
         onKeyDown={onTriggerKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Filter by category"
+        aria-busy={loading}
+        title={error ? 'Categories unavailable — open to retry' : 'Filter by category'}
         style={{
           height: '34px',
           display: 'inline-flex',
@@ -338,7 +344,9 @@ export default function CategoryMultiSelect({
       >
         <span>{placeholder}</span>
         {selected.size === 0 ? (
-          <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>All</span>
+          <span style={{ color: error ? 'var(--danger)' : 'var(--text-muted)', fontWeight: 600 }}>
+            All
+          </span>
         ) : (
           <span
             style={{
@@ -457,7 +465,7 @@ export default function CategoryMultiSelect({
             </div>
           )}
 
-          {showSearch && (
+          {showSearch && !loading && !error && (
             <div
               style={{
                 display: 'flex',
@@ -493,7 +501,7 @@ export default function CategoryMultiSelect({
           {/* Quick actions */}
           <div
             style={{
-              display: 'flex',
+              display: loading || error ? 'none' : 'flex',
               gap: '6px',
               padding: '7px 10px',
               borderBottom: '1px solid var(--border-subtle)',
@@ -546,11 +554,31 @@ export default function CategoryMultiSelect({
 
           {/* Domain rows (collapsed by default) with drill-in categories */}
           <div style={{ overflowY: 'auto', maxHeight: '280px', padding: '4px' }}>
-            {visibleGroups.length === 0 && (
-              <div style={{ padding: '14px 10px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                No domains or categories match “{search.trim()}”.
-              </div>
+            {error && categories.length > 0 && (
+              <ErrorBanner message="Category data could not be refreshed." onRetry={onRetry} style={{ margin: '4px 4px 8px' }} />
             )}
+            {loading && categories.length === 0 ? (
+              <div role="status" aria-label="Loading categories" aria-busy="true">
+                {Array.from({ length: 7 }, (_, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 8px' }}>
+                    <Skeleton width="14px" height="14px" style={{ borderRadius: 4 }} />
+                    <Skeleton width={`${48 + (i % 3) * 14}%`} height="12px" />
+                  </div>
+                ))}
+              </div>
+            ) : error && categories.length === 0 ? (
+              <ErrorState
+                variant="inline"
+                title="Categories unavailable"
+                message={error}
+                onRetry={onRetry}
+                style={{ margin: 4 }}
+              />
+            ) : visibleGroups.length === 0 ? (
+              <div style={{ padding: '14px 10px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                {search.trim() ? `No domains or categories match “${search.trim()}”.` : 'No categories are available.'}
+              </div>
+            ) : null}
             {visibleGroups.map((group) => {
               if (!group.name) {
                 // Flat ungrouped fallback (e.g. zone categories)

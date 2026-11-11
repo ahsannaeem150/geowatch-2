@@ -13,8 +13,9 @@ import {
 } from 'lucide-react';
 import { api, mapIncidentForShared } from '../services/api.js';
 import { API_BASE_URL } from '@shared/constants.js';
-import { Skeleton } from '@shared/components/Skeleton.jsx';
 import { MapLoadingIndicator } from '@shared/components/LoadingStates.jsx';
+import { ErrorBanner, ErrorState } from '@shared/components/AsyncStates.jsx';
+import { IncidentSidebarSkeleton, ZoneSidebarSkeleton } from '@shared/components/DetailSkeletons.jsx';
 import UserMap from '../components/Map/UserMap.jsx';
 import WorkspaceTopBar from '../components/Layout/WorkspaceTopBar.jsx';
 import WorkspaceRail from '@shared/components/WorkspaceRail.jsx';
@@ -161,6 +162,8 @@ export default function MapPage() {
   const [dateRange, setDateRange] = useState({ from: today, to: today });
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [incidentsError, setIncidentsError] = useState('');
+  const [incidentsRefreshKey, setIncidentsRefreshKey] = useState(0);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [flyToCoords, setFlyToCoords] = useState(
     hasViewportParams && !returnView
@@ -181,6 +184,9 @@ export default function MapPage() {
   const [domains, setDomains] = useState([]);
   const [categories, setCategories] = useState([]);
   const [zoneCategories, setZoneCategories] = useState([]);
+  const [taxonomyLoading, setTaxonomyLoading] = useState(true);
+  const [taxonomyError, setTaxonomyError] = useState('');
+  const [taxonomyRefreshKey, setTaxonomyRefreshKey] = useState(0);
   const [activeDomainFilters, setActiveDomainFilters] = useState(new Set());
   const [activeZoneSlugs, setActiveZoneSlugs] = useState(new Set());
   const [showZones, setShowZones] = useState(true);
@@ -233,6 +239,7 @@ export default function MapPage() {
   // ─── Detail panel state ───
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
 
   // ─── Smart Viewport Filtering ───
@@ -263,6 +270,8 @@ export default function MapPage() {
   const { openSignInModal } = useSignInModal();
   const [savedIncidents, setSavedIncidents] = useState([]);
   const [savedIds, setSavedIds] = useState(new Set());
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [savedError, setSavedError] = useState('');
 
   // ─── Map context menu ───
   const mapRef = useRef(null);
@@ -276,6 +285,8 @@ export default function MapPage() {
 
   // ─── Live Activity ───
   const [activities, setActivities] = useState([]);
+  const [activityStatus, setActivityStatus] = useState('signed-out');
+  const [activityRetryKey, setActivityRetryKey] = useState(0);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(getLastSeen());
   const [showAwayBanner, setShowAwayBanner] = useState(false);
   const [awayStats, setAwayStats] = useState({ newEvents: 0, updatedEvents: 0 });
@@ -352,69 +363,61 @@ export default function MapPage() {
 
     const doFetch = async () => {
       setLoading(true);
+      setIncidentsError('');
       setViewportFiltering(null);
       viewportFilteringRef.current = null;
 
       const baseParams = {};
       if (filters.categoryId) baseParams.categoryId = filters.categoryId;
       if (filters.severity) baseParams.severity = filters.severity;
-
-      // Unbounded "All time" translates to a maximally wide overlap window —
-      // the list endpoint applies a default "visible today" window when no
-      // date params are sent, so nulls must never reach it.
       const effFrom = dateRange.from || '1970-01-01';
       const effTo = dateRange.to || '2099-12-31';
 
-      // ─── Large-range mode (flightradar-style gating) ───
-      if (isLargeRange) {
-        // Polygon zones always load — few and needed for context
-        const zonesRes = await api.getIncidents({ dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' });
-        if (cancelled) return;
-        const zones = zonesRes.data.incidents || [];
-
-        if (isRangeGated) {
-          // Below the gate zoom: withhold point incidents entirely
-          setIncidents(zones);
-          setTotalEventCount(0);
-          setViewportFiltering(false);
-          viewportFilteringRef.current = 'gated';
-        } else {
-          // At/above the gate zoom: viewport-bounded points + global zones
-          setViewportFiltering(true);
-          viewportFilteringRef.current = true;
-          const pointParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point', ...baseParams };
-          if (viewportBoundsRef.current) pointParams.viewport = viewportBoundsRef.current;
-          const pointRes = await api.getIncidents(pointParams);
+      try {
+        if (isLargeRange) {
+          const zonesRes = await api.getIncidents({ dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' });
           if (cancelled) return;
-          setIncidents([...(pointRes.data.incidents || []), ...zones]);
-          setTotalEventCount(pointRes.data.count || 0);
+          const zones = zonesRes.data.incidents || [];
+
+          if (isRangeGated) {
+            setIncidents(zones);
+            setTotalEventCount(0);
+            setViewportFiltering(false);
+            viewportFilteringRef.current = 'gated';
+          } else {
+            setViewportFiltering(true);
+            viewportFilteringRef.current = true;
+            const pointParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point', ...baseParams };
+            if (viewportBoundsRef.current) pointParams.viewport = viewportBoundsRef.current;
+            const pointRes = await api.getIncidents(pointParams);
+            if (cancelled) return;
+            setIncidents([...(pointRes.data.incidents || []), ...zones]);
+            setTotalEventCount(pointRes.data.count || 0);
+          }
+          return;
         }
-        setLoading(false);
-        return;
-      }
 
-      const pointParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point', ...baseParams };
-      const zoneParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' };
+        const pointParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'point', ...baseParams };
+        const zoneParams = { dateFrom: effFrom, dateTo: effTo, geometryType: 'polygon' };
+        const [pointRes, zoneRes] = await Promise.all([
+          api.getIncidents(pointParams),
+          api.getIncidents(zoneParams),
+        ]);
 
-      const [pointRes, zoneRes] = await Promise.all([
-        api.getIncidents(pointParams),
-        api.getIncidents(zoneParams),
-      ]);
+        if (cancelled) return;
+        const pointCount = pointRes.data.count || 0;
+        const zoneCount = zoneRes.data.count || 0;
+        setTotalEventCount(pointCount + zoneCount);
 
-      if (cancelled) return;
-      const pointCount = pointRes.data.count || 0;
-      const zoneCount = zoneRes.data.count || 0;
-      setTotalEventCount(pointCount + zoneCount);
+        if (pointCount <= 100) {
+          setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
+          setViewportFiltering(false);
+          viewportFilteringRef.current = false;
+          return;
+        }
 
-      if (pointCount <= 100) {
-        setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
-        setViewportFiltering(false);
-        viewportFilteringRef.current = false;
-        setLoading(false);
-      } else {
         setViewportFiltering(true);
         viewportFilteringRef.current = true;
-
         if (viewportBoundsRef.current) {
           const [pointRes2, zoneRes2] = await Promise.all([
             api.getIncidents({ ...pointParams, viewport: viewportBoundsRef.current }),
@@ -426,48 +429,73 @@ export default function MapPage() {
         } else {
           setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
         }
-        setLoading(false);
+      } catch (err) {
+        if (!cancelled) setIncidentsError(err.message || 'Incidents could not be loaded.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
 
     doFetch();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu, isLargeRange, isRangeGated]);
+    return () => { cancelled = true; };
+  }, [dateRange.from, dateRange.to, filters.categoryId, filters.severity, closeMapMenu, isLargeRange, isRangeGated, incidentsRefreshKey]);
 
   // Fetch domains, categories, and zone categories
   useEffect(() => {
-    const load = () => {
-      api.getDomains()
-        .then((res) => setDomains(res.data.domains || []))
-        .catch(() => setDomains([]));
-      api.getCategories()
-        .then((res) => setCategories(res.data.categories || []))
-        .catch(() => setCategories([]));
-      api.getZoneCategories()
-        .then((res) => setZoneCategories(res.data.categories || res.data.zoneCategories || []))
-        .catch(() => setZoneCategories([]));
+    let cancelled = false;
+    const load = async ({ silent = false } = {}) => {
+      if (!silent) {
+        setTaxonomyLoading(true);
+        setTaxonomyError('');
+      }
+      try {
+        const [domainsRes, categoriesRes, zoneRes] = await Promise.all([
+          api.getDomains(),
+          api.getCategories(),
+          api.getZoneCategories(),
+        ]);
+        if (cancelled) return;
+        setDomains(domainsRes.data.domains || []);
+        setCategories(categoriesRes.data.categories || []);
+        setZoneCategories(zoneRes.data.categories || zoneRes.data.zoneCategories || []);
+        setTaxonomyError('');
+      } catch (err) {
+        if (!cancelled && !silent) setTaxonomyError(err.message || 'Map filters could not be loaded.');
+      } finally {
+        if (!cancelled && !silent) setTaxonomyLoading(false);
+      }
     };
     load();
-    return subscribeTaxonomyEvents(load);
-  }, []);
+    const unsubscribe = subscribeTaxonomyEvents(() => load({ silent: true }));
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [taxonomyRefreshKey]);
 
   // Fetch saved incidents
-  const refreshSaves = useCallback(async () => {
+  const refreshSaves = useCallback(async ({ silent = false } = {}) => {
     if (!isAuthenticated) {
       setSavedIncidents([]);
       setSavedIds(new Set());
+      setSavedError('');
+      setSavedLoading(false);
       return;
+    }
+    if (!silent) {
+      setSavedLoading(true);
+      setSavedError('');
     }
     try {
       const res = await api.listSavedIncidents();
       const list = res.data.incidents || [];
       setSavedIncidents(list);
       setSavedIds(new Set(list.map((i) => i.id)));
+      setSavedError('');
     } catch (err) {
-      console.error('Failed to refresh saved incidents:', err);
+      if (!silent) setSavedError(err.message || 'Saved incidents could not be loaded.');
+    } finally {
+      if (!silent) setSavedLoading(false);
     }
   }, [isAuthenticated]);
 
@@ -638,15 +666,22 @@ export default function MapPage() {
   const fetchDetail = useCallback(async (incidentId, opts = {}) => {
     if (!incidentId) {
       setDetail(null);
+      setDetailError('');
       return;
     }
-    if (!opts.silent) setDetailLoading(true);
+    if (!opts.silent) {
+      setDetailLoading(true);
+      setDetailError('');
+    }
     try {
       const res = await api.getIncident(incidentId);
       setDetail(mapIncidentForShared(res.data));
+      setDetailError('');
     } catch (err) {
-      console.error('Failed to fetch incident detail:', err);
-      if (!opts.silent) setDetail(null);
+      if (!opts.silent) {
+        setDetail(null);
+        setDetailError(err.message || 'Incident details could not be loaded.');
+      }
     } finally {
       if (!opts.silent) setDetailLoading(false);
     }
@@ -729,8 +764,9 @@ export default function MapPage() {
           .then(([pointRes, zoneRes]) => {
             setIncidents([...(pointRes.data.incidents || []), ...(zoneRes.data.incidents || [])]);
             setTotalEventCount((pointRes.data.count || 0) + (zoneRes.data.count || 0));
+            setIncidentsError('');
           })
-          .catch(() => setIncidents([]));
+          .catch((err) => setIncidentsError(err.message || 'Incidents could not be refreshed.'));
       }
     },
     [dateRange.from, dateRange.to, filters.categoryId, filters.severity, setSearchParams]
@@ -738,10 +774,12 @@ export default function MapPage() {
 
   // ─── SSE Connection ───
   useEffect(() => {
-    // The stream endpoint requires auth — anonymous visitors would 401 and
-    // EventSource would retry forever, so don't connect without a session.
-    if (typeof EventSource === 'undefined' || !isAuthenticated) return;
+    if (typeof EventSource === 'undefined' || !isAuthenticated) {
+      setActivityStatus('signed-out');
+      return;
+    }
 
+    setActivityStatus('connecting');
     const token = localStorage.getItem('intelmap24_public_token');
     const url = `${API_BASE_URL}/incidents/stream`;
     const fullUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
@@ -749,7 +787,7 @@ export default function MapPage() {
     esRef.current = es;
 
     es.onopen = () => {
-      console.log('[SSE] Connected to IntelMap24 stream');
+      setActivityStatus('live');
     };
 
     es.onmessage = (e) => {
@@ -821,15 +859,15 @@ export default function MapPage() {
       }
     };
 
-    es.onerror = (err) => {
-      console.warn('[SSE] Connection error, will retry:', err);
+    es.onerror = () => {
+      setActivityStatus('reconnecting');
     };
 
     return () => {
       es.close();
       esRef.current = null;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activityRetryKey]);
 
   // ─── Mark unread items based on lastSeenTimestamp ───
   useEffect(() => {
@@ -1266,7 +1304,7 @@ export default function MapPage() {
       } else {
         setSavedIncidents((prev) => prev.filter((i) => i.id !== incidentId));
       }
-      await refreshSaves();
+      await refreshSaves({ silent: true });
     },
     [incidents, refreshSaves]
   );
@@ -1702,6 +1740,14 @@ export default function MapPage() {
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <MapLoadingIndicator loading={loading} hasData={incidents.length > 0} />
+        {incidentsError && (
+          <div style={{ position: 'absolute', top: 'calc(66px * var(--admin-ui-scale, 1))', left: '50%', transform: 'translateX(-50%)', zIndex: 36, width: 'min(430px, calc(100vw - 32px))' }}>
+            <ErrorBanner
+              message={`Incidents could not be loaded. ${incidentsError}`}
+              onRetry={() => setIncidentsRefreshKey((key) => key + 1)}
+            />
+          </div>
+        )}
         {!powerSearchMode && (
           <WorkspaceRail
             items={railItems}
@@ -1720,6 +1766,12 @@ export default function MapPage() {
             onClose={() => setActiveDrawer(null)}
             domains={domains}
             zoneCategories={zoneCategories}
+            taxonomyLoading={taxonomyLoading}
+            taxonomyError={taxonomyError}
+            onRetryTaxonomy={() => setTaxonomyRefreshKey((key) => key + 1)}
+            incidentsLoading={loading}
+            incidentsError={incidentsError}
+            onRetryIncidents={() => setIncidentsRefreshKey((key) => key + 1)}
             activeDomainSlugs={visibleDomainSlugs}
             activeZoneSlugs={activeZoneSlugs}
             onToggleDomain={handleToggleDomain}
@@ -1734,10 +1786,15 @@ export default function MapPage() {
             activeIncidents={activeIncidents}
 
             activities={activities}
+            activityStatus={activityStatus}
+            onRetryActivity={() => setActivityRetryKey((key) => key + 1)}
             activityLastSeenAt={lastSeenTimestamp}
             onMarkAllActivitySeen={handleMarkAllRead}
             onSelectActivityIncident={handleSelectEventFromActivity}
             savedIncidents={visibleSavedIncidents}
+            savedLoading={savedLoading}
+            savedError={savedError}
+            onRetrySaved={() => refreshSaves()}
             onSelectSavedIncident={handleSelectIncident}
             onUnsaveIncident={(id) => handleSaveChange(id, false)}
             autoZoomEnabled={autoZoomEnabled}
@@ -2006,38 +2063,17 @@ export default function MapPage() {
               overflow: 'hidden',
             }}
           >
-            {detailLoading || !detail?.incident ? (
-              <div
-                style={{
-                  flex: 1,
-                  padding: 'calc(20px * var(--admin-ui-scale))',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Sidebar-shaped skeleton — the panel arrives composed */}
-                <div style={{ display: 'flex', gap: 'calc(8px * var(--admin-ui-scale))', marginBottom: 'calc(18px * var(--admin-ui-scale))' }}>
-                  <Skeleton width="72px" height="20px" style={{ borderRadius: 'var(--radius-pill)' }} />
-                  <Skeleton width="92px" height="20px" style={{ borderRadius: 'var(--radius-pill)' }} />
-                  <Skeleton width="60px" height="20px" style={{ borderRadius: 'var(--radius-pill)' }} />
-                </div>
-                <Skeleton height="26px" width="78%" style={{ marginBottom: 'calc(10px * var(--admin-ui-scale))' }} />
-                <Skeleton height="14px" width="46%" style={{ marginBottom: 'calc(22px * var(--admin-ui-scale))' }} />
-                {['86%', '68%', '76%'].map((w, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'calc(10px * var(--admin-ui-scale))', marginBottom: 'calc(12px * var(--admin-ui-scale))' }}>
-                    <Skeleton width="15px" height="15px" style={{ borderRadius: '50%', flexShrink: 0 }} />
-                    <Skeleton height="12px" width={w} />
-                  </div>
-                ))}
-                <div style={{ display: 'flex', gap: 'calc(10px * var(--admin-ui-scale))', margin: 'calc(20px * var(--admin-ui-scale)) 0' }}>
-                  {[0, 1, 2].map((i) => (
-                    <Skeleton key={i} height="72px" style={{ flex: 1 }} />
-                  ))}
-                </div>
-                <Skeleton height="12px" style={{ marginBottom: 'calc(9px * var(--admin-ui-scale))' }} />
-                <Skeleton height="12px" style={{ marginBottom: 'calc(9px * var(--admin-ui-scale))' }} />
-                <Skeleton height="12px" width="58%" />
+            {detailLoading || (!detail?.incident && !detailError) ? (
+              panelMode === 'zone' ? <ZoneSidebarSkeleton /> : <IncidentSidebarSkeleton />
+            ) : detailError ? (
+              <div style={{ padding: 20 }}>
+                <ErrorState
+                  title="Details unavailable"
+                  message={detailError}
+                  onRetry={() => fetchDetail(selectedIncident.id)}
+                  onBack={handleBack}
+                  backLabel="Close"
+                />
               </div>
             ) : (
               <>
@@ -2148,11 +2184,15 @@ export default function MapPage() {
             total={psTotal}
             loading={psLoading}
             error={psError}
+            onRetry={() => runPowerSearch(true)}
             hasMore={psResults.length < psTotal}
             onLoadMore={handlePowerSearchLoadMore}
             savedIds={savedIds}
             domains={psDomains}
             categories={categories}
+            taxonomyLoading={taxonomyLoading}
+            taxonomyError={taxonomyError}
+            onRetryTaxonomy={() => setTaxonomyRefreshKey((key) => key + 1)}
             selectedIncidentId={selectedIncident?.id || null}
             isAuthenticated={isAuthenticated}
             onSignInRequest={openSignInModal}
@@ -2172,6 +2212,9 @@ export default function MapPage() {
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         incidents={incidents}
+        incidentsLoading={loading}
+        incidentsError={incidentsError}
+        onRetryIncidents={() => setIncidentsRefreshKey((key) => key + 1)}
         savedIds={savedIds}
         actions={paletteActions}
         onSelectIncident={handleCommandPaletteSelectIncident}

@@ -1,3 +1,5 @@
+import { simulateNetworkRequest } from '@shared/utils/networkSimulation.js';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3100/api/v1';
 
 function getToken() {
@@ -21,6 +23,7 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
+  await simulateNetworkRequest(path, options);
   const res = await fetch(url, {
     ...options,
     headers,

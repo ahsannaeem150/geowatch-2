@@ -13225,3 +13225,29 @@ test(mobile): verify initial reveal, forward/reverse scroll, ESLint and release 
 
 feat(mobile): unify History and Bookmarks with domain/zone-aware rows, locations, compact timestamps, and shared viewport reveal animations.
 test(mobile): verify incident/zone rows, dark/light layouts, scrolling and selection on physical device; ESLint and release build passed.
+
+
+
+
+feat(web): add dev-only delayed/error network modes for manual shimmer and failure-state review across all three apps.
+test(web): verify timed loading, simulated failures, auth preservation, normal recovery, media delay, and all production builds.
+
+
+
+
+feat(web): add detail-only error simulation so incident/zone lists remain usable while detail failure UI is reviewed.
+test(web): verify normal directory loading and local detail failures across all three apps, with full error mode preserved.
+
+
+
+
+feat(user-web): add layout-matched shimmers, modern recoverable errors, taxonomy/filter retries, and honest map/activity states.
+fix(user-web): prevent endless map/detail loading, misleading empty states, and silent saved/action failures while preserving stale content.
+test(user-web): verify About, map/drawers, palette, Power Search, directories, incident/zone details, recovery, light theme, and all three web builds.
+
+
+
+
+fix(user-web): align incident/zone sidebar and full-page skeletons with real timeline structures, spines, scrolling, and measured dimensions.
+style(user-web): remove redundant Power Search spinner and stabilize category filter labels.
+test(user-web): compare repeated real-vs-loading screenshots and DOM measurements; verify stable filters, scrollable skeletons, and all web builds.

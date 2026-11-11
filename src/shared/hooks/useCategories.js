@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { subscribeTaxonomyEvents } from '../services/taxonomy-events.js';
+import { simulateNetworkRequest } from '../utils/networkSimulation.js';
 
 const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:3100/api/v1';
 
@@ -11,6 +12,7 @@ async function fetchCategories() {
   if (cachePromise) return cachePromise;
 
   cachePromise = (async () => {
+    await simulateNetworkRequest('/categories');
     const res = await fetch(`${API_BASE}/categories`);
     const data = await res.json();
     if (!data.success) throw new Error(data.message || 'Failed to fetch categories');
@@ -97,6 +99,19 @@ export function useCategories() {
     return () => { cancelled = true; };
   }, []);
 
+  const retry = useCallback(() => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+    return refreshCategories()
+      .then((data) => {
+        setState({ categories: data.categories, domains: data.domains, loading: false, error: null });
+        return data;
+      })
+      .catch((err) => {
+        setState({ categories: [], domains: [], loading: false, error: err.message });
+        throw err;
+      });
+  }, []);
+
   const getCategoryById = useCallback((id) => {
     return cache?.categoryById.get(id) || null;
   }, []);
@@ -109,7 +124,7 @@ export function useCategories() {
     return cache?.categoriesByDomain.get(domainId) || [];
   }, []);
 
-  return { ...state, getCategoryById, getCategoryBySlug, getCategoriesByDomain };
+  return { ...state, retry, getCategoryById, getCategoryBySlug, getCategoriesByDomain };
 }
 
 export { fetchCategories };

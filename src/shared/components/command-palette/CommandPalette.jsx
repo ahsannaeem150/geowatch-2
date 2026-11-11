@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, Command, X, AlertCircle, MapPin, Hexagon, ArrowRight } from 'lucide-react';
 import { API_BASE_URL } from '../../constants.js';
+import { Skeleton } from '../Skeleton.jsx';
+import { ErrorBanner, ErrorState } from '../AsyncStates.jsx';
+import { simulateNetworkRequest } from '../../utils/networkSimulation.js';
 import {
   parseCoordinates,
   getZoomForLocation,
@@ -19,6 +22,23 @@ import {
   StatusRow,
   BridgeItem,
 } from './rows.jsx';
+
+function PaletteSkeleton({ rows = 5 }) {
+  return (
+    <div role="status" aria-label="Loading search results" aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+          <Skeleton width="36px" height="36px" style={{ borderRadius: 'var(--radius-sm)', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <Skeleton height="13px" width={`${62 + (i % 3) * 10}%`} style={{ marginBottom: 8 }} />
+            <Skeleton height="10px" width="46%" />
+          </div>
+          <Skeleton width="48px" height="20px" style={{ borderRadius: 'var(--radius-pill)' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const SCOPES = [
   { key: 'all', label: 'All', icon: Search },
@@ -77,6 +97,9 @@ export default function CommandPalette({
   open,
   onClose,
   incidents = [],
+  incidentsLoading = false,
+  incidentsError = '',
+  onRetryIncidents,
   savedIds = new Set(),
   actions = [],
   onSelectIncident,
@@ -96,9 +119,11 @@ export default function CommandPalette({
   const [locationResults, setLocationResults] = useState([]);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState(false);
+  const [locationRetryKey, setLocationRetryKey] = useState(0);
   const [backendResults, setBackendResults] = useState([]);
   const [backendLoading, setBackendLoading] = useState(false);
   const [backendError, setBackendError] = useState(false);
+  const [backendRetryKey, setBackendRetryKey] = useState(0);
   const inputRef = useRef(null);
   const savedSet = useMemo(() => (savedIds instanceof Set ? savedIds : new Set(savedIds)), [savedIds]);
 
@@ -278,6 +303,7 @@ export default function CommandPalette({
       setLocationLoading(true);
       setLocationError(false);
       try {
+        await simulateNetworkRequest(`/geocode/search?q=${encodeURIComponent(query.trim())}`);
         const res = await fetch(
           `${API_BASE_URL}/geocode/search?q=${encodeURIComponent(query.trim())}`,
           { signal: controller.signal }
@@ -298,7 +324,7 @@ export default function CommandPalette({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, q, coordinateHit, open]);
+  }, [query, q, coordinateHit, open, locationRetryKey]);
 
   // ─── Backend incident/zone search (full database, not just map-loaded) ───
   useEffect(() => {
@@ -313,6 +339,7 @@ export default function CommandPalette({
       setBackendLoading(true);
       setBackendError(false);
       try {
+        await simulateNetworkRequest(`/incidents/search?q=${encodeURIComponent(query.trim())}&limit=20`);
         const res = await fetch(
           `${API_BASE_URL}/incidents/search?q=${encodeURIComponent(query.trim())}&limit=20`,
           { signal: controller.signal }
@@ -333,7 +360,7 @@ export default function CommandPalette({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, q, coordinateHit, open]);
+  }, [query, q, coordinateHit, open, backendRetryKey]);
 
   const filteredLocations = useMemo(() => {
     const list = [];
@@ -471,6 +498,12 @@ export default function CommandPalette({
     (incidentScopes && backendLoading) || (locationScopes && locationLoading && !!q);
   const showIncidentError = incidentScopes && backendError && !backendLoading;
   const showLocationError = locationScopes && locationError && !locationLoading;
+  const showInitialLoading = incidentScopes && incidentsLoading && !q && normalizedIncidents.length === 0;
+  const showInitialError = incidentScopes && !incidentsLoading && incidentsError && !q && normalizedIncidents.length === 0;
+  const showStaleIncidentsError = incidentScopes && incidentsError && !q && normalizedIncidents.length > 0;
+  const showSearchSkeleton = incidentScopes && backendLoading && mergedIncidents.length === 0;
+  const showLocationSkeleton = locationScopes && locationLoading && filteredLocations.length === 0;
+  const showSkeleton = showInitialLoading || showSearchSkeleton || showLocationSkeleton;
 
   const bridgeTitle = (bridgeLabel ?? DEFAULT_BRIDGE_LABELS[scope] ?? DEFAULT_BRIDGE_LABELS.all)
     .replace('{query}', query);
@@ -633,17 +666,45 @@ export default function CommandPalette({
             padding: '6px 12px 14px',
           }}
         >
-          {/* Non-selectable status rows: fetch progress + distinct errors */}
-          {isSearching && <StatusRow kind="loading" message="Searching incidents, zones and places…" />}
-          {showIncidentError && (
-            <StatusRow kind="error" message="Incident search unavailable" hint="edit the query to retry" />
+          {isSearching && flatResults.length > 0 && <StatusRow kind="loading" message="Searching incidents, zones and places…" />}
+          {showStaleIncidentsError && (
+            <ErrorBanner message="Map incidents could not be refreshed." onRetry={onRetryIncidents} style={{ marginBottom: 6 }} />
           )}
-          {showLocationError && (
-            <StatusRow kind="error" message="Location search unavailable" hint="edit the query to retry" />
+          {showIncidentError && flatResults.length > 0 && (
+            <ErrorBanner message="Full incident search could not be completed." onRetry={() => setBackendRetryKey((key) => key + 1)} style={{ marginBottom: 6 }} />
+          )}
+          {showLocationError && flatResults.length > 0 && (
+            <ErrorBanner message="Location search could not be completed." onRetry={() => setLocationRetryKey((key) => key + 1)} style={{ marginBottom: 6 }} />
           )}
 
-          {flatResults.length === 0 ? (
-            !isSearching && (
+          {showSkeleton ? (
+            <PaletteSkeleton rows={6} />
+          ) : showInitialError ? (
+            <ErrorState
+              variant="inline"
+              title="Search is temporarily unavailable"
+              message={incidentsError}
+              onRetry={onRetryIncidents}
+              style={{ margin: 8 }}
+            />
+          ) : showIncidentError && flatResults.length === 0 ? (
+            <ErrorState
+              variant="inline"
+              title="Incident search unavailable"
+              message="The full incident search could not be completed. Check your connection and try again."
+              onRetry={() => setBackendRetryKey((key) => key + 1)}
+              style={{ margin: 8 }}
+            />
+          ) : showLocationError && flatResults.length === 0 ? (
+            <ErrorState
+              variant="inline"
+              title="Location search unavailable"
+              message="Places could not be searched right now. Check your connection and try again."
+              onRetry={() => setLocationRetryKey((key) => key + 1)}
+              style={{ margin: 8 }}
+            />
+          ) : flatResults.length === 0 ? (
+            !isSearching && !incidentsLoading && (
               <EmptyState
                 query={query}
                 onAdvanced={onOpenAdvanced ? openAdvanced : undefined}

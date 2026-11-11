@@ -73,13 +73,14 @@ export default function WorkspaceTopBar({
       return;
     }
     let cancelled = false;
+    setSavedCount('…');
     api
       .listSavedIncidents()
       .then((res) => {
         if (!cancelled) setSavedCount((res.data?.incidents || []).length);
       })
       .catch(() => {
-        if (!cancelled) setSavedCount(null);
+        if (!cancelled) setSavedCount('!');
       });
     return () => {
       cancelled = true;
@@ -499,6 +500,7 @@ export default function WorkspaceTopBar({
                       <span style={{ flex: 1, textAlign: 'left' }}>Saved incidents</span>
                       {savedCount !== null && (
                         <span
+                          title={savedCount === '!' ? 'Saved count unavailable. Open Saved incidents to retry.' : 'Saved incidents'}
                           style={{
                             fontSize: 'calc(10px * var(--admin-ui-scale))',
                             fontWeight: 700,
