@@ -468,19 +468,31 @@ export const XPostCard = React.memo(function XPostCard({ post }) {
   }
 
   if (!tweet) {
+    const skeletonPalette = tweetPalette(mode);
     return (
       <View
         style={[
-          styles.xpCard,
-          { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle },
+          styles.twCard,
+          { backgroundColor: skeletonPalette.card, borderColor: skeletonPalette.border },
         ]}>
-        <SkeletonGroup label="Loading post" style={styles.xpSkeletonRow}>
-          <ShimmerBlock style={[styles.xpSkeletonAvatar, { backgroundColor: theme.bgHover }]} />
-          <View style={styles.xpSkeletonCol}>
-            <ShimmerBlock style={[styles.xpSkeletonBar, { backgroundColor: theme.bgHover }]} />
-            <ShimmerBlock
-              style={[styles.xpSkeletonBar, styles.xpSkeletonBarShort, { backgroundColor: theme.bgHover }]}
-            />
+        <SkeletonGroup label="Loading post">
+          <View style={styles.xpHead}>
+            <ShimmerBlock style={styles.xpSkeletonAvatar} />
+            <View style={styles.xpSkeletonCol}>
+              <ShimmerBlock style={styles.xpSkeletonBar} />
+              <ShimmerBlock style={[styles.xpSkeletonBar, styles.xpSkeletonBarShort]} />
+            </View>
+            <ShimmerBlock style={styles.xpSkeletonGlyph} />
+          </View>
+          <ShimmerBlock style={styles.xpSkeletonText} />
+          <ShimmerBlock style={[styles.xpSkeletonText, styles.xpSkeletonTextShort]} />
+          <ShimmerBlock style={styles.xpSkeletonTime} />
+          <View style={[styles.twStatsBar, { borderTopColor: skeletonPalette.border }]}>
+            {[0, 1, 2].map((i) => (
+              <ShimmerBlock key={i} style={styles.xpSkeletonStat} />
+            ))}
+            <View style={styles.twStatSpacer} />
+            <ShimmerBlock style={styles.xpSkeletonLink} />
           </View>
         </SkeletonGroup>
       </View>
@@ -1419,11 +1431,6 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '500',
   },
-  xpSkeletonRow: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-  },
   xpSkeletonAvatar: {
     width: 34,
     height: 34,
@@ -1440,6 +1447,32 @@ const styles = StyleSheet.create({
   },
   xpSkeletonBarShort: {
     width: '40%',
+  },
+  xpSkeletonGlyph: {
+    width: 10,
+    height: 14,
+  },
+  xpSkeletonText: {
+    width: '94%',
+    height: 13,
+    marginTop: 10,
+  },
+  xpSkeletonTextShort: {
+    width: '66%',
+    marginTop: 6,
+  },
+  xpSkeletonTime: {
+    width: '48%',
+    height: 10,
+    marginTop: 12,
+  },
+  xpSkeletonStat: {
+    width: 24,
+    height: 12,
+  },
+  xpSkeletonLink: {
+    width: 58,
+    height: 12,
   },
   xpNotice: {
     borderRadius: 8,

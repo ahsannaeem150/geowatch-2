@@ -475,7 +475,12 @@ export default function DirectoryScreen({ kind, overlay }) {
 
         {/* results body */}
         {loading && !results.length ? (
-          <ResultRowsSkeleton rows={8} />
+          <ScrollView
+            contentContainerStyle={styles.listPad}
+            overScrollMode="never"
+            keyboardShouldPersistTaps="handled">
+            <ResultRowsSkeleton rows={8} />
+          </ScrollView>
         ) : error && !results.length ? (
           <ErrorState
             title={`Couldn’t load ${isZones ? 'zones' : 'incidents'}`}

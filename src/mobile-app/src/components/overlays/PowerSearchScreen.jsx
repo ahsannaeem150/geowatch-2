@@ -1330,7 +1330,16 @@ function ResultsSheet({
               },
             ]}>
             {(loading && total === 0) || !entryReady ? (
-              <ResultRowsSkeleton rows={8} label="Searching incidents and zones" />
+              <DetentScrollView
+                scrollRef={listScrollRef}
+                edge={listEdge}
+                bottomPadStyle={bottomPadStyle}
+                style={styles.stripList}
+                contentContainerStyle={styles.resultsPad}
+                keyboardShouldPersistTaps="handled"
+                overScrollMode="never">
+                <ResultRowsSkeleton rows={8} label="Searching incidents and zones" />
+              </DetentScrollView>
             ) : error && total === 0 ? (
               <ErrorState
                 title="Search unavailable"

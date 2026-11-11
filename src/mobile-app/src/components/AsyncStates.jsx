@@ -79,20 +79,80 @@ export function FilterRowsSkeleton({ rows = 6, label = 'Loading filters' }) {
   );
 }
 
+function DirectoryResultRow({ theme, twoLines }) {
+  return (
+    <View style={[styles.resultRow, { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle }]}>
+      <View style={[styles.resultAccent, { backgroundColor: theme.borderSubtle }]} />
+      <View style={styles.resultBody}>
+        <ShimmerBlock style={styles.resultTitle} />
+        {twoLines ? <ShimmerBlock style={styles.resultTitleSecond} /> : null}
+        <View style={styles.resultCategory}>
+          <ShimmerBlock style={styles.resultCategoryDot} />
+          <ShimmerBlock style={styles.resultCategoryLine} />
+        </View>
+        <View style={styles.resultPillRow}>
+          <ShimmerBlock style={styles.resultPill} />
+          <ShimmerBlock style={styles.resultPillSecond} />
+          <ShimmerBlock style={styles.resultDate} />
+        </View>
+        <View style={styles.resultLocationRow}>
+          <ShimmerBlock style={styles.resultLocationIcon} />
+          <ShimmerBlock style={styles.resultLocation} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function SavedResultRow({ theme, twoLines, last }) {
+  return (
+    <View style={[styles.savedRow, last && styles.savedRowLast, { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle }]}>
+      <View style={[styles.savedAccent, { backgroundColor: theme.borderSubtle }]} />
+      <View style={styles.savedBody}>
+        <ShimmerBlock style={styles.savedTitle} />
+        {twoLines ? <ShimmerBlock style={styles.savedTitleSecond} /> : null}
+        <View style={styles.savedMeta}>
+          <ShimmerBlock style={styles.savedMetaLeft} />
+          <ShimmerBlock style={styles.resultTime} />
+        </View>
+        <View style={[styles.resultLocationRow, styles.savedLocationRow]}>
+          <ShimmerBlock style={styles.resultLocationIcon} />
+          <ShimmerBlock style={styles.savedLocation} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function ResultRowsSkeleton({ rows = 6, label = 'Loading results', saved = false }) {
   const { theme } = useTheme();
   return (
-    <SkeletonGroup label={label} style={styles.resultSkeleton}>
+    <SkeletonGroup label={label} style={saved ? styles.savedSkeleton : styles.resultSkeleton}>
       {Array.from({ length: rows }, (_, i) => (
-        <View key={i} style={[styles.resultRow, { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle }]}>
-          <View style={[styles.resultAccent, { backgroundColor: theme.borderSubtle }]} />
-          <View style={styles.resultBody}>
-            <ShimmerBlock style={styles.resultTitle} />
-            <View style={styles.resultMeta}>
-              <ShimmerBlock style={styles.resultMetaLeft} />
-              <ShimmerBlock style={styles.resultTime} />
+        saved ? (
+          <SavedResultRow key={i} theme={theme} twoLines={i % 3 === 0} last={i === rows - 1} />
+        ) : (
+          <DirectoryResultRow key={i} theme={theme} twoLines={i % 3 === 0} />
+        )
+      ))}
+    </SkeletonGroup>
+  );
+}
+
+export function CommandRowsSkeleton({ rows = 5, label = 'Searching incidents, zones and locations' }) {
+  return (
+    <SkeletonGroup label={label} style={styles.commandSkeleton}>
+      <ShimmerBlock style={styles.commandSection} />
+      {Array.from({ length: rows }, (_, i) => (
+        <View key={i}>
+          {i === 4 ? <ShimmerBlock style={styles.commandSection} /> : null}
+          <View style={styles.commandRow}>
+            <ShimmerBlock style={styles.commandDot} />
+            <View style={styles.commandBody}>
+              <ShimmerBlock style={styles.commandTitle} />
+              <ShimmerBlock style={styles.commandSubtitle} />
             </View>
-            <ShimmerBlock style={saved ? styles.resultLocationSaved : styles.resultLocation} />
+            <ShimmerBlock style={styles.commandKind} />
           </View>
         </View>
       ))}
@@ -100,32 +160,50 @@ export function ResultRowsSkeleton({ rows = 6, label = 'Loading results', saved 
   );
 }
 
+function TimelineSectionSkeleton({ updates = false }) {
+  return (
+    <View style={[styles.timelineSection, updates && styles.timelineSectionUpdates]}>
+      <ShimmerBlock style={[styles.timelineSectionLine, updates && styles.timelineSectionLineUpdates]} />
+    </View>
+  );
+}
+
+function TimelineNodeSkeleton({ theme, detailed = false }) {
+  return (
+    <View style={styles.timelineNode}>
+      <View style={[styles.timelineDot, { borderColor: theme.accentLight }]} />
+      <View style={styles.timelineMeta}>
+        <ShimmerBlock style={styles.timelineTime} />
+        <ShimmerBlock style={styles.timelineVerified} />
+      </View>
+      <View style={[styles.timelineCard, { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle }]}>
+        <ShimmerBlock style={styles.timelineTitle} />
+        {detailed ? <ShimmerBlock style={styles.timelineTitleSecond} /> : null}
+        {detailed ? <ShimmerBlock style={styles.timelineText} /> : null}
+        <View style={styles.timelineFoot}>
+          <View />
+          <ShimmerBlock style={styles.timelineInspect} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function TimelineSkeleton({ updates = 3, zone = false }) {
   const { theme } = useTheme();
+  const nodes = Array.from({ length: updates }, (_, i) => (
+    <TimelineNodeSkeleton key={i} theme={theme} detailed={i === 1} />
+  ));
   return (
     <SkeletonGroup label={zone ? 'Loading zone timeline' : 'Loading incident timeline'} style={styles.timelineSkeleton}>
-      {Array.from({ length: updates }, (_, i) => (
-        <View key={i} style={styles.timelineNode}>
-          <View style={styles.timelineSpine}>
-            <View style={[styles.timelineDot, { borderColor: theme.accentLight }]} />
-            {i < updates - 1 ? <View style={[styles.timelineLine, { backgroundColor: theme.borderSubtle }]} /> : null}
-          </View>
-          <View style={[styles.timelineCard, { backgroundColor: theme.bgElevated, borderColor: theme.borderSubtle }]}>
-            <View style={styles.timelineHead}>
-              <ShimmerBlock style={styles.timelineType} />
-              <ShimmerBlock style={styles.timelineBadge} />
-            </View>
-            <ShimmerBlock style={styles.timelineTitle} />
-            <ShimmerBlock style={styles.timelineTitleSecond} />
-            <ShimmerBlock style={styles.timelineText} />
-            <View style={styles.timelineMediaGrid}>
-              {[0, 1, 2, 3].map((cell) => (
-                <ShimmerBlock key={cell} style={styles.timelineMedia} />
-              ))}
-            </View>
-          </View>
-        </View>
-      ))}
+      {!zone ? <TimelineSectionSkeleton /> : null}
+      <View style={styles.timeline}>{zone ? nodes : nodes[0]}</View>
+      {!zone ? (
+        <>
+          <TimelineSectionSkeleton updates />
+          <View style={styles.timeline}>{nodes.slice(1)}</View>
+        </>
+      ) : null}
     </SkeletonGroup>
   );
 }
@@ -209,138 +287,277 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterSkeleton: {
-    gap: 12,
-    paddingVertical: 4,
+    paddingVertical: 0,
   },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    minHeight: 32,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   filterCheckbox: {
-    width: 15,
-    height: 15,
-    borderRadius: 3,
+    width: 16,
+    height: 16,
+    borderRadius: 4,
   },
   filterLine: {
-    height: 11,
+    height: 12,
     width: '62%',
+  },
+  resultSkeleton: {},
+  resultRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 12,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  resultAccent: {
+    width: 3,
+  },
+  resultBody: {
+    flex: 1,
+    paddingVertical: 13,
+    paddingRight: 16,
+    paddingLeft: 13,
   },
   resultTitle: {
     height: 14,
     width: '82%',
+    marginBottom: 5,
+  },
+  resultTitleSecond: {
+    height: 14,
+    width: '62%',
+    marginBottom: 5,
+  },
+  resultCategory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 8,
   },
-  resultMetaLeft: {
+  resultCategoryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  resultCategoryLine: {
+    height: 11,
+    width: '34%',
+  },
+  resultPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resultPill: {
+    width: 78,
+    height: 18,
+    borderRadius: 4,
+  },
+  resultPillSecond: {
+    width: 72,
+    height: 18,
+    borderRadius: 4,
+  },
+  resultDate: {
+    height: 9,
+    width: 48,
+    marginLeft: 'auto',
+  },
+  resultLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 7,
+  },
+  resultLocationIcon: {
+    width: 10,
     height: 10,
-    width: '42%',
+    borderRadius: 5,
+  },
+  resultLocation: {
+    height: 11,
+    width: '66%',
   },
   resultTime: {
     height: 9,
     width: 34,
   },
-  resultLocation: {
-    height: 10,
-    width: '66%',
-    marginTop: 7,
+  savedSkeleton: {},
+  savedRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    paddingLeft: 12,
+    marginHorizontal: 14,
+    marginBottom: 8,
+    overflow: 'hidden',
   },
-  resultLocationSaved: {
-    height: 10,
-    width: '58%',
-    marginTop: 7,
+  savedRowLast: {
+    marginBottom: 0,
   },
-  timelineType: {
+  savedAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+  },
+  savedBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 5,
+  },
+  savedTitle: {
+    height: 14,
+    width: '84%',
+  },
+  savedTitleSecond: {
+    height: 14,
+    width: '61%',
+  },
+  savedMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  savedMetaLeft: {
     height: 10,
     width: '42%',
   },
-  timelineBadge: {
-    height: 16,
-    width: 54,
+  savedLocationRow: {
+    marginTop: 1,
   },
-  timelineTitle: {
-    height: 15,
-    width: '86%',
+  savedLocation: {
+    height: 11,
+    width: '58%',
+  },
+  commandSkeleton: {
+    paddingTop: 4,
+  },
+  commandSection: {
+    height: 9,
+    width: 96,
+    marginLeft: 4,
+    marginTop: 6,
     marginBottom: 8,
   },
+  commandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+  },
+  commandDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  commandBody: {
+    flex: 1,
+  },
+  commandTitle: {
+    height: 11,
+    width: '72%',
+  },
+  commandSubtitle: {
+    height: 9,
+    width: '48%',
+    marginTop: 4,
+  },
+  commandKind: {
+    height: 8,
+    width: 38,
+  },
+  timelineSkeleton: {},
+  timelineSection: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+  timelineSectionZone: {
+    paddingTop: 14,
+  },
+  timelineSectionUpdates: {
+    paddingTop: 18,
+  },
+  timelineSectionLine: {
+    width: 108,
+    height: 9,
+  },
+  timelineSectionLineUpdates: {
+    width: 58,
+  },
+  timeline: {
+    paddingLeft: 22,
+    paddingRight: 16,
+  },
+  timelineNode: {
+    marginBottom: 10,
+    paddingLeft: 16,
+  },
+  timelineDot: {
+    position: 'absolute',
+    left: 0,
+    top: 3,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    borderWidth: 2,
+  },
+  timelineMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 7,
+  },
+  timelineTime: {
+    width: 138,
+    height: 9,
+  },
+  timelineVerified: {
+    width: 42,
+    height: 8,
+  },
+  timelineCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 13,
+  },
+  timelineTitle: {
+    height: 14,
+    width: '86%',
+    marginBottom: 5,
+  },
   timelineTitleSecond: {
-    height: 15,
+    height: 14,
     width: '62%',
-    marginBottom: 12,
+    marginBottom: 5,
   },
   timelineText: {
     height: 11,
     width: '76%',
-    marginBottom: 12,
   },
-  resultSkeleton: {
-    gap: 8,
-  },
-  resultRow: {
+  timelineFoot: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 11,
-    overflow: 'hidden',
-  },
-  resultAccent: {
-    width: 3,
-    alignSelf: 'stretch',
-    marginLeft: -11,
-    marginVertical: -11,
-    marginRight: 10,
-  },
-  resultBody: {
-    flex: 1,
-  },
-  resultMeta: {
-    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
+    marginTop: 11,
   },
-  timelineSkeleton: {
-    gap: 12,
+  timelineCount: {
+    width: 30,
+    height: 10,
   },
-  timelineNode: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  timelineSpine: {
-    alignItems: 'center',
-    paddingTop: 18,
-    gap: 4,
-  },
-  timelineDot: {
-    width: 9,
+  timelineInspect: {
+    width: 58,
     height: 9,
-    borderRadius: 5,
-    borderWidth: 1.5,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 12,
-  },
-  timelineCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-  },
-  timelineHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  timelineMediaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-  },
-  timelineMedia: {
-    width: '48%',
-    height: 72,
-    borderRadius: 8,
   },
 });

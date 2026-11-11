@@ -5,11 +5,33 @@ import { Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMap } from '../../context/MapContext';
 import useTaxonomy from '../../hooks/useTaxonomy';
-import { ErrorBanner, FilterRowsSkeleton } from '../AsyncStates';
+import { ErrorBanner } from '../AsyncStates';
+import { Skeleton as ShimmerBlock, SkeletonGroup } from '../skeleton/Skeleton';
 
 // Layers sheet body — mirrors the prototype's renderLayers() (index.html):
 // two groups (Incident Domains, Zone Overlays), per-row eye toggle,
 // Show all/Hide all per group, live "n/total" counts.
+
+function LayerGroupSkeleton({ rows, label, theme }) {
+  return (
+    <SkeletonGroup label={label}>
+      <View style={styles.group}>
+        <ShimmerBlock style={styles.skGroupTitle} />
+        <View style={styles.bulk}>
+          <ShimmerBlock style={styles.skBulkBtn} />
+          <ShimmerBlock style={styles.skBulkBtn} />
+        </View>
+      </View>
+      {Array.from({ length: rows }, (_, i) => (
+        <View key={i} style={[styles.row, { borderBottomColor: theme.borderSubtle }]}>
+          <ShimmerBlock style={[styles.code, { borderColor: theme.borderSubtle }]} />
+          <ShimmerBlock style={styles.skName} />
+          <ShimmerBlock style={styles.skEye} />
+        </View>
+      ))}
+    </SkeletonGroup>
+  );
+}
 
 function LayerRow({ entry, visible, onToggle, theme }) {
   return (
@@ -138,7 +160,7 @@ export default function LayersSheet() {
       style={styles.scroll}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}>
-      {domainsLoading ? <FilterRowsSkeleton rows={8} label="Loading incident domains" /> : (
+      {domainsLoading ? <LayerGroupSkeleton rows={17} label="Loading incident domains" theme={theme} /> : (
         <>
           {domainsError ? <ErrorBanner message={domainsError} onRetry={retryDomains} style={styles.errorBanner} /> : null}
           <LayerGroup
@@ -160,7 +182,7 @@ export default function LayersSheet() {
           ))}
         </>
       )}
-      {zonecatsLoading ? <FilterRowsSkeleton rows={6} label="Loading zone overlays" /> : (
+      {zonecatsLoading ? <LayerGroupSkeleton rows={8} label="Loading zone overlays" theme={theme} /> : (
         <>
           {zonecatsError ? <ErrorBanner message={zonecatsError} onRetry={retryZonecats} style={styles.errorBanner} /> : null}
           <LayerGroup
@@ -247,6 +269,24 @@ const styles = StyleSheet.create({
   },
   nameOff: {
     textDecorationLine: 'line-through',
+  },
+  skGroupTitle: {
+    width: 142,
+    height: 10,
+  },
+  skBulkBtn: {
+    width: 54,
+    height: 22,
+    borderRadius: 5,
+  },
+  skName: {
+    flex: 1,
+    height: 12,
+  },
+  skEye: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
   errorBanner: {
     marginHorizontal: 16,

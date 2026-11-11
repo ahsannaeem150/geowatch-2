@@ -48,7 +48,7 @@ export function SkeletonGroup({ children, label = 'Loading content', style }) {
 }
 
 export function Skeleton({ style }) {
-  const { theme, mode } = useTheme();
+  const { theme } = useTheme();
   const motion = useContext(SkeletonMotionContext);
   const shimmerStyle = useAnimatedStyle(() => ({
     transform: [
@@ -61,15 +61,15 @@ export function Skeleton({ style }) {
   return (
     <View
       importantForAccessibility="no"
-      style={[styles.base, { backgroundColor: theme.bgElevated }, style]}>
+      style={[styles.base, { backgroundColor: theme.skeletonBase }, style]}>
       {motion?.reducedMotion ? null : (
         <Reanimated.View pointerEvents="none" style={[styles.shimmer, shimmerStyle]}>
           <Svg width="100%" height="100%">
             <Defs>
               <LinearGradient id="skeleton-shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor={theme.textPrimary} stopOpacity={0} />
-                <Stop offset="50%" stopColor={theme.textPrimary} stopOpacity={mode === 'light' ? 0.16 : 0.1} />
-                <Stop offset="100%" stopColor={theme.textPrimary} stopOpacity={0} />
+                <Stop offset="0%" stopColor={theme.skeletonHighlight} stopOpacity={0} />
+                <Stop offset="50%" stopColor={theme.skeletonHighlight} stopOpacity={1} />
+                <Stop offset="100%" stopColor={theme.skeletonHighlight} stopOpacity={0} />
               </LinearGradient>
             </Defs>
             <Rect width="100%" height="100%" fill="url(#skeleton-shimmer)" />

@@ -11,7 +11,7 @@ import {
 import { Search } from 'lucide-react-native';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { useTheme } from '../../context/ThemeContext';
-import { ErrorBanner, ErrorState, ResultRowsSkeleton } from '../AsyncStates';
+import { CommandRowsSkeleton, ErrorBanner, ErrorState } from '../AsyncStates';
 import { useOverlay } from '../../context/OverlayContext';
 import { useMap } from '../../context/MapContext';
 import { useSelection } from '../../context/SelectionContext';
@@ -235,7 +235,7 @@ export function CommandPaletteBody({ overlay }) {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled">
         {loading && !inc.rows.length && !zon.rows.length && !loc.length ? (
-          <ResultRowsSkeleton rows={5} label="Searching incidents, zones and locations" />
+          <CommandRowsSkeleton rows={5} />
         ) : error && !inc.rows.length && !zon.rows.length && !loc.length ? (
           <ErrorState
             title="Search unavailable"

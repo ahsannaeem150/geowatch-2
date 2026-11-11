@@ -284,13 +284,23 @@ export function ActivitySheetBody({ overlay }) {
   if (loading && !activity.length) {
     body = (
       <SkeletonGroup label="Loading activity">
-        {[0, 1, 2, 3].map((i) => (
-          <View key={i} style={styles.skItem}>
-            <ShimmerBlock style={styles.skIcon} />
-            <View style={styles.skTextCol}>
-              <ShimmerBlock style={styles.skTitle} />
-              <ShimmerBlock style={styles.skMeta} />
+        {[4, 4, 4].map((count, groupIndex) => (
+          <View key={groupIndex}>
+            <View style={styles.dayHead}>
+              <View style={[styles.dayRule, { backgroundColor: theme.borderSubtle }]} />
+              <ShimmerBlock style={styles.skDayLabel} />
+              <View style={[styles.dayRule, { backgroundColor: theme.borderSubtle }]} />
             </View>
+            {Array.from({ length: count }, (_, i) => (
+              <View key={i} style={[styles.skItem, { borderBottomColor: theme.borderSubtle }]}>
+                <ShimmerBlock style={styles.skIcon} />
+                <View style={styles.skTextCol}>
+                  <ShimmerBlock style={styles.skTitle} />
+                  <ShimmerBlock style={styles.skMeta} />
+                </View>
+                <ShimmerBlock style={styles.skTime} />
+              </View>
+            ))}
           </View>
         ))}
       </SkeletonGroup>
@@ -676,14 +686,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   skIcon: { width: 32, height: 32, borderRadius: 8 },
-  skTextCol: { flex: 1, gap: 7 },
-  skTitle: { height: 11, width: '78%' },
-  skMeta: { height: 9, width: '42%' },
+  skTextCol: { flex: 1, gap: 5 },
+  skTitle: { height: 11, width: '88%' },
+  skMeta: { height: 9, width: '62%' },
+  skTime: { width: 28, height: 9 },
+  skDayLabel: { width: 74, height: 9 },
   alCard: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -13305,3 +13305,10 @@ test(web): verify incident/zone sidebars and full pages on all three apps, live 
 feat(mobile): replace detail actions with title-row copy-link/bookmark icons and add zone descriptions with centered area/perimeter/vertices stats.
 fix(mobile): remove the empty Full Details action and keep long zone stat values aligned on one line.
 test(mobile): verify incident/zone sheets, copy-link toast, light/dark themes, large values, ESLint and release build on device.
+
+
+
+
+feat(mobile): match dark/light shimmer contrast and real card, timeline, activity, layers and evidence layouts without changing sheet gestures.
+fix(mobile): make directory/Power Search skeletons scroll with real bottom insets, remove forced timeline media tiles, and use detail-driven media/source placeholders.
+test(mobile): verify both themes, no-media and rich incident/zone flows, ESLint and release APK; release list scroll had zero missed deadlines, while the existing map-resize sheet drag still showed deadline misses.
